@@ -1,0 +1,141 @@
+{
+  "KnowledgeEntry": [
+    {
+      "path": "knowledge/papers/2101.00001/02-setup.md",
+      "title": "Section 2: setup",
+      "kind": "section",
+      "support": "derived",
+      "review": "awaiting",
+      "arxiv": "2101.00001",
+      "version": "v2",
+      "frontmatter": {
+        "kind": "section",
+        "arxiv": "2101.00001",
+        "version": "v2",
+        "support": "derived",
+        "review": "awaiting"
+      },
+      "passages": [
+        {
+          "label": "Imported",
+          "span": {
+            "startLine": 9,
+            "endLine": 9
+          }
+        },
+        {
+          "label": "Reconstructed",
+          "span": {
+            "startLine": 11,
+            "endLine": 12
+          }
+        },
+        {
+          "label": "Imported",
+          "span": {
+            "startLine": 16,
+            "endLine": 16
+          }
+        }
+      ],
+      "sectionSupport": [
+        {
+          "heading": "The bound (section support: unchecked)",
+          "support": "unchecked",
+          "span": {
+            "startLine": 14,
+            "endLine": 16
+          }
+        }
+      ],
+      "fileVersion": {
+        "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "observedAt": "2026-10-21T10:00:00Z"
+      }
+    }
+  ],
+  "KnowledgeArea": [
+    {
+      "id": "toy-algebra",
+      "title": "Toy algebra",
+      "span": {
+        "startLine": 10,
+        "endLine": 15
+      },
+      "entries": [
+        "knowledge/atoms/commuting-projections.md"
+      ]
+    }
+  ],
+  "Work": [
+    {
+      "key": "arxiv:2101.00001",
+      "title": "An example paper",
+      "authors": [
+        "Author, A."
+      ],
+      "year": 2021,
+      "arxiv": "2101.00001"
+    }
+  ],
+  "LibraryArtifact": [
+    {
+      "hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "address": {
+        "kind": "workspace",
+        "path": "knowledge/library/arxiv/2101.00001v2/paper.pdf"
+      },
+      "mime": "application/pdf",
+      "bytes": 63211,
+      "edition": "2101.00001v2",
+      "pages": 3
+    }
+  ],
+  "Edition": [
+    {
+      "id": "2101.00001v2",
+      "work": "arxiv:2101.00001",
+      "version": "v2",
+      "pageOffset": 24,
+      "pageOffsetSource": "footers",
+      "artifacts": [
+        {
+          "hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "address": {
+            "kind": "workspace",
+            "path": "knowledge/library/arxiv/2101.00001v2/paper.pdf"
+          },
+          "mime": "application/pdf",
+          "bytes": 63211,
+          "edition": "2101.00001v2",
+          "pages": 3
+        }
+      ],
+      "map": "knowledge/papers/2101.00001.md",
+      "sections": [
+        "knowledge/papers/2101.00001/02-setup.md"
+      ]
+    }
+  ],
+  "LocatorCandidate": [
+    {
+      "locator": {
+        "kind": "pdf-page",
+        "index": 3
+      },
+      "edition": "2101.00001v2",
+      "artifactHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "confidence": "inferred",
+      "note": "printed page 27 with offset 24 from footers"
+    },
+    {
+      "locator": {
+        "kind": "printed-page",
+        "label": "27"
+      },
+      "edition": "2101.00001v2",
+      "artifactHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "confidence": "ambiguous"
+    }
+  ]
+}

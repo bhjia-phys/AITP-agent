@@ -125,15 +125,15 @@
     - id: credentials
       name: '@deepseek-ai/dsh-credentials-local'
 
-    # The pi-ai multi-provider twin, mounted dormant: zero routes (and no extra
-    # models in the picker) until a `llm-pi-ai:` settings section supplies provider
-    # profiles — then those routes register live, keys resolving per request
-    # through their apiKeyEnv references, and drop again when the section empties.
-    # Supplying those profiles is exactly what the web Models page does. Which
-    # adapters exist is composition; which providers run is the user's settings
-    # document.
+    # GPT routes are application defaults, below profile/home and user settings.
+    # Credentials remain provider-owned and resolve only when a request needs them.
     - id: llm-pi-ai
       name: '@deepseek-ai/dsh-llm-pi-ai'
+      # Early defaults preserve later profile/home overrides and user settings.
+      config:
+        providers:
+          openai: {}
+          openai-codex: {}
 
     - id: session-persistence-jsonl
       name: '@deepseek-ai/dsh-session-persistence-jsonl'

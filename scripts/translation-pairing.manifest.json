@@ -1,4 +1,12 @@
 {
+  "manual": [
+    "README.md",
+    "current.md",
+    "agent/",
+    "aitp/",
+    "docs/agent/",
+    "packages/client/ui-brand-aitp/README.md"
+  ],
   "excluded": [
     ".agents/notes/AGENTS.md",
     ".agents/notes/implemented/AGENTS.md",

@@ -336,6 +336,11 @@
     - id: ui-brand-official
       name: '@deepseek-ai/dsh-client-ui-brand-official'
 
+    # Enabled by the AITP application overlay.
+    - id: ui-brand-aitp
+      name: '@deepseek-ai/dsh-client-ui-brand-aitp'
+      disabled: true
+
     - id: ui-attachment
       name: '@deepseek-ai/dsh-client-ui-attachment'
 

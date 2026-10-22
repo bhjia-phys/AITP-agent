@@ -1,0 +1,180 @@
+{
+  "Address": [
+    {
+      "kind": "workspace",
+      "path": "topics/research.md"
+    },
+    {
+      "kind": "absolute",
+      "path": "/opt/checkouts/libdemo"
+    },
+    {
+      "kind": "uri",
+      "uri": "https://arxiv.org/abs/2101.00001"
+    },
+    {
+      "kind": "artifact",
+      "artifact": "art-1",
+      "file": "figure.png"
+    },
+    {
+      "kind": "snapshot",
+      "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "kind": "episode",
+      "episode": "ep-1"
+    },
+    {
+      "kind": "entry",
+      "conversation": "conv-1",
+      "entry": "42"
+    },
+    {
+      "kind": "action",
+      "action": "act-1"
+    }
+  ],
+  "Locator": [
+    {
+      "kind": "lines",
+      "start": 10,
+      "end": 14
+    },
+    {
+      "kind": "heading",
+      "path": [
+        "Current work"
+      ],
+      "slug": "current-work"
+    },
+    {
+      "kind": "anchor",
+      "id": "continuation"
+    },
+    {
+      "kind": "quote",
+      "exact": "the damped schedule converges",
+      "prefix": "The ",
+      "suffix": " for"
+    },
+    {
+      "kind": "pdf-page",
+      "index": 3
+    },
+    {
+      "kind": "printed-page",
+      "label": "27"
+    },
+    {
+      "kind": "section",
+      "label": "2"
+    },
+    {
+      "kind": "equation",
+      "label": "2.4"
+    },
+    {
+      "kind": "tex-label",
+      "label": "eq:setup"
+    },
+    {
+      "kind": "region",
+      "pdfPage": 2,
+      "x": 0.1,
+      "y": 0.2,
+      "w": 0.5,
+      "h": 0.1
+    }
+  ],
+  "ResourceRef": [
+    {
+      "kind": "note",
+      "address": {
+        "kind": "workspace",
+        "path": "topics/spectra/selfconsistent/research.md"
+      },
+      "version": {
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "observedAt": "2026-10-21T10:00:00Z"
+      },
+      "locator": {
+        "kind": "lines",
+        "start": 10,
+        "end": 14
+      },
+      "label": "Mixing schedule"
+    },
+    {
+      "kind": "edition",
+      "address": {
+        "kind": "artifact",
+        "artifact": "lib-2101.00001v2",
+        "file": "paper.pdf"
+      },
+      "locator": {
+        "kind": "printed-page",
+        "label": "27"
+      },
+      "alternatives": [
+        {
+          "kind": "pdf-page",
+          "index": 3
+        }
+      ],
+      "edition": "2101.00001v2",
+      "artifactHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "FrozenRef": [
+    {
+      "kind": "note",
+      "address": {
+        "kind": "workspace",
+        "path": "topics/spectra/selfconsistent/stability/research.md"
+      },
+      "version": {
+        "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "observedAt": "2026-10-21T10:00:00Z"
+      }
+    },
+    {
+      "kind": "edition",
+      "address": {
+        "kind": "artifact",
+        "artifact": "lib-2101.00001v2",
+        "file": "paper.pdf"
+      },
+      "locator": {
+        "kind": "printed-page",
+        "label": "27"
+      },
+      "alternatives": [
+        {
+          "kind": "pdf-page",
+          "index": 3
+        }
+      ],
+      "edition": "2101.00001v2",
+      "artifactHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    },
+    {
+      "kind": "snapshot",
+      "address": {
+        "kind": "snapshot",
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    }
+  ],
+  "ThreadRef": [
+    {
+      "location": "topics/spectra/selfconsistent/stability/research.md",
+      "key": "alternative-static-definitions",
+      "name": "Alternative static definitions",
+      "version": {
+        "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "observedAt": "2026-10-21T10:00:00Z"
+      }
+    }
+  ]
+}

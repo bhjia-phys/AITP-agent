@@ -76,6 +76,12 @@
     },
     {
       "path": "../../packages/util/atomic-write"
+    },
+    {
+      "path": "../../packages/credentials/authorization"
+    },
+    {
+      "path": "../../packages/credentials/credentials"
     }
   ]
 }

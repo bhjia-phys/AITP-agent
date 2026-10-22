@@ -1,0 +1,5 @@
+# AITP owns product presentation through the public brand slot.
+- id: ui-brand-official
+  disabled: true
+- id: ui-brand-aitp
+  disabled: false

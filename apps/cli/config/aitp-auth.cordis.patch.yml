@@ -1,0 +1,12 @@
+# Authorization uses the normal local store without starting an agent turn.
+- id: headless-startup
+  disabled: true
+- id: headless-runner
+  disabled: true
+- id: credentials
+  disabled: false
+- id: authorization
+  disabled: false
+- insert:
+    - id: aitp-auth
+      name: '../src/aitp-auth.ts'

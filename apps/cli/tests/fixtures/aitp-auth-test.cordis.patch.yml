@@ -1,0 +1,3 @@
+- insert:
+    - id: aitp-auth-test-flow
+      name: './aitp-auth-flow.ts'

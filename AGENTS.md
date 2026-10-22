@@ -1,3 +1,19 @@
+# AITP-agent fork development
+
+This repository develops **aitp-agent** on the official DeepSeek Harness source. Read the repository-local [develop-aitp-agent Skill](.agents/skills/develop-aitp-agent/SKILL.md) and the affected sections of [current.md](current.md), [architecture](docs/agent/10-project-workspace.md), [plan](docs/agent/14-implementation-blueprint.md) and [research cases](docs/agent/13-research-journeys.md) before AITP work. The plan owns current scope and progress; architecture, cases and current.md must change with affected behavior. Preserve the agreed scientific design, modularity, human-defined goals and bounds, autonomous routine steps, editable collaboration rules and selective information display.
+
+The researcher selected runtime research memory/context integration and rejected fixed research-action constraints. Prioritize relevant scientific context and actual user choices; do not turn guidance or missing premises into automatic action gates.
+
+The active application is the Harness tree under `packages/` and `apps/`. `agent/` preserves the earlier Pi implementation and its evidence; it is not the new runtime. The portable research protocol remains the pinned `aitp/` submodule and owns its Skills. Do not duplicate its doctrine in the app or convert application requirements into prerequisites for those Skills. Scientific records stay ordinary files; runtime state and derived indexes remain separate.
+
+The 2026-10-22 request authorizes the Harness-derived branch, product naming and bounded GPT adaptation. It does not establish scientific acceptance, enable real research-note writes, migrate old runtime sessions, or authorize every planned research feature. Preserve dirty work and original notes; keep credentials, real research, and local trial records out of commits. The existing prohibition on hash-related AITP checks remains in force. Read-only/status requests make no ritual document edits.
+
+For imported AITP design and the retained `agent/` implementation, use the AITP development documentation above as the content owner; keep current.md and 10–14 as the existing design/progress/case homes, rather than duplicating them into Harness Agent Notes. The upstream engineering instructions below continue to govern Harness code, packaging and tests.
+
+AITP-owned documentation uses the explicit `manual` entries in [the existing documentation manifest](scripts/translation-pairing.manifest.json): maintain accurate language versions and links through review, preserve existing formatting and evidence, and create no translation hashes or mandatory sidecars. The root Chinese README describes this fork; it is updated with material English changes. The pairing and paragraph-wrap gates skip only these named document families/subtrees. All other upstream documentation retains its existing rules; this exception does not waive package code, behavior, API, link or build checks.
+
+---
+
 # AGENTS.md
 
 DeepSeek Harness is an all-plugin Cordis agent harness. Read [docs/architecture.md](docs/architecture.md) before changing `packages/`; follow [docs/AGENTS.md](docs/AGENTS.md) for documentation.

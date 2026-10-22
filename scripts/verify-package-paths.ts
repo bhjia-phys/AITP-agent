@@ -6,7 +6,7 @@
  */
 
 import { existsSync, globSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { relative, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { historicalSchemaRegion } from './historical-schema-region.ts'
 import {
@@ -84,13 +84,17 @@ function isDriftedPackageReference(repoRoot: string, packageNames: ReadonlySet<s
  * @returns missing references naming a live package, with original source line numbers.
  */
 export function findPackagePathViolations(repoRoot: string, absPath: string, packageNames: ReadonlySet<string>): Violation[] {
+  // Retained AITP design uses package paths relative to its preserved agent/ tree.
+  // New Harness docs have no such fallback; actual Markdown links are checked separately.
+  const retainedDesign = relative(repoRoot, absPath).replaceAll('\\', '/').startsWith('docs/agent/')
   return findReferenceViolations(
     repoRoot,
     absPath,
     PKG_REF,
     // Remove trailing separators or sentence punctuation matched greedily.
     ref => ref.replace(/[./]+$/, ''),
-    ref => isDriftedPackageReference(repoRoot, packageNames, ref),
+    ref => isDriftedPackageReference(repoRoot, packageNames, ref)
+      && !(retainedDesign && existsSync(resolve(repoRoot, 'agent', ref))),
     historicalSchemaRegion,
   )
 }

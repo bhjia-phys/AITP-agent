@@ -1,0 +1,180 @@
+{
+  "MethodRecord": [
+    {
+      "address": {
+        "kind": "workspace",
+        "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+      },
+      "name": "compare-spectra",
+      "description": "Compare two spectra computed with matched inputs.",
+      "home": "family",
+      "locations": [
+        "topics/spectra/selfconsistent/research.md",
+        "topics/spectra/continuation/research.md"
+      ],
+      "version": {
+        "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "observedAt": "2026-10-21T10:00:00Z"
+      },
+      "use": {
+        "validated": 1,
+        "corrected": 0,
+        "contradicted": 0,
+        "lastUsed": "2026-10-21T10:39:00Z"
+      }
+    }
+  ],
+  "MethodUse": [
+    {
+      "id": "use-1",
+      "skill": {
+        "kind": "workspace",
+        "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+      },
+      "skillVersion": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "session": "sess-1",
+      "location": "topics/spectra/selfconsistent/research.md",
+      "outcome": "validated",
+      "evidence": [
+        {
+          "kind": "receipt",
+          "address": {
+            "kind": "artifact",
+            "artifact": "art-out-1"
+          }
+        }
+      ],
+      "at": "2026-10-21T10:40:00Z"
+    }
+  ],
+  "DistillationProposal": [
+    {
+      "id": "prop-1",
+      "kind": "revise",
+      "skill": {
+        "kind": "workspace",
+        "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+      },
+      "target": {
+        "kind": "workspace",
+        "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+      },
+      "home": "family",
+      "changeSet": "cs-5",
+      "rationale": "Step 1 must fix the grid as well as the tolerance.",
+      "evidence": [
+        {
+          "kind": "session-entry",
+          "address": {
+            "kind": "entry",
+            "conversation": "conv-1",
+            "entry": "44"
+          }
+        }
+      ],
+      "status": "open"
+    }
+  ],
+  "Episode": [
+    {
+      "id": "ep-1",
+      "session": "sess-0",
+      "location": "topics/spectra/selfconsistent/research.md",
+      "activeTask": "task-0",
+      "attempted": [
+        "undamped schedule on the third system"
+      ],
+      "outcomes": [
+        "oscillated after 30 iterations"
+      ],
+      "evidence": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/research.md"
+          },
+          "version": {
+            "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "skills": [
+        {
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+          },
+          "version": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      ],
+      "notesRead": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/research.md"
+          },
+          "version": {
+            "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "notesWritten": [],
+      "closedAt": "2026-10-21T10:41:00Z",
+      "stale": false
+    }
+  ],
+  "ManuscriptProject": [
+    {
+      "id": "ms-article",
+      "root": "topics/dynamics/manuscripts/article",
+      "main": "topics/dynamics/manuscripts/article/main.tex",
+      "sources": [
+        "topics/dynamics/manuscripts/article/main.tex",
+        "topics/dynamics/manuscripts/article/sections/intro.tex"
+      ],
+      "bibliography": [
+        "topics/dynamics/manuscripts/article/refs.bib"
+      ],
+      "figures": [],
+      "build": {
+        "kind": "make",
+        "command": [
+          "make",
+          "main.pdf"
+        ]
+      },
+      "outputs": [
+        "topics/dynamics/manuscripts/article/main.pdf"
+      ],
+      "source": "folder"
+    }
+  ],
+  "ReviewThread": [
+    {
+      "id": "thr-1",
+      "project": "ms-article",
+      "anchor": {
+        "path": "topics/dynamics/manuscripts/article/main.tex",
+        "span": {
+          "startLine": 10,
+          "endLine": 11
+        },
+        "textHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+      },
+      "status": "open",
+      "author": "researcher",
+      "comments": [
+        {
+          "author": "researcher",
+          "text": "State which points are excluded.",
+          "at": "2026-10-21T10:42:00Z"
+        }
+      ],
+      "createdAt": "2026-10-21T10:42:00Z"
+    }
+  ]
+}

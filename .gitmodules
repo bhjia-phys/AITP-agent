@@ -1,0 +1,3 @@
+[submodule "aitp"]
+	path = aitp
+	url = https://github.com/bhjia-phys/AITP-Research-Protocol.git

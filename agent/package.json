@@ -1,0 +1,48 @@
+{
+  "name": "aitp-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The AITP research agent and workbench",
+  "engines": {
+    "node": ">=24.10"
+  },
+  "workspaces": [
+    "packages/protocol",
+    "packages/core",
+    "packages/runtime",
+    "packages/pi-adapter",
+    "packages/server",
+    "apps/workbench",
+    "test/support"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:real": "vitest run real.test",
+    "build:ui": "npm run build -w @aitp/workbench",
+    "start": "node packages/server/src/cli.ts serve",
+    "open": "node packages/server/src/cli.ts open",
+    "doctor": "node packages/server/src/cli.ts doctor",
+    "e2e": "npm run e2e -w @aitp/workbench"
+  },
+  "overrides": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@types/katex": "0.16.8",
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/ws": "8.18.2",
+    "@vitejs/plugin-react": "6.1.2",
+    "happy-dom": "20.14.5",
+    "puppeteer-core": "25.12.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.3",
+    "vitest": "5.0.3"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "campaign": "mesh-r1",
+  "expected": 4,
+  "retained": 2,
+  "readBack": 2,
+  "accepted": 1,
+  "failed": [
+    "8x8x8",
+    "10x10x10"
+  ],
+  "observedAt": "2026-08-14T09:00:00Z"
+}

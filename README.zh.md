@@ -1,96 +1,66 @@
-# DeepSeek Harness
+# aitp-agent
 
 [English](README.md) | 中文
 
-DeepSeek Harness（`dsh`）是由 [DeepSeek AI](https://deepseek.com) 开发的开源 agent harness（智能体框架）。
+这是面向理论物理科研的模块化工作台，基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 开发，由 [AITP Research Protocol](https://github.com/bhjia-phys/AITP-Research-Protocol) 提供可移植的科研方法。科研记录仍是普通文件；研究者确定目标与边界，AI 自主推进已授权的常规步骤。规则编辑和只显示必要信息的科研界面仍是需要落实的设计。
 
-它构建于**一切皆插件**的架构之上，由 [Cordis](https://github.com/cordiverse/cordis) 驱动，其设计参见论文 [_A Programming Paradigm for Spatiotemporal Composability_](https://arxiv.org/abs/2608.25512)。
+当前主线使用 Harness 的插件、服务、Web 和桌面基础设施。 AITP 的底层接入以科研记忆的选择、读取、上下文交付、压缩恢复和维护为核心；Skills 是其中的方法指导。AI 根据问题和证据自主选择动作，不设置固定科研动作流程。具体方案见[运行时记忆设计](docs/agent/10-project-workspace.md#aitp-runtime-integration)。`agent/` 保留此前的 Pi 实现与检查证据，不是新主线。旧测试通过不能证明新应用已完成科研记忆、上下文、独立审阅或写回；实际覆盖见规划和场景文档。
 
-文档：[https://deepseek-harness.github.io/deepseek-harness/](https://deepseek-harness.github.io/deepseek-harness/)
+## 从哪里开始
 
-## 开发者预览
+- [current.md](current.md)：设计缺口、实现边界与纠错证据。
+- [架构](docs/agent/10-project-workspace.md)：组件职责、协作关系和数据归属。
+- [开发规划](docs/agent/14-implementation-blueprint.md)：当前授权、进度、依赖与验收的唯一维护处。
+- [科研场景](docs/agent/13-research-journeys.md)：理论物理任务和实际支持情况。
+- [仓库开发 Skill](.agents/skills/develop-aitp-agent/SKILL.md) 与 [AGENTS.md](AGENTS.md)：进入仓库后的读取与维护规则。
+- [Harness 集成证据](agent/notes/harness-integration.md)：当前基线、实际检查和 GPT 验证限制。
+- [Harness 架构](docs/architecture.zh.md) 与[开发指南](docs/development.zh.md)：底层框架和构建要求。
 
-DeepSeek Harness 处于 _开发者预览_ 阶段，正在快速迭代。**未来将出现破坏兼容性的变更。**
+行为或证据变化时，同步维护受影响的架构、规划、场景和 current.md。通用科研方法仍归上游 AITP Skills，不在应用中维护另一套副本。
 
-运行本项目前，请阅读[安全说明](SAFETY.zh.md)。
+## 仓库与分支
+
+公开地址保留为 [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent)。`harness` 分支继承官方 DeepSeek Harness 历史，并合入原 AITP-agent 历史；`main` 保留此前发布的 Pi 基线。官方 Harness 是 Git `upstream`；保留原地址不会自动改变 GitHub 的 fork 网络标识。
+
+```sh
+git clone --branch harness --recurse-submodules https://github.com/bhjia-phys/AITP-agent.git
+cd AITP-agent
+git remote add upstream https://github.com/deepseek-ai/deepseek-harness.git
+git fetch upstream
+```
+
+Git remote 是本地设置，新克隆需添加一次 `upstream`，`origin` 保持 AITP-agent 地址。后续通过审阅过的合并吸收官方更新，并验证 AITP 插件与科研约定。固定版本的 [`aitp/`](aitp/) 子模块连接科研协议和 Skills；已有克隆可运行 `git submodule update --init --recursive` 初始化。
+
+```text
+packages/, apps/    当前 Harness 应用与插件/服务实现
+docs/agent/        AITP 架构、规划、场景和设计原型
+current.md         设计缺口与实现边界
+aitp/              上游可移植科研协议与 Skills 子模块
+agent/             保留的 Pi 应用、合成 fixture 和历史证据
+```
 
 <a id="run"></a>
-
-## 运行
-
-### 通过 `npm` 运行
-
-安装 `Node.js`，然后运行：
-
-```sh
-npx @deepseek-ai/dsh web
-```
-
-该命令默认会在 `http://127.0.0.1:3080` 启动 Web UI，本机启动时还会用默认浏览器打开页面。通过 SSH 启动时只打印宿主机 URL，因为本地转发地址由 SSH 客户端或编辑器持有。传入 `--no-open` 可仅运行服务器而不打开浏览器。详见 [Web UI 指南](docs/user/guide/index.zh.md)。
-
 <a id="run-from-source"></a>
+## 开发与 GPT 接入
 
-### 从源码运行
-
-如需从仓库源码运行：
+使用 [package.json](package.json) 声明的 Node.js 与 pnpm 版本，在仓库根目录运行：
 
 ```sh
-git clone https://github.com/deepseek-ai/deepseek-harness.git
-cd deepseek-harness
-pnpm install
-pnpm run build
-pnpm dsh web
+pnpm install --frozen-lockfile
+pnpm aitp-agent build
+pnpm aitp-agent auth list
+pnpm aitp-agent auth login openai-codex
+pnpm aitp-agent web --no-open
 ```
 
-`pnpm run build` 会准备仓库产物。`pnpm dsh web` 会直接使用这些已构建产物，不会重新构建。
+启动入口调用正常的 Harness profile，并应用 AITP 配置。设置、凭据和会话默认位于 `~/.aitp-agent`；显式 `DSH_HOME` 可覆盖它。固定版本的 AITP Skills 通过既有文件系统 provider 加载，`DSH_BUNDLED_SKILL_DIR` 可指定其他协议路径。`aitp-agent build` 将浏览器标题设为 `aitp-agent`；原生依赖和其他构建命令以[开发指南](docs/development.zh.md)为准。
 
-## 社区与支持
+`auth list` 显示可用授权方式及是否保存凭据，不显示凭据值。`auth login openai-codex` 启动 provider 的交互式 ChatGPT 登录；按浏览器指引完成后，在 Web 中选择该 provider 可用的模型。API key 路线使用 `auth login openai`，在终端提示中输入凭据，不放进命令参数。实际登录、live GPT 请求和已运行的检查，以[集成证据](agent/notes/harness-integration.md)为准。
 
-- 通过 [GitHub Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions) 提交反馈或 bug 报告。
-- 为你的插件仓库添加 [`dsh-plugin`](https://github.com/topics/dsh-plugin) 话题，便于被发现。
-- 欢迎加入 DeepSeek Harness 企微群！扫描下方二维码填写入群问卷，小助手会定期发送入群邀请。
+GPT API key 与 ChatGPT 订阅授权是不同路线；不会静默导入 Codex CLI 登录。凭据、会话、副本实验和真实科研资料都应留在发布树之外。
 
-<table>
-  <thead>
-    <tr>
-      <th align="center">入群问卷</th>
-      <th align="center">微信公众号</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td align="center"><a href="https://trtgsjkv6r.feishu.cn/share/base/form/shrcnIt5twSVdLGD52KJBckGCgg"><img src="https://cdn.deepseek.com/harness/readme/community-wecom-survey.png" alt="DeepSeek Harness 入群问卷二维码" width="180" height="180"></a></td>
-      <td align="center"><img src="https://cdn.deepseek.com/harness/readme/community-wechat-official-account.png" alt="DeepSeek Harness 团队微信公众号二维码" width="180" height="180"></td>
-    </tr>
-  </tbody>
-</table>
+## 上游与许可
 
-## 参与贡献
+DeepSeek Harness 提供应用框架，AITP 提供科研设计和扩展。内部 `@deepseek-ai/dsh-*` 包名与 provider 标识保留上游含义，产品名称为 `aitp-agent`。上游归属和第三方声明保留，见 [LICENSE](LICENSE) 与 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-参见 [CONTRIBUTING.md](CONTRIBUTING.zh.md)。
-
-## 开发
-
-请先阅读[开发指南](docs/development.zh.md)与[架构文档](docs/architecture.zh.md)。
-
-`pnpm run dev:web` 会在一个终端里完成构建、启动，并在源码修改时重建 client bundle；`make help` 列出 Web 与 Desktop 对应的 Make target。完整表格见开发指南的「应用命令」一节。
-
-面向 agent：请遵循 [AGENTS.md](AGENTS.md)。
-
-## 引用
-
-```bibtex
-@misc{deepseek-harness2026,
-  title={DeepSeek Harness: Everything is a Plugin},
-  author={DeepSeek-AI},
-  year={2026},
-  publisher={GitHub},
-  howpublished={\url{https://github.com/deepseek-ai/deepseek-harness}},
-}
-```
-
-## 许可证
-
-[MIT](LICENSE)
-
-第三方依赖及其许可证见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+英文与中文首页由人工审阅保持事实一致，采用 [AITP 文档维护例外](AGENTS.md)，不生成翻译哈希或配套校验文件。

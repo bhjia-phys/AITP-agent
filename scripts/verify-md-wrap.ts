@@ -11,8 +11,10 @@ import { relative, resolve } from 'node:path'
 import type { Nodes } from 'mdast'
 import { parseMarkdown, visitMarkdown } from './markdown.ts'
 import { isArchivedAgentNotePath, uniqueRepoFiles } from './repo-files.ts'
+import { isManuallyMaintainedDocument, parseTranslationPairingManifest } from './translation-pairing.ts'
 
 const root = resolve(import.meta.dirname, '..')
+const manifest = parseTranslationPairingManifest(readFileSync(resolve(root, 'scripts/translation-pairing.manifest.json'), 'utf8'))
 
 /** Files to check: doc-typecheck's scope, system-prompt expected outputs, and the AGENTS.md pair. */
 const PATTERNS = [
@@ -70,7 +72,7 @@ function findViolations(absPath: string): Violation[] {
   return out
 }
 
-const files = uniqueRepoFiles(root, PATTERNS, isArchivedAgentNotePath)
+const files = uniqueRepoFiles(root, PATTERNS, path => isArchivedAgentNotePath(path) || isManuallyMaintainedDocument(path, manifest))
 const all = files.flatMap(file => findViolations(file.abs))
 const checked = files.length
 

@@ -1,0 +1,264 @@
+{
+  "Anchor": [
+    {
+      "kind": "quote",
+      "exact": "the undamped one oscillates"
+    },
+    {
+      "kind": "heading",
+      "path": [
+        "The map and its fixed point"
+      ]
+    },
+    {
+      "kind": "current-work-entry",
+      "thread": "mixing-schedule"
+    },
+    {
+      "kind": "lines",
+      "start": 17,
+      "end": 20,
+      "expected": "- **Mixing schedule** — active · 2026-09-30."
+    }
+  ],
+  "DocumentOp": [
+    {
+      "op": "edit",
+      "path": "topics/spectra/selfconsistent/research.md",
+      "base": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "anchor": {
+        "kind": "current-work-entry",
+        "thread": "mixing-schedule"
+      },
+      "operation": "replace",
+      "text": "- **Mixing schedule** — active · 2026-10-21. …"
+    },
+    {
+      "op": "create",
+      "path": "topics/spectra/selfconsistent/notes/schedules.md",
+      "expectedAbsent": true,
+      "text": "# Schedules\n",
+      "template": "note"
+    },
+    {
+      "op": "move",
+      "from": "topics/spectra/selfconsistent/notes/old.md",
+      "to": "topics/spectra/selfconsistent/notes/new.md",
+      "base": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "destinationAbsent": true
+    },
+    {
+      "op": "copy-artifact",
+      "artifact": "art-1",
+      "file": "figure.png",
+      "to": "topics/spectra/selfconsistent/figures/schedules.png",
+      "expectedAbsent": true
+    }
+  ],
+  "ChangeSet": [
+    {
+      "id": "cs-1",
+      "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "ops": [
+        {
+          "op": "edit",
+          "path": "topics/spectra/selfconsistent/research.md",
+          "base": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "anchor": {
+            "kind": "current-work-entry",
+            "thread": "mixing-schedule"
+          },
+          "operation": "replace",
+          "text": "- **Mixing schedule** — active · 2026-10-21. …"
+        },
+        {
+          "op": "create",
+          "path": "topics/spectra/selfconsistent/notes/schedules.md",
+          "expectedAbsent": true,
+          "text": "# Schedules\n"
+        }
+      ],
+      "reason": "Record the third-system comparison",
+      "writer": {
+        "kind": "session",
+        "id": "sess-1"
+      },
+      "restructure": false,
+      "status": "previewed",
+      "diff": "--- a/…\n+++ b/…\n",
+      "checks": [
+        {
+          "path": "topics/spectra/selfconsistent/research.md",
+          "kind": "sentences",
+          "ok": true,
+          "details": []
+        }
+      ],
+      "createdAt": "2026-10-21T10:08:00Z"
+    },
+    {
+      "id": "cs-2",
+      "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "ops": [
+        {
+          "op": "edit",
+          "path": "topics/spectra/selfconsistent/research.md",
+          "base": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "anchor": {
+            "kind": "current-work-entry",
+            "thread": "mixing-schedule"
+          },
+          "operation": "replace",
+          "text": "- **Mixing schedule** — active · 2026-10-21. …"
+        },
+        {
+          "op": "create",
+          "path": "topics/spectra/selfconsistent/notes/schedules.md",
+          "expectedAbsent": true,
+          "text": "# Schedules\n"
+        }
+      ],
+      "reason": "Record the third-system comparison",
+      "writer": {
+        "kind": "session",
+        "id": "sess-1"
+      },
+      "restructure": true,
+      "status": "review-required",
+      "diff": "--- a/…\n+++ b/…\n",
+      "checks": [
+        {
+          "path": "topics/spectra/selfconsistent/research.md",
+          "kind": "sentences",
+          "ok": true,
+          "details": []
+        }
+      ],
+      "createdAt": "2026-10-21T10:08:00Z",
+      "review": {
+        "request": "rev-2",
+        "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "baselines": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "FileOutcome": [
+    {
+      "path": "topics/spectra/selfconsistent/research.md",
+      "outcome": "written",
+      "before": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    {
+      "path": "topics/spectra/selfconsistent/stability/research.md",
+      "outcome": "conflict",
+      "before": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "preserved": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+    }
+  ],
+  "ApplyResult": [
+    {
+      "status": "applied",
+      "files": [
+        {
+          "path": "topics/spectra/selfconsistent/research.md",
+          "outcome": "written",
+          "before": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        }
+      ]
+    },
+    {
+      "status": "conflict",
+      "files": [
+        {
+          "path": "topics/spectra/selfconsistent/research.md",
+          "outcome": "conflict",
+          "before": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "preserved": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        }
+      ],
+      "mergeProposal": "…"
+    },
+    {
+      "status": "ambiguous-anchor",
+      "path": "topics/spectra/selfconsistent/research.md",
+      "candidates": [
+        {
+          "line": 17,
+          "excerpt": "…"
+        },
+        {
+          "line": 40,
+          "excerpt": "…"
+        }
+      ]
+    },
+    {
+      "status": "denied",
+      "reason": "writes are off"
+    },
+    {
+      "status": "review-required",
+      "review": "rev-2"
+    },
+    {
+      "status": "recovery-required",
+      "files": [
+        {
+          "path": "topics/spectra/selfconsistent/research.md",
+          "outcome": "needs-recovery",
+          "before": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "note": "an external edit landed during application"
+    }
+  ],
+  "RecoverySummary": [
+    {
+      "changeSet": "cs-1",
+      "state": "compensated",
+      "files": [
+        {
+          "path": "topics/spectra/selfconsistent/research.md",
+          "outcome": "compensated",
+          "before": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "after": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      ],
+      "at": "2026-10-21T10:09:00Z"
+    }
+  ],
+  "SnapshotRecord": [
+    {
+      "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "path": "topics/spectra/selfconsistent/research.md",
+      "origin": "observed",
+      "at": "2026-10-21T10:01:00Z",
+      "pinned": true
+    },
+    {
+      "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "path": "topics/spectra/selfconsistent/research.md",
+      "origin": "written",
+      "writer": {
+        "kind": "session",
+        "id": "sess-1"
+      },
+      "at": "2026-10-21T10:09:00Z",
+      "pinned": false
+    }
+  ]
+}

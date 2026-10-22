@@ -10,12 +10,17 @@ const currentReference = 'packages/deliverables/tool-present/src/types.ts'
 const start = '<!-- persistence-format-schema:start -->'
 const end = '<!-- persistence-format-schema:end -->'
 
-function scan(file: string, source: string) {
+function scan(file: string, source: string, retainedPackage = false) {
   const root = mkdtempSync(join(tmpdir(), 'dsh-package-paths-'))
   try {
     const current = join(root, currentReference)
     mkdirSync(dirname(current), { recursive: true })
     writeFileSync(current, 'export {}\n')
+    if (retainedPackage) {
+      const retained = join(root, 'agent', removedReference)
+      mkdirSync(dirname(retained), { recursive: true })
+      writeFileSync(retained, 'export {}\n')
+    }
     const path = join(root, file)
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, source)
@@ -26,6 +31,16 @@ function scan(file: string, source: string) {
 }
 
 describe('historical package references', () => {
+  it('resolves retained AITP design paths only against files that exist in agent/', () => {
+    const file = 'docs/agent/09-contracts.md'
+    expect(scan(file, removedReference, true)).toEqual([])
+    expect(scan(file, removedReference)).toEqual([{ file, line: 1, ref: removedReference }])
+  })
+
+  it.each(['docs/agent-guide/README.md', 'docs/current.md'])('does not inherit the retained-root fallback in %s', (file) => {
+    expect(scan(file, removedReference, true)).toEqual([{ file, line: 1, ref: removedReference }])
+  })
+
   it.each(['v0.md', 'v3.md', 'v10.zh.md'])('preserves checked historical source paths in %s', (name) => {
     const file = `docs/persistence-changes/historical-formats/${name}`
     for (const newline of ['\n', '\r\n']) {

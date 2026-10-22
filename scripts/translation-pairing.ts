@@ -105,6 +105,8 @@ export function spliceGeneratedRegion(content: string, region: string): string {
 export interface TranslationPairingManifest {
   /** Source documents exempt from pairing because they are generated, instructional, or bilingual by construction. */
   excluded: string[]
+  /** Fork-owned documents reviewed without pairing records or upstream paragraph-format enforcement. */
+  manual?: string[]
 }
 
 const README_ARTIFACT = /(?:^|\/)readme(?:\.md|\.zh\.md|\.i18n\.yaml)$/i
@@ -168,14 +170,14 @@ export function isTranslationScopeFile(file: string): boolean {
 }
 
 /** Read the manifest exclusion list or fail before enforcement starts. */
-function excludedField(record: Record<string, unknown>): string[] {
-  const value = record.excluded
+function pathListField(record: Record<string, unknown>, field: 'excluded' | 'manual'): string[] {
+  const value = record[field]
   if (!Array.isArray(value)) {
-    throw new Error('translation-pairing.manifest.json: excluded must be an array of strings')
+    throw new Error(`translation-pairing.manifest.json: ${field} must be an array of strings`)
   }
   const entries: unknown[] = value
   if (!entries.every((entry): entry is string => typeof entry === 'string')) {
-    throw new Error('translation-pairing.manifest.json: excluded must be an array of strings')
+    throw new Error(`translation-pairing.manifest.json: ${field} must be an array of strings`)
   }
   return entries
 }
@@ -187,11 +189,28 @@ export function parseTranslationPairingManifest(content: string): TranslationPai
     throw new Error('translation-pairing.manifest.json: expected an object')
   }
   const record = value as Record<string, unknown>
-  const unsupported = Object.keys(record).filter(field => field !== 'excluded')
+  const unsupported = Object.keys(record).filter(field => field !== 'excluded' && field !== 'manual')
   if (unsupported.length > 0) {
     throw new Error(`translation-pairing.manifest.json: unsupported field(s): ${unsupported.join(', ')}; every in-scope document is required`)
   }
-  return { excluded: excludedField(record) }
+  return {
+    excluded: pathListField(record, 'excluded'),
+    ...(record.manual === undefined ? {} : { manual: pathListField(record, 'manual') }),
+  }
+}
+
+/**
+ * Whether an exact document family or directory is maintained under the fork's manual policy.
+ * @param file - Repository-relative document or pairing-artifact path.
+ * @param manifest - Validated policy; directory entries include their trailing slash.
+ * @returns True only for explicitly named document families or directory descendants.
+ */
+export function isManuallyMaintainedDocument(
+  file: string,
+  manifest: TranslationPairingManifest,
+): boolean {
+  const source = file.replaceAll('\\', '/').replace(/\.(?:zh\.md|i18n\.yaml)$/, '.md')
+  return manifest.manual?.some(entry => entry.endsWith('/') ? source.startsWith(entry) : source === entry) === true
 }
 
 /** Whether a manifest entry excludes one exact file or a directory subtree. */
@@ -208,6 +227,7 @@ export function translationPairSourcePredicate(
 ): (sourcePath: string) => boolean {
   return sourcePath => isTranslationScopeFile(sourcePath)
     && !isTranslationPairingManifestExcluded(sourcePath, manifest)
+    && !isManuallyMaintainedDocument(sourcePath, manifest)
 }
 
 /**

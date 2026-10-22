@@ -1,0 +1,348 @@
+{
+  "Card": [
+    {
+      "id": "card-1",
+      "session": "sess-1",
+      "status": "resolved",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "informational",
+      "type": "change-set",
+      "payload": {
+        "changeSet": "cs-1",
+        "summary": "Updated the Mixing schedule entry",
+        "files": [
+          {
+            "path": "topics/spectra/selfconsistent/research.md",
+            "outcome": "written",
+            "before": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ],
+        "undo": "cs-1-undo"
+      }
+    },
+    {
+      "id": "card-2",
+      "session": "sess-1",
+      "status": "resolved",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "informational",
+      "type": "run",
+      "payload": {
+        "action": "act-run-1",
+        "receipt": "rcpt-1"
+      }
+    },
+    {
+      "id": "card-3",
+      "session": "sess-1",
+      "status": "resolved",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "informational",
+      "type": "artifact",
+      "payload": {
+        "artifact": "art-1"
+      }
+    },
+    {
+      "id": "card-4",
+      "session": "sess-1",
+      "status": "resolved",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "informational",
+      "type": "close",
+      "payload": {
+        "supported": "The damped schedule converges on the third system.",
+        "retained": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        ],
+        "next": "Nothing further is warranted."
+      }
+    },
+    {
+      "id": "card-5",
+      "session": "sess-1",
+      "status": "resolved",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "informational",
+      "type": "review-report",
+      "payload": {
+        "review": "rev-1",
+        "findings": 1,
+        "assessment": "assess-1"
+      }
+    },
+    {
+      "id": "card-6",
+      "session": "sess-1",
+      "status": "open",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "optional",
+      "type": "exercise",
+      "payload": {
+        "prompt": "Show that the toy map shrinks distances for \u03b1 > 0.3."
+      }
+    },
+    {
+      "id": "card-7",
+      "session": "sess-1",
+      "status": "open",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "optional",
+      "type": "artifact-placement",
+      "payload": {
+        "artifact": "art-1",
+        "changeSet": "cs-4"
+      }
+    },
+    {
+      "id": "card-8",
+      "session": "sess-1",
+      "status": "open",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "required",
+      "type": "approval",
+      "payload": {
+        "action": "act-1",
+        "kind": "cluster-submit",
+        "display": {
+          "script": "mesh.sh"
+        },
+        "scopes": [
+          {
+            "kind": "once"
+          },
+          {
+            "kind": "task",
+            "task": "task-1"
+          }
+        ],
+        "limits": {
+          "wallSeconds": 60
+        }
+      }
+    },
+    {
+      "id": "card-9",
+      "session": "sess-1",
+      "status": "open",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "required",
+      "type": "choice",
+      "payload": {
+        "question": "Which static definition should count?",
+        "options": [
+          {
+            "id": "a",
+            "label": "Definition A",
+            "consequence": "two passing roots"
+          },
+          {
+            "id": "b",
+            "label": "Definition B",
+            "consequence": "three candidates, one unconverged"
+          }
+        ]
+      }
+    },
+    {
+      "id": "card-10",
+      "session": "sess-1",
+      "status": "open",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "required",
+      "type": "plan",
+      "payload": {
+        "plan": {
+          "id": "plan-1",
+          "title": "Compare schedules on the third system",
+          "steps": [
+            {
+              "id": "s1",
+              "description": "run the damped schedule",
+              "action": "run-write",
+              "tool": "run",
+              "argsHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "limits": {
+                "wallSeconds": 900
+              }
+            }
+          ],
+          "methods": [
+            {
+              "address": {
+                "kind": "workspace",
+                "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+              },
+              "version": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            }
+          ],
+          "cost": "about 15 minutes of one core",
+          "stopping": "either schedule converges or both exceed 120 iterations",
+          "workers": {
+            "id": "wplan-1",
+            "method": {
+              "address": {
+                "kind": "workspace",
+                "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+              },
+              "version": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+            },
+            "roles": [
+              {
+                "role": "independent derivation",
+                "model": {
+                  "provider": "openai",
+                  "modelId": "gpt-example",
+                  "thinkingLevel": "high"
+                },
+                "instructions": "Derive the bound by a different route.",
+                "tools": [
+                  "read",
+                  "search"
+                ],
+                "writable": [
+                  "topics/spectra/continuation/notes/route-b.md"
+                ],
+                "budget": {
+                  "modelCalls": 40,
+                  "wallSeconds": 3600
+                }
+              }
+            ],
+            "checks": [
+              "state the tolerance before running"
+            ],
+            "stopping": "both routes agree within the tolerance, or one fails",
+            "integration": {
+              "affected": [
+                "topics/spectra/continuation/research.md"
+              ]
+            }
+          },
+          "grants": [
+            {
+              "actions": [
+                "run-write"
+              ],
+              "scope": {
+                "kind": "once"
+              },
+              "bind": {
+                "argsHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "targets": []
+              },
+              "reason": "step s1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "card-11",
+      "session": "sess-1",
+      "status": "open",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "required",
+      "type": "conflict",
+      "payload": {
+        "changeSet": "cs-1",
+        "path": "topics/spectra/selfconsistent/research.md",
+        "base": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "current": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "preserved": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      }
+    },
+    {
+      "id": "card-12",
+      "session": "sess-1",
+      "status": "open",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "required",
+      "type": "distillation",
+      "payload": {
+        "proposal": "prop-1"
+      }
+    },
+    {
+      "id": "card-13",
+      "session": "sess-1",
+      "status": "open",
+      "createdAt": "2026-10-21T10:38:00Z",
+      "kind": "required",
+      "type": "uncertain-effect",
+      "payload": {
+        "action": "act-3",
+        "evidence": []
+      }
+    }
+  ],
+  "CardResponse": [
+    {
+      "type": "exercise",
+      "answer": "For \u03b1 > 0.3 \u2026"
+    },
+    {
+      "type": "artifact-placement",
+      "accept": true
+    },
+    {
+      "type": "approval",
+      "decision": "approve",
+      "scope": {
+        "kind": "once"
+      }
+    },
+    {
+      "type": "choice",
+      "option": "a"
+    },
+    {
+      "type": "plan",
+      "decision": "revise",
+      "note": "use 100 iterations"
+    },
+    {
+      "type": "conflict",
+      "resolution": "use-merge"
+    },
+    {
+      "type": "distillation",
+      "decision": "decline",
+      "note": "not yet transferable"
+    },
+    {
+      "type": "uncertain-effect",
+      "decision": "reconcile-again"
+    }
+  ],
+  "CloseReportPayload": [
+    {
+      "supported": "The damped schedule converges on the third system.",
+      "retained": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/research.md"
+          },
+          "version": {
+            "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "next": "Nothing further is warranted."
+    }
+  ]
+}

@@ -1,0 +1,96 @@
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { ArrowRight, BookOpen, ChevronRight, Command, FileText, FolderOpen, Home, LayoutList, MessageSquare, Moon, PanelLeftClose, RefreshCw, Search, Settings, Sun, X } from 'lucide-react';
+import type { Config, Graph, Grouping, Outline, ResearchLocation, ThreadRow } from '@aitp/protocol';
+import { LoginChallenge as LoginChallengeSchema, LoginResult as LoginResultSchema } from '@aitp/protocol';
+import { AgentDock } from './AgentDock.tsx';
+import { ModelSignIn } from './ModelSignIn.tsx';
+import type { LoginFlow } from './ModelSignIn.tsx';
+import { api, authenticate, requestId } from './api.ts';
+
+const Markdown = lazy(() => import('./Markdown.tsx'));
+type Page = { kind: 'home' | 'board' | 'settings' } | { kind: 'topic' | 'note'; path: string } | { kind: 'group'; id: string };
+
+export function App() {
+  const [locations, setLocations] = useState<ResearchLocation[]>([]), [groups, setGroups] = useState<Grouping[]>([]), [graph, setGraph] = useState<Graph>(), [config, setConfig] = useState<Config>();
+  const [page, setPage] = useState<Page>({ kind: 'home' }), [outline, setOutline] = useState<Outline>(), [note, setNote] = useState<{ text: string; format: string }>(), [board, setBoard] = useState<ThreadRow[]>([]);
+  const [error, setError] = useState(''), [loading, setLoading] = useState(true), [dock, setDock] = useState(false), [nav, setNav] = useState(true), [source, setSource] = useState(false), [faux, setFaux] = useState(false);
+  const [query, setQuery] = useState(''), [search, setSearch] = useState(false), [results, setResults] = useState<Awaited<ReturnType<typeof find>>>(), [dark, setDark] = useState(() => { try { return localStorage.getItem('aitp-theme') === 'dark'; } catch { return false; } });
+  const [loginFlows, setLoginFlows] = useState<Record<string, LoginFlow>>({});
+  const [catalog, setCatalog] = useState<Awaited<ReturnType<typeof models>>>(), [draft, setDraft] = useState('');
+  const path = 'path' in page ? page.path : undefined;
+  const current = locations.find(l => l.id === path);
+  const openNote = useCallback((path: string) => { setSource(false); setPage({ kind: 'note', path }); }, []);
+  const load = useCallback(async () => {
+    setLoading(true); setError('');
+    try {
+      await authenticate();
+      const l = await api('locations');
+      const [g, tree, cfg, health] = await Promise.all([api('groupings'), api('graph'), api('getConfig'), api('health')]);
+      setLocations(l); setGroups(g); setGraph(tree); setConfig(cfg); setFaux(health.faux);
+    } catch (e) { setError(e instanceof Error ? e.message : 'Could not open the workspace'); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { document.documentElement.dataset.theme = dark ? 'dark' : 'light'; try { localStorage.setItem('aitp-theme', dark ? 'dark' : 'light'); } catch {} }, [dark]);
+  useEffect(() => {
+    let active = true; setOutline(undefined); setNote(undefined);
+    if (path) {
+      const promise = page.kind === 'topic' ? api('outline', { query: { path } }).then(o => { if (active) setOutline(o); }) : api('note', { query: { path } }).then(n => { if (active) setNote(n); });
+      void promise.catch(e => { if (active) setError(e.message); });
+    }
+    if (page.kind === 'board') void api('board').then(rows => { if (active) setBoard(rows); }).catch(e => setError(e.message));
+    if (page.kind === 'settings') void models().then(value => { if (active) setCatalog(value); }).catch(e => setError(e.message));
+    return () => { active = false; };
+  }, [page]);
+  useEffect(() => {
+    const keydown = (e: KeyboardEvent) => { if (e.ctrlKey || e.metaKey) { if (e.key === 'k') { e.preventDefault(); setSearch(old => !old); } if (e.key === 'j') { e.preventDefault(); setDock(old => !old); } if (e.key === 'b') { e.preventDefault(); setNav(old => !old); } } if (e.key === 'Escape') setSearch(false); };
+    window.addEventListener('keydown', keydown); return () => window.removeEventListener('keydown', keydown);
+  }, []);
+  const loginEvent = useCallback((type: string, value: unknown) => {
+    if (type === 'login.challenge') {
+      const parsed = LoginChallengeSchema.parse((value as { challenge: unknown }).challenge);
+      setLoginFlows(old => {
+        const flow = old[parsed.login] ?? { login: parsed.login, provider: parsed.provider, challenges: {} };
+        return flow.result ? old : { ...old, [parsed.login]: { ...flow, challenges: { ...flow.challenges, [parsed.kind]: parsed } } };
+      });
+    }
+    if (type === 'login.result') {
+      const result = LoginResultSchema.parse(value);
+      setLoginFlows(old => ({ ...old, [result.login]: { login: result.login, provider: result.provider, challenges: {}, result } }));
+      void models().then(setCatalog).catch(() => {});
+    }
+  }, []);
+  // Settings needs the same authenticated event stream even when the agent dock is closed.
+  useEffect(() => {
+    if (page.kind !== 'settings') return;
+    const ws = new WebSocket(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/ws`);
+    ws.onopen = () => ws.send(JSON.stringify({ type: 'subscribe', topics: ['login'] }));
+    ws.onmessage = e => { try { const event = JSON.parse(e.data); if (event.type?.startsWith('login.')) loginEvent(event.type, event.payload); } catch { setError('Invalid sign-in event'); } };
+    return () => ws.close();
+  }, [page.kind, loginEvent]);
+  const ask = (text: string) => { setDraft(text); setDock(true); };
+  const group = page.kind === 'group' ? groups.find(g => g.id === page.id) : undefined;
+  const title = current?.title ?? (group?.title || (page.kind === 'board' ? 'Research board' : page.kind === 'settings' ? 'Settings' : page.kind === 'note' ? page.path.split('/').at(-1) : 'Your research'));
+  return <div className={'app-shell ' + (dock && current ? 'with-dock' : '')}>
+    <aside className="activity-bar"><button className="brand-square" aria-label="Research home" onClick={() => setPage({ kind: 'home' })}>a</button><button className="activity selected" aria-label="Research navigator" onClick={() => setNav(old => !old)}><FolderOpen size={20} /></button><button className="activity" aria-label="Research board" onClick={() => setPage({ kind: 'board' })}><LayoutList size={20} /></button><button className="activity" aria-label="Search" onClick={() => setSearch(true)}><Search size={20} /></button><div className="activity-spacer" /><button className="activity" aria-label="Settings" onClick={() => setPage({ kind: 'settings' })}><Settings size={20} /></button></aside>
+    {nav && <aside className="navigator"><header><div className="brand-name">AITP<span>RESEARCH WORKBENCH</span></div><button className="icon-button" aria-label="Collapse navigator" onClick={() => setNav(false)}><PanelLeftClose size={16} /></button></header><button className={'nav-home ' + (page.kind === 'home' ? 'selected' : '')} onClick={() => setPage({ kind: 'home' })}><Home size={15} />Overview</button><div className="nav-heading">RESEARCH DIRECTIONS</div><nav aria-label="Research projects">{graph?.navigation.roots.filter(id => id.startsWith('direction:')).map(id => <NavNode key={id} id={id} graph={graph} selected={path} choose={setPage} />)}{graph && graph.navigation.roots.filter(id => !id.startsWith('direction:')).map(id => <NavNode key={id} id={id} graph={graph} selected={path} choose={setPage} />)}</nav><footer><span className="connection-dot online" /> Local workspace <button className="icon-button" aria-label="Refresh workspace" onClick={() => void load()}><RefreshCw size={13} /></button></footer></aside>}
+    <div className="work-area"><header className="topbar"><div className="breadcrumbs"><button onClick={() => setPage({ kind: 'home' })}>Research</button><ChevronRight size={13} />{current?.parents.filter(p => p !== 'topics/research.md').slice(0, 2).map(parent => <span key={parent}><button onClick={() => setPage({ kind: 'topic', path: parent })}>{locations.find(l => l.id === parent)?.title ?? 'Parent'}</button><ChevronRight size={13} /></span>)}<span className="breadcrumb-current">{title}</span></div><div className="top-actions"><button className="search-trigger" onClick={() => setSearch(true)}><Search size={14} /><span>Search or command</span><kbd>⌘ K</kbd></button><button className="icon-button" aria-label="Toggle theme" onClick={() => setDark(old => !old)}>{dark ? <Sun size={17} /> : <Moon size={17} />}</button>{current && <button className={'ask-button ' + (dock ? 'active' : '')} onClick={() => setDock(old => !old)}><MessageSquare size={15} /><span>Ask</span></button>}</div></header>
+      {error && <div className="global-error" role="alert">{error}<button onClick={() => setError('')} aria-label="Dismiss error"><X size={15} /></button></div>}
+      <main className="main-scroll">
+        {loading ? <div className="loading-state">Opening the research workspace…</div> : page.kind === 'home' ? <div className="home-page"><span className="eyebrow">RESEARCH, WITH CONTEXT</span><h1>Your questions.<br /><em>A connected workspace.</em></h1><p className="home-intro">Follow a direction, return to an open thread, or work from the original notes. Your files remain the research record.</p><div className="workspace-summary"><span><strong>{locations.filter(l => !['family', 'record', 'root'].includes(l.kind)).length}</strong> research locations</span><span><strong>{groups.filter(g => g.id.startsWith('direction:')).length}</strong> directions & collections</span><span className="read-only-tag">Research writes off</span></div><div className="direction-grid">{groups.filter(g => g.id.startsWith('direction:')).map((g, index) => <button key={g.id} className="direction-card" onClick={() => setPage({ kind: 'group', id: g.id })}><span className="card-number">{String(index + 1).padStart(2, '0')}</span><h2>{g.title.replace(/^\d+\.\s*/, '')}</h2><p>{g.members.length} linked locations</p><ArrowRight size={20} /></button>)}</div><div className="section-heading"><h2>Return to a topic</h2><button className="quiet" onClick={() => setPage({ kind: 'board' })}>Open research board <ArrowRight size={14} /></button></div><div className="topic-list">{locations.filter(l => l.kind === 'topic').slice(0, 12).map(l => <button key={l.id} onClick={() => setPage({ kind: 'topic', path: l.id })}><FileText size={16} /><span>{l.title}<small>{l.id}</small></span><ChevronRight size={15} /></button>)}</div></div> : page.kind === 'group' ? <div className="document-page"><span className="eyebrow">RESEARCH DIRECTION</span><h1>{group?.title}</h1>{group && <Suspense fallback={<p>Rendering…</p>}><Markdown text={group.sectionText} path={group.source.address.kind === 'workspace' ? group.source.address.path : ''} open={openNote} /></Suspense>}<div className="topic-list">{group?.members.map(id => { const item = locations.find(l => l.id === id); return item && <button key={id} onClick={() => setPage({ kind: 'topic', path: id })}><FileText size={16} /><span>{item.title}<small>{item.kind}</small></span><ArrowRight size={15} /></button>; })}</div></div> : page.kind === 'topic' ? outline ? <div className="document-page"><div className="document-label"><span className="eyebrow">{current?.kind} · SOURCE-DERIVED VIEW</span><button className="quiet" onClick={() => openNote(page.path)}><FileText size={14} /> Open main note</button></div><h1>{outline.title}</h1><div className="scope-tags">{outline.scope.filter(f => !f.thread).map((f, i) => <span key={i}>{f.flag}</span>)}</div><Suspense fallback={<p>Rendering…</p>}>{outline.format === 'tex' ? <pre className="source-view">{outline.opening.text}</pre> : <Markdown text={outline.opening.text} path={page.path} open={openNote} />}</Suspense><div className="section-heading"><h2>Current work</h2><span className="muted">{outline.currentWork?.entries.length ?? 0} threads</span></div><div className="thread-list">{outline.currentWork?.entries.map(entry => <article className="thread-card" key={entry.key}><div className="thread-card-header"><span className={'state-tag ' + entry.state}>{entry.state.replaceAll('-', ' ')}</span>{entry.date && <small>{entry.date}</small>}</div><h3>{entry.name ?? 'Unstructured entry'}</h3>{entry.pointer ? <><p>{entry.text.replace(/^[\s\S]*?\*\*\s*[—–-]?\s*/, '')}</p><button className="quiet" onClick={() => setPage({ kind: 'topic', path: entry.pointer!.target })}>Open owning branch <ArrowRight size={14} /></button></> : <><Suspense fallback={<p>Rendering…</p>}><Markdown text={entry.text.replace(/^\s*[-*+]\s+\*\*.*?\*\*\s*[—–-]?\s*/, '')} path={page.path} open={openNote} /></Suspense>{entry.continuation && <div className="suggested-next"><span>Suggested from text</span>{entry.continuation.value}</div>}<div className="thread-actions"><button className="quiet" onClick={() => ask(`Continue the thread “${entry.name ?? entry.key}” in ${page.path}. First recover its agreement and next discriminating step. Stop at any unresolved researcher choice.`)}>Continue thread <ArrowRight size={14} /></button><button className="quiet" onClick={() => ask(`For the thread “${entry.name ?? entry.key}”, if its proposed next step succeeds, what changes about the original question? State what remains unresolved.`)}>What would this settle?</button></div></>}</article>)}</div>{!outline.currentWork && <p className="muted">No Current work section was recognized. Open the original note to inspect its structure.</p>}<div className="source-footer"><FileText size={13} /><button onClick={() => openNote(page.path)}>{page.path}</button><code>{outline.version.observedAt}</code></div></div> : <div className="loading-state">Reading the main note…</div> : page.kind === 'note' ? note ? <div className="document-page note-page"><div className="document-label"><span className="eyebrow">ORIGINAL NOTE · READ ONLY</span><div><button className={'quiet ' + (source ? '' : 'active')} onClick={() => setSource(false)}>Rendered</button><button className={'quiet ' + (source ? 'active' : '')} onClick={() => setSource(true)}>Source</button></div></div><div className="note-path">{page.path}</div>{source || note.format === 'text' || note.format === 'tex' ? <pre className="source-view">{note.text}</pre> : <Suspense fallback={<p>Rendering mathematics…</p>}><Markdown text={note.text} path={page.path} open={openNote} /></Suspense>}</div> : <div className="loading-state">Reading source…</div> : page.kind === 'board' ? <div className="document-page board-page"><span className="eyebrow">ACROSS YOUR RESEARCH</span><h1>Open threads</h1><p className="muted">Dispositions from the owning notes. Execution and scientific acceptance remain separate.</p><div className="board-table"><div className="board-row board-head"><span>Thread / owner</span><span>Disposition</span><span>Last change</span></div>{board.map(row => <button className="board-row" key={`${row.owner}:${row.key}`} onClick={() => setPage({ kind: 'topic', path: row.owner })}><span><strong>{row.name ?? 'Unstructured entry'}</strong><small>{row.ownerTitle}</small></span><span><span className={'state-tag ' + row.state}>{row.state.replaceAll('-', ' ')}</span><small>{row.dispositionText}</small></span><span className="muted">{row.date ?? 'Unrecorded'}</span></button>)}</div></div> : <div className="document-page settings-page"><span className="eyebrow">YOUR LOCAL WORKSPACE</span><h1>Settings</h1><section><h2>Model connection</h2><p className="muted">Credentials stay on the local server. Sign in to use the configured model with your research.</p><ModelSignIn flows={Object.values(loginFlows)} error={setError} started={(login, provider) => setLoginFlows(old => old[login] ? old : { ...old, [login]: { login, provider, challenges: {} } })} />
+          <div className="model-summary"><span className="eyebrow">MAIN MODEL</span><strong>{config?.models.main.modelId}</strong><span>{config?.models.main.provider} · {catalog?.catalog.find(m => m.provider === config?.models.main.provider && m.modelId === config?.models.main.modelId)?.authState ?? (faux ? 'simulated' : 'not connected')}</span></div></section><section><h2>Research access</h2><dl><dt>Research writes</dt><dd>Off — read-only milestone</dd><dt>Topics</dt><dd>{config?.workspace.topicsRoot}</dd><dt>Knowledge</dt><dd>{config?.workspace.knowledgeRoot ?? 'Not configured'}</dd><dt>Model</dt><dd>{faux ? 'Simulated responses; no scientific claims are validated.' : 'Live provider; authentication required.'}</dd></dl></section></div>}
+      </main><footer className="statusbar"><span><span className="connection-dot online" /> Local · research writes off</span><span>{faux ? 'Simulated model' : config?.models.main.modelId ?? 'Model'} · {locations.length} source locations</span></footer>
+    </div>
+    {dock && current && <AgentDock location={current} open={openNote} close={() => setDock(false)} onLogin={loginEvent} suppliedDraft={draft} />}
+    {search && <div className="modal-backdrop" onClick={() => setSearch(false)}><section className="search-modal" role="dialog" aria-modal="true" aria-label="Search research" onClick={e => e.stopPropagation()}><form onSubmit={e => { e.preventDefault(); void find(query).then(setResults).catch(e => setError(e.message)); }}><Search size={19} /><input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder="Search notes and knowledge…" /><button type="button" className="icon-button" aria-label="Close search" onClick={() => setSearch(false)}><X size={18} /></button></form><div className="search-results">{results?.map((hit, i) => <button key={i} onClick={() => { if (hit.ref.address.kind === 'workspace') openNote(hit.ref.address.path); setSearch(false); }}><span>{hit.heading}</span><p>{hit.snippet}</p><small>{hit.ref.address.kind === 'workspace' ? hit.ref.address.path : ''}</small></button>)}{!results && <p className="muted">Enter a question or phrase, then press Enter. ⏎</p>}{results?.length === 0 && <p>No matches in the indexed sources.</p>}</div></section></div>}
+  </div>;
+}
+function models() { return api('models'); }
+function find(query: string) { return api('search', { query: { q: query, limit: 30 } }); }
+
+function NavNode({ id, graph, selected, choose, depth = 0 }: { id: string; graph: Graph; selected?: string; choose(page: Page): void; depth?: number }) {
+  const node = graph.navigation.nodes[id]; const [expanded, setExpanded] = useState(depth === 0);
+  if (!node || depth > 20) return null;
+  const children = node.children.filter(child => child !== id);
+  return <div className="nav-node"><div className={'nav-item ' + (node.location && node.location === selected ? 'selected' : '')} style={{ paddingLeft: 8 + depth * 13 }}><button className={'tree-toggle ' + (expanded ? 'expanded' : '')} aria-label={`${expanded ? 'Collapse' : 'Expand'} ${node.title}`} onClick={() => setExpanded(old => !old)} disabled={!children.length}><ChevronRight size={13} /></button><button className="tree-label" onClick={() => node.location ? choose({ kind: 'topic', path: node.location }) : choose({ kind: 'group', id })}>{node.title.replace(/^\d+\.\s*/, '')}</button></div>{expanded && children.map(child => <NavNode key={child} id={child} graph={graph} selected={selected} choose={choose} depth={depth + 1} />)}</div>;
+}

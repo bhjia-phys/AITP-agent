@@ -1,0 +1,799 @@
+{
+  "ScopeFlag": [
+    {
+      "flag": "analyticOnly",
+      "location": "topics/anomaly/research.md",
+      "source": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/anomaly/research.md"
+        },
+        "version": {
+          "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "observedAt": "2026-10-21T10:00:00Z"
+        },
+        "locator": {
+          "kind": "lines",
+          "start": 3,
+          "end": 5
+        }
+      }
+    },
+    {
+      "flag": "dormant",
+      "location": "topics/anomaly/research.md",
+      "source": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/anomaly/research.md"
+        },
+        "version": {
+          "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "observedAt": "2026-10-21T10:00:00Z"
+        },
+        "locator": {
+          "kind": "lines",
+          "start": 3,
+          "end": 5
+        }
+      },
+      "thread": "numerical-lattice-route",
+      "overriddenBy": "grant-9"
+    }
+  ],
+  "ResearchLocation": [
+    {
+      "id": "topics/spectra/selfconsistent/stability/research.md",
+      "kind": "branch",
+      "format": "markdown",
+      "title": "Static map stability",
+      "parents": [
+        "topics/spectra/selfconsistent/research.md",
+        "topics/spectra/continuation/research.md"
+      ],
+      "children": [],
+      "groupings": [
+        "direction-1"
+      ],
+      "scope": [],
+      "source": "link",
+      "version": {
+        "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "observedAt": "2026-10-21T10:00:00Z"
+      }
+    }
+  ],
+  "ThreadEntry": [
+    {
+      "owner": "topics/spectra/selfconsistent/research.md",
+      "index": 0,
+      "key": "static-map-stability",
+      "form": "pointer",
+      "name": "Static map stability",
+      "state": "pointer",
+      "pointer": {
+        "target": "topics/spectra/selfconsistent/stability/research.md",
+        "anchor": "current-work",
+        "resolved": true
+      },
+      "anchors": [],
+      "links": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/stability/research.md"
+          },
+          "version": {
+            "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "span": {
+        "startLine": 11,
+        "endLine": 13
+      },
+      "text": "- **Static map stability → [stability branch](stability/research.md#current-work)** —\n  supplies two toy roots …"
+    },
+    {
+      "owner": "topics/spectra/selfconsistent/research.md",
+      "index": 0,
+      "key": "static-map-stability",
+      "form": "pointer",
+      "name": "Static map stability",
+      "state": "pointer",
+      "pointer": {
+        "target": "topics/spectra/selfconsistent/stability/research.md",
+        "anchor": "current-work",
+        "resolved": null
+      },
+      "anchors": [],
+      "links": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/stability/research.md"
+          },
+          "version": {
+            "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "span": {
+        "startLine": 11,
+        "endLine": 13
+      },
+      "text": "- **Static map stability → [stability branch](stability/research.md#current-work)** —\n  supplies two toy roots …"
+    },
+    {
+      "owner": "topics/spectra/selfconsistent/research.md",
+      "index": 2,
+      "key": "mixing-schedule",
+      "form": "thread",
+      "name": "Mixing schedule",
+      "dispositionText": "active",
+      "state": "active",
+      "date": "2026-09-30",
+      "continuation": {
+        "value": "compare the two schedules on the third system with the same tolerance",
+        "sources": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "observedAt": "2026-10-21T10:00:00Z"
+            },
+            "locator": {
+              "kind": "lines",
+              "start": 17,
+              "end": 19
+            }
+          }
+        ],
+        "builder": "core.notes.continuation@1",
+        "builtAt": "2026-10-21T10:01:00Z",
+        "fresh": true,
+        "extracted": {
+          "kind": "suggestion",
+          "confidence": "high"
+        }
+      },
+      "anchors": [],
+      "links": [],
+      "span": {
+        "startLine": 17,
+        "endLine": 20
+      },
+      "text": "- **Mixing schedule** — active · 2026-09-30. …",
+      "plan": {
+        "ref": {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/plans/mixing-plan.md"
+          },
+          "version": {
+            "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        },
+        "title": "Mixing plan",
+        "phases": [
+          {
+            "title": "Phase 1: small systems",
+            "span": {
+              "startLine": 3,
+              "endLine": 5
+            }
+          },
+          {
+            "title": "Phase 2: third system",
+            "span": {
+              "startLine": 7,
+              "endLine": 10
+            }
+          },
+          {
+            "title": "Phase 3: periodic systems",
+            "span": {
+              "startLine": 12,
+              "endLine": 14
+            }
+          }
+        ],
+        "operative": 1
+      }
+    },
+    {
+      "owner": "topics/anomaly/research.md",
+      "index": 0,
+      "key": "physical-relative-coupling",
+      "form": "heading",
+      "name": "Physical relative coupling",
+      "dispositionText": "Waiting on a physical construction",
+      "state": "waiting-input",
+      "date": "unrecorded",
+      "anchors": [
+        "continuation",
+        "active-analytic-continuation"
+      ],
+      "links": [],
+      "span": {
+        "startLine": 9,
+        "endLine": 16
+      },
+      "text": "### Physical relative coupling\n\n**Waiting on a physical construction; …**"
+    },
+    {
+      "owner": "topics/deferred-idea/research.md",
+      "index": 2,
+      "key": "entry-3",
+      "form": "raw",
+      "name": null,
+      "state": "unknown",
+      "anchors": [],
+      "links": [],
+      "span": {
+        "startLine": 9,
+        "endLine": 9
+      },
+      "text": "- An unstructured remark without a bold name."
+    }
+  ],
+  "ThreadRow": [
+    {
+      "owner": "topics/spectra/selfconsistent/research.md",
+      "index": 2,
+      "key": "mixing-schedule",
+      "form": "thread",
+      "name": "Mixing schedule",
+      "dispositionText": "active",
+      "state": "active",
+      "date": "2026-09-30",
+      "continuation": {
+        "value": "compare the two schedules on the third system with the same tolerance",
+        "sources": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "observedAt": "2026-10-21T10:00:00Z"
+            },
+            "locator": {
+              "kind": "lines",
+              "start": 17,
+              "end": 19
+            }
+          }
+        ],
+        "builder": "core.notes.continuation@1",
+        "builtAt": "2026-10-21T10:01:00Z",
+        "fresh": true,
+        "extracted": {
+          "kind": "suggestion",
+          "confidence": "high"
+        }
+      },
+      "anchors": [],
+      "links": [],
+      "span": {
+        "startLine": 17,
+        "endLine": 20
+      },
+      "text": "- **Mixing schedule** — active · 2026-09-30. …",
+      "plan": {
+        "ref": {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/plans/mixing-plan.md"
+          },
+          "version": {
+            "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        },
+        "title": "Mixing plan",
+        "phases": [
+          {
+            "title": "Phase 1: small systems",
+            "span": {
+              "startLine": 3,
+              "endLine": 5
+            }
+          },
+          {
+            "title": "Phase 2: third system",
+            "span": {
+              "startLine": 7,
+              "endLine": 10
+            }
+          },
+          {
+            "title": "Phase 3: periodic systems",
+            "span": {
+              "startLine": 12,
+              "endLine": 14
+            }
+          }
+        ],
+        "operative": 1
+      },
+      "ownerTitle": "Self-consistent spectra",
+      "ownerKind": "topic",
+      "grouping": "direction-1"
+    }
+  ],
+  "Outline": [
+    {
+      "location": "topics/spectra/selfconsistent/research.md",
+      "version": {
+        "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "observedAt": "2026-10-21T10:00:00Z"
+      },
+      "format": "markdown",
+      "title": "Self-consistent spectra",
+      "opening": {
+        "span": {
+          "startLine": 3,
+          "endLine": 7
+        },
+        "text": "Does the toy iterated map settle on one spectrum for each test case? …"
+      },
+      "headings": [
+        {
+          "level": 2,
+          "text": "Current work",
+          "slug": "current-work",
+          "line": 9
+        }
+      ],
+      "anchors": [],
+      "currentWork": {
+        "span": {
+          "startLine": 9,
+          "endLine": 20
+        },
+        "entries": [
+          {
+            "owner": "topics/spectra/selfconsistent/research.md",
+            "index": 0,
+            "key": "static-map-stability",
+            "form": "pointer",
+            "name": "Static map stability",
+            "state": "pointer",
+            "pointer": {
+              "target": "topics/spectra/selfconsistent/stability/research.md",
+              "anchor": "current-work",
+              "resolved": true
+            },
+            "anchors": [],
+            "links": [
+              {
+                "kind": "note",
+                "address": {
+                  "kind": "workspace",
+                  "path": "topics/spectra/selfconsistent/stability/research.md"
+                },
+                "version": {
+                  "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "observedAt": "2026-10-21T10:00:00Z"
+                }
+              }
+            ],
+            "span": {
+              "startLine": 11,
+              "endLine": 13
+            },
+            "text": "- **Static map stability → [stability branch](stability/research.md#current-work)** —\n  supplies two toy roots …"
+          },
+          {
+            "owner": "topics/spectra/selfconsistent/research.md",
+            "index": 2,
+            "key": "mixing-schedule",
+            "form": "thread",
+            "name": "Mixing schedule",
+            "dispositionText": "active",
+            "state": "active",
+            "date": "2026-09-30",
+            "continuation": {
+              "value": "compare the two schedules on the third system with the same tolerance",
+              "sources": [
+                {
+                  "kind": "note",
+                  "address": {
+                    "kind": "workspace",
+                    "path": "topics/spectra/selfconsistent/research.md"
+                  },
+                  "version": {
+                    "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "observedAt": "2026-10-21T10:00:00Z"
+                  },
+                  "locator": {
+                    "kind": "lines",
+                    "start": 17,
+                    "end": 19
+                  }
+                }
+              ],
+              "builder": "core.notes.continuation@1",
+              "builtAt": "2026-10-21T10:01:00Z",
+              "fresh": true,
+              "extracted": {
+                "kind": "suggestion",
+                "confidence": "high"
+              }
+            },
+            "anchors": [],
+            "links": [],
+            "span": {
+              "startLine": 17,
+              "endLine": 20
+            },
+            "text": "- **Mixing schedule** — active · 2026-09-30. …",
+            "plan": {
+              "ref": {
+                "kind": "note",
+                "address": {
+                  "kind": "workspace",
+                  "path": "topics/spectra/selfconsistent/plans/mixing-plan.md"
+                },
+                "version": {
+                  "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+                  "observedAt": "2026-10-21T10:00:00Z"
+                }
+              },
+              "title": "Mixing plan",
+              "phases": [
+                {
+                  "title": "Phase 1: small systems",
+                  "span": {
+                    "startLine": 3,
+                    "endLine": 5
+                  }
+                },
+                {
+                  "title": "Phase 2: third system",
+                  "span": {
+                    "startLine": 7,
+                    "endLine": 10
+                  }
+                },
+                {
+                  "title": "Phase 3: periodic systems",
+                  "span": {
+                    "startLine": 12,
+                    "endLine": 14
+                  }
+                }
+              ],
+              "operative": 1
+            }
+          }
+        ]
+      },
+      "links": [
+        {
+          "text": "stability branch",
+          "target": "stability/research.md#current-work",
+          "kind": "main-note",
+          "resolved": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/stability/research.md"
+            },
+            "version": {
+              "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          },
+          "anchorOk": true,
+          "line": 11
+        }
+      ],
+      "plans": [
+        {
+          "ref": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/plans/mixing-plan.md"
+            },
+            "version": {
+              "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          },
+          "title": "Mixing plan",
+          "phases": [
+            {
+              "title": "Phase 1: small systems",
+              "span": {
+                "startLine": 3,
+                "endLine": 5
+              }
+            },
+            {
+              "title": "Phase 2: third system",
+              "span": {
+                "startLine": 7,
+                "endLine": 10
+              }
+            },
+            {
+              "title": "Phase 3: periodic systems",
+              "span": {
+                "startLine": 12,
+                "endLine": 14
+              }
+            }
+          ],
+          "operative": 1
+        }
+      ],
+      "scope": [],
+      "warnings": [
+        {
+          "line": 30,
+          "message": "link target outside configured roots"
+        }
+      ]
+    }
+  ],
+  "Graph": [
+    {
+      "nodes": [
+        {
+          "id": "topics/research.md",
+          "kind": "location",
+          "location": "topics/research.md",
+          "title": "Research programme"
+        },
+        {
+          "id": "direction-1",
+          "kind": "grouping",
+          "title": "1. Toy spectra from an iterated map"
+        },
+        {
+          "id": "topics/spectra/selfconsistent/research.md",
+          "kind": "location",
+          "location": "topics/spectra/selfconsistent/research.md",
+          "title": "Self-consistent spectra"
+        }
+      ],
+      "edges": [
+        {
+          "from": "topics/spectra/selfconsistent/research.md",
+          "to": "topics/spectra/selfconsistent/stability/research.md",
+          "kind": "pointer-to",
+          "source": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "observedAt": "2026-10-21T10:00:00Z"
+            },
+            "locator": {
+              "kind": "lines",
+              "start": 11,
+              "end": 13
+            }
+          }
+        }
+      ],
+      "navigation": {
+        "roots": [
+          "direction-1"
+        ],
+        "nodes": {
+          "direction-1": {
+            "id": "direction-1",
+            "title": "1. Toy spectra from an iterated map",
+            "children": [
+              "topics/spectra/selfconsistent/research.md"
+            ],
+            "alsoUnder": []
+          },
+          "topics/spectra/selfconsistent/research.md": {
+            "id": "topics/spectra/selfconsistent/research.md",
+            "title": "Self-consistent spectra",
+            "location": "topics/spectra/selfconsistent/research.md",
+            "children": [
+              "topics/spectra/selfconsistent/stability/research.md"
+            ],
+            "alsoUnder": []
+          }
+        },
+        "unmapped": [
+          "topics/spectra/selfconsistent/orphan/research.md"
+        ]
+      },
+      "builtAt": "2026-10-21T10:02:00Z"
+    }
+  ],
+  "Grouping": [
+    {
+      "id": "direction-1",
+      "title": "1. Toy spectra from an iterated map",
+      "source": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/research.md"
+        },
+        "version": {
+          "hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "observedAt": "2026-10-21T10:00:00Z"
+        }
+      },
+      "sectionText": "## 1. Toy spectra …",
+      "members": [
+        "topics/spectra/selfconsistent/research.md",
+        "topics/spectra/continuation/research.md"
+      ]
+    }
+  ],
+  "InstructionSource": [
+    {
+      "ref": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/AGENTS.md"
+        },
+        "version": {
+          "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "observedAt": "2026-10-21T10:00:00Z"
+        }
+      },
+      "kind": "workspace",
+      "appliesTo": {},
+      "text": "- Write research notes in English Markdown."
+    },
+    {
+      "ref": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/README.md"
+        },
+        "version": {
+          "hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+          "observedAt": "2026-10-21T10:00:00Z"
+        },
+        "locator": {
+          "kind": "heading",
+          "path": [
+            "Standing choices"
+          ]
+        }
+      },
+      "kind": "family-readme",
+      "appliesTo": {
+        "location": "topics/spectra/selfconsistent/research.md"
+      },
+      "text": "- Use the damped update by default."
+    }
+  ],
+  "PlanRef": [
+    {
+      "ref": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/selfconsistent/plans/mixing-plan.md"
+        },
+        "version": {
+          "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "observedAt": "2026-10-21T10:00:00Z"
+        }
+      },
+      "title": "Mixing plan",
+      "phases": [
+        {
+          "title": "Phase 1: small systems",
+          "span": {
+            "startLine": 3,
+            "endLine": 5
+          }
+        },
+        {
+          "title": "Phase 2: third system",
+          "span": {
+            "startLine": 7,
+            "endLine": 10
+          }
+        },
+        {
+          "title": "Phase 3: periodic systems",
+          "span": {
+            "startLine": 12,
+            "endLine": 14
+          }
+        }
+      ],
+      "operative": 1
+    }
+  ],
+  "SearchHit": [
+    {
+      "ref": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/selfconsistent/research.md"
+        },
+        "version": {
+          "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "observedAt": "2026-10-21T10:00:00Z"
+        },
+        "locator": {
+          "kind": "lines",
+          "start": 17,
+          "end": 17
+        }
+      },
+      "heading": "Current work",
+      "snippet": "The damped schedule converges …",
+      "score": 3.2
+    }
+  ],
+  "Use": [
+    {
+      "user": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/continuation/research.md"
+        },
+        "version": {
+          "hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "observedAt": "2026-10-21T10:00:00Z"
+        },
+        "locator": {
+          "kind": "lines",
+          "start": 6,
+          "end": 7
+        }
+      },
+      "relation": "links",
+      "passage": "The static map used here is the one studied in the stability branch …"
+    }
+  ],
+  "InboxItem": [
+    {
+      "id": "inbox-1",
+      "kind": "thread",
+      "title": "Alternative static definitions",
+      "source": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/selfconsistent/stability/research.md"
+        },
+        "version": {
+          "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "observedAt": "2026-10-21T10:00:00Z"
+        }
+      },
+      "createdAt": "2026-10-21T10:03:00Z"
+    }
+  ]
+}

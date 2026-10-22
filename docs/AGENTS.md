@@ -2,6 +2,8 @@
 
 This file defines document structure, Markdown tiers, writing rules, and `verify-doc-budgets` ceilings. Use [dsh-doc](../.agents/skills/dsh-doc/SKILL.md) for placement and validation, and [dsh-prose-standard](../.agents/skills/dsh-prose-standard/SKILL.md) for required coverage and editorial judgment; the [archived doc-tiers Agent Note](../.agents/notes/archived/process/2026-07-04-doc-tiers-and-budgets.md) records the historical rationale.
 
+AITP-owned `manual` scopes in [the manifest](../scripts/translation-pairing.manifest.json) follow [root policy](../AGENTS.md) instead of pairing and wrapping requirements below; preserve their existing records and owners.
+
 ## Document structure
 
 These rules apply to human-facing documentation; [Agent Notes](../.agents/notes/README.md) remain outside their scope. A [postmortem](postmortem/README.md) is an incident-scoped reference; chronology records evidence, not a teaching sequence. A document's subject and tree position fix its scope: describe its own subject at appropriate detail and direct children only by purpose, responsibility, and high-level behavior; link to the owning descendant for lower-level detail. Document type does not widen that scope. A reference may be exhaustive only about its own subject. Testing mechanisms, fixtures, and harnesses belong at the lowest owning level; higher documents link there.

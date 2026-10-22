@@ -1,0 +1,144 @@
+{
+  "label": "Synthetic fixture with illustrative runtime records",
+  "note": "Notes, threads, decisions, ideas, papers and knowledge come from agent/fixtures/workspace through the agent's parser. Conversations, activity, commits and runs below are illustrative examples written for the prototype; they are not records of real sessions.",
+  "now": "2026-10-21T16:20:00Z",
+  "conversations": [
+    {
+      "id": "c-schedules",
+      "title": "Compare the two schedules on the third system",
+      "kind": "implement",
+      "state": "working",
+      "project": "spectra",
+      "note": "topics/spectra/selfconsistent/research.md",
+      "origin": { "type": "thread", "id": "topics/spectra/selfconsistent/research.md#mixing-schedule", "label": "Mixing schedule" },
+      "task": "Run the damped and undamped schedules on the third test system with the same tolerance, and report whether the damped one converges within 40 iterations.",
+      "settles": "Whether the damped schedule's convergence extends to the third system under a fixed tolerance.",
+      "model": "gpt-6.1-sol · high",
+      "started": "2026-10-21T15:58:00Z",
+      "scope": ["Notes: propose changes", "libdemo: edit and build", "Runs: local, ask first"],
+      "context": [
+        { "label": "Self-consistent spectra · opening", "ref": "topics/spectra/selfconsistent/research.md", "why": "question and current answer" },
+        { "label": "Current work › Mixing schedule", "ref": "topics/spectra/selfconsistent/research.md#current-work", "why": "the thread being continued" },
+        { "label": "Mixing plan › Phase 2, third system", "ref": "topics/spectra/selfconsistent/plans/mixing-plan.md", "why": "operative plan phase" },
+        { "label": "libdemo/src/screen.cpp", "ref": "topics/spectra/workspace/development/libdemo/src/screen.cpp", "why": "the schedule implementation" },
+        { "label": "libdemo AGENTS.md", "ref": "topics/spectra/workspace/development/libdemo/AGENTS.md", "why": "checkout instructions" }
+      ],
+      "messages": [
+        { "role": "user", "md": "Continue the mixing-schedule thread: compare the two schedules on the third system with the same tolerance." },
+        { "role": "tools", "summary": "Read 4 sources", "items": ["Self-consistent spectra · opening and Current work", "Mixing plan · Phase 2", "libdemo/src/screen.cpp · schedule()", "libdemo/README.md · build"] },
+        { "role": "agent", "md": "The plan fixes the tolerance at $10^{-8}$ and the iteration budget at 40 for both schedules, so the comparison is discriminating only if the third system is run with the same budget. The damped schedule uses $x_{n+1} = (1-\\beta)x_n + \\beta F(x_n)$ with $\\beta = 0.5$." },
+        { "role": "approval", "title": "Build libdemo and run the third system", "command": "make -C libdemo && ./libdemo --system 3 --schedule damped,undamped --tol 1e-8 --max-iter 40", "where": "libdemo checkout · local", "cost": "about 2 minutes", "state": "approved", "by": "researcher" },
+        { "role": "tools", "summary": "Ran 1 command · exit 0 · 1 m 48 s", "items": ["make -C libdemo", "./libdemo --system 3 …  → runs/schedule-third-20261021/"] },
+        { "role": "agent", "md": "The damped schedule reaches the tolerance at iteration 31; the undamped one oscillates between two values from iteration 6 on, as on the small systems. This extends the damped result to the third system under the plan's fixed tolerance. It does not test a finer grid." },
+        { "role": "change", "id": "chg-1" }
+      ],
+      "changes": [
+        {
+          "id": "chg-1",
+          "title": "Update Current work › Mixing schedule",
+          "file": "topics/spectra/selfconsistent/research.md",
+          "state": "proposed",
+          "checks": ["links resolve", "anchors kept", "no other passage changed"],
+          "before": "- **Mixing schedule** — active · 2026-09-30. The damped schedule converges for\n  both small systems within 40 iterations; the undamped one oscillates. Next:\n  compare the two schedules on the third system with the same tolerance, following\n  the [mixing plan](plans/mixing-plan.md#phase-2-third-system).",
+          "after": "- **Mixing schedule** — active · 2026-10-21. The damped schedule converges for\n  all three systems within 40 iterations (the third at iteration 31); the undamped\n  one oscillates. Next: repeat the third system on the refined grid before\n  integrating the result, following the [mixing plan](plans/mixing-plan.md#phase-3).\n  [third-system run](runs/schedule-third-20261021/README.md)"
+        }
+      ],
+      "outcomes": [
+        { "type": "run", "label": "runs/schedule-third-20261021", "state": "finished" },
+        { "type": "change", "label": "Current work › Mixing schedule", "state": "proposed" }
+      ]
+    },
+    {
+      "id": "c-static",
+      "title": "Review the two alternative static definitions",
+      "kind": "review",
+      "state": "needs-you",
+      "project": "spectra",
+      "note": "topics/spectra/selfconsistent/stability/research.md",
+      "origin": { "type": "thread", "id": "topics/spectra/selfconsistent/stability/research.md#alternative-static-definitions", "label": "Alternative static definitions" },
+      "task": "Compare the two alternative static definitions against the retained roots and prepare the choice for the researcher.",
+      "settles": "Which static definition the stability branch adopts, or that neither is adopted yet.",
+      "model": "gpt-6.1-sol · high",
+      "started": "2026-10-20T10:12:00Z",
+      "scope": ["Notes: propose changes", "Code: read only", "Runs: none"],
+      "context": [
+        { "label": "Static map stability · opening and Current work", "ref": "topics/spectra/selfconsistent/stability/research.md", "why": "the thread" },
+        { "label": "Static definitions note", "ref": "topics/spectra/selfconsistent/stability/notes/static-definitions.md", "why": "the two definitions" }
+      ],
+      "messages": [
+        { "role": "user", "md": "Prepare the choice between the two static definitions." },
+        { "role": "tools", "summary": "Read 2 sources", "items": ["Static map stability · Current work", "notes/static-definitions.md"] },
+        { "role": "agent", "md": "Both definitions reproduce the two passing roots. They differ on the open third-case candidate: definition A keeps it inside the tolerance, definition B rejects it. Neither result settles the third case, because the grid limit is unchanged." },
+        { "role": "decision", "title": "Choose the static definition for the stability branch", "options": ["Adopt A for the branch", "Adopt B for the branch", "Keep both until the grid is refined"], "state": "waiting" }
+      ],
+      "changes": [],
+      "outcomes": [ { "type": "decision", "label": "Static definition", "state": "waiting on you" } ]
+    },
+    {
+      "id": "c-trace",
+      "title": "Why does the toy trace have to be unique?",
+      "kind": "learn",
+      "state": "done",
+      "project": "knowledge:toy-algebra",
+      "note": "knowledge/topics/toy-algebra/story.md",
+      "origin": { "type": "paper", "id": "2101.00001", "label": "Toy paper · §2 Setup, p. 2" },
+      "task": "Explain the step from commuting projections to a unique trace in §2, at the depth needed to reproduce it.",
+      "settles": "Whether the learner can reproduce the uniqueness step from the stated assumptions.",
+      "model": "gpt-6.1-sol · medium",
+      "started": "2026-10-18T09:00:00Z",
+      "ended": "2026-10-18T09:40:00Z",
+      "scope": ["Knowledge: propose changes", "Notes: read only"],
+      "context": [
+        { "label": "Toy paper v2 · §2, p. 2", "ref": "knowledge/library/arxiv/2101.00001v2/paper.pdf#page=2", "why": "selected passage" },
+        { "label": "Atom: commuting projections", "ref": "knowledge/atoms/commuting-projections.md", "why": "existing explanation" }
+      ],
+      "messages": [
+        { "role": "user", "md": "Why must the trace be unique here?" },
+        { "role": "agent", "md": "Uniqueness uses two facts stated in §2: the projections commute, and their sum is the identity. Together they force a normalized trace to take the value $1/n$ on each minimal projection." }
+      ],
+      "changes": [],
+      "outcomes": [ { "type": "knowledge", "label": "Atom: commuting projections · locator added", "state": "applied" } ]
+    },
+    {
+      "id": "c-coupling",
+      "title": "Specify the toy junction's coupling",
+      "kind": "derive",
+      "state": "done",
+      "project": "anomaly",
+      "note": "topics/anomaly/research.md",
+      "origin": { "type": "thread", "id": "topics/anomaly/research.md#physical-relative-coupling", "label": "Physical relative coupling" },
+      "task": "State the boundary data the relative coupling needs before any matching attempt.",
+      "settles": "The list of inputs a physical construction must supply.",
+      "model": "gpt-6.1-sol · xhigh",
+      "started": "2026-10-16T13:00:00Z",
+      "ended": "2026-10-16T14:05:00Z",
+      "scope": ["Notes: propose changes", "No numerical work"],
+      "context": [ { "label": "Anomaly matching · Current work", "ref": "topics/anomaly/research.md#current-work", "why": "the thread" } ],
+      "messages": [ { "role": "user", "md": "What must a physical construction specify?" } ],
+      "changes": [],
+      "outcomes": [ { "type": "change", "label": "Current work › Physical relative coupling", "state": "applied" } ]
+    }
+  ],
+  "activity": [
+    { "at": "2026-10-21T16:02:00Z", "kind": "run", "project": "spectra", "text": "Run finished: third system, both schedules", "ref": "c-schedules" },
+    { "at": "2026-10-21T15:58:00Z", "kind": "conversation", "project": "spectra", "text": "Conversation started: Compare the two schedules on the third system", "ref": "c-schedules" },
+    { "at": "2026-10-20T10:40:00Z", "kind": "conversation", "project": "spectra", "text": "Decision requested: static definition for the stability branch", "ref": "c-static" },
+    { "at": "2026-10-19T18:10:00Z", "kind": "note", "project": "dynamics", "text": "Growth branch changed: Current work › Replacement data read-back", "ref": "topics/dynamics/growth/research.md" },
+    { "at": "2026-10-19T11:30:00Z", "kind": "commit", "project": "spectra", "text": "libdemo a41c2e9 · Damp the schedule update", "ref": "topics/spectra/workspace/development/libdemo" },
+    { "at": "2026-10-18T09:40:00Z", "kind": "knowledge", "project": "knowledge:toy-algebra", "text": "Atom updated: commuting projections (locator added)", "ref": "c-trace" },
+    { "at": "2026-10-16T14:05:00Z", "kind": "note", "project": "anomaly", "text": "Anomaly matching changed: Current work › Physical relative coupling", "ref": "c-coupling" },
+    { "at": "2026-10-11T09:00:00Z", "kind": "note", "project": "dynamics", "text": "Matched dynamics changed: Current work › Article argument", "ref": "topics/dynamics/research.md" }
+  ],
+  "commits": {
+    "topics/spectra/workspace/development/libdemo": [
+      { "sha": "a41c2e9", "message": "Damp the schedule update", "date": "2026-10-19T11:30:00Z", "conversation": "c-schedules", "thread": "Mixing schedule" },
+      { "sha": "7d03b11", "message": "Add the third test system", "date": "2026-10-02T15:12:00Z" },
+      { "sha": "e18f5a0", "message": "Expose the tolerance on the command line", "date": "2026-09-28T08:40:00Z" }
+    ]
+  },
+  "workingTree": {
+    "topics/spectra/workspace/development/libdemo": [
+      { "file": "src/screen.cpp", "status": "M", "diff": "@@ -12,7 +12,9 @@ double schedule(double x, double beta) {\n-  return F(x);\n+  // Damped update; beta = 1 recovers the undamped map.\n+  const double fx = F(x);\n+  return (1.0 - beta) * x + beta * fx;\n }" }
+    ]
+  }
+}

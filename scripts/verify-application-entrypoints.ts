@@ -54,6 +54,8 @@ const EXECUTABLE_SOURCE_ALLOWLIST = new Map<string, string>([
  * by name.
  */
 const ROOT_LAUNCHER_POLICIES = new Map<string, LauncherPolicy>([
+  ['aitp-agent', { kind: 'dsh-wrapper', wrapper: 'scripts/aitp-agent.ts' }],
+  ['aitp-agent:auth', { kind: 'dsh-wrapper', wrapper: 'scripts/aitp-agent.ts' }],
   ['demo:ptc', { kind: 'dsh-wrapper', wrapper: 'scripts/demo-ptc.mjs' }],
   ['demo:inspector', { kind: 'dsh-direct' }],
   ['start:web', { kind: 'dsh-direct' }],

@@ -399,6 +399,8 @@ export function checkExperimentalNameExceptions(manifests: readonly WorkspaceMan
 }
 
 function isReleaseMemberDirectory(dir: string): boolean {
+  // Fork-owned application identity is private and never published into the upstream npm scope.
+  if (dir === 'packages/client/ui-brand-aitp') return false
   // The SSH carrier is distributed as executable archives, never as an npm application.
   if (dir === 'packages/ssh/ssh-helper-runtime') return false
   return standardReleaseMemberDirectory.test(dir) || isPublicExperimentalPackageDirectory(dir)

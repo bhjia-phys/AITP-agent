@@ -1,0 +1,19 @@
+{
+  "name": "@aitp/runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@aitp/core": "0.1.0",
+    "@aitp/protocol": "0.1.0",
+    "fast-xml-parser": "5.11.2",
+    "pdfjs-dist": "6.4.299"
+  }
+}

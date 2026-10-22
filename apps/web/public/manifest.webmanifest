@@ -1,6 +1,6 @@
 {
-  "name": "DeepSeek Harness",
-  "short_name": "DSH",
+  "name": "aitp-agent",
+  "short_name": "aitp-agent",
   "start_url": "./",
   "scope": "./",
   "display": "fullscreen",

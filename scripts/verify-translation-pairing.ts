@@ -1,7 +1,7 @@
 /**
  * Enforce complete English/Chinese pairs, matching structure, and recorded
- * per-section hashes for every in-scope document. The manifest contains only explicit
- * exclusions, which may have neither a counterpart nor a sidecar.
+ * per-section hashes for every in-scope upstream document. Explicit exclusions
+ * permit neither counterpart nor sidecar; fork-owned manual documents bypass this gate.
  * `--list` reports state; `--write <pairs...>` records the named confirmed
  * pairs (`--write --all` records every complete pair); `--cached <pairs...>`
  * checks exact index bytes for hooks. A check or write named with pair paths
@@ -28,6 +28,7 @@ import {
   generatedRegions,
   requiresSourceLanguageSwitcher,
   isTranslationPairingManifestExcluded,
+  isManuallyMaintainedDocument,
   isTranslationScopeFile,
   TRANSLATION_SCOPE_GLOB_EXCLUDES,
   translationPairSourcePredicate,
@@ -107,18 +108,18 @@ if (request.scope === 'pairs') {
   for (const anchor of request.anchors) {
     const { source, zh, meta } = translationPairPaths(anchor)
     for (const file of [source, zh, meta]) {
-      if (repositoryFileExists(file)) files.add(file)
+      if (repositoryFileExists(file) && !isManuallyMaintainedDocument(file, manifest)) files.add(file)
     }
     // A named worktree anchor with no files still enters the source list so
     // an interactive check reports it. An index check accepts a complete
     // three-file deletion and still rejects every partial deletion below.
-    if (!indexMode && !repositoryFileExists(anchor)) files.add(anchor)
+    if (!indexMode && !repositoryFileExists(anchor) && !isManuallyMaintainedDocument(anchor, manifest)) files.add(anchor)
   }
 } else {
   // One call shares a single directory walk across every pattern.
   for (const match of globSync(SCOPE_PATTERNS, { cwd: root, exclude: TRANSLATION_SCOPE_GLOB_EXCLUDES })) {
     const normalized = match.split(sep).join('/')
-    if (isTranslationScopeFile(normalized)) files.add(normalized)
+    if (isTranslationScopeFile(normalized) && !isManuallyMaintainedDocument(normalized, manifest)) files.add(normalized)
   }
 }
 const translations = [...files].filter(f => f.endsWith('.zh.md')).sort()
@@ -126,14 +127,15 @@ const metas = [...files].filter(f => f.endsWith('.i18n.yaml')).sort()
 const sources = [...files].filter(f => f.endsWith('.md') && !f.endsWith('.zh.md')).sort()
 
 if (request.scope === 'pairs') {
-  const rejected = request.anchors.filter(anchor => !isTranslationScopeFile(anchor) || isExcluded(anchor))
+  const rejected = request.anchors.filter(anchor => !isTranslationScopeFile(anchor)
+    || isExcluded(anchor) || isManuallyMaintainedDocument(anchor, manifest))
   const absent = request.anchors.filter((anchor) => {
     const { source, zh, meta } = translationPairPaths(anchor)
     return ![source, zh, meta].some(repositoryFileExists)
   })
   if (rejected.length > 0 || (!indexMode && absent.length > 0)) {
     for (const anchor of rejected) {
-      console.error(`verify-translation-pairing: ${anchor} is not an in-scope pair (excluded or outside the documentation corpus; see docs/i18n/README.md)`)
+      console.error(`verify-translation-pairing: ${anchor} is not an in-scope pair (manual, excluded or outside the documentation corpus; see AGENTS.md and docs/i18n/README.md)`)
     }
     for (const anchor of absent) {
       console.error(`verify-translation-pairing: ${anchor} names no pair on disk (none of its three files exist)`)

@@ -1,0 +1,513 @@
+{
+  "SessionMeta": [
+    {
+      "id": "sess-1",
+      "conversation": "conv-1",
+      "kind": "research",
+      "location": "topics/spectra/selfconsistent/research.md",
+      "title": "Third-system schedules",
+      "mode": "computation",
+      "thread": {
+        "location": "topics/spectra/selfconsistent/research.md",
+        "key": "mixing-schedule",
+        "name": "Mixing schedule"
+      },
+      "scope": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/research.md"
+          },
+          "version": {
+            "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "createdAt": "2026-10-21T10:00:00Z",
+      "archived": false,
+      "lastSeen": {
+        "manifest": "man-1",
+        "at": "2026-10-21T10:12:00Z"
+      }
+    }
+  ],
+  "ActiveTask": [
+    {
+      "id": "task-1",
+      "session": "sess-1",
+      "request": "Compare the two schedules on the third system",
+      "agreement": {
+        "source": "request"
+      },
+      "thread": {
+        "location": "topics/spectra/selfconsistent/research.md",
+        "key": "mixing-schedule",
+        "name": "Mixing schedule"
+      },
+      "scope": [],
+      "nextAction": "run the comparison",
+      "status": "active",
+      "placedAt": "2026-10-21T10:10:00Z",
+      "updatedAt": "2026-10-21T10:11:00Z"
+    }
+  ],
+  "ContentBlock": [
+    {
+      "type": "text",
+      "text": "Where does the mixing schedule stand?"
+    },
+    {
+      "type": "image",
+      "artifact": "art-1",
+      "file": "figure.png",
+      "mime": "image/png"
+    },
+    {
+      "type": "data",
+      "item": "ctx-1",
+      "ref": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/selfconsistent/research.md"
+        },
+        "version": {
+          "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "observedAt": "2026-10-21T10:00:00Z"
+        },
+        "locator": {
+          "kind": "lines",
+          "start": 1,
+          "end": 20
+        }
+      },
+      "role": "location",
+      "text": "# Self-consistent spectra\n\u2026"
+    }
+  ],
+  "InputSubmission": [
+    {
+      "purpose": "task",
+      "delivery": "follow-up",
+      "content": [
+        {
+          "type": "text",
+          "text": "Compare the two schedules."
+        },
+        {
+          "type": "data",
+          "item": "ctx-1",
+          "ref": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "observedAt": "2026-10-21T10:00:00Z"
+            },
+            "locator": {
+              "kind": "lines",
+              "start": 1,
+              "end": 20
+            }
+          },
+          "role": "location",
+          "text": "# Self-consistent spectra\n\u2026"
+        }
+      ],
+      "scope": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/research.md"
+          },
+          "version": {
+            "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "thread": {
+        "location": "topics/spectra/selfconsistent/research.md",
+        "key": "mixing-schedule",
+        "name": "Mixing schedule"
+      },
+      "requestId": "input-0001-abcd"
+    },
+    {
+      "purpose": "interjection",
+      "delivery": "follow-up",
+      "content": [
+        {
+          "type": "text",
+          "text": "What is the tolerance?"
+        }
+      ],
+      "requestId": "input-0002-abcd"
+    },
+    {
+      "purpose": "continue",
+      "delivery": "steer",
+      "content": [
+        {
+          "type": "text",
+          "text": "continue"
+        }
+      ],
+      "requestId": "input-0003-abcd"
+    }
+  ],
+  "SubmissionReceipt": [
+    {
+      "submission": "sub-1",
+      "requestId": "input-0001-abcd",
+      "status": "admitted",
+      "at": "2026-10-21T10:13:00Z"
+    },
+    {
+      "submission": "sub-1",
+      "requestId": "input-0001-abcd",
+      "status": "placed",
+      "entry": "12",
+      "at": "2026-10-21T10:14:00Z"
+    },
+    {
+      "submission": "sub-1",
+      "requestId": "input-0001-abcd",
+      "status": "rejected",
+      "at": "2026-10-21T10:13:00Z",
+      "reason": "The conversation is busy"
+    }
+  ],
+  "TranscriptEntryView": [
+    {
+      "id": "12",
+      "conversation": "conv-1",
+      "ordinal": 12,
+      "kind": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Compare the two schedules."
+        }
+      ],
+      "purpose": "task",
+      "delivery": "follow-up"
+    },
+    {
+      "id": "13",
+      "conversation": "conv-1",
+      "ordinal": 13,
+      "kind": "tool-call",
+      "content": [],
+      "tool": {
+        "callId": "call-1",
+        "name": "read",
+        "summary": "read mixing-plan.md \u00a7Phase 2"
+      }
+    },
+    {
+      "id": "12",
+      "conversation": "conv-1",
+      "ordinal": 12,
+      "kind": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "Compare the two schedules."
+        }
+      ],
+      "purpose": "task",
+      "delivery": "follow-up",
+      "usage": {
+        "input": 731,
+        "output": 53,
+        "cacheRead": 127,
+        "cacheWrite": 0,
+        "total": 911
+      }
+    }
+  ],
+  "ContextItem": [
+    {
+      "id": "ctx-1",
+      "channel": "data",
+      "role": "location",
+      "ref": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/selfconsistent/research.md"
+        },
+        "version": {
+          "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "observedAt": "2026-10-21T10:00:00Z"
+        }
+      },
+      "reason": "always: opening and Current work",
+      "tokens": 812,
+      "status": "placed",
+      "delivery": {
+        "requestId": "deliver-sess-1-ctx-1",
+        "submission": "sub-3",
+        "entry": "7"
+      }
+    },
+    {
+      "id": "ctx-0",
+      "channel": "instruction",
+      "role": "instruction-source",
+      "ref": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/AGENTS.md"
+        },
+        "version": {
+          "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "observedAt": "2026-10-21T10:00:00Z"
+        }
+      },
+      "reason": "workspace rules",
+      "tokens": 40,
+      "status": "placed",
+      "section": {
+        "key": "aitp.instructions",
+        "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      }
+    },
+    {
+      "id": "ctx-2",
+      "channel": "data",
+      "role": "location",
+      "ref": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/selfconsistent/research.md"
+        },
+        "version": {
+          "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "observedAt": "2026-10-21T10:00:00Z"
+        }
+      },
+      "reason": "always: opening and Current work",
+      "tokens": 812,
+      "status": "admitted",
+      "delivery": {
+        "requestId": "deliver-sess-1-ctx-2",
+        "withInput": "sub-4"
+      }
+    }
+  ],
+  "ContextManifest": [
+    {
+      "id": "man-1",
+      "session": "sess-1",
+      "conversation": "conv-1",
+      "policy": "aitp-memory@1",
+      "assembledAt": "2026-10-21T10:10:00Z",
+      "items": [
+        {
+          "id": "ctx-0",
+          "channel": "instruction",
+          "role": "instruction-source",
+          "ref": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/AGENTS.md"
+            },
+            "version": {
+              "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          },
+          "reason": "workspace rules",
+          "tokens": 40,
+          "status": "placed",
+          "section": {
+            "key": "aitp.instructions",
+            "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          }
+        },
+        {
+          "id": "ctx-1",
+          "channel": "data",
+          "role": "location",
+          "ref": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          },
+          "reason": "always: opening and Current work",
+          "tokens": 812,
+          "status": "placed",
+          "delivery": {
+            "requestId": "deliver-sess-1-ctx-1",
+            "submission": "sub-3",
+            "entry": "7"
+          }
+        }
+      ],
+      "omitted": [
+        {
+          "ref": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "knowledge/index.md"
+            },
+            "version": {
+              "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          },
+          "reason": "not needed: computational task"
+        }
+      ],
+      "budget": {
+        "limit": 160000,
+        "instructions": 6000,
+        "tools": 4000,
+        "history": 20000,
+        "data": 3000,
+        "reserve": 16000
+      }
+    }
+  ],
+  "DataDelivery": [
+    {
+      "requestId": "deliver-sess-1-ctx-3",
+      "blocks": [
+        {
+          "type": "data",
+          "item": "ctx-1",
+          "ref": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "observedAt": "2026-10-21T10:00:00Z"
+            },
+            "locator": {
+              "kind": "lines",
+              "start": 1,
+              "end": 20
+            }
+          },
+          "role": "location",
+          "text": "# Self-consistent spectra\n\u2026"
+        }
+      ],
+      "edits": [
+        {
+          "item": "ctx-1",
+          "action": "omit"
+        },
+        {
+          "item": "ctx-0b",
+          "action": "replace",
+          "pointer": "[superseded excerpt of topics/\u2026; see the current version]"
+        }
+      ]
+    }
+  ],
+  "ModelMessage": [
+    {
+      "role": "system",
+      "text": "You are the AITP research agent \u2026"
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Compare the two schedules."
+        },
+        {
+          "type": "data",
+          "item": "ctx-1",
+          "ref": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "observedAt": "2026-10-21T10:00:00Z"
+            },
+            "locator": {
+              "kind": "lines",
+              "start": 1,
+              "end": 20
+            }
+          },
+          "role": "location",
+          "text": "# Self-consistent spectra\n\u2026"
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "I will read the plan first."
+        }
+      ],
+      "thinking": "summary of reasoning",
+      "calls": [
+        {
+          "id": "call-1",
+          "name": "read",
+          "args": {
+            "path": "topics/spectra/selfconsistent/research.md"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "callId": "call-1",
+      "name": "read",
+      "content": [
+        {
+          "type": "text",
+          "text": "\u2026"
+        }
+      ],
+      "isError": false
+    }
+  ],
+  "DeliveryReceipt": [
+    {
+      "requestId": "deliver-sess-1-ctx-3",
+      "submission": "sub-5",
+      "status": "admitted",
+      "at": "2026-10-21T10:15:00Z"
+    },
+    {
+      "requestId": "deliver-sess-1-ctx-3",
+      "submission": "sub-5",
+      "status": "placed",
+      "entry": "15",
+      "at": "2026-10-21T10:16:00Z"
+    }
+  ]
+}
