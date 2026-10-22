@@ -1,0 +1,236 @@
+{
+  "Cursor": [
+    {
+      "conversation": "conv-1",
+      "entry": "31",
+      "ordinal": 31
+    }
+  ],
+  "CoverageRange": [
+    {
+      "conversation": "conv-1",
+      "to": {
+        "conversation": "conv-1",
+        "entry": "31",
+        "ordinal": 31
+      }
+    },
+    {
+      "conversation": "conv-1",
+      "from": {
+        "conversation": "conv-1",
+        "entry": "32",
+        "ordinal": 32
+      },
+      "to": {
+        "conversation": "conv-1",
+        "entry": "60",
+        "ordinal": 60
+      }
+    }
+  ],
+  "ReviewRequest": [
+    {
+      "id": "rev-1",
+      "session": "sess-1",
+      "signal": "compaction",
+      "wholeSession": false,
+      "ranges": [
+        {
+          "conversation": "conv-1",
+          "to": {
+            "conversation": "conv-1",
+            "entry": "31",
+            "ordinal": 31
+          }
+        }
+      ],
+      "status": "reported",
+      "mergedFrom": [],
+      "createdAt": "2026-10-21T10:33:00Z"
+    },
+    {
+      "id": "rev-2",
+      "session": "sess-1",
+      "signal": "restructuring",
+      "wholeSession": false,
+      "ranges": [
+        {
+          "conversation": "conv-1",
+          "from": {
+            "conversation": "conv-1",
+            "entry": "32",
+            "ordinal": 32
+          },
+          "to": {
+            "conversation": "conv-1",
+            "entry": "60",
+            "ordinal": 60
+          }
+        }
+      ],
+      "changeSet": {
+        "id": "cs-2",
+        "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "baselines": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        ]
+      },
+      "status": "queued",
+      "mergedFrom": [],
+      "createdAt": "2026-10-21T10:34:00Z"
+    },
+    {
+      "id": "rev-3",
+      "session": "sess-1",
+      "signal": "handoff",
+      "wholeSession": true,
+      "ranges": [
+        {
+          "conversation": "conv-1",
+          "to": {
+            "conversation": "conv-1",
+            "entry": "60",
+            "ordinal": 60
+          }
+        }
+      ],
+      "status": "queued",
+      "mergedFrom": [
+        "rev-4"
+      ],
+      "createdAt": "2026-10-21T10:35:00Z"
+    }
+  ],
+  "ReviewFinding": [
+    {
+      "id": "f1",
+      "severity": "important",
+      "dimension": "preserved",
+      "location": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/selfconsistent/research.md"
+        },
+        "version": {
+          "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "observedAt": "2026-10-21T10:00:00Z"
+        },
+        "locator": {
+          "kind": "lines",
+          "start": 17,
+          "end": 20
+        }
+      },
+      "text": "The undamped control was dropped from the account.",
+      "evidence": [
+        {
+          "kind": "session-entry",
+          "address": {
+            "kind": "entry",
+            "conversation": "conv-1",
+            "entry": "31"
+          }
+        }
+      ]
+    }
+  ],
+  "ReviewReport": [
+    {
+      "request": "rev-1",
+      "text": "## Findings\n…",
+      "findings": [
+        {
+          "id": "f1",
+          "severity": "important",
+          "dimension": "preserved",
+          "location": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/research.md"
+            },
+            "version": {
+              "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "observedAt": "2026-10-21T10:00:00Z"
+            },
+            "locator": {
+              "kind": "lines",
+              "start": 17,
+              "end": 20
+            }
+          },
+          "text": "The undamped control was dropped from the account.",
+          "evidence": [
+            {
+              "kind": "session-entry",
+              "address": {
+                "kind": "entry",
+                "conversation": "conv-1",
+                "entry": "31"
+              }
+            }
+          ]
+        }
+      ],
+      "covered": [
+        {
+          "conversation": "conv-1",
+          "to": {
+            "conversation": "conv-1",
+            "entry": "31",
+            "ordinal": 31
+          }
+        }
+      ],
+      "limitations": [
+        "provider reasoning is encrypted"
+      ],
+      "model": {
+        "provider": "deepseek",
+        "modelId": "deepseek-example"
+      },
+      "reportedAt": "2026-10-21T10:36:00Z"
+    }
+  ],
+  "ReviewAssessment": [
+    {
+      "id": "assess-1",
+      "request": "rev-2",
+      "changeSetDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "verdicts": [
+        {
+          "finding": "f1",
+          "verdict": "valid",
+          "note": "restored the control",
+          "applied": [
+            {
+              "kind": "note",
+              "address": {
+                "kind": "workspace",
+                "path": "topics/spectra/selfconsistent/research.md"
+              },
+              "version": {
+                "hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "observedAt": "2026-10-21T10:00:00Z"
+              }
+            }
+          ]
+        }
+      ],
+      "clearsGate": true,
+      "at": "2026-10-21T10:37:00Z"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@aitp/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./contracts": "./src/contracts.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@aitp/protocol": "0.1.0",
+    "diff": "9.0.0",
+    "github-slugger": "2.0.0",
+    "ignore": "7.0.12",
+    "mdast-util-from-markdown": "2.1.0",
+    "mdast-util-gfm": "3.1.0",
+    "mdast-util-math": "3.0.0",
+    "micromark": "4.0.3",
+    "micromark-extension-gfm": "3.0.0",
+    "micromark-extension-math": "3.1.0",
+    "node-diff3": "3.2.1",
+    "yaml": "2.9.1"
+  }
+}

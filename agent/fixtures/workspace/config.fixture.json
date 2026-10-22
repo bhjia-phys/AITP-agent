@@ -1,0 +1,66 @@
+{
+  "workspace": {
+    "topicsRoot": "topics",
+    "knowledgeRoot": "knowledge",
+    "extraReadRoots": [
+      "topics/spectra/workspace/development/libdemo",
+      "aitp",
+      "external-skills"
+    ],
+    "locations": [
+      {
+        "path": "topics/tex-notes/main.tex",
+        "kind": "topic"
+      }
+    ],
+    "writeMode": "pilot",
+    "pilotTopics": [
+      "topics/spectra/selfconsistent/research.md"
+    ],
+    "previews": {
+      "openings": false,
+      "conclusions": false,
+      "parents": false
+    }
+  },
+  "aitp": {
+    "checkout": "aitp",
+    "extraSkillRoots": [
+      "external-skills"
+    ]
+  },
+  "researcher": "Synthetic researcher profile for tests.",
+  "models": {
+    "main": {
+      "provider": "faux",
+      "modelId": "faux-1"
+    }
+  },
+  "clusters": [
+    {
+      "name": "cluster-a",
+      "sshHost": "cluster-a",
+      "scheduler": "slurm"
+    }
+  ],
+  "sandbox": {
+    "engine": "bwrap",
+    "readRoots": [],
+    "hiddenPaths": [],
+    "limits": {
+      "addressSpaceMB": 2048,
+      "processes": 64,
+      "fileSizeMB": 256,
+      "wallSeconds": 120
+    },
+    "maxConcurrentHeavy": 1
+  },
+  "server": {
+    "port": 0,
+    "host": "127.0.0.1"
+  },
+  "ui": {
+    "theme": "system",
+    "language": "en"
+  }
+}

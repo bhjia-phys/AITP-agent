@@ -1,0 +1,23 @@
+.DS_Store
+__pycache__/
+.pytest_cache/
+.venv/
+build/
+
+# AITP research agent
+agent/**/node_modules/
+agent/**/dist/
+agent/**/.vite/
+agent/coverage/
+agent/.local/
+agent/apps/workbench/e2e/screenshots/
+
+# Private implementation probes, local credentials and research pilot captures
+.scratch/
+.local/
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

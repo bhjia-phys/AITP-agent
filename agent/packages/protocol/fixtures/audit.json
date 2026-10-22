@@ -1,0 +1,726 @@
+{
+  "AuditEvent": [
+    {
+      "at": "2026-10-21T10:01:00Z",
+      "type": "instruction-rendering",
+      "section": "aitp.kernel",
+      "text": "## The research cycle\n…",
+      "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "bytes": 5120
+    },
+    {
+      "at": "2026-10-21T10:01:00Z",
+      "type": "instruction-rendering",
+      "section": "aitp.grants",
+      "text": null,
+      "hash": null,
+      "bytes": 0
+    },
+    {
+      "at": "2026-10-21T10:02:00Z",
+      "type": "context-delivery",
+      "item": {
+        "id": "ctx-1",
+        "channel": "data",
+        "role": "location",
+        "ref": {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/research.md"
+          },
+          "version": {
+            "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        },
+        "reason": "always: opening and Current work",
+        "tokens": 812,
+        "status": "placed",
+        "delivery": {
+          "requestId": "deliver-sess-1-ctx-1",
+          "submission": "sub-3",
+          "entry": "7"
+        }
+      }
+    },
+    {
+      "at": "2026-10-21T10:03:00Z",
+      "type": "supersession",
+      "items": [
+        "ctx-1"
+      ],
+      "reason": "note changed"
+    },
+    {
+      "at": "2026-10-21T10:04:00Z",
+      "type": "active-task",
+      "task": {
+        "id": "task-1",
+        "session": "sess-1",
+        "request": "Compare the two schedules on the third system",
+        "agreement": {
+          "source": "request"
+        },
+        "thread": {
+          "location": "topics/spectra/selfconsistent/research.md",
+          "key": "mixing-schedule",
+          "name": "Mixing schedule"
+        },
+        "scope": [],
+        "nextAction": "run the comparison",
+        "status": "active",
+        "placedAt": "2026-10-21T10:10:00Z",
+        "updatedAt": "2026-10-21T10:11:00Z"
+      }
+    },
+    {
+      "at": "2026-10-21T10:05:00Z",
+      "type": "card",
+      "card": {
+        "id": "card-8",
+        "session": "sess-1",
+        "status": "open",
+        "createdAt": "2026-10-21T10:38:00Z",
+        "kind": "required",
+        "type": "approval",
+        "payload": {
+          "action": "act-1",
+          "kind": "cluster-submit",
+          "display": {
+            "script": "mesh.sh"
+          },
+          "scopes": [
+            {
+              "kind": "once"
+            },
+            {
+              "kind": "task",
+              "task": "task-1"
+            }
+          ],
+          "limits": {
+            "wallSeconds": 60
+          }
+        }
+      }
+    },
+    {
+      "at": "2026-10-21T10:06:00Z",
+      "type": "card-response",
+      "card": "card-8",
+      "response": {
+        "type": "approval",
+        "decision": "approve",
+        "scope": {
+          "kind": "once"
+        }
+      }
+    },
+    {
+      "at": "2026-10-21T10:07:00Z",
+      "type": "grant-created",
+      "grant": {
+        "id": "grant-2",
+        "actions": [
+          "cluster-submit"
+        ],
+        "scope": {
+          "kind": "once"
+        },
+        "bind": {
+          "argsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "targets": [
+            {
+              "kind": "note",
+              "address": {
+                "kind": "workspace",
+                "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/mesh.sh"
+              },
+              "version": {
+                "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "observedAt": "2026-10-21T10:00:00Z"
+              }
+            }
+          ]
+        },
+        "clusters": [
+          "cluster-a"
+        ],
+        "source": "researcher",
+        "createdAt": "2026-10-21T10:18:00Z",
+        "consumedBy": "act-2"
+      }
+    },
+    {
+      "at": "2026-10-21T10:08:00Z",
+      "type": "grant-revoked",
+      "grant": "grant-3"
+    },
+    {
+      "at": "2026-10-21T10:09:00Z",
+      "type": "action",
+      "action": "act-1",
+      "from": null,
+      "to": "proposed",
+      "record": {
+        "operationId": "op-1",
+        "kind": "cluster-submit",
+        "tool": "submit_job",
+        "call": {
+          "conversation": "conv-1",
+          "toolCallId": "call-7",
+          "task": "tooltask-7"
+        },
+        "argsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "display": {
+          "script": "mesh.sh",
+          "array": "4-5"
+        },
+        "targets": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/mesh.sh"
+            },
+            "version": {
+              "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        ],
+        "limits": {
+          "wallSeconds": 60
+        },
+        "session": "sess-1",
+        "activeTask": "task-1",
+        "id": "act-1",
+        "state": "proposed",
+        "history": [
+          {
+            "state": "proposed",
+            "at": "2026-10-21T10:20:00Z"
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-10-21T10:10:00Z",
+      "type": "action",
+      "action": "act-2",
+      "from": "executing",
+      "to": "done",
+      "record": {
+        "operationId": "op-2",
+        "kind": "cluster-submit",
+        "tool": "submit_job",
+        "call": {
+          "conversation": "conv-1",
+          "toolCallId": "call-7",
+          "task": "tooltask-7"
+        },
+        "argsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "display": {
+          "script": "mesh.sh",
+          "array": "4-5"
+        },
+        "targets": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/mesh.sh"
+            },
+            "version": {
+              "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        ],
+        "limits": {
+          "wallSeconds": 60
+        },
+        "session": "sess-1",
+        "activeTask": "task-1",
+        "id": "act-2",
+        "state": "done",
+        "approval": {
+          "grant": "grant-2",
+          "decidedBy": "researcher",
+          "at": "2026-10-21T10:21:00Z"
+        },
+        "history": [
+          {
+            "state": "proposed",
+            "at": "2026-10-21T10:20:00Z"
+          },
+          {
+            "state": "approved",
+            "at": "2026-10-21T10:21:00Z"
+          },
+          {
+            "state": "reserved",
+            "at": "2026-10-21T10:22:00Z"
+          },
+          {
+            "state": "executing",
+            "at": "2026-10-21T10:23:00Z"
+          },
+          {
+            "state": "done",
+            "at": "2026-10-21T10:24:00Z"
+          }
+        ],
+        "receipt": {
+          "at": "2026-10-21T10:25:00Z",
+          "outcome": "ok",
+          "details": {
+            "job": "4417099"
+          },
+          "evidence": []
+        }
+      }
+    },
+    {
+      "at": "2026-10-21T10:11:00Z",
+      "type": "change-set",
+      "changeSet": {
+        "id": "cs-1",
+        "digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "ops": [
+          {
+            "op": "edit",
+            "path": "topics/spectra/selfconsistent/research.md",
+            "base": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "anchor": {
+              "kind": "current-work-entry",
+              "thread": "mixing-schedule"
+            },
+            "operation": "replace",
+            "text": "- **Mixing schedule** — active · 2026-10-21. …"
+          },
+          {
+            "op": "create",
+            "path": "topics/spectra/selfconsistent/notes/schedules.md",
+            "expectedAbsent": true,
+            "text": "# Schedules\n"
+          }
+        ],
+        "reason": "Record the third-system comparison",
+        "writer": {
+          "kind": "session",
+          "id": "sess-1"
+        },
+        "restructure": false,
+        "status": "previewed",
+        "diff": "--- a/…\n+++ b/…\n",
+        "checks": [
+          {
+            "path": "topics/spectra/selfconsistent/research.md",
+            "kind": "sentences",
+            "ok": true,
+            "details": []
+          }
+        ],
+        "createdAt": "2026-10-21T10:08:00Z"
+      },
+      "result": {
+        "status": "applied",
+        "files": [
+          {
+            "path": "topics/spectra/selfconsistent/research.md",
+            "outcome": "written",
+            "before": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "after": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+          }
+        ]
+      }
+    },
+    {
+      "at": "2026-10-21T10:12:00Z",
+      "type": "recovery",
+      "summary": {
+        "changeSet": "cs-1",
+        "state": "compensated",
+        "files": [
+          {
+            "path": "topics/spectra/selfconsistent/research.md",
+            "outcome": "compensated",
+            "before": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "after": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        ],
+        "at": "2026-10-21T10:09:00Z"
+      }
+    },
+    {
+      "at": "2026-10-21T10:13:00Z",
+      "type": "artifact",
+      "artifact": {
+        "id": "art-1",
+        "files": [
+          {
+            "name": "figure.png",
+            "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 20480,
+            "mime": "image/png"
+          }
+        ],
+        "provenance": {
+          "session": "sess-1",
+          "action": "act-run-1",
+          "command": [
+            "python3",
+            "-I",
+            "-"
+          ],
+          "script": {
+            "hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "inputs": [
+            {
+              "kind": "note",
+              "address": {
+                "kind": "workspace",
+                "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/campaign-complete.json"
+              },
+              "version": {
+                "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+                "observedAt": "2026-10-21T10:00:00Z"
+              }
+            }
+          ],
+          "environment": {
+            "LANG": "C.UTF-8"
+          },
+          "exitStatus": 0,
+          "checks": [
+            {
+              "what": "row count",
+              "outcome": "4 rows"
+            }
+          ]
+        },
+        "pinned": true,
+        "createdAt": "2026-10-21T10:07:00Z"
+      }
+    },
+    {
+      "at": "2026-10-21T10:14:00Z",
+      "type": "review-request",
+      "request": {
+        "id": "rev-1",
+        "session": "sess-1",
+        "signal": "compaction",
+        "wholeSession": false,
+        "ranges": [
+          {
+            "conversation": "conv-1",
+            "to": {
+              "conversation": "conv-1",
+              "entry": "31",
+              "ordinal": 31
+            }
+          }
+        ],
+        "status": "reported",
+        "mergedFrom": [],
+        "createdAt": "2026-10-21T10:33:00Z"
+      }
+    },
+    {
+      "at": "2026-10-21T10:15:00Z",
+      "type": "review-report",
+      "report": {
+        "request": "rev-1",
+        "text": "## Findings\n…",
+        "findings": [
+          {
+            "id": "f1",
+            "severity": "important",
+            "dimension": "preserved",
+            "location": {
+              "kind": "note",
+              "address": {
+                "kind": "workspace",
+                "path": "topics/spectra/selfconsistent/research.md"
+              },
+              "version": {
+                "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "observedAt": "2026-10-21T10:00:00Z"
+              },
+              "locator": {
+                "kind": "lines",
+                "start": 17,
+                "end": 20
+              }
+            },
+            "text": "The undamped control was dropped from the account.",
+            "evidence": [
+              {
+                "kind": "session-entry",
+                "address": {
+                  "kind": "entry",
+                  "conversation": "conv-1",
+                  "entry": "31"
+                }
+              }
+            ]
+          }
+        ],
+        "covered": [
+          {
+            "conversation": "conv-1",
+            "to": {
+              "conversation": "conv-1",
+              "entry": "31",
+              "ordinal": 31
+            }
+          }
+        ],
+        "limitations": [
+          "provider reasoning is encrypted"
+        ],
+        "model": {
+          "provider": "deepseek",
+          "modelId": "deepseek-example"
+        },
+        "reportedAt": "2026-10-21T10:36:00Z"
+      }
+    },
+    {
+      "at": "2026-10-21T10:16:00Z",
+      "type": "review-assessment",
+      "assessment": {
+        "id": "assess-1",
+        "request": "rev-2",
+        "changeSetDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "verdicts": [
+          {
+            "finding": "f1",
+            "verdict": "valid",
+            "note": "restored the control",
+            "applied": [
+              {
+                "kind": "note",
+                "address": {
+                  "kind": "workspace",
+                  "path": "topics/spectra/selfconsistent/research.md"
+                },
+                "version": {
+                  "hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                  "observedAt": "2026-10-21T10:00:00Z"
+                }
+              }
+            ]
+          }
+        ],
+        "clearsGate": true,
+        "at": "2026-10-21T10:37:00Z"
+      }
+    },
+    {
+      "at": "2026-10-21T10:17:00Z",
+      "type": "worker",
+      "event": "started",
+      "worker": {
+        "id": "worker-1",
+        "controller": "ctl-1",
+        "role": "independent derivation",
+        "model": {
+          "provider": "openai",
+          "modelId": "gpt-example",
+          "thinkingLevel": "high"
+        },
+        "state": "running",
+        "task": "wtask-1",
+        "conversation": "conv-w1",
+        "admission": {
+          "admittedAt": "2026-10-21T10:31:00Z"
+        },
+        "budget": {
+          "modelCalls": 40,
+          "wallSeconds": 3600
+        },
+        "used": {
+          "modelCalls": 3,
+          "wallSeconds": 120.5,
+          "outputTokens": 2048
+        },
+        "restarts": 0
+      }
+    },
+    {
+      "at": "2026-10-21T10:18:00Z",
+      "type": "compaction-applied",
+      "compaction": "cmp-1",
+      "summaryEntry": "32",
+      "covered": {
+        "conversation": "conv-1",
+        "to": {
+          "conversation": "conv-1",
+          "entry": "31",
+          "ordinal": 31
+        }
+      }
+    },
+    {
+      "at": "2026-10-21T10:19:00Z",
+      "type": "attachment",
+      "attachment": "att-1",
+      "mime": "image/png",
+      "ref": {
+        "kind": "artifact",
+        "address": {
+          "kind": "artifact",
+          "artifact": "art-2"
+        }
+      }
+    },
+    {
+      "at": "2026-10-21T10:20:00Z",
+      "type": "method-use",
+      "use": {
+        "id": "use-1",
+        "skill": {
+          "kind": "workspace",
+          "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+        },
+        "skillVersion": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "session": "sess-1",
+        "location": "topics/spectra/selfconsistent/research.md",
+        "outcome": "validated",
+        "evidence": [
+          {
+            "kind": "receipt",
+            "address": {
+              "kind": "artifact",
+              "artifact": "art-out-1"
+            }
+          }
+        ],
+        "at": "2026-10-21T10:40:00Z"
+      }
+    },
+    {
+      "at": "2026-10-21T10:21:00Z",
+      "type": "notice",
+      "level": "warn",
+      "message": "sandbox self-test failed; commands need approval"
+    }
+  ],
+  "LogHeader": [
+    {
+      "schema": "aitp.workbench-log@1",
+      "session": "sess-1",
+      "location": "topics/spectra/selfconsistent/research.md",
+      "conversations": [
+        {
+          "id": "conv-1",
+          "role": "main",
+          "cutoff": {
+            "conversation": "conv-1",
+            "entry": "60",
+            "ordinal": 60
+          }
+        },
+        {
+          "id": "conv-w1",
+          "role": "worker",
+          "parent": "conv-1",
+          "cutoff": {
+            "conversation": "conv-w1",
+            "entry": "9",
+            "ordinal": 9
+          }
+        }
+      ],
+      "exportedAt": "2026-10-21T10:59:00Z",
+      "limitations": [
+        "provider reasoning is encrypted and not exported"
+      ]
+    }
+  ],
+  "LogRecord": [
+    {
+      "cursor": {
+        "conversation": "conv-1",
+        "entry": "12",
+        "ordinal": 12
+      },
+      "type": "message",
+      "role": "user",
+      "purpose": "task",
+      "delivery": "follow-up",
+      "content": [
+        {
+          "type": "text",
+          "text": "Compare the two schedules."
+        }
+      ]
+    },
+    {
+      "cursor": {
+        "conversation": "conv-1",
+        "entry": "13",
+        "ordinal": 13
+      },
+      "type": "tool-call",
+      "id": "call-1",
+      "name": "read",
+      "args": {
+        "path": "topics/spectra/selfconsistent/research.md"
+      }
+    },
+    {
+      "cursor": {
+        "conversation": "conv-1",
+        "entry": "14",
+        "ordinal": 14
+      },
+      "type": "tool-result",
+      "id": "call-1",
+      "isError": false,
+      "content": [
+        {
+          "type": "text",
+          "text": "…"
+        }
+      ],
+      "fullOutput": {
+        "kind": "artifact",
+        "address": {
+          "kind": "artifact",
+          "artifact": "art-out-2"
+        }
+      }
+    },
+    {
+      "cursor": {
+        "conversation": "conv-1",
+        "entry": "32",
+        "ordinal": 32
+      },
+      "type": "compaction-summary",
+      "summary": "Active task: compare the two schedules …"
+    },
+    {
+      "cursor": {
+        "conversation": "conv-1",
+        "entry": "33",
+        "ordinal": 33
+      },
+      "at": "2026-10-21T10:33:00Z",
+      "type": "audit",
+      "event": {
+        "at": "2026-10-21T10:33:00Z",
+        "type": "supersession",
+        "items": [
+          "ctx-1"
+        ],
+        "reason": "re-delivered after compaction"
+      }
+    }
+  ]
+}

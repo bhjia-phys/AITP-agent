@@ -1,0 +1,282 @@
+{
+  "FileVersion": [
+    {
+      "address": {
+        "kind": "absolute",
+        "path": "/opt/checkouts/libdemo/src/screen.cpp"
+      },
+      "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "committed": false,
+      "checkout": "libdemo"
+    }
+  ],
+  "CheckoutRecord": [
+    {
+      "id": "libdemo",
+      "address": {
+        "kind": "absolute",
+        "path": "/opt/checkouts/libdemo"
+      },
+      "branch": "main",
+      "head": "3f2c9a1",
+      "upstream": "origin/main",
+      "ahead": 0,
+      "behind": 1,
+      "dirty": [
+        "src/screen.cpp"
+      ],
+      "worktrees": [],
+      "locations": [
+        "topics/spectra/selfconsistent/research.md"
+      ],
+      "checkedAt": "2026-10-21T10:04:00Z"
+    }
+  ],
+  "SymbolRecord": [
+    {
+      "name": "head_correction",
+      "kind": "function",
+      "file": {
+        "address": {
+          "kind": "absolute",
+          "path": "/opt/checkouts/libdemo/src/screen.cpp"
+        },
+        "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "committed": false,
+        "checkout": "libdemo"
+      },
+      "line": 7,
+      "language": "cpp",
+      "approximate": true
+    }
+  ],
+  "Receipt": [
+    {
+      "id": "rcpt-1",
+      "kind": "test",
+      "action": "act-test-1",
+      "checkout": "libdemo",
+      "files": [
+        {
+          "address": {
+            "kind": "absolute",
+            "path": "/opt/checkouts/libdemo/src/screen.cpp"
+          },
+          "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "committed": false,
+          "checkout": "libdemo"
+        }
+      ],
+      "command": [
+        "make",
+        "test"
+      ],
+      "cwd": {
+        "kind": "absolute",
+        "path": "/opt/checkouts/libdemo"
+      },
+      "environment": {},
+      "exitStatus": 0,
+      "durationMs": 812,
+      "output": {
+        "artifact": "art-out-1",
+        "tail": "ok\n"
+      },
+      "thread": {
+        "location": "topics/spectra/selfconsistent/research.md",
+        "key": "mixing-schedule",
+        "name": "Mixing schedule"
+      },
+      "at": "2026-10-21T10:05:00Z"
+    }
+  ],
+  "RunRecord": [
+    {
+      "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/README.md",
+      "title": "Mesh comparison, round 1",
+      "locations": [
+        "topics/spectra/selfconsistent/periodic/research.md"
+      ],
+      "jobIds": [
+        "4417021"
+      ],
+      "clusters": [
+        "cluster-a"
+      ],
+      "receipts": [
+        "topics/spectra/selfconsistent/periodic/runs/mesh-r1/receipt-submit.json"
+      ],
+      "observations": [
+        {
+          "text": "Observed on 2026-08-03 14:20: tasks 0 and 1 completed, tasks 2 and 3 pending.",
+          "span": {
+            "startLine": 3,
+            "endLine": 4
+          }
+        }
+      ],
+      "version": {
+        "hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "observedAt": "2026-10-21T10:00:00Z"
+      }
+    }
+  ],
+  "CampaignCoverage": [
+    {
+      "run": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/README.md",
+      "counts": [
+        {
+          "name": "expected",
+          "value": 4,
+          "source": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/campaign-complete.json"
+            },
+            "version": {
+              "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        },
+        {
+          "name": "accepted",
+          "value": 1,
+          "source": {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/campaign-complete.json"
+            },
+            "version": {
+              "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        }
+      ],
+      "failed": [
+        "8x8x8",
+        "10x10x10"
+      ],
+      "source": {
+        "kind": "note",
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/campaign-complete.json"
+        },
+        "version": {
+          "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "observedAt": "2026-10-21T10:00:00Z"
+        }
+      }
+    }
+  ],
+  "ClusterObservation": [
+    {
+      "cluster": "cluster-a",
+      "action": "act-obs-1",
+      "command": [
+        "squeue",
+        "-j",
+        "4417021"
+      ],
+      "jobs": [
+        {
+          "id": "4417021_2",
+          "state": "PENDING",
+          "raw": "4417021_2 … PD"
+        }
+      ],
+      "observedAt": "2026-10-21T10:06:00Z"
+    }
+  ],
+  "Provenance": [
+    {
+      "session": "sess-1",
+      "action": "act-run-1",
+      "command": [
+        "python3",
+        "-I",
+        "-"
+      ],
+      "script": {
+        "hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "inputs": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/campaign-complete.json"
+          },
+          "version": {
+            "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "environment": {
+        "LANG": "C.UTF-8"
+      },
+      "exitStatus": 0,
+      "checks": [
+        {
+          "what": "row count",
+          "outcome": "4 rows"
+        }
+      ]
+    }
+  ],
+  "ArtifactRecord": [
+    {
+      "id": "art-1",
+      "files": [
+        {
+          "name": "figure.png",
+          "hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 20480,
+          "mime": "image/png"
+        }
+      ],
+      "provenance": {
+        "session": "sess-1",
+        "action": "act-run-1",
+        "command": [
+          "python3",
+          "-I",
+          "-"
+        ],
+        "script": {
+          "hash": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        },
+        "inputs": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/campaign-complete.json"
+            },
+            "version": {
+              "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        ],
+        "environment": {
+          "LANG": "C.UTF-8"
+        },
+        "exitStatus": 0,
+        "checks": [
+          {
+            "what": "row count",
+            "outcome": "4 rows"
+          }
+        ]
+      },
+      "pinned": true,
+      "createdAt": "2026-10-21T10:07:00Z"
+    }
+  ]
+}

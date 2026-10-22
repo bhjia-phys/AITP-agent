@@ -1,0 +1,63 @@
+{
+  "$comment": "Path ownership (docs/agent/08 §2). Paths are relative to agent/. Every file outside node_modules and build output must match S1 or exactly one other stream; S1's explicit paths win where a stream directory contains them. Patterns: ** any depth, * one segment, {a,b} alternatives.",
+  "S1": [
+    "package.json",
+    "package-lock.json",
+    ".npmrc",
+    "tsconfig.base.json",
+    "vitest.config.ts",
+    "streams.json",
+    "README.md",
+    "packages/*/package.json",
+    "packages/*/tsconfig.json",
+    "apps/workbench/package.json",
+    "apps/workbench/tsconfig.json",
+    "packages/protocol/**",
+    "packages/*/src/index.ts",
+    "packages/core/src/{contracts,compose,not-implemented}.ts",
+    "packages/runtime/src/{contracts,compose,registry,not-implemented}.ts",
+    "packages/server/src/{contracts,compose}.ts",
+    "fixtures/**",
+    "test/**",
+    "notes/README.md",
+    "notes/integration*.md",
+    "notes/review-*.md"
+  ],
+  "S2": [
+    "packages/core/src/{config,paths,notes,locations,instructions,plans,board,documents,index}/**",
+    "packages/core/test/{config,paths,notes,locations,instructions,plans,board,documents,index}/**",
+    "notes/S2-*.md"
+  ],
+  "S3": [
+    "packages/pi-adapter/src/**",
+    "packages/pi-adapter/test/**",
+    "packages/runtime/src/{models,sessions,context,compaction,controllers,review,export,cards}/**",
+    "packages/runtime/src/tools/interaction/**",
+    "packages/runtime/test/{models,sessions,context,compaction,controllers,review,export,cards,conformance}/**",
+    "packages/runtime/test/tools/interaction/**",
+    "notes/S3-*.md"
+  ],
+  "S4": [
+    "packages/runtime/src/{actions,sandbox,artifacts,effects}/**",
+    "packages/runtime/src/tools/workspace/**",
+    "packages/runtime/test/{actions,sandbox,artifacts,effects}/**",
+    "packages/runtime/test/tools/workspace/**",
+    "packages/server/src/**",
+    "packages/server/test/**",
+    "bin/**",
+    "notes/S4-*.md"
+  ],
+  "S5": [
+    "packages/core/src/{knowledge,works,checkouts,runs,methods,episodes,manuscripts}/**",
+    "packages/core/test/{knowledge,works,checkouts,runs,methods,episodes,manuscripts}/**",
+    "packages/runtime/src/{methods,manuscripts}/**",
+    "packages/runtime/src/tools/research/**",
+    "packages/runtime/test/{methods,manuscripts}/**",
+    "packages/runtime/test/tools/research/**",
+    "notes/S5-*.md"
+  ],
+  "S6": [
+    "apps/workbench/**",
+    "notes/S6-*.md"
+  ]
+}

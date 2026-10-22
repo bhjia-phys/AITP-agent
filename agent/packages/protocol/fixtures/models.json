@@ -1,0 +1,153 @@
+{
+  "ModelChoice": [
+    {
+      "provider": "openai",
+      "modelId": "gpt-example",
+      "thinkingLevel": "high"
+    },
+    {
+      "provider": "faux",
+      "modelId": "faux-1"
+    }
+  ],
+  "ModelCatalogEntry": [
+    {
+      "provider": "openai",
+      "modelId": "gpt-example",
+      "name": "GPT example",
+      "contextWindow": 400000,
+      "maxOutputTokens": 128000,
+      "reasoning": true,
+      "images": true,
+      "auth": "oauth",
+      "authState": "signed-out"
+    }
+  ],
+  "LoginChallenge": [
+    {
+      "kind": "auth-url",
+      "login": "login-1",
+      "provider": "openai",
+      "url": "https://auth.example.com/authorize?x=1"
+    },
+    {
+      "kind": "device-code",
+      "login": "login-2",
+      "provider": "openai",
+      "url": "https://auth.example.com/device",
+      "code": "ABCD-EFGH",
+      "expiresAt": "2026-10-21T10:50:00Z"
+    },
+    {
+      "kind": "prompt",
+      "login": "login-3",
+      "provider": "deepseek",
+      "prompt": "key",
+      "label": "API key",
+      "secret": true
+    },
+    {
+      "kind": "info",
+      "login": "login-1",
+      "provider": "openai",
+      "message": "Waiting for the browser"
+    }
+  ],
+  "LoginResponse": [
+    {
+      "login": "login-3",
+      "prompt": "key",
+      "value": "(entered by the researcher)"
+    }
+  ],
+  "LoginResult": [
+    {
+      "login": "login-1",
+      "provider": "openai",
+      "ok": true
+    }
+  ],
+  "Config": [
+    {
+      "workspace": {
+        "root": "/data/ws",
+        "topicsRoot": "/data/ws/topics",
+        "knowledgeRoot": "/data/ws/knowledge",
+        "extraReadRoots": [
+          "/opt/checkouts/libdemo"
+        ],
+        "locations": [
+          {
+            "path": "topics/tex-notes/main.tex",
+            "kind": "topic"
+          }
+        ],
+        "writeMode": "pilot",
+        "pilotTopics": [
+          "topics/spectra/selfconsistent/research.md"
+        ],
+        "previews": {
+          "openings": false,
+          "conclusions": false,
+          "parents": false
+        }
+      },
+      "aitp": {
+        "checkout": "/opt/aitp",
+        "extraSkillRoots": []
+      },
+      "models": {
+        "main": {
+          "provider": "openai",
+          "modelId": "gpt-example",
+          "thinkingLevel": "high"
+        },
+        "reviewer": {
+          "provider": "deepseek",
+          "modelId": "deepseek-example"
+        },
+        "budget": {
+          "maxRequestFraction": 0.6
+        }
+      },
+      "clusters": [
+        {
+          "name": "cluster-a",
+          "sshHost": "cluster-a",
+          "scheduler": "slurm"
+        }
+      ],
+      "sandbox": {
+        "engine": "bwrap",
+        "readRoots": [
+          "/usr/lib/python3/dist-packages"
+        ],
+        "hiddenPaths": [],
+        "limits": {
+          "addressSpaceMB": 2048,
+          "processes": 64,
+          "fileSizeMB": 256,
+          "wallSeconds": 120
+        },
+        "maxConcurrentHeavy": 1
+      },
+      "server": {
+        "port": 4317,
+        "host": "127.0.0.1"
+      },
+      "ui": {
+        "theme": "system",
+        "language": "en"
+      }
+    }
+  ],
+  "ModelUsage": [
+    {
+      "input": 731,
+      "output": 53,
+      "cacheRead": 127,
+      "cacheWrite": 0,
+      "total": 911
+    }
+  ]
+}

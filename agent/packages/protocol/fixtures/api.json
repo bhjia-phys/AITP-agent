@@ -1,0 +1,44 @@
+{
+  "Envelope": [
+    {
+      "epoch": "ep-20261021-1",
+      "seq": 7,
+      "at": "2026-10-21T10:45:00Z",
+      "type": "session.state",
+      "payload": {
+        "session": "sess-1",
+        "state": "busy"
+      }
+    }
+  ],
+  "ClientMessage": [
+    {
+      "type": "subscribe",
+      "topics": [
+        "session:sess-1",
+        "tasks",
+        "inbox"
+      ],
+      "epoch": "ep-20261021-1",
+      "lastSeq": 6
+    },
+    {
+      "type": "unsubscribe",
+      "topics": [
+        "inbox"
+      ]
+    }
+  ],
+  "ErrorBody": [
+    {
+      "error": {
+        "code": "conflict",
+        "message": "the note changed since it was read",
+        "details": {
+          "path": "topics/spectra/selfconsistent/research.md"
+        },
+        "requestId": "req-0001-abcd"
+      }
+    }
+  ]
+}

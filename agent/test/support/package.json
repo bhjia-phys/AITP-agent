@@ -1,0 +1,16 @@
+{
+  "name": "@aitp/test-support",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@aitp/protocol": "0.1.0",
+    "@aitp/runtime": "0.1.0"
+  }
+}

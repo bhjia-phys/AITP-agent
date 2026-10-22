@@ -1,0 +1,360 @@
+{
+  "Grant": [
+    {
+      "id": "grant-1",
+      "actions": [
+        "run-write"
+      ],
+      "scope": {
+        "kind": "session",
+        "session": "sess-1"
+      },
+      "limits": {
+        "wallSeconds": 600,
+        "outputRoots": [
+          "/opt/out"
+        ]
+      },
+      "source": "researcher",
+      "createdAt": "2026-10-21T10:17:00Z"
+    },
+    {
+      "id": "grant-2",
+      "actions": [
+        "cluster-submit"
+      ],
+      "scope": {
+        "kind": "once"
+      },
+      "bind": {
+        "argsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "targets": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/mesh.sh"
+            },
+            "version": {
+              "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        ]
+      },
+      "clusters": [
+        "cluster-a"
+      ],
+      "source": "researcher",
+      "createdAt": "2026-10-21T10:18:00Z",
+      "consumedBy": "act-2"
+    },
+    {
+      "id": "grant-default-1",
+      "actions": [
+        "run-read",
+        "cluster-read"
+      ],
+      "scope": {
+        "kind": "workspace"
+      },
+      "source": "default",
+      "createdAt": "2026-10-21T10:00:00Z"
+    },
+    {
+      "id": "grant-3",
+      "actions": [
+        "run-read"
+      ],
+      "scope": {
+        "kind": "thread",
+        "thread": {
+          "location": "topics/anomaly/research.md",
+          "key": "numerical-lattice-route",
+          "name": "Numerical lattice route",
+          "version": {
+            "hash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      },
+      "overrides": [
+        "executionExcluded"
+      ],
+      "source": "researcher",
+      "createdAt": "2026-10-21T10:19:00Z",
+      "revokedAt": "2026-10-21T10:30:00Z"
+    }
+  ],
+  "ActionRecord": [
+    {
+      "operationId": "op-1",
+      "kind": "cluster-submit",
+      "tool": "submit_job",
+      "call": {
+        "conversation": "conv-1",
+        "toolCallId": "call-7",
+        "task": "tooltask-7"
+      },
+      "argsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "display": {
+        "script": "mesh.sh",
+        "array": "4-5"
+      },
+      "targets": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/mesh.sh"
+          },
+          "version": {
+            "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "limits": {
+        "wallSeconds": 60
+      },
+      "session": "sess-1",
+      "activeTask": "task-1",
+      "id": "act-1",
+      "state": "proposed",
+      "history": [
+        {
+          "state": "proposed",
+          "at": "2026-10-21T10:20:00Z"
+        }
+      ]
+    },
+    {
+      "operationId": "op-2",
+      "kind": "cluster-submit",
+      "tool": "submit_job",
+      "call": {
+        "conversation": "conv-1",
+        "toolCallId": "call-7",
+        "task": "tooltask-7"
+      },
+      "argsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "display": {
+        "script": "mesh.sh",
+        "array": "4-5"
+      },
+      "targets": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/mesh.sh"
+          },
+          "version": {
+            "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "limits": {
+        "wallSeconds": 60
+      },
+      "session": "sess-1",
+      "activeTask": "task-1",
+      "id": "act-2",
+      "state": "done",
+      "approval": {
+        "grant": "grant-2",
+        "decidedBy": "researcher",
+        "at": "2026-10-21T10:21:00Z"
+      },
+      "history": [
+        {
+          "state": "proposed",
+          "at": "2026-10-21T10:20:00Z"
+        },
+        {
+          "state": "approved",
+          "at": "2026-10-21T10:21:00Z"
+        },
+        {
+          "state": "reserved",
+          "at": "2026-10-21T10:22:00Z"
+        },
+        {
+          "state": "executing",
+          "at": "2026-10-21T10:23:00Z"
+        },
+        {
+          "state": "done",
+          "at": "2026-10-21T10:24:00Z"
+        }
+      ],
+      "receipt": {
+        "at": "2026-10-21T10:25:00Z",
+        "outcome": "ok",
+        "details": {
+          "job": "4417099"
+        },
+        "evidence": []
+      }
+    },
+    {
+      "operationId": "op-3",
+      "kind": "cluster-submit",
+      "tool": "submit_job",
+      "call": {
+        "conversation": "conv-1",
+        "toolCallId": "call-7",
+        "task": "tooltask-7"
+      },
+      "argsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "display": {
+        "script": "mesh.sh",
+        "array": "4-5"
+      },
+      "targets": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/mesh.sh"
+          },
+          "version": {
+            "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "limits": {
+        "wallSeconds": 60
+      },
+      "session": "sess-1",
+      "activeTask": "task-1",
+      "id": "act-3",
+      "state": "uncertain",
+      "history": [
+        {
+          "state": "proposed",
+          "at": "2026-10-21T10:20:00Z"
+        },
+        {
+          "state": "approved",
+          "at": "2026-10-21T10:21:00Z"
+        },
+        {
+          "state": "reserved",
+          "at": "2026-10-21T10:22:00Z"
+        },
+        {
+          "state": "executing",
+          "at": "2026-10-21T10:23:00Z"
+        },
+        {
+          "state": "interrupted",
+          "at": "2026-10-21T10:24:00Z"
+        },
+        {
+          "state": "uncertain",
+          "at": "2026-10-21T10:25:00Z"
+        }
+      ],
+      "reconciliation": {
+        "at": "2026-10-21T10:27:00Z",
+        "evidence": [],
+        "conclusive": false,
+        "note": "scheduler unreachable"
+      }
+    },
+    {
+      "operationId": "op-4",
+      "kind": "cluster-submit",
+      "tool": "submit_job",
+      "call": {
+        "conversation": "conv-1",
+        "toolCallId": "call-7",
+        "task": "tooltask-7"
+      },
+      "argsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "display": {
+        "script": "mesh.sh",
+        "array": "4-5"
+      },
+      "targets": [
+        {
+          "kind": "note",
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/mesh.sh"
+          },
+          "version": {
+            "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "observedAt": "2026-10-21T10:00:00Z"
+          }
+        }
+      ],
+      "limits": {
+        "wallSeconds": 60
+      },
+      "session": "sess-1",
+      "activeTask": "task-1",
+      "id": "act-4",
+      "state": "proposed",
+      "retryOf": "act-5",
+      "history": [
+        {
+          "state": "proposed",
+          "at": "2026-10-21T10:20:00Z"
+        }
+      ]
+    }
+  ],
+  "GrantRequest": [
+    {
+      "actions": [
+        "cluster-submit"
+      ],
+      "scope": {
+        "kind": "once"
+      },
+      "bind": {
+        "argsHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "targets": [
+          {
+            "kind": "note",
+            "address": {
+              "kind": "workspace",
+              "path": "topics/spectra/selfconsistent/periodic/runs/mesh-r1/mesh.sh"
+            },
+            "version": {
+              "hash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "observedAt": "2026-10-21T10:00:00Z"
+            }
+          }
+        ]
+      },
+      "clusters": [
+        "cluster-a"
+      ],
+      "reason": "submit the two remaining meshes"
+    },
+    {
+      "actions": [
+        "run-read"
+      ],
+      "scope": {
+        "kind": "location",
+        "location": "topics/anomaly/research.md"
+      },
+      "roots": [
+        {
+          "kind": "workspace",
+          "path": "topics/anomaly"
+        }
+      ],
+      "overrides": [
+        "executionExcluded"
+      ],
+      "reason": "a one-off symbolic check the researcher allows"
+    }
+  ]
+}

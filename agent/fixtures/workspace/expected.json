@@ -1,0 +1,463 @@
+{
+  "$comment": "What the research core must extract from this fixture workspace. These are projections of the records, not literal DTOs: each listed field must equal the corresponding field of the record (ResearchLocation, ThreadEntry, InstructionSource, RunRecord, CampaignCoverage, MethodRecord, KnowledgeEntry, Edition); fields not listed are unconstrained here. Paths are relative to the workspace root (this directory). 'parents' are scientific parents: notes with a pointer entry to the location, or notes the location's opening links while they link to it; the root is the parent of the topics its directions list. In 'scope', 'thread' is the thread key (ThreadRef.key) and is absent for location-wide flags. 'pointer' is the resolved target as 'outline' returns it (parseNote alone leaves 'resolved' null). 'continuationStartsWith' compares the suggestion's plain text (links reduced to their labels), case-insensitively; null means no suggestion. 'plan.operative' is the index into the plan's phases.",
+  "locations": {
+    "topics/research.md": {
+      "kind": "root",
+      "format": "markdown"
+    },
+    "topics/spectra/README.md": {
+      "kind": "family",
+      "format": "markdown"
+    },
+    "topics/spectra/selfconsistent/research.md": {
+      "kind": "topic",
+      "format": "markdown",
+      "parents": [
+        "topics/research.md"
+      ]
+    },
+    "topics/spectra/selfconsistent/stability/research.md": {
+      "kind": "branch",
+      "format": "markdown",
+      "parents": [
+        "topics/spectra/selfconsistent/research.md",
+        "topics/spectra/continuation/research.md"
+      ]
+    },
+    "topics/spectra/selfconsistent/periodic/research.md": {
+      "kind": "branch",
+      "format": "markdown",
+      "parents": [
+        "topics/spectra/selfconsistent/research.md"
+      ]
+    },
+    "topics/spectra/continuation/research.md": {
+      "kind": "topic",
+      "format": "markdown",
+      "parents": [
+        "topics/research.md"
+      ]
+    },
+    "topics/dynamics/research.md": {
+      "kind": "topic",
+      "format": "markdown",
+      "parents": [
+        "topics/research.md"
+      ]
+    },
+    "topics/dynamics/growth/research.md": {
+      "kind": "branch",
+      "format": "markdown",
+      "parents": [
+        "topics/dynamics/research.md"
+      ]
+    },
+    "topics/anomaly/research.md": {
+      "kind": "topic",
+      "format": "markdown",
+      "parents": [
+        "topics/research.md"
+      ],
+      "scope": [
+        {
+          "flag": "analyticOnly"
+        },
+        {
+          "flag": "executionExcluded"
+        },
+        {
+          "flag": "dormant",
+          "thread": "numerical-lattice-route"
+        }
+      ]
+    },
+    "topics/learning/research.md": {
+      "kind": "topic",
+      "format": "markdown",
+      "parents": [
+        "topics/research.md"
+      ]
+    },
+    "topics/dormant-method/research.md": {
+      "kind": "topic",
+      "format": "markdown",
+      "parents": [
+        "topics/research.md"
+      ],
+      "scope": [
+        {
+          "flag": "dormant"
+        }
+      ]
+    },
+    "topics/deferred-idea/research.md": {
+      "kind": "topic",
+      "format": "markdown",
+      "parents": [
+        "topics/research.md"
+      ]
+    },
+    "topics/studying_note/record/research.md": {
+      "kind": "record",
+      "format": "markdown"
+    },
+    "topics/tex-notes/main.tex": {
+      "kind": "topic",
+      "format": "tex",
+      "source": "configured"
+    },
+    "knowledge/topics/toy-algebra/story.md": {
+      "kind": "learning",
+      "format": "markdown"
+    }
+  },
+  "unmapped": [
+    "topics/spectra/selfconsistent/orphan/research.md"
+  ],
+  "excluded": [
+    "topics/spectra/selfconsistent/aitp-before/research.md",
+    "topics/spectra/selfconsistent/provenance/snapshots/research.md",
+    "topics/studying_note/copies/research.md"
+  ],
+  "threads": {
+    "topics/spectra/selfconsistent/research.md": [
+      {
+        "name": "Static map stability",
+        "form": "pointer",
+        "state": "pointer",
+        "pointer": "topics/spectra/selfconsistent/stability/research.md#current-work"
+      },
+      {
+        "name": "Periodic spectra",
+        "form": "pointer",
+        "state": "pointer",
+        "pointer": "topics/spectra/selfconsistent/periodic/research.md#current-work"
+      },
+      {
+        "name": "Mixing schedule",
+        "form": "thread",
+        "state": "active",
+        "date": "2026-09-30",
+        "continuationStartsWith": "compare the two schedules on the third system",
+        "plan": {
+          "path": "topics/spectra/selfconsistent/plans/mixing-plan.md",
+          "phases": 3,
+          "operative": 1
+        }
+      }
+    ],
+    "topics/spectra/selfconsistent/stability/research.md": [
+      {
+        "name": "Alternative static definitions",
+        "form": "thread",
+        "state": "waiting-researcher",
+        "date": "2026-10-02",
+        "continuationStartsWith": null
+      },
+      {
+        "name": "Third-case roots",
+        "form": "thread",
+        "state": "unknown",
+        "date": "2026-09-21",
+        "dispositionText": "twelve toy restarts repeated, grid and cutoff limits open"
+      }
+    ],
+    "topics/spectra/selfconsistent/periodic/research.md": [
+      {
+        "name": "Mesh comparison",
+        "form": "thread",
+        "state": "paused",
+        "date": "2026-08-14"
+      },
+      {
+        "name": "Standalone reference comparison",
+        "form": "thread",
+        "state": "proposed",
+        "date": "2026-08-20"
+      }
+    ],
+    "topics/spectra/continuation/research.md": [
+      {
+        "name": "Causal interpolation bound",
+        "form": "thread",
+        "state": "active",
+        "date": "unrecorded",
+        "continuationStartsWith": "whether the bound survives a refined grid"
+      },
+      {
+        "name": "Rational fits",
+        "form": "thread",
+        "state": "dormant",
+        "date": "2026-05-02"
+      }
+    ],
+    "topics/dynamics/research.md": [
+      {
+        "name": "Matched comparison on the 30-point grid",
+        "form": "thread",
+        "state": "waiting-analysis",
+        "date": "unrecorded"
+      },
+      {
+        "name": "Spatial growth",
+        "form": "pointer",
+        "state": "pointer",
+        "pointer": "topics/dynamics/growth/research.md#current-work"
+      },
+      {
+        "name": "Article argument",
+        "form": "thread",
+        "state": "waiting-researcher",
+        "date": "2026-10-11"
+      }
+    ],
+    "topics/dynamics/growth/research.md": [
+      {
+        "name": "Replacement data read-back",
+        "form": "thread",
+        "state": "waiting-analysis",
+        "date": "2026-10-19",
+        "continuationStartsWith": "read back the replacement outputs with the frozen script"
+      }
+    ],
+    "topics/anomaly/research.md": [
+      {
+        "name": "Physical relative coupling",
+        "form": "heading",
+        "state": "waiting-input",
+        "date": "unrecorded",
+        "anchors": [
+          "continuation",
+          "active-analytic-continuation"
+        ]
+      },
+      {
+        "name": "Numerical lattice route",
+        "form": "heading",
+        "state": "dormant",
+        "date": "2026-07-01"
+      }
+    ],
+    "topics/learning/research.md": [
+      {
+        "name": "Learner reproduction",
+        "form": "thread",
+        "state": "waiting-researcher",
+        "date": "2026-10-05"
+      }
+    ],
+    "topics/dormant-method/research.md": [
+      {
+        "name": "Reference reproduction",
+        "form": "thread",
+        "state": "dormant",
+        "date": "2026-03-01"
+      },
+      {
+        "name": "Cost model",
+        "form": "thread",
+        "state": "stopped",
+        "date": "2026-03-02"
+      }
+    ],
+    "topics/deferred-idea/research.md": [
+      {
+        "name": "Second rule",
+        "form": "thread",
+        "state": "deferred",
+        "date": "2026-06-01"
+      },
+      {
+        "name": "Input data",
+        "form": "thread",
+        "state": "blocked",
+        "date": "2026-06-03"
+      },
+      {
+        "name": null,
+        "form": "raw",
+        "state": "unknown"
+      }
+    ],
+    "topics/studying_note/record/research.md": [
+      {
+        "name": "Record upkeep",
+        "form": "thread",
+        "state": "active",
+        "date": "2026-10-01"
+      }
+    ],
+    "topics/tex-notes/main.tex": [
+      {
+        "name": "Toy bound",
+        "form": "thread",
+        "state": "active",
+        "date": "2026-09-01",
+        "continuationStartsWith": "check the limiting case"
+      }
+    ]
+  },
+  "instructions": {
+    "topics/spectra/selfconsistent/research.md": [
+      {
+        "kind": "workspace",
+        "path": "topics/AGENTS.md"
+      },
+      {
+        "kind": "family-readme",
+        "path": "topics/spectra/README.md",
+        "heading": "Standing choices"
+      },
+      {
+        "kind": "root-agreement",
+        "path": "topics/research.md",
+        "heading": "Agreed choices recorded in the notes"
+      }
+    ],
+    "code:topics/spectra/workspace/development/libdemo": [
+      {
+        "kind": "repository",
+        "path": "topics/spectra/workspace/development/libdemo/AGENTS.md"
+      },
+      {
+        "kind": "method-guidance",
+        "path": "topics/spectra/workspace/development/libdemo/docs/develop/develop_tips.md"
+      }
+    ]
+  },
+  "runs": {
+    "topics/spectra/selfconsistent/periodic/runs/mesh-r1/README.md": {
+      "jobIds": [
+        "4417021"
+      ],
+      "clusters": [
+        "cluster-a"
+      ],
+      "receipts": [
+        "receipt-submit.json",
+        "campaign-complete.json"
+      ],
+      "coverage": {
+        "source": "campaign-complete.json",
+        "expected": 4,
+        "retained": 2,
+        "read-back": 2,
+        "accepted": 1,
+        "failed": [
+          "8x8x8",
+          "10x10x10"
+        ]
+      }
+    },
+    "topics/dynamics/growth/workspace/servers/cluster-a/run-20261019/README.md": {
+      "jobIds": [
+        "5520113"
+      ],
+      "clusters": [
+        "cluster-a"
+      ],
+      "receipts": [
+        "raw-audit.json"
+      ],
+      "coverage": {
+        "source": "raw-audit.json",
+        "expected": 30,
+        "retained": 30,
+        "read-back": 0,
+        "accepted": 0,
+        "failed": []
+      }
+    }
+  },
+  "methods": {
+    "core": [
+      "aitp-memory",
+      "aitp-research",
+      "aitp-verify",
+      "aitp-human-learning",
+      "aitp-human-brainstorming",
+      "aitp-writing",
+      "aitp-distill"
+    ],
+    "domain": [
+      {
+        "name": "convergence-check",
+        "domain": "numerics"
+      }
+    ],
+    "family": [
+      {
+        "name": "compare-spectra",
+        "home": "topics/spectra/skills/compare-spectra/SKILL.md"
+      }
+    ],
+    "external": [
+      "plot-figures"
+    ]
+  },
+  "knowledge": {
+    "areas": [
+      "Toy algebra",
+      "Toy response"
+    ],
+    "entries": {
+      "knowledge/papers/2101.00001.md": {
+        "kind": "paper",
+        "arxiv": "2101.00001",
+        "version": "v2",
+        "reading_depth": "ai-read"
+      },
+      "knowledge/papers/2101.00001/02-setup.md": {
+        "kind": "section",
+        "support": "derived",
+        "passageLabels": [
+          "Imported",
+          "Reconstructed",
+          "Imported"
+        ],
+        "sectionSupport": [
+          {
+            "heading": "The bound (section support: unchecked)",
+            "support": "unchecked"
+          }
+        ]
+      },
+      "knowledge/atoms/commuting-projections.md": {
+        "kind": "atom",
+        "support": "source",
+        "review": "awaiting"
+      },
+      "knowledge/questions/unique-trace.md": {
+        "kind": "question",
+        "support": "unchecked"
+      }
+    },
+    "edition": {
+      "id": "2101.00001v2",
+      "artifact": "knowledge/library/arxiv/2101.00001v2/paper.pdf",
+      "pdfPages": 3,
+      "pageOffsetFromFooters": 24,
+      "locators": [
+        {
+          "text": "p. 27",
+          "printedPage": "27",
+          "pdfPageWhenOffsetKnown": 3,
+          "ambiguousWhenOffsetUnknown": true
+        }
+      ]
+    }
+  },
+  "manuscripts": {
+    "topics/dynamics/manuscripts/article": {
+      "main": "main.tex",
+      "sources": [
+        "main.tex",
+        "sections/intro.tex"
+      ],
+      "bibliography": [
+        "refs.bib"
+      ],
+      "build": "Makefile"
+    }
+  }
+}

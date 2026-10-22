@@ -1,0 +1,195 @@
+{
+  "WorkerPlan": [
+    {
+      "id": "wplan-1",
+      "method": {
+        "address": {
+          "kind": "workspace",
+          "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+        },
+        "version": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "roles": [
+        {
+          "role": "independent derivation",
+          "model": {
+            "provider": "openai",
+            "modelId": "gpt-example",
+            "thinkingLevel": "high"
+          },
+          "instructions": "Derive the bound by a different route.",
+          "tools": [
+            "read",
+            "search"
+          ],
+          "writable": [
+            "topics/spectra/continuation/notes/route-b.md"
+          ],
+          "budget": {
+            "modelCalls": 40,
+            "wallSeconds": 3600
+          }
+        }
+      ],
+      "checks": [
+        "state the tolerance before running"
+      ],
+      "stopping": "both routes agree within the tolerance, or one fails",
+      "integration": {
+        "affected": [
+          "topics/spectra/continuation/research.md"
+        ]
+      }
+    }
+  ],
+  "PlanProposal": [
+    {
+      "id": "plan-1",
+      "title": "Compare schedules on the third system",
+      "steps": [
+        {
+          "id": "s1",
+          "description": "run the damped schedule",
+          "action": "run-write",
+          "tool": "run",
+          "argsHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "limits": {
+            "wallSeconds": 900
+          }
+        }
+      ],
+      "methods": [
+        {
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+          },
+          "version": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        }
+      ],
+      "cost": "about 15 minutes of one core",
+      "stopping": "either schedule converges or both exceed 120 iterations",
+      "workers": {
+        "id": "wplan-1",
+        "method": {
+          "address": {
+            "kind": "workspace",
+            "path": "topics/spectra/skills/compare-spectra/SKILL.md"
+          },
+          "version": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "roles": [
+          {
+            "role": "independent derivation",
+            "model": {
+              "provider": "openai",
+              "modelId": "gpt-example",
+              "thinkingLevel": "high"
+            },
+            "instructions": "Derive the bound by a different route.",
+            "tools": [
+              "read",
+              "search"
+            ],
+            "writable": [
+              "topics/spectra/continuation/notes/route-b.md"
+            ],
+            "budget": {
+              "modelCalls": 40,
+              "wallSeconds": 3600
+            }
+          }
+        ],
+        "checks": [
+          "state the tolerance before running"
+        ],
+        "stopping": "both routes agree within the tolerance, or one fails",
+        "integration": {
+          "affected": [
+            "topics/spectra/continuation/research.md"
+          ]
+        }
+      },
+      "grants": [
+        {
+          "actions": [
+            "run-write"
+          ],
+          "scope": {
+            "kind": "once"
+          },
+          "bind": {
+            "argsHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "targets": []
+          },
+          "reason": "step s1"
+        }
+      ]
+    }
+  ],
+  "WorkerRecord": [
+    {
+      "id": "worker-1",
+      "controller": "ctl-1",
+      "role": "independent derivation",
+      "model": {
+        "provider": "openai",
+        "modelId": "gpt-example",
+        "thinkingLevel": "high"
+      },
+      "state": "running",
+      "task": "wtask-1",
+      "conversation": "conv-w1",
+      "admission": {
+        "admittedAt": "2026-10-21T10:31:00Z"
+      },
+      "budget": {
+        "modelCalls": 40,
+        "wallSeconds": 3600
+      },
+      "used": {
+        "modelCalls": 3,
+        "wallSeconds": 120.5,
+        "outputTokens": 2048
+      },
+      "restarts": 0
+    }
+  ],
+  "IntegrationRecord": [
+    {
+      "worker": "worker-1",
+      "task": "itask-1",
+      "status": "waiting"
+    },
+    {
+      "worker": "worker-2",
+      "task": "itask-2",
+      "predecessor": "itask-1",
+      "status": "integrated",
+      "changeSet": "cs-3"
+    }
+  ],
+  "TaskView": [
+    {
+      "id": "ctl-1",
+      "kind": "controller",
+      "status": "waiting",
+      "owner": {
+        "conversation": "conv-1"
+      },
+      "title": "Independent routes for the bound",
+      "updatedAt": "2026-10-21T10:32:00Z"
+    },
+    {
+      "id": "wtask-2",
+      "kind": "worker",
+      "status": "queued",
+      "owner": {
+        "task": "ctl-1"
+      },
+      "title": "code check",
+      "queuePosition": 1,
+      "updatedAt": "2026-10-21T10:32:00Z"
+    }
+  ]
+}
