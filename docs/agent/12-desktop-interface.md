@@ -2,6 +2,8 @@
 
 Research interface design retained through the 2026-10-22 Harness adoption. The [isolated prototype](prototype/README.md) demonstrates a subset using synthetic content. This document specifies intended behavior; the prototype README distinguishes implemented interactions from static examples. The active application now starts from Harness Web/Electron; the research layout below is not established by its inherited UI or product-name change.
 
+**Implementation owner: Claude.** UI design and client implementation are in progress in that workstream. Codex owns the core/backend interfaces and integration tests under [14's development crosswalk](14-implementation-blueprint.md#development-crosswalk). This documentation pass has not inspected or accepted a delivered UI implementation; preserve that distinction when assigning work or reporting progress.
+
 The 2026-10-22 refinement responds to the researcher's request for editable collaboration
 rules and a clearer interface. The selected memory-centered direction prioritizes useful
 research context and lets the model adapt its next action; collaboration preferences are
@@ -43,6 +45,8 @@ does not automatically add a primary navigation item. Search is available everyw
 Model connection, host setup, plugin management and diagnostics live in Settings.
 The inspector and activity panel start closed unless needed. Ordinary reading opens no
 compulsory chat, and the default project page is not four narrow columns.
+
+The [scenario-driven plugin map](10-project-workspace.md#scenario-plugin-map) assigns each feature an owner. Workbench presentation owns navigation, editor groups, focus and layout recovery; Research records contributes the topic home, and Literature, Knowledge, Code and Skill catalog contribute their own resource views. Collaboration rules and Review contribute controls where the current work needs them. The same views run in Web and Desktop host. Shared source/observation, context and document-change services supply actual state; each view must not invent its own memory, writer or task state. A generic Harness file preview is useful infrastructure, but does not establish edition-aware reading or show what a research session actually received.
 
 At 1440×900: rail 48 px, explorer 248 px, optional inspector 288 px; editor takes remaining space. Title bar 44 px, tabs 36 px, status 24 px. Two editor groups have a minimum usable width of 360 px; if not available, collapse the inspector first, then offer a single group with tabs. At 1024×768 the inspector is a dismissible overlay, explorer can collapse, and a two-pane comparison can temporarily hide explorer. At 1920×1080 permit three groups; default to two. Below 900 px use one editor, never hide scientific content. Support 200% zoom through scroll/reflow; wide equations/tables scroll within their own region rather than the entire app.
 
@@ -116,9 +120,11 @@ Question/current answer/gap are named source passages or an explicitly labelled 
 
 Rows show exact disposition first, optional normalized state second. Waiting on evidence, waiting on the researcher, and paused are distinct. Clicking a child contribution opens the child owner; the parent does not restate its Next action. “No recorded next step” is meaningful and is not auto-filled by the agent.
 
+Relevant materials link the topic to its papers, knowledge entries, checkouts and Skills without copying those objects into the topic. Show only the groups with useful entries, with All materials available on demand. A project-associated Skill is a candidate for the current problem, not an automatically adopted method. The home and its main/subnote links are projections of Research records; edits target the existing owner, and an AI-proposed replacement opening remains visibly unapplied until actually saved through the selected writing flow.
+
 ### 3. Thread and decision
 
-Header: title, project/owner breadcrumb, exact state and source. Main body: frontier, limitation, next action or pending choice, evidence list and relevant plan passage. Below: associated sessions and outcomes. Inspector: parent use, assumptions, related questions, earlier failed routes. Two primary actions: Continue in existing session and New session on this thread. When the choice is unanswered, Continue opens that choice rather than executing a guessed route.
+Header: title, project/owner breadcrumb, exact state and source. Main body: frontier, limitation, next action or pending choice, evidence list and relevant plan passage. Below: associated sessions and outcomes. Inspector: parent use, assumptions, related questions, earlier failed routes. Two primary actions: Continue in existing session and New session on this thread. When the next step depends on an unanswered choice, Continue exposes that choice rather than executing a guessed route; independent useful work may continue under the existing request.
 
 The decision editor shows the alternatives, consequence, recommended option when recorded, rationale material, and existing authority. Responding records the user answer operationally; a scientific decision enters its owning note only through an authorized proposed change. The card must distinguish these two steps. A rejected proposal remains inspectable; it is not displayed as a scientific outcome.
 
@@ -174,6 +180,10 @@ Changes has explicit Unstaged / Staged / Commit / Branch scopes and a separate �
 
 P2 is read-only. Open in VS Code is the native integration escape hatch; AITP retains selection/ref so returning rereads the actual source. Native editing, validated build/test receipts and grant-controlled Git actions arrive later. No staging, reverting, branch switching, installation or publication is triggered by inspecting a diff. Large/binary files get size/type and an appropriate viewer; truncated source is labelled.
 
+This scope describes the research code view. Generic agent editing and execution already exist in Harness under its actual permissions; the research-linked execution record and dedicated editing interactions remain to be integrated. A read-only pane does not make an independently running agent read-only.
+
+The Code plugin borrows the familiar explorer/editor/diff arrangement from a code workbench. Its first research purpose is formula-to-implementation comparison with checkout identity and precise selections; this does not promise VS Code extension compatibility or a complete replacement editor. Later editing, terminal, diagnostics and test views use the selected Harness capabilities and retain their actual source/execution state. Viewing a code resource must remain useful before those later capabilities are integrated.
+
 Disconnected WSL: retain the selected checkout and last observation, disable live actions, offer reconnect. The UI never tries a same-looking Windows directory as fallback. Renamed/deleted files retain historical diff access where Git has it, with current-path status explicit.
 
 ### 8. Notes, derivation and manuscript editors
@@ -193,6 +203,8 @@ Session list rows include a short source subtitle when task titles coincide: pap
 The composer defaults to continuing the present task. “Ask a side question” explicitly creates an interjection; the header continues showing the task. While busy, delivery is “Send into current work” or “Queue after current work”. These map to existing steer/follow-up semantics and must survive reload. Stop asks the runtime to stop; its result is shown separately from unknown remote effects.
 
 Context drawer: origin, selected passages and why they were loaded, omitted inputs, applicable instruction sources, historical/current observation toggle. Removing a future attachment does not rewrite a past delivered context. Clicking a citation opens the matching captured passage or clearly identified current source; ambiguous locators show alternatives.
+
+Method use is a compact part of this drawer and the relevant work message, not another permanent dashboard. For example: “Using the residual diagnostic; the original solver-specific procedure does not apply.” Expand to inspect the selected Skill, exact section, matching conditions, unmet conditions and material actually supplied to this request. Suggested, loaded, adopted and observed use remain different facts. A crucial limitation stays beside the proposed action or conclusion even with the drawer closed. The [Skill view](#skill-library-and-use) exposes alternatives without requiring a researcher response to every routine selection.
 
 The session exposes the current question, relevant instructions, important remembered context and source of consequential user choices. Following [10](10-project-workspace.md#research-control), the model chooses useful reading, derivation, coding, planning and review actions as evidence develops. A change to the researcher's objective or an explicitly fixed method calls for discussion. Adjustments express concrete preferences or task instructions, not an unexplained “autonomy level”. A UI suggestion cannot grant itself tool permission.
 
@@ -246,6 +258,26 @@ inspectable; editing the shared method itself is a separately targeted upstream 
 This is a proposed editor: current Settings and the config endpoint do not supply the
 required persistence/resolution/adoption path.
 
+<a id="skill-library-and-use"></a>
+### 12. Skill library and use in the current problem
+
+Materials includes Skills alongside papers, knowledge and code. The catalog opens without a project or conversation. Search by the problem or operation; filter configured portable, personal and project sources while preserving the actual source paths. Each item shows its purpose, stated prerequisites and limitations, associated topics and motivating examples when recorded. An absent applicability statement is unknown rather than a compatibility badge. Duplicate names show their distinct source and edition/revision when available; topic association alone never selects the winner.
+
+Open a Skill beside the current problem or its motivating episode. The view presents the relationship assessed under [the applicability design](11-research-memory.md#skill-applicability): use the complete procedure, use a bounded part, consult as a reference, or retain an unsuitable/unknown assessment. It shows the stated reason and unresolved conditions in ordinary language rather than a percentage score. These are explanations of the current method choice, not fixed research modes. A researcher can choose another candidate, narrow the intended use or correct the stated relationship; the correction reaches the working context without requiring edits to the upstream Skill.
+
+For partial use, show both the selected portion and the prerequisites or required instructions it depends on. A shortened excerpt must not imply that omitted mandatory instructions were waived. If the current task cannot satisfy a dependency, show that limitation and the proposed alternative; borrowing an idea is not presented as completing that Skill. Source, loaded portions and actual use remain inspectable after compaction or a source change. A current source preview is labelled separately from the version previously delivered.
+
+At most a short relevant method-use line is needed in ordinary work. Reopen detail when a consequential mismatch, changed premise or researcher correction affects the choice. No permanent card appears merely because the catalog found another candidate. Reading, pinning or associating a Skill does not install it, start execution or establish that it improved a scientific result. This view and the task-specific applicability projection are proposed AITP integration, beyond the inherited Skill discovery mechanism. See [C22](13-research-journeys.md#c22).
+
+<a id="distillation-workbench"></a>
+### 13. Distillation from demonstrated use
+
+The Distillation plugin opens an actual research episode beside an existing Skill or focused draft. Entry points are a useful correction, a recurring difficulty, an observed transferable diagnostic or an explicit researcher request. The view preserves the evidence and known limits and makes “No Skill change needed” an ordinary result. Scientific conclusions link to their note owner; the proposed Skill contains the reusable procedure.
+
+Show the motivating task and outcome, the existing-method comparison, the proposed change and a bounded example that could expose its failure. A later use can bring back a missed prerequisite or unnecessary step to the same source and draft. This implements the [distillation loop](11-research-memory.md#skill-distillation-loop) as an available workflow, not a ceremony after every task. There is no separate editable history of scientific conclusions inside the Skill library.
+
+Draft, locally checked, adopted in a named use, installed and published describe different observations; do not collapse them into a progress percentage or “validated” badge. With read-only access, the useful result is an inspectable candidate or finding and its source links. Actual edits use the shared document-change service, and installation/publication use their separately selected scope. Keep failed examples and remaining conditions reachable, while hiding empty workflow panels. The view is specification only; [C14](13-research-journeys.md#c14) owns its scientific task and counterexamples.
+
 ## Visual system
 
 The interface is restrained and dense with a muted forest accent and warm neutral surfaces, as demonstrated by the prototype. Use subtle borders and rows for repeated information; use cards only for distinct decisions/proposals. Science has more typographic space than controls. No hero slogans, decorative gradients, agent avatars per message or metric tiles for “research productivity”.
@@ -297,3 +329,5 @@ an unapplied child-note correction with its parent use reachable; and restart wi
 original instruction and pending decision immediately visible. Include a source edited
 outside the UI and a rule-save failure. These test legibility and effective behavior,
 not just whether a settings form can be filled in.
+
+For Skills, exercise a project-associated method that is unsuitable, a differently named method with a useful shared step, partial use with an unmet prerequisite, and a changed Skill after compaction. The compact view must retain the decisive limitation while the drawer reveals why and what was actually loaded. In a distillation exercise, preserve a failed example and a no-change outcome; browsing the candidate must not install it or modify its source.

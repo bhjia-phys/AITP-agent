@@ -20,13 +20,17 @@ or architecture changes; the three documents below retain their existing respons
 | --- | --- |
 | [10 Target architecture](10-project-workspace.md) | Explain the completed product, added research value, components, connections, data ownership and coordinated workflows |
 | [14 Development plan and progress](14-implementation-blueprint.md) | Own current implementation state, authorized work, dependencies, milestone evidence and the next decision |
-| [13 Theoretical-physics cases](13-research-journeys.md) | Test the design against 21 concrete research situations and retain actual coverage, gaps and unsuitable behavior |
+| [13 Theoretical-physics cases](13-research-journeys.md) | Test the design against 22 concrete research situations and retain actual coverage, gaps and unsuitable behavior |
 
 Read them together before development. [AGENTS.md](../../AGENTS.md) requires affected
 architecture, progress and case passages to be updated in the same working change
 when behavior or evidence changes. Do not update all three ceremonially or keep a
 duplicate progress table here. The researcher requested this maintenance contract;
 documentation remains part of the work, rather than a retrospective description.
+
+For scenario-driven plugin work, start with the [cooperation map](10-project-workspace.md#scenario-plugin-map), then the [Skill applicability and feedback design](11-research-memory.md#skill-applicability) when a task involves method selection or distillation. The [independent development lines](14-implementation-blueprint.md#independent-development) own integration dependencies and implementation scope.
+
+**Current collaboration:** Claude is implementing UI design and client interactions; Codex owns core/backend planning, incremental implementation and integration checks. Delivery is verified through evidence, not the assignment alone. Contributors should use the [development crosswalk](14-implementation-blueprint.md#development-crosswalk) and [single next-slice sequence](14-implementation-blueprint.md#next-implementation-slice). The [GPT reliability work](14-implementation-blueprint.md#gpt-integration-readiness) records researched failure reports and open regression targets; [case comparisons](13-research-journeys.md#comparative-evaluation) define AITP-agent versus Codex + the same AITP baseline and testing limits.
 
 The W1/partial-W2 Pi implementation is preserved under `agent/`; active Harness development uses `packages/` and `apps/`. The researcher selected this host while retaining the scientific design. [14](14-implementation-blueprint.md#harness-migration) owns current authorized fork/naming/GPT work and the remaining research scope. [Harness evidence](../../agent/notes/harness-integration.md) records new checks. The retained [Pi integration notes](../../agent/notes/integration.md)
 retain original test/live-pilot evidence and limitations. A schema, prototype or

@@ -44,7 +44,7 @@ foundation. The [existing workbench][ui] and the redesigned prototype are differ
 programs. A source file, type declaration, mock button or successful model reply
 cannot close the missing parts of a case.
 
-| Case | Retained Pi coverage and research gap to requalify | Planned implementation reference |
+| Case | Retained evidence and research gap to requalify | Planned implementation reference |
 | --- | --- | --- |
 | [C01 Return to a project](#c01) | Read-only foundation; recorded live recovery. New project shell and anchored thread lifecycle are mock/specification only | P1 |
 | [C02 Idea to scoped question](#c02) | Discussion and choice-card foundation; idea lifecycle and approved branch creation unavailable | P1 context; P3–P4 authoring |
@@ -53,7 +53,7 @@ cannot close the missing parts of a case.
 | [C05 Learn a framework](#c05) | Learning Skill/context foundation; dedicated knowledge/story view unavailable | P2a; P3–P4 retained writing |
 | [C06 Analytic derivation](#c06) | Source reading and model discussion foundation; no accepted analytic workflow or reviewed authoring | P1 scope; P2a; P3–P4 |
 | [C07 Cross-topic transfer](#c07) | Parent-use/source lookup foundation; full condition-aware relation view and integration unavailable | P2a; P3–P4 |
-| [C08 Formula, code and debugging](#c08) | Bounded source-text reading; code/diff mock; checkout adapter and command execution unavailable | P2c; P4 |
+| [C08 Formula, code and debugging](#c08) | Pi retained text reading/mock; Harness supplies generic preview, navigation and editing/execution machinery. Research checkout/formula links and integrated execution evidence remain unverified | P2c; P4 |
 | [C09 Numerical campaign](#c09) | Retained text can be inspected; run adapter, scheduler and campaign controller unavailable | P4 bounded run; P5 orchestration |
 | [C10 Convergence and acceptance](#c10) | Qualified-answer recovery recorded live; material/run comparison and execution unavailable | P2a/P2c; P4 |
 | [C11 Raw data and matched diagnostics](#c11) | Notes can describe coverage; data/plot analysis and run provenance unavailable | P2 views; P4 analysis |
@@ -67,6 +67,24 @@ cannot close the missing parts of a case.
 | [C19 Browse a knowledge wiki](#c19) | Existing text/link reading foundation; global wiki index, entry navigation and knowledge adapter unavailable | P2a |
 | [C20 Review knowledge against sources](#c20) | Source inspection and review-request foundation; scoped knowledge review execution and correction workflow unavailable | P2a/P2b inspection; P3 review; P4 selected correction |
 | [C21 Browse and curate the literature library](#c21) | Existing file reading foundation; collection/work/edition views and curation unavailable | P2b browsing; P3–P4 selected curation |
+| [C22 Select and adapt an applicable Skill](#c22) | Harness discovers configured Skill sources; problem-specific applicability, partial-use delivery and feedback remain proposed | Selected read-only context/catalog slice; C14 for later Skill revision |
+
+## Scenarios choose cooperating plugins
+
+The [plugin map](10-project-workspace.md#scenario-plugin-map) owns responsibilities; this table identifies the collaboration each user task needs. A domain contributes sources and optional views to the same workbench. Shared source/observation, context/working-memory and document-change services keep those views connected. The combinations below are proposed routes, not an ordered workflow or proof that the plugins are implemented.
+
+| Research situation | Cooperating areas and visible result | Distinguishing case |
+| --- | --- | --- |
+| Return to a topic or develop an idea | Research records supplies the main/subnote argument and topic home; Workbench presentation opens its linked sources; Collaboration rules and shared memory retain the actual task | C01/C02/C16: topic state and a current session do not replace each other |
+| Read a paper and repair an unfamiliar prerequisite | Literature supplies the edition and locator; Knowledge supplies the linked explanation; Skill catalog supplies a relevant reading/learning method; shared context retains the selected passages | C03/C04/C05/C21: a useful explanation cannot substitute for an unread source |
+| Derive or transfer an argument | Research records and Knowledge show premises and affected uses; Literature supplies the cited argument; the Skill candidate provider supplies methods and conditions for the main model's applicability judgment | C06/C07/C13/C22: shared terminology does not establish compatible assumptions |
+| Compare equations, code and numerical evidence | Code supplies the actual checkout, source and diff; Research records supplies the equation and limitation; separately selected run/analysis providers supply actual outputs | C08/C09/C10/C11: code agreement, job completion and scientific acceptance remain distinct |
+| Write, review or correct an existing account | Research records or Knowledge supplies the owner; Literature and Code expose relevant sources; Review supplies inspected findings; shared document changes retain proposed and actual edits | C12/C15/C20: an unopened dependency or unapplied correction stays visible |
+| Reuse or improve a research method | Skill catalog exposes actual instructions; the main model records its provisional applicability judgment in shared working memory; Distillation connects observed use with existing methods and proposed changes | C14/C22: partial borrowing, complete use and a successful test have different meanings |
+| Browse without an active AI task | Literature, Knowledge, Code or Skill catalog contributes a standalone view; Workbench presentation retains navigation and intentional selections | C19/C21/C22: browsing does not create a task, attach context or modify a source |
+| Coordinate work across agents and hosts | Shared working memory and Harness execution integrate scoped contributions; Research records retains scientific implications; Desktop host carries the same views and explicit host identity | C17/C18: a worker or window does not create another scientific owner |
+
+The Skill-related route adds a distinct C22 because deciding whether an existing procedure fits the present problem has different success and failure conditions from C14's creation or revision of a procedure. Complete use, partial reuse and reference use can all be appropriate; no case requires a Skill to be chosen when none fits.
 
 ## Keep cases useful during development
 
@@ -76,6 +94,11 @@ affected **Current support and gap** paragraphs here from the actual behavior,
 linking the implementation and the relevant evidence in the existing integration
 account. Retain skipped, failed, simulated and untested boundaries. A fixed defect
 changes its case; it does not promote every case using the same module.
+
+For each implemented feature, select the corresponding [comparison with Codex +
+AITP](#comparative-evaluation), or state why that comparison cannot yet be made.
+Feature checks and paired research trials provide different evidence; report both
+before claiming an advantage for the new workbench.
 
 After researcher use, record consequential friction and what it changes in the
 affected case: the task could not be completed, required manual path explanation,
@@ -88,7 +111,7 @@ those owners; do not add a parallel case ledger or a diary of every run.
 Each case below names an observable output and a concrete counterexample. Use an
 authorized real read or scratch fixture containing that counterexample. Check task
 success, source fidelity and researcher friction separately from model quality.
-Unchanged cases need no ritual rewrite. Keep C01–C21 anchors stable for incoming
+Unchanged cases need no ritual rewrite. Keep C01–C22 anchors stable for incoming
 development links; split or extend a case only when it represents a distinct user
 task with different acceptance.
 
@@ -316,10 +339,19 @@ upstream does not replace the fix task. A local test does not grant permission t
 submit a job, install software, push code or publish; each uses the existing
 agreement for that action.
 
-**Current support and gap.** [Bounded text reading][reader] can inspect accessible
-source files; it does not supply Git scope, attribution or command execution.
-[CheckoutService][checkouts], [sandbox][sandbox] and [actions][actions] are
-unavailable. The [code diff mock][prototype] demonstrates presentation only.
+**Current support and gap.** The retained Pi [text reader][reader], unavailable
+[CheckoutService][checkouts] and [code diff mock][prototype] describe the earlier
+implementation. Harness supplies [file previews](../../packages/client/ui-sidebar-documentpreview/README.md),
+[read-only language-server navigation](../../packages/lsp/lsp/README.md), and
+[generic file editing](../../packages/fs/tool-fs/README.md) plus command execution
+in its [base composition](../../packages/bundle/base/cordis.patch.yml), subject to
+the selected configuration and permissions. These are three distinct scopes:
+code inspection, generic agent editing/execution, and the research integration
+that connects a specific checkout, equation, operation and scientific implication.
+The latter has no integrated case evidence here; an existing tool does not establish
+the proposed code workspace or scientific acceptance. [14](14-implementation-blueprint.md)
+owns the current UI/runtime work allocation and implementation progress. This case
+does not verify UI work performed in another development task.
 
 **Acceptance and counterexample.** Use two checkouts and pre-existing dirty edits;
 select the intended one and separate observed diff from known session actions.
@@ -483,30 +515,21 @@ becomes a second conflicting owner. **Implementation reference:** [P2a][p2] look
 <a id="c14"></a>
 ## C14. Distill a demonstrated research procedure into a Skill
 
-**Task and cooperation.** Repeated debugging or source reading reveals a
-transferable decision: for example, which residual distinguishes apparent from
-actual convergence, or how to resolve edition/page mismatches. Inspect existing
-Skills before proposing a narrowly scoped addition. Distill the diagnostic choice,
-inputs, failure signs and stop condition; keep the scientific result in its note.
-Use a concrete task that could expose the procedure's failure.
+**Task and cooperation.** Debugging, source reading or a correction reveals a transferable decision: for example, which residual distinguishes apparent from actual convergence, or how to resolve edition/page mismatches. Skill catalog finds the actual existing methods and motivating episodes; Distillation compares the demonstrated operation with them before proposing a narrowly scoped addition or revision. Distill the diagnostic choice, applicable conditions, inputs, failure signs and stop condition; keep the scientific result in its note. Use a concrete task that could expose the procedure's failure. Later use under [C22](#c22) can reveal a missing prerequisite or a poor match and return feedback to the same method owner. The [distillation design](11-research-memory.md#skill-distillation-loop) owns this optional loop; it is not a requirement to manufacture a Skill at every task close.
 
 **Useful output.** A focused portable Skill or correction to an existing one,
 grounded in a demonstrated operation, with paths and limitations made explicit.
-Conceptual conclusions do not become procedure cards. Installation or publishing
-uses its actual authority rather than being inferred from local drafting.
+An existing Skill may already cover the useful choice; in that case the outcome can be a linked example, applicability correction or no durable change. Under read-only scope, an inspectable candidate or finding is useful without being written or installed. Conceptual conclusions do not become procedure cards. Drafting, checking a bounded example, actual later use, installation and publication remain different observations. Installation or publishing uses its actual authority rather than being inferred from local drafting.
 
 **Current support and gap.** The [distillation Skill][distill] is part of the
 [runtime Skill index][context] and can guide conversation. The application
 [method service][methods] and scientific write/execution paths are unavailable.
 The repository's existing Skills are not evidence that the workbench can create,
-validate or distribute a new Skill.
+validate or distribute a new Skill. Harness can discover configured Skill sources, but the proposed [distillation view](12-desktop-interface.md#distillation-workbench), use-feedback route and research-specific change flow have no integrated application evidence.
 
 **Acceptance and counterexample.** Compare a useful correction with an attractive
 but untested procedure. Retain the demonstrated boundary, exercise the failure
-case and avoid workstation-only assumptions in a portable Skill. Failure: one
-successful run becomes a universal method, or installing a Skill is reported as
-proof of scientific correctness. **Implementation reference:** a specifically named [P4][p4]
-authoring/validation pilot; no blanket Skill automation is promised by P1–P3.
+case and avoid workstation-only assumptions in a portable Skill. Reuse the candidate in a task with a changed premise, preserve the failed use and revise the applicable conditions when supported; an unchanged method may need no revision. Failure: one successful run becomes a universal method, negative use disappears, a new Skill duplicates an existing one, or installation is reported as proof of scientific correctness. **Implementation reference:** a selected read-only catalog/context slice can inspect and evaluate a candidate before authoring. Applied changes to actual research Skill files need a specifically named [P4][p4] pilot; [P3][p3] can exercise only its selected scratch scope. No blanket Skill automation is promised by P1–P3.
 
 <a id="c15"></a>
 ## C15. Independently review and propagate a correction
@@ -740,6 +763,17 @@ download or metadata write. **Implementation reference:** [P2b][p2] for read-onl
 [P3][p3] scratch proposals and a separately selected [P4][p4] curation pilot for
 actual changes. Bulk reorganization and external import need their own scope.
 
+<a id="c22"></a>
+## C22. Select a Skill and decide how it fits the current problem
+
+**Task and cooperation.** A project has accumulated methods for a particular solver, source-reading route or analytic technique. The next problem may share the topic while changing the assumptions, or share a useful operation with a different topic. Skill catalog supplies candidate instructions from configured portable, personal and project sources. The candidate provider under shared context retrieves methods and packages their conditions, inputs and demonstrated limits. The main model compares these with the current question, requested output and physical/mathematical conditions; it records its applicability judgment as a provisional [working item](11-research-memory.md#working-memory-items). Topic association and semantic similarity help find candidates; they do not establish applicability. Following [the applicability design](11-research-memory.md#skill-applicability), the model reads the relevant instructions and chooses complete use, a bounded part, reference use, or an unsuitable/unknown assessment. The researcher can supply a candidate or correct the relationship without taking over every routine selection.
+
+**Useful output.** A method choice with a concise reason and decisive limitations, linked to the exact source and portions actually supplied. For example, a diagnostic for equation residuals may transfer while the original solver's update rule does not. Partial use retains all mandatory instructions and dependencies applicable to that portion; it cannot silently discard conditions or claim that the complete Skill was executed. If a necessary condition is unknown, the model may inspect it, explain conditional use, choose another route or retain the method only as a reference. The task continues adaptively under its actual instructions. The [Skill library and use view](12-desktop-interface.md#skill-library-and-use) exposes this distinction on demand; no new mode or automatic action lock is implied.
+
+**Current support and gap.** The Harness launcher connects the pinned AITP Skill source, and inherited Skill discovery supplies a platform basis. The application has no demonstrated task-specific applicability provider, selected-portion delivery with dependencies, or research-use feedback integration. The old Pi [method service][methods] remains historical placeholder evidence. Readable Skills and the proposed screen do not establish good matching, actual adoption or successful use.
+
+**Acceptance and counterexample.** Use a same-topic candidate with an incompatible hypothesis and a differently named candidate with a transferable diagnostic. Check both a whole-method match and a partial match with a required prerequisite outside the selected section. An absent prerequisite remains unknown; the model must not cherry-pick around mandatory instructions or relabel reference use as completing the method. Then change the task's assumption or the Skill source after compaction, and verify that the retained use account identifies what was actually loaded while current applicability is reconsidered where affected. Include an explicit researcher correction, a selected topic method shadowed by a same-named catalog entry, and a case where no Skill fits. Failure: the closest title wins, source selection silently invokes another file, every project Skill enters context, a summary becomes the full procedure, stale selection persists after a relevant change, or partial borrowing silently changes the agreed algorithm. **Implementation reference:** a separately selected read-only context/Skill-catalog slice; [C14](#c14) owns later distillation and actual method revision.
+
 <a id="adaptive-research-checks"></a>
 ## Cross-case exercises: evidence changes the next action
 
@@ -760,6 +794,7 @@ routes rather than grading one exact tool-call sequence.
 | A scoped correction invalidates a knowledge entry used in two known notes; another use remains outside inspected coverage. C07/C13/C15/C20 | Compare versions/conditions, propose correction at the owner and inspect actual affected uses. Under read-only scope leave a pending proposal; under later authorized writing apply/read back and name the remaining gap | An automatic whole-library “verified” label, silent changes outside scope, duplicated conclusions, or a report mistaken for an applied correction |
 | The researcher changes a writing preference, then explicitly narrows the task; a later message only asks for status. C02/C16/C17 | Deliver the preference and task instruction with their scope and source, preserve the task during the status answer, and report actual running effects honestly. Continue useful work consistent with the explicit instruction; leave unanswered choices visible | A preference becomes an automatic tool ban, the explicit task instruction is lost, a worker silently broadens scope, repeated approval is demanded for an unchanged routine step, or the status question implicitly selects a method |
 | A settled one-file implementation contrasts with a multi-stage change with unresolved interfaces and resource needs. C08/C09/C12 | Execute the authorized routine fix with relevant validation. For the multi-stage task, prepare/update a useful plan and resolve consequential choices before dependent implementation; retain only meaningful outcomes | A compulsory plan file for every action, or unplanned dependent changes/campaigns before their methods and bounds are settled |
+| A familiar project Skill assumes a particular solver, while the current problem shares only its residual diagnostic. C08/C10/C14/C22 | Inspect the method and its prerequisites, borrow the justified diagnostic with its limits, and preserve the current algorithm. A later failed use can motivate a focused correction or no change | Loading every project method, treating a shared topic as compatibility, dropping a mandatory dependency, or silently importing the original solver into the task |
 
 Select exercises for the capabilities actually being implemented: source-context
 prioritization and recovery can use synthetic notes; paper/code views, independent
@@ -772,11 +807,113 @@ Assess source recovery, instruction adherence, the action's scientific relevance
 retention of qualifications and unnecessary researcher interruptions separately.
 Change one decisive premise or explicit delegation while keeping the rest of a
 fixture fixed, and check whether the next action changes appropriately. Reuse a
-still-applicable check; repeat only changed or uncertain behavior. A future
-comparison with the usual assistant should use the same source material, model
-where feasible, budget and allowed tools, with all mismatches and failures stated.
-Neither this written walkthrough nor passing a context-delivery test establishes
-scientific correctness or general superiority.
+still-applicable check; repeat only changed or uncertain behavior. The
+[comparative evaluation](#comparative-evaluation) below owns the requested
+AITP-agent versus Codex + AITP protocol. Neither this written walkthrough nor
+passing a context-delivery test establishes scientific correctness or general
+superiority.
+
+<a id="comparative-evaluation"></a>
+## Compare implemented features with Codex + AITP
+
+The researcher requires comparisons against **Codex with the same portable AITP
+protocol and relevant methods**, not plain Codex. This section defines prospective
+comparisons for C01–C22; none has been run by writing the plan. Select a small
+paired exercise when its feature works, then revisit representative combinations
+in the integrated product. [14](14-implementation-blueprint.md) owns scheduling
+and GPT readiness; the [Harness integration account](../../agent/notes/harness-integration.md)
+owns actual trial evidence. No separate benchmark platform or scientific score is
+required.
+
+### Keep three kinds of evidence separate
+
+- **Engineering checks:** deterministic fixtures, recorded-request inspection and
+  replay establish what the implementation actually reads, delivers, restores or
+  changes. Provider checks cover actual GPT request/response and tool handling;
+  an adapter failure must be located before attributing a weak answer to the model.
+- **Model behavior:** paired live tasks assess whether the agent uses the sources,
+  preserves conditions and corrections, chooses a useful next step and reports
+  uncertainty. A replayed answer cannot supply this evidence.
+- **Human and scientific assessment:** a person inspects the argument and actual
+  interactions. Usability, source fidelity and physics validity are distinct;
+  another model's review can help find errors but cannot settle validity by itself.
+
+### Prepare a fair, inspectable pair
+
+1. Give both systems independent scratch copies of the same initial notes, code,
+   papers and Skill sources, with the same question, user corrections and allowed
+   operations. Start fresh sessions and keep one system's outputs out of the
+   other's inputs. Keep assessor-only expected findings out of both contexts;
+   supplied excerpts and preprocessing must be available to both. Include changed
+   conditions and held-out examples, not only examples used to design the feature.
+2. Use the same pinned portable AITP revision and inspect the source that each host
+   actually resolves. Check nested-method discovery and same-name overrides. For
+   a controlled method-use trial, explicitly select the same method in both; for
+   a method-selection trial, offer the same candidates and observe the actual
+   selection. Record which instructions were available, loaded and still present
+   after compaction. Installation alone does not establish an AITP baseline.
+3. Match the model/version, reasoning setting, tool capabilities, source access,
+   requested context/output budgets and task instructions where each host permits
+   it. Record the actual provider/auth route and exposed settings, including what
+   could not be verified. Host prompts, context selection, compaction, permissions
+   and tool encodings may differ; identify those differences rather than claiming
+   identical inputs. The comparison of whole products includes their context
+   selection. A separate matched-input provider check can isolate transport defects.
+4. Use paired repetitions and vary host order; record the chosen repetition count,
+   actual runs and stopping reason. Keep unsuccessful and interrupted attempts.
+   Use controlled local sources first. Live search adds changing availability and
+   ranking, so report retrieval coverage separately. If equivalent compaction
+   triggers or context pressure cannot be arranged, report each native mechanism
+   and limit the comparison instead of pretending two commands mean equal pressure.
+5. Preserve observable prompts, delivered source/tool records, outputs, changed
+   files and failures with private data kept local. Codex's documented
+   [non-interactive execution](https://learn.chatgpt.com/docs/non-interactive-mode)
+   offers structured events for a baseline runner; confirm the installed version's
+   capabilities before using them. Missing observability stays unknown. Do not
+   infer hidden reasoning or fabricate equal token use from configured budgets.
+
+### Scenario and feature evaluation map
+
+The checks below become runnable as their named capabilities are implemented.
+They are acceptance examples, not current support claims or a required action
+sequence. Each group has a bounded fallback when a full comparison is unavailable.
+
+| Cases and cooperating features | Engineering exercise | Paired behavior or human assessment | Limitation and useful fallback |
+| --- | --- | --- | --- |
+| [C01](#c01), [C02](#c02), [C16](#c16): topic records, task/working memory, context and collaboration rules | Preserve a Chinese/English scope correction, a choice with its question, and a failed route with its reopening condition through compaction/restart; a deleted source becomes a reported omission | Does the next action respect the correction, avoid the failed route absent changed conditions, retain pending choices and distinguish model suggestions from user decisions? | If one host cannot expose or force the same recovery operation, test its supported recovery and report unmatched stress; a deterministic AITP-agent request check remains useful but is not a comparative model result |
+| [C03](#c03), [C04](#c04), [C05](#c05): literature, source selection and learning/knowledge context | Resolve two editions, a precise passage and an unavailable source; inspect what PDF/text material actually reached each model | Source-faithful explanation, useful prerequisite repair, exact citation and honest unread coverage; learner assesses whether the explanation resolves the difficulty | Live retrieval and PDF extraction may differ. Supply equal local source/excerpt copies for a bounded reading trial; this does not test discovery, extraction or personal learning benefit |
+| [C06](#c06), [C07](#c07): analytic working memory, knowledge and method use | Retain analytic-only scope and assumptions while a source variant changes one decisive condition | Does the argument expose the missing physical bridge, qualify the transferred result and stop an unsupported claim without freezing unrelated reasoning? | Novel mathematics may have no known answer. Use a bounded argument with inspectable premises first; unresolved research requires expert assessment and cannot receive an automatic correctness score |
+| [C08](#c08), [C09](#c09), [C10](#c10), [C11](#c11): code workspace, GPT tools, run/analysis providers | Distinguish two dirty checkouts, preserve unrelated edits, exercise a known mismatch and a small-step/large-residual control; retain actual inputs, commands, outputs and coverage | Restore the agreed equation/algorithm, separate solver and verification evidence, detect unmatched grids/failed jobs and avoid treating numerical completion as physical acceptance | Matched local execution can test a small fixture. Scheduler, aggregate resource limits and long campaigns need the actual host and scope; recorded run outputs test interpretation only, not submission or enforcement |
+| [C12](#c12), [C13](#c13), [C15](#c15), [C20](#c20): records, proposals, knowledge and review | Seed a dropped hypothesis, changed dependent premise and unread source; preserve original files during proposal-only trials and verify actual changes in separately scoped apply trials | Does author/reviewer coverage retain the caveat, correct the owner and known uses, and distinguish an unapplied draft from durable integration? Inspect disagreement as well as agreement | If writing/review is unavailable, compare drafts and source inspections, reporting the missing path. Use distinct reviewer context; shared model, sources or assumptions limit scientific independence |
+| [C19](#c19), [C21](#c21): wiki/library readers, topic navigation and workbench UI | Browse without chat; distinguish same-title works/editions, unknown index coverage and unavailable files; recover the selected passage | Researcher performs the same find/read/return task through each product's available interaction route; report lost place, manual path explanations and avoidable steps | This is user-assisted usability work. Codex may have a different UI or require existing external tools; disclose them. A prototype walkthrough or API test cannot establish a comparative UX advantage |
+| [C14](#c14), [C22](#c22): Skill catalog, working memory, context and distillation/proposals | Expose same-name/nested candidates and actual bodies; distinguish loaded/currently available/changed instructions and recorded partial-use scope | Reject a same-topic assumption mismatch, borrow a cross-topic diagnostic with its prerequisites, preserve the agreed solver, and evaluate a focused draft on a changed case when delivery exists | An unapplied draft needs an actual isolated delivery path and an identified assessor before transfer can be tested. Until then report “transfer untested”; drafting, installation and successful original use do not establish reusable method quality |
+| [C17](#c17), [C18](#c18): delegation, shared records and host/desktop adapters | Exercise conflicting worker conventions, timeout, overlapping edit proposals and same-path resources on different hosts; preserve source identity on disconnection | Can the coordinator produce a qualified account and can a fresh host recover the scientific question, conditions and pending work from the intended record? | Real multi-host/desktop tests require those environments and often user participation. Local worker fixtures or file-only continuation test those narrower claims; they do not establish native attachment or remote-effect recovery |
+
+### Report results and infeasible comparisons plainly
+
+For each selected pair, state the task and inspected scope, actual material/tool
+coverage, source qualifications, missed conditions, user corrections required,
+scope violations, and which outputs are drafts versus verified file changes.
+Report elapsed time, tool calls and usage/cost only where observed, separating
+setup, waiting, failed transport and researcher effort. Mark unavailable cost or
+context data as unknown. A short observation with evidence is preferable to an
+opaque aggregate score.
+
+When credentials, a matching model/tool, an implementation, a source, a real host
+or a qualified assessor is missing, tell the researcher which comparison is
+**blocked**, **not directly comparable**, or **requires user participation** and
+why. Offer the bounded fallback from the table and state what it cannot establish.
+Do not substitute mocks for an unavailable live test or count a blocked arm as a
+loss. No real-note edit, campaign, installation or publication is implied by an
+evaluation plan; use the selected scratch scope and actual user authorization.
+
+Retain regressions and neutral results alongside improvements. Judge each task
+against its scientific purpose and inspectable conditions, allowing multiple sound
+routes. Set any task-specific acceptance boundary before interpreting its outcome;
+there is no universal score or pass threshold for research. Neither one successful
+case nor a collection of engineering passes justifies “AITP-agent is better than
+Codex + AITP” across research. The useful conclusion names which capability helped,
+under which conditions, and what remains unresolved.
 
 ## Boundaries still needing a real case
 

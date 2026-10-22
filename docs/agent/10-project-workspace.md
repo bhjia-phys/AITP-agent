@@ -152,7 +152,7 @@ The **work-session view** brings these selections together under an explicit tas
 | Scientific questions, assumptions, arguments, outcomes and live continuations | Ordinary research notes and their supporting files | Remain usable without the application or its index; substantial changes are reviewed source edits |
 | Paper content, reading notes and reusable knowledge | Existing library/knowledge owners with edition/source references | Reuse links to one owner; reading or attaching a file does not promote its claims |
 | Code, calculation inputs, raw outputs and figures | Actual checkout and declared run/artifact locations | Preserve original material; Git history is optional and repository-specific |
-| Conversations, tasks, delivered context, choices, proposal/review/action records | Backend operational storage through Pi/AITP state | Retain actual request and delivery observations across restart; losing the navigation index must not lose these records |
+| Conversations, tasks, delivered context, choices, proposal/review/action records | Harness session events and AITP operational projections | Retain actual request and delivery observations across restart; losing the navigation index must not lose these records |
 | Authoring baselines and retained output copies | Proposed observation/artifact stores | Opaque IDs; retain only what was actually captured. No content-hash check is reinstated |
 | Search results, extracted project objects and where-used navigation | Rebuildable derived index | May be discarded and rebuilt; a stored edge is not independent scientific evidence |
 | Open panes, scroll, filters and unsent drafts | Client view state | Restore presentation without submitting a task or granting permission |
@@ -172,7 +172,7 @@ sequenceDiagram
   participant W as Workbench / server
   participant R as Runtime
   participant C as Core / source owners
-  participant P as ExecutionPort / Pi
+  participant P as Harness agent and tools
   U->>W: Select passage and state task
   W->>R: Preview origin, scope and context
   R->>C: Resolve instructions and required passages
@@ -337,8 +337,8 @@ Carry the research semantics of the retained `ActiveTask` and context records in
 | --- | --- |
 | Objective and effective agreement | Existing task state, with references to the actual user request and subsequent choices; retain allowed actions/roots, binding exclusions, resource limits, delegated choices and stopping conditions when stated |
 | Scientific setting and current supported answer | Source passages in the owning note; runtime carries references and observed excerpts, not a second editable answer |
-| Present gap, candidate action and reason | Revisable model working state associated with the task; show the proposed next action and what it could establish when useful, without treating the suggestion as a user decision |
-| Required inputs and coverage | Existing context manifest extended with operation-specific requirements and delivered observations; distinguish missing sources from optional background |
+| Present gap, candidate action and reason | The task service's [explicit working items](11-research-memory.md#working-memory-items), added/revised/retired through a non-blocking model tool and rebuilt from its logged outcomes; a proposed next action is provisional, not a user decision |
+| Required inputs and coverage | Source/observation records and the context projection, carrying the declared need, its origin and dependent inference; distinguish unavailable declared inputs from optional background without claiming all dependencies are known |
 | Action outcomes and pending integration | Existing events, receipts, proposals and outcome references; a completed reply or tool call does not mean the research note changed |
 
 A clear user choice updates the effective agreement once, preserving the parts it did not change. Associate
@@ -534,7 +534,7 @@ well as controls. The [memory projection](11-research-memory.md#memory-user-view
 
 The researcher subsequently asked for durable functional areas, including literature,
 knowledge, Skills, distillation and replaceable UI, rather than only independent tasks.
-The ten development lines above organize work; they are not the final plugin taxonomy.
+The workstreams in 14 organize development; product functions determine the plugin responsibilities below.
 The selected application base is DeepSeek Harness and its Cordis composition host. Shared research services, domain plugins and presentation/host adapters retain the responsibilities below. This is an authorized host change, not evidence that AITP's research plugins have been implemented.
 
 ```mermaid
@@ -542,7 +542,7 @@ flowchart TB
   Desktop[Desktop host] --> UI[Workbench layout and UI slots]
   UI --> Plugins[Research records, literature, knowledge, Skills, distillation, code, review]
   Headless[Headless entry] --> Plugins
-  Plugins --> Coordination[Shared task, agreement, context and document-change services]
+  Plugins --> Coordination[Shared working memory, context and document-change services]
   Coordination --> Execution[Harness execution services and extension events]
   Execution --> Harness[Models, durable session events, tools and subagents]
   Plugins --> Sources[Guarded resource and observation services]
@@ -553,6 +553,17 @@ flowchart TB
 The imported Harness source is version `0.2.1-rc.2`; exact Git ancestry belongs in the repository and integration evidence. Its [architecture](../architecture.md) separates service definitions, providers and consumers, composes profiles/bundles and disposes registrations with plugin lifetimes. Its [typed UI slots](../subsystems/slots.md) let features contribute views without importing one another's components. Its Electron desktop carries the Web plugin system. Ordinary host plugins share a process: lifecycle management is not security isolation. Start with first-party plugins and supported profile composition; arbitrary hot replacement is not an AITP acceptance prerequisite.
 
 The retained Pi tree pins `pi-ai` and `pi-durable` to 1.3.0 and uses [static runtime registration](../../agent/packages/runtime/src/registry.ts). It remains a reference for research semantics and earlier failures. Harness may use its own `llm-pi-ai` model adapter; that adapter does not import the retained `pi-durable` conversation state or restore the old execution loop.
+
+<a id="scenario-plugin-map"></a>
+#### Design plugins around complete research situations
+
+The requested design starts with what the researcher needs to accomplish. A plugin owns a coherent resource or capability, its backend contribution and any optional views. One plugin can contribute to the topic home, a global library and an inspector; those placements do not require three independent implementations. The [case cooperation table](13-research-journeys.md#scenarios-choose-cooperating-plugins) connects concrete tasks to these functional areas and their distinguishing failures. These routes remain design examples, not completed runtime demonstrations.
+
+A paper-reading task can move from Literature's exact edition to Knowledge's prerequisite explanation and back to the reading position, with shared context recording any model delivery. A code-comparison task joins Research records' formula and conventions to Code's actual checkout and diagnostic evidence. Method choice adds the Skill catalog and candidate provider; a demonstrated correction may later involve Distillation and document changes. Each collaboration follows the question's need rather than activating every plugin in sequence.
+
+The topic home brings these contributions together around one scientific owner: question, supported answer, limitation and live branch links first, then relevant papers, knowledge, code and methods. It reads the same projections used by global browsing and headless sessions. A plugin can contribute a relevant resource link without copying that resource into a project. Method relevance is a reason to inspect it, not a claim that every Skill associated with the topic should run.
+
+The shell owns panes, navigation, focus and restoration. Domain plugins own their resource interpretation and commands. Shared memory/context services own what the model actually receives; document-change services own applied source edits. The [interface](12-desktop-interface.md) specifies the visible interactions, and [14](14-implementation-blueprint.md#independent-development) assigns development dependencies. This split permits a better context selector or a different editor without rewriting the scientific records.
 
 <a id="aitp-runtime-integration"></a>
 #### Runtime research memory and contextual guidance
@@ -565,8 +576,8 @@ There is one Harness execution loop. Cordis services/plugins provide shared memo
 | --- | --- | --- |
 | Research-memory access | Resolve ordinary main notes, linked detail, knowledge, papers, code and Skill sources; return observed passages, locators and missing-source information through shared readers | Existing notes remain the scientific owners; no forced schema migration or second editable truth store |
 | Context selection and delivery | Combine the current question, actual user choices, relevant hypotheses/conventions, supported results, failed routes and unresolved gaps; budget and deliver them through Harness context providers | Priority adapts to the current inference and user selection. The model can request another source or change focus; the default ranking is configurable |
-| Working-memory continuity | Retain the actual task, important corrections, sources, useful intermediate reasoning and suggested next step; restore them after compaction/restart without treating a generated summary as a user decision | The next step is a revisable suggestion, not a fixed workflow state or an action whitelist |
-| Evidence feedback | Observe source/tool results and identify context worth refreshing; distinguish observed, delivered, no-longer-available and unknown material | A gap is surfaced to the model and user. The agent decides whether to retrieve, derive conditionally, compare, ask or pursue another useful step |
+| Working-memory continuity | The task-memory owner retains actual user instructions and explicit model-authored working items: current gap, concise result/limitation, failed route and reopening condition, method-use scope, suggested next step and pending integration. A non-blocking tool adds, revises or retires the model's own items; session projections recover them | Items describe the scientific work and its conditions, not private reasoning traces. Generated items stay provisional; the next step remains revisable rather than an action whitelist |
+| Evidence feedback | Read/tool adapters produce source observations and outcome facts for the context owner; the model records changed scientific implications through the working-item tool | A gap is surfaced to the model and user. The agent decides whether to retrieve, derive conditionally, compare, ask or pursue another useful step; this function needs no second supervisor |
 | Memory maintenance and writing | Locate the correct main/subnote owner, prepare changes in scope, retain pending/no-change outcomes and reread written results; support review where the task calls for it | No compulsory planning/review ceremony for every action. Actual research writing remains outside the present implementation authorization; the later authoring policy is still unresolved |
 | Collaboration projection | Let the user inspect and adjust source selections, remembered choices and writing guidance; show consequential omissions without exposing every runtime detail | UI uses the same memory/context state as headless work. A preference edit does not create an automatic research-action ban |
 
@@ -577,13 +588,13 @@ For example, before an apparent thermodynamic-limit conclusion, surface the actu
 The inspected Harness extension points support this design:
 
 - Use asynchronous source/context preparation around [`agent/pre-step`](../../packages/core/agent/src/runtime-types.ts), then render prepared working-memory facts with [`systemPrompt.context`](../../packages/core/system-prompt/src/index.ts). [`AgentRuntime.step`](../../packages/core/agent-loop/src/agent.ts) refreshes registered context after provider preparation and logs it before the model request. A required context contribution means that selected runtime facts survive ordinary optional-context suppression; it is not a scientific-readiness gate.
-- Use typed session events and [session projections](../../packages/session/session-projection/src/index.ts) for actual user choices, source observations, delivery information and pending outcomes. Model-visible content must remain reconstructable from the ordinary session log. [`appendPluginRecord`](../../packages/core/session/src/index.ts) is best-effort/ignorable and is unsuitable as the sole owner of facts whose recovery the application promises. An in-memory append and a successful disk flush are distinct; failure must be reported honestly.
+- First derive state through [session projections](../../packages/session/session-projection/src/index.ts) from existing logged user messages, interaction/tool calls and results, runtime-context snapshots and the visible history. The proposed working-item tool logs its explicit operations through the ordinary tool lifecycle. Do not introduce an event family per plugin or a parallel transcript. New model-visible inputs with no existing recorded carrier require the smallest owned event and reader-compatibility review; a session must remain readable when AITP is disabled. [`appendPluginRecord`](../../packages/core/session/src/index.ts) is restricted to experimental packages and is best-effort/ignorable, so it cannot be the sole owner of promised recovery facts. An in-memory append and a successful disk flush are distinct; failure must be reported honestly.
 - Reconcile retained observations with the context actually available after compaction. Rebuild the important task/choice projection and reread relevant scientific owners; do not assume that an earlier file attachment remains available because it appears in a UI manifest. The compaction provider can be adapted if a focused test shows that its current summary loses useful research reasoning. Avoid an additional autonomous supervisor loop.
 - Model-invoked source reads feed the same observation/context service as initial selections. Adapters expose what they actually read and any missing locator or coverage. A model response, search snippet, full source and researcher decision remain different kinds of information.
 
 The earlier inspection of tool-guard timing and filesystem intent-hook coverage is retained in the [integration evidence](../../agent/notes/harness-integration.md). Those findings describe the limits of a possible hard-enforcement claim; they do not make a new action-policy engine or final-dispatch patch a prerequisite for the selected memory/context work. An explicitly requested execution restriction can use the host's applicable mechanisms, with its actual coverage stated, rather than introducing permanent research modes.
 
-The first demonstration should show better continuity and better-informed choices: one main note and linked source, a user correction, a relevant failed route, two compactions and restart, then a missing source. The AI should recover the important context, explain uncertainty and choose a useful next step without a forced planning card or fixed action order. Evaluate its visible reasoning and source use, not only a metadata flag. [14](14-implementation-blueprint.md#runtime-integration-plan) owns this proposed slice and its implementation status. No hash, version/conflict gate or approval digest is introduced.
+The [single next implementation slice](14-implementation-blueprint.md#next-implementation-slice) owns sequencing and acceptance. Continuity checks must inspect the actual request, visible explanation and source use across user corrections, failed routes, compaction, restart and unavailable sources. They must not infer useful behavior from a metadata flag. No hash, version/conflict gate or approval digest is introduced.
 
 <a id="harness-service-mapping"></a>
 #### Mapping the research design onto Harness
@@ -593,24 +604,49 @@ The first demonstration should show better continuity and better-informed choice
 | Task choices and continuation | Agent lifecycle/inbox and durable [session events and projections](../subsystems/session.md) | Retain actual choices and corrections, distinguish them from generated suggestions, and restore important context for continued work |
 | Sources and contextual evidence | [Filesystem services](../subsystems/filesystem.md), [context contributors](../../packages/context/README.md), system-prompt sections and compaction events | Research-root and locator semantics, important-premise reminders, configurable selection priority, actual observation/availability accounting and exact citations |
 | Main notes, knowledge and literature | Filesystem/search capabilities, host APIs and client contributions | Main/subnote projections, source-backed knowledge, work/edition identity and readers; none is supplied by a generic file browser |
-| Rules and methods | [Settings](../../packages/settings/settings/README.md), [Skill discovery](../../packages/skill/README.md), instruction contributors | One owned rule source, scoped overrides, saved versus adopted revisions, upstream/project Skill roots and evidence-based distillation |
+| Rules and methods | [Settings](../../packages/settings/settings/README.md), [Skill discovery](../../packages/skill/README.md), instruction contributors | One owned rule source, scoped overrides, saved versus adopted revisions, bounded topic-method discovery, duplicate diagnostics and source-qualified inspection/invocation. The model records applicability in working memory; the current winner-only registry is insufficient for these promises |
 | Independent review and writing | [Subagent services](../../packages/subagent/README.md), tools, sessions and persisted outcomes | Read-only reviewer composition, exact reviewed premises/proposal revision, assessment, pending integration and bounded apply/recovery |
 | Workbench and native host | [Client](../../packages/client/README.md), typed slots, host APIs and [Electron carrier](../../apps/desktop/README.md) | Research/Materials/Collaboration entrances, shared readers, selective disclosure and actual Windows–WSL acceptance |
-| GPT access | [Model services/adapters](../../packages/llm/README.md) and [credential services](../../packages/credentials/README.md) | Configure and test the selected GPT API or OAuth route, login consumer, streaming/tools/cancellation and model-specific compaction; report live evidence separately |
+| GPT integration | [Model services/adapters](../../packages/llm/README.md) and [credential services](../../packages/credentials/README.md) | The [provider integration owner](#gpt-integration) isolates transport/projection defects from research-context and model-quality failures; test each supported route before claiming GPT research readiness |
 
 Use durable events for facts needed after restart and projections for their derived state. A model-visible agreement, premise or rule change must be reconstructable from the session log. Do not store a second transcript in an AITP service, assume a generic compaction summary preserves the agreement, or infer scientific authority from a plugin setting. Unsupported old Pi sessions remain readable through the retained implementation/export; automatic runtime-store migration is outside the selected scope.
 
-| Area / candidate plugin | Owns | Shared services it consumes |
+The [base composition](../../packages/bundle/base/cordis.patch.yml) already mounts goal, goal-round-driver, plan-mode, tool-todo and compaction-basic. The following maps inspected contracts to proposed AITP treatment; this document does not change the active configuration or claim a live reproduction of their interaction with future memory plugins.
+
+| Existing owner | Verified contract and proposed AITP treatment |
+| --- | --- |
+| [Goal service and tools](../../packages/goal/README.md) | Reuse the persisted objective and the tools' direct-human-source checks when a long-running goal is requested. The scientific task agreement retains later corrections; an original objective or model completion label cannot overwrite them. Avoid a second goal store |
+| [Goal-round driver](../../packages/goal/goal-round-driver/README.md) | The generated user-role prompt repeats the objective and directs use of current durable state. It is not a new human decision. The first continuity fixture can omit autonomous rounds; separately test a later correction followed by a goal round before enabling unattended AITP continuation. Whether the live model actually disregards that correction is unverified |
+| [Plan mode](../../packages/plan/plan-mode/README.md) | Keep optional user-invoked planning distinct from ordinary task progress. Its reviewed exit belongs to that explicit mode; presenting a routine plan or updating working memory must not enter it automatically. The review's proposed default disablement remains a composition choice, not an implemented setting |
+| [Todo tool](../../packages/todo/README.md) | Reuse implementation-task bookkeeping where useful. A todo list is neither the scientific argument nor an instruction from the researcher; changing it cannot alter the task agreement |
+| [Workspace projects](../../packages/workspace/workspace/README.md) | Reuse directory/session grouping and project identity. Research records own the scientific topic projection and home; the shell renders it alongside those existing groups. A scientific branch need not create another directory project |
+| [Compaction summary](../../packages/compaction/compaction-basic/README.md) | Retain it as generated recovery material, including its request/next-step sections. Recover the current source-attributed working block independently. On conflict, actual user instructions retain authority and generated claims remain revisable; required context delivery does not promote model items or source excerpts to instructions |
+
+The present base defaults to `workspace-write` and mounts generic writing and execution tools. AITP's design-stage restriction on real-note changes is not technical enforcement by the launcher. Keep experiments on isolated synthetic/scratch roots with an explicit permission profile; the product default and access to research roots outside a session remain open decisions. A code reader's future UI must not imply the generic agent currently lacks edit or execution tools.
+
+<a id="gpt-integration"></a>
+#### GPT integration and research-quality diagnosis
+
+GPT compatibility is a prerequisite for meaningful host comparison, not a login-only feature. The provider integration owner covers the selected API-key or OAuth route, credential lifecycle, request and instruction projection, tool-call/result correlation, streaming, cancellation, errors/retry behavior, continuation and compaction. It reuses the existing [LLM adapter](../../packages/llm/llm-pi-ai/README.md), credential services and profile composition; research plugins consume the resulting model service rather than each implementing GPT access. A route-specific correction belongs in the responsible adapter or composition boundary, with a focused regression example, not in a compensating research Skill.
+
+The research-context owner separately covers which actual instructions, sources, working items and Skills reach each request and which survive compaction. Model settings and effective request budgets must be recorded for comparisons. A weak scientific answer can arise from a protocol defect, unavailable evidence, incompatible method instructions, task design or model behavior; the comparison must expose those possibilities before assigning blame to the host. Synthetic protocol/replay checks cannot establish live provider compatibility or improved research judgment.
+
+The [scenario comparison design](13-research-journeys.md#comparative-evaluation) compares aitp-agent against Codex with the same portable AITP revision and controlled task materials where possible. Authentication paths, available model settings, tool capabilities and provider behavior may prevent an exact match; name those differences and distinguish a controlled comparison from a comparison of the complete products. UI usability and multi-day research usefulness need separate evidence. The plan owns repairs and test ordering; this architectural boundary does not claim earlier GPT weaknesses have been reproduced or fixed.
+
+| Functional area / candidate plugin | Owns and contributes to the UI | Shared services it consumes |
 | --- | --- | --- |
-| Research records | Markdown/main-note and family-map adapters, thread projections, parent/detail links, affected-use discovery and proposed argument edits | Guarded sources, observations, context, proposal/review/apply |
-| Knowledge | Reusable explanations, conditions, source routes, wiki browsing and bounded search | Research-record/source interfaces; no separate editable scientific truth |
+| Research records | Main-note/family-map adapters, topic-home data and domain view, branch/thread projections, parent/detail links and bounded affected-use discovery across contributed resources; the scientific answer stays in its source | Sources, observations, working memory, context and document changes |
+| Knowledge | Reusable explanations, conditions, source routes, wiki browsing and concept search; contribute explicit links to Research records' affected-use query | Research-record/source interfaces and affected-use projection; no separate editable scientific truth |
 | Literature | Work/edition/file identity, PDF reading, locators, citations and optional retrieval adapters | Sources, observations, resource navigation; network/import effects separately scoped |
-| Skill catalog | Discover configured upstream/project Skill files, inspect descriptions, resolve names and show actual source/version; load selected guidance | Guarded source reads and context instruction admission |
-| Distillation | Invoke upstream `aitp-distill`, inspect motivating evidence and existing Skills, propose a focused Skill change and check a concrete use | Skill catalog, research records, model execution, review and document changes |
-| Code | Checkout/files/diff/history and source-linked selections | Guarded read-only Git/source adapters; execution remains a separate capability |
+| Code | Checkout/file tree, search/symbol navigation, source/diff/history panes and source-linked selections; later scoped editing/execution controls | Filesystem/Git/LSP capabilities, resource navigation and observations; editing and process execution keep their actual host permissions |
+| Skill catalog | Global/project/topic method browsing, source descriptions, names, shadowed candidates and actual loaded instructions; explicit method links as well as configured roots | Harness registry/provider APIs plus required duplicate/source-resolution extensions and bounded reads; applicability judgment stays with the main model |
+| Distillation | Actual use evidence, existing Skill comparison, focused draft, evaluation and later reuse feedback, guided by portable `aitp-distill` | Catalog, research records, context/use observations, model execution, review and document changes |
+| Collaboration rules | Source-backed writing/memory preferences and task-scoped guidance; saved versus adopted state | Existing instruction/configuration sources, working memory, context and document changes; no parallel rule store |
 | Review | Existing-entry or proposal review workflows, real reviewer execution, coverage, findings and author assessment | Agreement, actual observations, proposal revision and Harness subagent execution |
-| Workbench presentation | Shared layout/navigation and slots for explorers, resource editors, inspectors, commands and result views | Typed resource and session APIs; feature plugins contribute optional client parts |
+| Workbench presentation | Shared layout/navigation and slots for explorers, resource editors, inspectors, commands and result views; hosts the Research records topic-home contribution | Typed resource and session APIs; feature plugins own their domain data and optional client parts |
 | Desktop host | Window lifecycle, authenticated backend attachment and explicit OS/editor capabilities | Same workbench/backend contracts; no independent scientific state |
+
+These ten areas describe product responsibility; the runtime modules above describe their shared support. [14's development crosswalk](14-implementation-blueprint.md#independent-development) is the single assignment map, including GPT integration and shared services. They are not competing package lists or ten mandatory screens. A feature may use separate host/client entries, and a replaceable provider may serve several areas. Reuse Harness's [dock layout](../../packages/client/ui-sidebar-right/README.md) and [document preview](../../packages/client/ui-sidebar-documentpreview/README.md): the latter provides generic file previews, including PDF and code, but its documented browser preview does not deliver source content to the model, and code preview is not an editor. Global resources usable before a conversation need explicit resource addressing and read authority rather than a fabricated session. AITP's exact source/edition selections, topic associations and delivery observations remain additional work.
 
 Computation, scheduler and manuscript-build providers can be added in separately selected
 slices. A domain plugin may have a backend and an optional client entry; its reading or
@@ -622,10 +658,11 @@ not a requirement for one process or repository per plugin.
 
 Shared service contracts have distinct owners:
 
-- **Task choices:** preserve actual requests, corrections and delegated decisions in working context. Source text and generated suggestions cannot impersonate a user instruction; existing host permissions retain their own owner.
+- **Task and working memory:** own actual requests/answers and the model's explicit add/revise/retire operations on [working items](11-research-memory.md#working-memory-items). Preserve source identity and attribution; the context coordinator renders their effective projection. Source text and generated suggestions cannot impersonate a user instruction; existing host permissions retain their own owner.
 - **Sources/observations:** resolve guarded resources, retain locators and actual reads,
   report unavailable material and distinguish historical observations from current files.
 - **Context coordinator:** prioritize important research memory, budget candidate evidence, retain actual delivery/current-availability information and reconcile compaction. Gaps guide the next inference rather than imposing a fixed action sequence.
+- **Skill candidate provider:** retrieve candidates and package their relevant purpose, conditions and use evidence for the current question. The main model judges applicability and records the chosen scope as a working item; the provider cannot present a retrieval score as an authoritative scientific assessment. Discovery, model judgment and instruction delivery are distinct; [11](11-research-memory.md#skill-applicability) owns the integration semantics.
 - **Document changes:** keep proposals/baselines, invoke applicable assessed review, apply
   only within the selected policy and recover partial work. Plugins propose edits through
   this service rather than each maintaining an independent writer.
@@ -679,11 +716,9 @@ notes/knowledge; an evidenced transferable operation can become a Skill. Draftin
 testing, local use, installation and publication remain distinct actions under the actual
 task scope. No mandatory method-card database or central scientific registry is added.
 
-First demonstrate the boundary with a minimal research-record provider and one literature
-or knowledge provider, using the same resource/context interfaces with and without the
-workbench. Relevant failures are a missing optional provider, ambiguous source, duplicate
-tool name and a provider unavailable to a resumed task. These are proposed examples for
-the next chosen implementation slice, not checks performed by this design discussion.
+The [Skill-use and distillation design](11-research-memory.md#skill-applicability) specifies how a method relates to a particular problem and how demonstrated corrections return to the source. Topic location, textual similarity and previous success are discovery evidence. The model still checks the relevant assumptions, procedure dependencies and acceptance limits before scientific adoption. Partial borrowing names what transfers and what remains unassessed; it cannot strip an applicable mandatory instruction or silently adopt a different solver. Neither the catalog nor a preset chooses the research direction.
+
+The [next implementation slice](14-implementation-blueprint.md#next-implementation-slice) fixes the order of demonstrations. Later provider integration should exercise the same resource/context interface with and without the workbench, including a missing optional provider, ambiguous source, duplicate tool name and a provider unavailable to a resumed task. These are proposed compatibility examples, not a second definition of what must be built first.
 
 ### P1 contract decisions: origins, authority and citations
 
@@ -750,6 +785,6 @@ No hash/version/conflict/approval-digest checks are restored. Future exact ancho
 | Research decisions | Prompt-only guidance; fixed literature→derivation→code pipeline; adaptive action selection within explicit scope | Recommend the adaptive loop above: prioritize research context through shared services, retain actual user choices, and evaluate the agent's adaptive scientific judgment separately |
 | Retrieval and dependencies | Mandatory semantic/claim database; source links and bounded search; optional semantic retrieval | Start with actual source owners and declared operation dependencies; add retrieval methods only for demonstrated gaps, without promoting the index into scientific authority |
 
-Harness adoption, product naming and bounded GPT adaptation are authorized; [14](14-implementation-blueprint.md#harness-migration) states that work and its evidence. It does not settle the default restriction duration, approve a research-note format migration, or enable all research plugins. Select the first research slice with concrete service ownership and case acceptance. Before controlled authoring, settle exact-text/argument semantics and when the task or selected authoring policy calls for independent review; note-history roots and a real-note pilot remain explicit later choices.
+Harness adoption, product naming and bounded GPT adaptation are authorized; [14](14-implementation-blueprint.md#harness-migration) states that work and its evidence. The requested plugin organization, incremental implementation and scenario comparisons follow [14's single sequence](14-implementation-blueprint.md#next-implementation-slice). These requests do not settle the default restriction duration or authorize a research-note format migration. Before controlled authoring, settle exact-text/argument semantics and when the task or selected authoring policy calls for independent review; note-history roots and a real-note pilot remain explicit later choices.
 
 Preserve the selected research principles while rebinding implementation details to Harness. Each newly selected research slice ends with its actual scientific, visual, usability and technical evidence. A successful host migration, model call, prototype or reviewer critique does not supply researcher acceptance of a research workflow.

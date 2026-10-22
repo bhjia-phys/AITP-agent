@@ -11,6 +11,8 @@ The documents have different jobs; this plan is not a second session log or a co
 
 The host selection is settled. Modular core services, independently developable domains, editable rules, selective UI and portable AITP Skill ownership remain requirements. [10](10-project-workspace.md#harness-service-mapping) maps these domains onto Harness. The [development lines](#independent-development) separate work ownership from the P0–P5 research acceptance groups. They do not authorize all proposed features or real-note writing. The old Pi pilot and P0 prototype remain evidence only for their original scopes; no research case is automatically accepted on Harness.
 
+**Current task:** organize the plugins, shared implementation work and testing, then publish the coordinated design to the open-source repository for collaborators. **UI design and implementation are assigned to Claude and are in progress in that workstream; this planning pass does not verify delivery of Claude's code.** Codex owns plan integration, core/backend implementation, integration tests and documentation maintenance. GPT reliability is an explicit priority, and each implemented research capability needs a corresponding comparison with **Codex + AITP**, with difficult or unavailable tests reported plainly. This pass changes documentation only; it performs no live model trial, runtime configuration change or real-note write. The [scenario-to-plugin map](10-project-workspace.md#scenario-plugin-map) owns functional responsibilities; this plan owns work assignment and sequence, and [13](13-research-journeys.md#comparative-evaluation) owns the comparison protocol.
+
 The researcher also requires UI-editable writing/memory/collaboration rules and selective
 information display. [10](10-project-workspace.md#editable-rules) owns rule provenance,
 resolution and adoption; [12](12-desktop-interface.md#progressive-disclosure) owns the
@@ -22,9 +24,9 @@ upstream Skill writes. [C16](13-research-journeys.md#c16) retains the continuati
 **Confirmed architectural requirement:** the researcher explicitly requires modularity
 for independent optimization and upgrade of core parts. This is no longer an open choice
 between modular and inseparable implementation. The [architecture](10-project-workspace.md#plugin-composition)
-owns contract, dependency and upgrade boundaries. Harness/Cordis is selected; concrete research-service interfaces, file ownership and the first research slice still need specification. The authorized host/GPT work does not by itself start the full P1 redesign or approve every proposed module split.
+owns contract, dependency and upgrade boundaries. Harness/Cordis is selected; the shared interface slice, proposed file ownership and first research example are specified below; they remain to be implemented. The authorized host/GPT work does not by itself start the full P1 redesign or approve every proposed module split.
 
-The P0–P5 groups retain their scientific acceptance meaning and the earlier proposed product ordering below. Independently selecting readers/desktop and bringing Markdown proposal/review forward remains the recommended sequencing alternative, not a researcher-approved reorder. Its technical dependencies are described in the development lines. Controlled apply still follows assessed review and the selected authoring policy. The old [W0–W6 sequence](08-implementation-plan.md#3-waves-and-milestones) and M1 results remain Pi history, not Harness release gates.
+The P0–P5 groups describe capability acceptance. The [single next-slice statement](#next-implementation-slice) and the dependency cells below own the current development sequence; the earlier linear reader/desktop order is superseded as a planning dependency. This does not claim researcher acceptance of the product or settle the authoring policy. Controlled apply still depends on the selected policy and assessed review. The old [W0–W6 sequence](08-implementation-plan.md#3-waves-and-milestones) and M1 results remain Pi history, not Harness release gates.
 
 <a id="harness-migration"></a>
 ## Authorized Harness migration and GPT adaptation
@@ -37,25 +39,55 @@ GPT work includes checking the provider and model route, API-key/OAuth capabilit
 
 **Preserved limits:** this work does not migrate Pi runtime stores, modify real research notes, adopt a new note format, authorize scientific computations, enable unrestricted research-writing tools, or claim completion of P1–P5. Generic Harness tools may have effects under its own configuration; the imported application is not yet an accepted read-only AITP research profile. Use isolated synthetic/scratch work for adaptation checks. A future research profile must make its actual tools, memory delivery and applicable user instructions clear before use on research roots; it does not add a fixed scientific action order.
 
-**Handoff and next research scope:** demonstrate startup/naming and the actually tested GPT path, retain any credential/platform limits, then select the bounded agreement/context/source integration needed for C01/C06/C16. Re-run the four old counterexamples against the new runtime when those services exist; host replacement alone closes none of them. Scientific qualifications and exact-source citations remain requirements; later writing policy remains undecided and must not be generalized into a ceremony for ordinary research actions.
+**Handoff:** report the actual route evidence through the [GPT work package](#gpt-integration-readiness), then follow the [next implementation slice](#next-implementation-slice). Re-run the four old counterexamples against the new runtime when the corresponding research services exist; host replacement alone closes none of them. Scientific qualifications and exact-source citations remain requirements; later writing policy remains undecided and must not be generalized into a ceremony for ordinary research actions.
+
+<a id="gpt-integration-readiness"></a>
+## GPT reliability before research-quality claims
+
+The researcher reports bugs and poor results with earlier GPT use in Harness. Treat this as an engineering and behavioral investigation with reproducible examples, not a promise that a new preset improves the underlying model. Preserve the actual failing task, provider/route, selected model, reasoning setting, tool availability and failure stage. Diagnose authentication, request conversion, model-visible instructions/context, tool handling, retries and research judgment separately. Reuse an applicable upstream correction before adding another workaround. A symptom without a retained example remains reported or unverified until reproduced; this planning pass runs no regression or live request.
+
+**Recorded baseline:** the [existing receipt](../../agent/notes/harness-integration.md#gpt-validation-boundary) records fixes for secret-input history and launcher child cleanup, and passing focused regressions for escalation and nonshrinking-summary handling. Those checks do not close every tool-family parameter combination or repeated compaction across later steps. Actual sign-in and live GPT behavior remain unverified. The current [real-provider cases](../../packages/llm/llm-pi-ai/tests/provider-api-cases.ts) and [live suite](../../packages/llm/llm-pi-ai/tests/provider-apis.e2e.ts) do not cover the `openai-codex` OAuth route; a passing OpenAI API-key case cannot supply that missing evidence.
+
+The following primary-source investigation was checked on 2026-10-22 against the imported `0.2.1-rc.2` source. Reports retain their original host, route and plugin versions. Source inspection identifies candidate regressions; it does not reproduce their runtime effects.
+
+| Report and original scope | Current source assessment | Regression target |
+| --- | --- | --- |
+| [Same-mode escalation, #5847](https://github.com/deepseek-ai/deepseek-harness/discussions/5847), September 7: GPT-5.6 Sol under full access; [#4021](https://github.com/deepseek-ai/deepseek-harness/discussions/4021), August 22: `0.1.1-rc.2`, Azure Responses | The shared [approval resolver](../../packages/sandbox/sandbox/src/escalation.ts) now accepts the effective mode; bash also bypasses its justification check for that case. The [filesystem resolver](../../packages/fs/tool-fs/src/sandbox.ts) still validates parameter pairing first. Partial correction, not closure of all reported variants | Test bash, PowerShell, write and edit separately: same mode with absent, blank and valid justification; narrower, unknown and genuinely wider requests. Preserve ordinary execution and legitimate approval semantics |
+| [Repeated compaction, #8733](https://github.com/deepseek-ai/deepseek-harness/discussions/8733), October 3: `0.2.0-rc.2` plus third-party `dsh-plugin-subscriptions 0.9.7`, GPT-6 Luna/GPT-6.1 Sol; related [checkpoint-only report #7212](https://github.com/deepseek-ai/deepseek-harness/discussions/7212) uses OpenRouter DeepSeek | Current [range selection](../../packages/compaction/compaction-basic/src/region.ts) can select the previous checkpoint alone. The [engine](../../packages/compaction/compaction-basic/src/index.ts) bounds one invocation and rejects nonshrinking output, but those protections do not establish progress across later steps. Lowering output reservation is a mitigation | Repeated pre-steps over an unchanged checkpoint, small reductions, output reservation and fixed overhead, bounded total wasted attempts, visible recovery and cancellation; preserve scientific qualifications independently of token reduction |
+| [Smaller-window switch, #9814](https://github.com/deepseek-ai/deepseek-harness/discussions/9814), October 15: `0.2.0-rc.2`, initially a third-party provider; later GPT-6.1 Sol report | The current [summarizer](../../packages/compaction/compaction-basic/src/summarizer.ts) still selects configured, latest-request or agent target without a capacity-aware alternative. Current runtime failure remains untested | Large-to-small model switch and stale/deleted route; show the actual compaction failure and a usable recovery. Do not silently send research material to another provider |
+| [Tool-argument reparsing, Pi #9265](https://github.com/earendil-works/pi/issues/9265), September 7: pi-ai `0.85.1`; Harness [#3923](https://github.com/deepseek-ai/deepseek-harness/discussions/3923) reports a relay route | The installed pi-ai patch and [streaming tests](../../packages/llm/llm-pi-ai/tests/tool-argument-streaming.spec.ts) address repeated parsing. This supports a scoped CPU-cost correction, not the report's inferred cause of every gateway 500 | Large and truncated streamed arguments, parallel calls, prompt cancellation and responsiveness of another session; retain coverage when upgrading pi-ai |
+| [Resume pressure, #5662](https://github.com/deepseek-ai/deepseek-harness/discussions/5662), September 4: Windows `0.1.2-alpha.4`, Codex GPT-5.6 Sol | The reported first-resumed-turn cause was a hypothesis. Current automatic compaction returns early without a routed request target; the interaction with restored sessions needs a dedicated check | Restart above the pressure threshold and inspect the first new request, effective route and actual compaction events |
+| [Transient overload, #5377](https://github.com/deepseek-ai/deepseek-harness/discussions/5377), September 2, corrected September 3: `0.1.1-rc.2`, Codex GPT-5.6 Sol | The reporter resumed the same session successfully without the proposed protocol shim and withdrew the deterministic incompatibility explanation | Distinguish provider capacity, authorization, request rejection and local tool failure; preserve actual retry evidence instead of adding an unsupported wire workaround |
+
+Community implementations are references, not installed dependencies or acceptance evidence for this fork. The [GPT preset proposal](https://github.com/deepseek-ai/deepseek-harness/discussions/3429) strips several classes of escalation fields; inspect each semantic change before reusing it. [pi2dsh's subscription example](https://github.com/weijiafu14/pi2dsh/blob/main/examples/subscription-login/README.md) reports a dated OAuth-to-live-response check on `0.1.0-rc.8`, which is useful as an acceptance sequence but does not validate this application's route. [dsh-llm-codex](https://github.com/NOirBRight/dsh-llm-codex/blob/main/README.md#remote-compaction-not-enabled) leaves remote compaction disabled pending durable opaque-item replay; a future alternative must be checked through the next wire request, restart and branch, not just a successful compaction response or an apparent cache hit.
+
+| Work item | Implementation/test home | Evidence needed before claiming the item works |
+| --- | --- | --- |
+| Reproduce symptoms and resolve effective configuration | Existing `llm-pi-ai` model/config/adapter code, profile composition and launcher | A minimal case and effective provider/model/protocol/effort; user overrides preserved. Separate a known fixed regression from a currently failing example; never silently substitute another model |
+| Validate API-key and Codex OAuth separately | Existing auth/login services and `apps/cli/src/aitp-auth.ts`; extend route-specific live tests where missing | Fresh login where required, reopening credentials, cancellation and refresh/failure handling; actual model request through each tested route. Report inaccessible routes separately and keep secrets out of evidence |
+| Preserve request and streamed tool semantics | `llm-pi-ai` context/stream/replay and protocol-roundtrip/tool-streaming tests | Text and supported reasoning items, tool declarations, parallel call IDs/arguments/results, tool errors and interrupted streams survive conversion; a partial call is neither completed nor executed twice |
+| Bound retries, permission handling and cancellation | Existing retry, sandbox escalation and launcher/session lifecycle code | Rate limit, timeout, interrupted transport, invalid model/setting and denied operation have distinguishable outcomes; retries are bounded and observable, cancellation settles actual work, and denial does not create a repeated same-mode escalation loop |
+| Verify context and continuation | Provider conversion, compaction and the selected AITP memory slice | Actual requests preserve operative corrections, useful failed routes and declared method scope; a missing source is visible. Run deterministic failure injection and then live behavior checks; neither replaces the other |
+| Observe cost, latency and route limits | Existing token-meter, request/session records and trial output | Actual route/model/effort, attempts, elapsed time and reported usage with unknown categories explicit. Subscription access is not zero cost; estimates and unavailable billing stay labelled. Native packaging/Windows behavior require their own later checks |
+
+For Responses-based routes, inspect preservation of model-produced reasoning items and associated tool calls/results using the [official reasoning guidance](https://developers.openai.com/api/docs/guides/reasoning). This is protocol handling, not a request to expose private reasoning. Distinguish Harness summary compaction from [API-native compaction](https://developers.openai.com/api/docs/guides/compaction); verify what the selected route actually supports instead of assuming the mechanisms are interchangeable. These sources define audit targets, not evidence that the current adapter is defective or supports every documented API feature.
+
+First validate the actual source-launched aitp-agent composition on isolated fixtures. Carry each observed defect through minimal reproduction, scoped fix, focused regression and a relevant live check when possible. Use the [case comparison](13-research-journeys.md#comparative-evaluation) to assess the resulting research behavior. An unavailable credential, inaccessible model, unobservable setting or platform dependency gets a precise blocker and a useful remaining offline check; skipped tests never count as passes. Offline parser/context work and Claude's UI design can proceed while a live route is unavailable, but research-quality conclusions must retain that limitation.
 
 <a id="runtime-integration-plan"></a>
 ## Development dependencies for runtime research memory
 
 The researcher requires AITP integration into the underlying runtime and clarified that the central function is to prioritize useful research memory/context, with flexible agent-selected actions. A fixed action-constraint engine, mandatory reading-readiness gate or prescribed literature/derivation/code sequence is not the selected design. The [architecture](10-project-workspace.md#aitp-runtime-integration) owns the source-backed integration points. This section plans development; it does not authorize all research features or claim that loading Skills implements memory.
 
-| Work area | Independently owned implementation | Dependency and integration evidence |
-| --- | --- | --- |
-| Memory/source access | Main/subnote reader, knowledge/paper/code adapters, locators, observed passages and missing-source information | Can develop against ordinary fixture files independently of models/UI. Preserve unknown structures and owner links; no required note migration |
-| Working-memory continuity | Actual request and corrections, relevant prior results/failed routes, current gap and suggested next step | Use existing typed events/projections. Recover after compaction/restart without promoting a model summary to a user decision or making its next-step suggestion binding |
-| Context selection and delivery | Configurable importance/relevance selection, explicit material choices, budget allocation, actual delivery and later availability | Consumes sources and working memory. Evaluate which useful facts reach the real request, including conditions easily lost during compaction; missing context is surfaced rather than a general action lock |
-| Evidence feedback and maintenance | Feed reads/results back into observations, identify relevant corrections and candidate note updates, retain pending/no-change outcomes | The model/Skills decide whether to search, derive, compare, implement, review or write. No per-tool decision card or mandatory planning document |
-| Collaboration UI | Inspect/edit remembered choices and guidance, adjust included sources, show consequential omissions and pending updates | Uses the same runtime projection as terminal work; optional technical details remain secondary. Does not turn every preference into an enforcement switch |
-| Domain extensions | Literature, knowledge, Skill catalog/distillation and later code/run/manuscript views | Develop against shared resource/context/document APIs; richer readers and the native carrier need not define how memory works |
+The [development crosswalk](#development-crosswalk) is the single assignment table for these responsibilities. Architecture owns their conceptual separation; this plan assigns sources, working items, actual delivery, model feedback and dependent views to concrete work. Task memory, context, method use and proposal state share one integrator initially. Independent readers can use the agreed resource/observation interface without waiting for one another.
 
 One integrator owns the minimum shared source/observation/task/projection definitions needed by the next example. Source access, working-memory continuity and UI can then develop against fixtures in parallel; context selection integrates their real outputs. Avoid a universal framework or permanent phase machine before this small path works.
 
-**Proposed first runtime slice:** one main note and linked source in synthetic/scratch roots, with a critical assumption, a previously failed route and an explicit user correction. Verify that relevant facts reach the model before its next inference, survive two compactions/restart or are correctly reread, and remain distinguishable from generated suggestions. Remove a source and show the gap while the agent can choose useful follow-up work. Compare actual context and behavior with the same task lacking the contextual support: did it notice the limitation, avoid repeating the failed route and choose a sensible next step? No automatic success label follows from a metadata flag. The first demonstration stays read-only; writing policy and real-note access remain separate unresolved implementation scope.
+The inherited [Skill registry](../../packages/skill/skill/README.md) already provides discovery and loading. Its [filesystem provider](../../packages/skill/skill-filesystem/README.md#roots-and-priority) uses the nearest Git project root and configured directories, not the research topic/branch relationships; nested Skill bundles are not automatically discovered. Its [model tool](../../packages/skill/tool-skill/src/index.ts) loads full instructions, and explicit `/name` also injects the full body. Topic relevance, applicability judgments and selective methodological reuse therefore require new integration, without replacing the registry or treating partial borrowing as permission to discard relevant instructions. [11](11-research-memory.md#skill-applicability) owns those semantics. No universal metadata migration is required for existing Skills.
+
+Harness also supplies [dock/split machinery](../../packages/client/ui-sidebar-right/README.md#what-lives-here-and-what-does-not), [document previews](../../packages/client/ui-sidebar-documentpreview/README.md) and [read-only LSP navigation](../../packages/lsp/lsp/README.md). These are reusable foundations, not a complete research library or VS Code-equivalent editor. Previewing a PDF/code file does not deliver it to the model; the current previews use Session file addresses. Research-wide browsing, edition/page/range attachment, editable code and scientific argument links require their own named integrations. The new workbench should reuse renderers and layout primitives while making resources accessible without inventing a conversation merely to browse them.
+
+The [next implementation slice](#next-implementation-slice) owns the single first-runtime specification and its acceptance examples. The source, working-memory and context providers can be tested headlessly; P0 UI acceptance is not a prerequisite. Keep actual context fidelity, observed model behavior and scientific interpretation as separate results.
 
 The earlier inspection of tool-guard timing and filesystem-hook coverage is engineering reference if an explicit task needs a hard execution restriction. It is not a dependency of the selected memory slice, and it does not authorize introducing a research-action policy engine. Existing host permissions and actual user instructions remain applicable. Product acceptance groups below organize development and evidence, not the order in which an AI must conduct research.
 
@@ -70,27 +102,37 @@ Do not infer a completion percentage or scientific validity from the number of p
 
 | Slice and usable result | Dependencies | Current state | Evidence or acceptance route | Outstanding decision or gap |
 | --- | --- | --- | --- | --- |
-| Harness base and GPT adaptation | Explicit 2026-10-22 user request | Authorized; in progress | [Bounded scope](#harness-migration), [execution evidence](../../agent/notes/harness-integration.md) | Complete and report actual startup/provider/login checks; no research workflow or live success inferred |
+| Harness base and GPT reliability | Explicit migration/GPT request, reaffirmed as a priority | Host/auth foundation implemented with recorded checks; live GPT acceptance outstanding | [GPT work package](#gpt-integration-readiness), [execution evidence](../../agent/notes/harness-integration.md) | Reproduce reported symptoms; validate selected API-key and OAuth routes independently; no live success or quality improvement inferred |
+| Headless research-memory continuity | Source/working-item interfaces and isolated fixture profile; no P0/UI acceptance dependency | Planned first research slice; not implemented | [Single next-slice definition](#next-implementation-slice); C01/C06/C16; engineering replay plus later paired live behavior | Model-authored working-item producer/recovery, meaningful source omissions and actual request delivery missing |
 | P0: coherent design and inspectable prototype | Recovered design request and source audit | Designed and prototype-checked; researcher acceptance pending | [Review and limitations](15-design-review.md), [prototype checks](prototype/README.md#browser-check-and-screenshots); [P0 acceptance](#p0) | Researcher accepts or revises the architecture, workflow and P1 scope; no human usability acceptance yet |
-| P1: read-only project, source and session workspace | P0 acceptance | Proposed; awaiting approval | No P1 application evidence; [P1 demo and acceptance](#p1), [C01](13-research-journeys.md#c01), [C16](13-research-journeys.md#c16) | Shared editors, global context home, exact delivered citations and revised source projection are not implemented |
-| P2a: notes and source-backed knowledge wiki | P1 accepted | Proposed | No slice acceptance evidence; [child gate](#child-gates), [C05](13-research-journeys.md#c05), [C07](13-research-journeys.md#c07), [C19](13-research-journeys.md#c19) | Global wiki navigation, knowledge adapter and dedicated where-used views remain unavailable; current note-link lookup is only a foundation |
-| P2b: literature library and actual PDF reading | P2a accepted in the prior ordering | Proposed; independent scheduling recommended, not selected | No slice acceptance evidence; [child gate](#child-gates), [C04](13-research-journeys.md#c04), [C21](13-research-journeys.md#c21) | Global collection/work/edition browsing, real reader and selection integration required; discovery/import in C03 remains separate |
-| P2c: local code, diff and history | P2b accepted in the prior ordering | Proposed; independent scheduling recommended, not selected | No slice acceptance evidence; [child gate](#child-gates), [C08](13-research-journeys.md#c08) | Research source/checkout links and bounded comparison required; inherited code tools are not case acceptance |
-| P2d: native research workspace and WSL attachment | P2c accepted in the prior ordering; independent scheduling proposed | Carrier selected; AITP attachment acceptance proposed | [Attachment checks](#child-gates), [C18](13-research-journeys.md#c18) | Reuse existing Electron carrier; actual Windows–WSL lifecycle and research attachment unverified |
-| P3a: complete proposal on scratch copies | P2 accepted in the prior ordering; earlier Markdown route proposed | Proposed; earlier scheduling not selected | No authoring evidence; [child gate](#child-gates), [C15](13-research-journeys.md#c15) | Implement research proposal/pending outcomes through Harness; apply stays disabled |
-| P3b: actual independent review and assessment | P3a accepted | Proposed | Queue/export exists, not reviewer execution; [child gate](#child-gates), [C15](13-research-journeys.md#c15), [C20](13-research-journeys.md#c20) | Reviewer runtime, coverage, existing-entry inspection without an edit proposal, and revised-proposal handling unavailable |
+| P1: read-only project, source and session workspace | Shared source/task/context services and a reviewed UI route; UI design can proceed in parallel | Planned; no integrated research-workspace evidence | [P1 demo and acceptance](#p1), [C01](13-research-journeys.md#c01), [C16](13-research-journeys.md#c16) | Shared editors, global context home, exact delivered citations and revised source projection are not implemented |
+| P2a: notes and source-backed knowledge wiki | Research-record/source interfaces and view callbacks | Planned independent provider/reader | No slice acceptance evidence; [child gate](#child-gates), [C05](13-research-journeys.md#c05), [C07](13-research-journeys.md#c07), [C19](13-research-journeys.md#c19) | Global wiki navigation, knowledge adapter and dedicated where-used views remain unavailable; current note-link lookup is only a foundation |
+| P2b: literature library and actual PDF reading | Resource/selection definitions, bounded binary access and view callbacks | Planned independent reader; not implemented as a research route | No slice acceptance evidence; [child gate](#child-gates), [C04](13-research-journeys.md#c04), [C21](13-research-journeys.md#c21) | Global collection/work/edition browsing and selection integration required; discovery/import in C03 remains separate |
+| P2c: local code, diff and history | Checkout identity, bounded source/Git access and view callbacks | Planned independent reader | No slice acceptance evidence; [child gate](#child-gates), [C08](13-research-journeys.md#c08) | Research source/checkout links and bounded comparison required; generic agent editing/execution already exists under Harness permissions |
+| P2d: native research workspace and WSL attachment | Existing host/client/auth services and explicit root mapping | Carrier selected; research attachment unverified | [Attachment checks](#child-gates), [C18](13-research-journeys.md#c18) | Reuse Electron; actual Windows–WSL lifecycle and research attachment need real-host checks |
+| P3a: complete proposal on scratch copies | Source/agreement observations and minimal proposal view; no full P2 dependency | Planned early Markdown route; not implemented | [Child gate](#child-gates), [C15](13-research-journeys.md#c15) | Implement proposal/pending outcomes through Harness; apply stays disabled |
+| P3b: actual independent review and assessment | Existing entry or proposal revision, observations and bounded subagent tools | Planned; actual review integration missing | The old Pi queue/export is not Harness reviewer execution; [child gate](#child-gates), [C15](13-research-journeys.md#c15), [C20](13-research-journeys.md#c20) | Reviewer runtime, coverage, existing-entry inspection without an edit proposal, and revised-proposal handling unavailable |
 | P3c: controlled scratch apply and recovery | P3b accepted and authoring policy approved | Proposed; policy undecided | No apply/recovery acceptance evidence; [P3 policy](#p3), [C15](13-research-journeys.md#c15), [C16](13-research-journeys.md#c16) | Explicit non-hash comparison policy needs approval; authority and recovery services unavailable |
 | P4: one named real authoring pilot; separately chosen bounded workflow | P3 accepted and named paths/actions approved | Proposed; pilot not selected | [P4 acceptance](#p4); selected cases must be named when the pilot is chosen | No real authoring, run/build or manuscript action authorized by this plan |
 | P5: selected orchestration and wider research workflows | P4 accepted and chosen capability approved | Proposed; capability not selected | [P5 acceptance](#p5), e.g. [C09](13-research-journeys.md#c09), [C10](13-research-journeys.md#c10), [C17](13-research-journeys.md#c17) | Controllers, execution adapters and resource admission remain unavailable; cases are not all promised by P5 |
 
-The current authorized implementation is the Harness/GPT migration above. The next research implementation proposal is a bounded **P1** slice after its scope is selected. It should deliver
-one connected task: return to a project, read its qualified state, open the owning argument beside a source,
-start or resume the correctly scoped session, and inspect the exact material delivered to the model.
-Implement the project/reference/context contracts and shared editor behavior together so this route works in
-the application. Include a global source session, an unresolved anchor, a critical context omission and a
-restart; these expose failures that a polished happy-path screen would hide. P1 is useful evidence for C01,
-C06 and C16, not completion of every analytic or interruption case. The material adapters then proceed in
-the selected ordering. The recommended alternative makes them independent and brings Markdown scratch proposal/review before the full reader set; it still requires a scope/sequence decision. Apply remains a separate P3 decision.
+<a id="next-implementation-slice"></a>
+### One implementation sequence, with parallel UI and readers
+
+The current deliverable is the researched plan and its publication. Subsequent implementation follows the sequence below under the researcher's instruction to proceed incrementally; ordinary implementation, repairs and relevant checks do not require repeated milestone permission. Material product-policy choices and real research writes retain their stated boundaries.
+
+1. **Establish GPT reliability.** Follow the [GPT work package](#gpt-integration-readiness): reproduce the relevant public reports against the actual route, preserve already-correct behavior and fix reproducible failures with focused regressions. Confirm the selected live route when access permits. A missing live credential blocks that evidence, not offline implementation or Claude's UI work. Login alone cannot complete this work.
+2. **First research slice: headless memory continuity on an isolated scratch root.** Read the main note's opening, current work and useful failed-route passages with locations. Provide the explicit, non-blocking working-item producer and bounded context projection from [11](11-research-memory.md#working-memory-items), including attributed user corrections, model-provisional gaps/next steps and failed routes with reopening conditions. Derive source availability from actual observations and visible history. Replay existing session records before introducing a new event type. This slice does not wait for P0/P1 UI acceptance and does not write scientific notes.
+3. **Skill discovery and actual use.** Expose sources and shadowed candidates, the portable manifests' declared method roots, and loaded/still-visible/changed status. Then exercise C22's full use, partial borrowing and rejected same-topic method through a model-authored use item. Candidate retrieval supplies conditions; the main model judges fit. Extend the registry/consumer where its current winner-only, name-only API cannot supply that evidence. Portable borrowing guidance is a separately coordinated AITP change.
+4. **Connect domain readers and Claude's UI.** Research records supply topic-home content and affected-use links; knowledge, literature/PDF and code/history providers develop independently once their resource interfaces are settled. Integrate each real provider with Claude's shell/readers as ready. Test browsing separately from model attachment. Desktop/Windows–WSL attachment is its own environment-dependent increment.
+5. **Proposals, actual review and a distillation draft.** Connect sources and working state to unapplied Markdown proposals, pending/no-change outcomes and a real bounded reviewer. A first distilled draft remains transfer-untested. A later increment delivers it directly as scoped instructions to a subagent on a changed instance, with a named reviewer or researcher assessing the trial; installation is unnecessary for that experiment. This work does not wait for every reader or the native host.
+6. **Writing and broader execution by their actual dependencies.** Enable scratch apply after choosing the non-hash comparison/recovery policy and checking proposal → review → assessment → apply together. Select a named real-source pilot before real note writes. Rule saving, richer code editing, research-linked execution and cluster workflows need their explicit scope and available adapters, rather than every preceding reader.
+
+For the headless slice, deterministic acceptance includes Chinese and English corrections followed by two compactions and a restart; failed-route/reopening-condition preservation; a deleted source producing an honest omission while the turn continues; identical reconstruction of the active block from logged events; and opening the session with the AITP plugin disabled. Model-authored items never become researcher decisions. Generated summaries remain distinguishable from original instructions and provisional items. Test required-context delivery as priority, not elevated instruction authority.
+
+Once the selected GPT route works, run a few paired C01/C06/C16 trials against Codex + the same AITP revision using [13's protocol](13-research-journeys.md#comparative-evaluation). Repeat relevant comparisons as each capability arrives, and review the combined results at the end; report regressions, ties, failures and unavailable comparisons. Offline replay establishes mechanism correctness, not research benefit.
+
+The fixture explicitly declares its root, tool permissions and task lifetime. This does not silently settle the product defaults for permission mode, same-name Skill precedence, restriction duration, saved-rule ownership or session-independent resource access. Keep those choices visible in [current.md](../../current.md); they need a decision before dependent product behavior is released.
 
 **Settled design choice:** on 2026-10-21 the researcher selected autonomous routine next actions within
 jointly established goals and boundaries, with discussion before material changes to core assumptions,
@@ -131,16 +173,16 @@ An independently developable component has a bounded responsibility, agreed inpu
 an owned implementation and a useful behavior check. It can be built against a controlled
 implementation of a dependency; product acceptance still requires connecting real services.
 Keep P0–P5 as user-visible capability/acceptance groups while using the workstreams below
-to organize development. Use Harness service/provider/consumer packages and client contributions as the implementation homes; no new repository or process is required per line. These are research slices still to select, not ten simultaneously authorized tasks.
+to organize development. Use Harness service/provider/consumer packages and client contributions as the implementation homes; no new repository or process is required per line. Implement the selected sequence incrementally; the table does not activate every future capability at once.
 
 ### Small shared preparation
 
-The integrator and affected owners first agree the next slice of four interfaces, using
+The integrator and affected owners first agree the needed slice of five interfaces, using
 the preserved research semantics, Harness extension APIs and concrete successful and failing examples:
 
 1. **Sources and observations:** configured host/root identity, resource/edition/locator,
    guarded resolution, missing/ambiguous/unavailable outcomes, the actual observed text and
-   its delivery/current-availability state. Browsing a resource does not attach it to a model.
+   its delivery/current-availability state. Record why an item is needed for the present operation: researcher-selected, explicitly required by an owning source passage, declared by the model, or optional background. A missing item in the first three groups is a consequential declared omission; an ordinary link alone declares no requirement. Unknown dependencies cannot be certified as present. Browsing a resource does not attach it to a model.
 2. **Tasks and agreements:** original input and choice meaning, effective agreement revision,
    its scope and source, plus queue placement, continuation, cancellation and compaction events.
    Restriction duration and ambiguous changes remain explicit design choices; a fixture can
@@ -152,62 +194,50 @@ the preserved research semantics, Harness extension APIs and concrete successful
 4. **UI and host callbacks:** open a resolved resource in a specific pane, attach a selection
    from that pane, show the backend's task/context state, and invoke explicitly available host
    capabilities. Authentication, path guards and instruction authority remain backend-owned.
+5. **Working items and feedback:** the Task line owns explicitly reported model items, attributed researcher input/choices and references to source observations, with lifecycle, provenance and current relevance as defined in [11](11-research-memory.md#working-memory-items). A non-blocking model tool adds, revises or retires provisional gaps/next steps, failed routes/reopening conditions, method uses/borrowed scope and outcomes awaiting integration. The context line renders a bounded active projection; Skill use, proposals and distillation consume it. These are inspectable working records, not private chain of thought or model-generated researcher decisions.
 
 Do this incrementally for the chosen work, rather than freeze the whole future system before
 any demonstration. A UI task does not need final writeback semantics; enabling writes does.
 The common fixture/contracts are examples of agreed semantics, not an additional scientific
-record or evaluation framework.
+record or evaluation framework. Initially reconstruct state from existing user/choice messages, accepted tool calls/results, runtime-context snapshots and visible history. Distinguish durable logged evidence from transient state. If an input has no adequate existing carrier, use the smallest compatible owned event with all readers and persistence acknowledgements checked; disabling the plugin must not make a session unreadable. Best-effort/ignorable experimental plugin records can carry dispensable state, but cannot solely own facts whose recovery is promised. Do not create a parallel memory database or let each domain invent its own session event vocabulary.
 
-### Ten development lines
+<a id="development-crosswalk"></a>
+### Development ownership and plugin crosswalk
 
 All entries below are proposed work boundaries; this table does not duplicate the progress table.
-Their final file ownership should follow the selected plugin/service boundaries in 10.
-In particular, the combined notes/knowledge line can have separate domain providers;
-Skill discovery and distillation require their own bounded slices under the existing C14
-scope rather than being assumed implemented by this table or by the upstream Skill file.
+The [scenario-to-plugin map](10-project-workspace.md#scenario-plugin-map) groups user-facing functions; the architecture's shared services supply their interfaces. This table maps both to assignable work, rather than adding another decomposition. A domain plugin can own Host and optional Client entries; one row need not become one package, process or repository.
+
+**Owners:** Claude implements the workbench shell and domain client views under the [UI design](12-desktop-interface.md). Codex integrates core/backend work, GPT fixes, shared definitions, tests and implementation evidence; other contributors can take an independent provider or a bounded regression case after declaring its files. Claude's workstream is in progress by assignment; delivered UI behavior remains unverified here. Keep task/context, method-use records, proposals and initial distillation under one integration owner until the first slices work. They share state and are not safe independent schema-design tasks.
+
+**File boundary:** use existing owner packages for GPT fixes. Reserve `packages/experimental/aitp-research/` for the first research integration package, with separate `task`, `context`, `sources`, `methods` and `proposals` modules and owner-local tests; this is a proposed path, not an existing implementation. Independent knowledge/literature/code providers can be split into their own Harness packages when their interface is exercised. Claude owns the proposed research client contributions under `packages/client/`; agree exact package/file reservations before concurrent edits. The integrator alone updates shared contracts and composition under `packages/bundle/` and `scripts/aitp-agent.ts`. Keep the existing auth/brand plugins in their current homes. Portable methodology stays in `aitp/` and requires a separate upstream change.
 
 | Line | Bounded deliverable and implementation home | Minimum dependency; what it need not wait for | Local check and eventual case |
 | --- | --- | --- | --- |
-| **Task and agreement** | AITP task-memory provider using Harness session events/projections, lifecycle and actual interaction sources; existing host permissions retain their owner | Agreed input/lifecycle semantics; no reader UI or desktop host required | Restriction → queued input → two compactions → restart/Continue retains applicable original meaning and attribution; C02/C16 |
-| **Context and observations** | AITP source/context contributors plus request, read-tool and compaction integration | Guarded source reads and supplied agreement; task internals and complete wiki/PDF views can be substituted locally | Deleted selection yields partial context; required selected text beats background; dropped text cannot remain available; C06/C16 |
-| **Notes and knowledge** | Research-record/knowledge providers and client views: owner/main-note projection, wiki, source links and bounded where-used | Filesystem service, applicable parsers and resource definitions; no PDF, code browser or model session required | Synthetic Markdown index → entry → prerequisite/source → return with missing links and coverage limits; C01/C07/C19 |
+| **GPT integration** | Existing LLM/auth/compaction/tool packages; the [GPT work package](#gpt-integration-readiness) owns issue routes and regression targets | Minimal failing input and actual effective route; no research UI or note writer required | Provider/tool/permission/compaction regressions followed by available live-route checks; prerequisite for attributing research-quality differences |
+| **Task, agreement and working items** | AITP task-memory provider, explicit model-item tool and projection/replay using existing Harness events; maps the architecture's working-memory service and evidence feedback to one owner | Agreed input/lifecycle semantics; no reader UI or desktop host required | Correction and provisional failed route → queued input → two compactions → restart/Continue retains meaning, provenance and reopening condition; C02/C06/C16 |
+| **Context and observations** | AITP source/context contributors plus request, read-tool and compaction integration; renders active items and declares observed omissions | Guarded source reads and task/working-item interface; complete wiki/PDF views can be substituted locally | Deleted selection yields partial context; selected text beats background; dropped text cannot remain available; unmet declared method prerequisites remain visible; C06/C16/C22 |
+| **Research records and topic home** | Main/subnote providers and a topic-home view of qualified conclusions, open questions, branches, relevant resources and next useful work, derived from owned notes | Filesystem service, conservative parsers and resource definitions; no PDF, code browser or live model required | Main note → detailed argument → original owner; missing links and unverified conclusions remain visible without a second editable project truth; C01/C07/C16 |
+| **Knowledge library** | Source-backed wiki provider and view: concepts, conditions and prerequisite/source links; consumes the research-record link resolver for bounded affected uses | Research-record/source interfaces; fixtures can stand in for topic home and other readers | Synthetic entry → prerequisite/source → affected use, with ambiguity and search-coverage limits retained; C05/C07/C19/C20 |
 | **Literature and PDF** | Literature provider and client reader: work/edition metadata, PDF, page/selection locators | Resource/selection definitions and bounded binary access; shared bibliographic lookup through a narrow interface, no wiki UI dependency | Actual test PDF, edition/page distinction and located selection; C04/C21 |
-| **Code and history** | Read-only checkout provider and client comparison view | Checkout identity, bounded Git/source access; no PDF or command execution required | Same-named checkouts and dirty fixture preserve target and comparison scope; C08 |
-| **Workbench shell** | Harness client slots, shared resource navigation, selection and session views | Resource/event callbacks and one real note route; other panels can use isolated fixtures | Same source in two panes, anchors, reconnect and deliberate attachment; C01/C06/C16 |
+| **Code and history** | Checkout provider and source/diff/history view using preview/LSP; generic Harness editing/execution already exists, while research-linked receipts and richer editing/debugging need named increments | Checkout identity, bounded Git/source access; no PDF or execution required for the initial reader | Same-named checkouts and dirty fixture preserve target/scope; selection links to the claim; execution success does not establish independent scientific validation; C08 |
+| **Workbench shell — Claude** | Harness client slots/docks, resource navigation, selection and selective information display; renders topic-home content supplied by the research-record provider | Resource/event callbacks and one real note route; other panels can use isolated fixtures | Same source in two panes, anchors, global browsing without a fabricated Session, reconnect and deliberate attachment; C01/C06/C16 |
+| **Skill catalog, candidate retrieval and use view** | Extend/consume `ctx.skills` or add an AITP candidate provider to expose source-qualified and shadowed entries; package relevant conditions, then show the main model's attributed method-use item | Registry/provider work beyond the current winner-only name lookup; source observations and task-owned use records; no distillation writer required | Existing Skills without added metadata remain usable; full load differs from full applicability, partial reuse retains dependencies, changed/compacted instructions are reported accurately; C22 |
+| **Distillation, initially shared with Skill use/proposals** | Invoke portable `aitp-distill` on concrete use/failure/correction evidence and propose a focused addition/revision; no separate initial state store or team | Method-use observations and proposal service; later transfer evaluation also needs bounded subagent delivery and a named assessor | First demo ends with transfer untested; a changed-instance trial preserves failure and does not install/publish the candidate; C14 |
+| **Collaboration rules** | Rule-source provider and editor for writing/memory/collaboration guidance, with source ownership, inheritance and saved-versus-adopted visibility | Source/rule resolution and document-change service for persistent edits; a read-only inspector can precede writing | UI edit preview identifies the owning source and target session; saving does not falsely claim current adoption or silently modify portable Skills; C16/C22 |
 | **Proposal and pending integration** | AITP document preview provider, proposal records and logged pending/no-change outcomes | Sources and agreement; no completed reviewer, resource suite or apply engine required | Full argument/caveats retained and visibly unapplied after restart; C15/C16 |
 | **Independent review** | AITP review provider over Harness subagents, with bounded read-only tools and original logs | Entry or proposal revision, sources/agreement and actual subagent execution; no apply engine required | Dropped caveat, unread premise and existing-entry review produce real coverage/findings; C15/C20 |
 | **Controlled apply and recovery** | AITP document writer and authority provider integrated with Harness tool/fs services on scratch roots | Approved non-hash policy, proposal and assessed review before operational use | External edit, ambiguity and interrupted multi-file apply preserve evidence; C15/C16 |
 | **Desktop attachment** | Existing Harness Electron/host services plus explicit research host/root mapping | Authenticated host connection and lifecycle decision; no complete resource suite required | Actual Windows–WSL attach, unavailable host, close/reconnect and open-in-editor; C18 |
+| **Scenario comparison** | Existing focused tests, scoped case fixtures and integration receipts; [13](13-research-journeys.md#comparative-evaluation) owns the paired-run protocol | An implemented capability and actual access to both comparison routes; offline checks proceed independently | AITP-agent versus Codex + identical AITP, per-case evidence and limits, failures retained; no universal scientific score or new evaluation database |
 
 Computation, cluster submissions, manuscript builds and broader multi-agent orchestration remain
 separately selected P4/P5 slices. They need the task/authority/observation boundaries and relevant
 execution adapters, not completion of every reader or the native host. Browsing code does not
 authorize executing it; a native window does not add filesystem authority.
 
-### Combine useful behavior early
+### Integrate real capabilities as they become available
 
-Development can start on separate lines once their own interface slice and scope are agreed.
-Do not make the complete P1 UI a prerequisite for a headless task/context test or Markdown review.
-Equally, a fake callback or a static paper illustration cannot complete an integrated capability.
-
-- First connect **task + context + a small note/session view**: the user's restriction and selected
-  source remain correctly attributed and available, or visibly missing, through continuation.
-- In parallel, connect each **real notes/PDF/code adapter + its reader** to the shared shell when
-  ready. Test source → locator → explicit selection → runtime receipt for model attachment;
-  independent browsing can be useful before that attachment route is complete.
-- Connect **source/agreement + proposal + actual reviewer + author assessment** on Markdown
-  copies with apply disabled. Use the existing note view and a minimal proposal/report display;
-  this does not wait for the full wiki, library, code browser or desktop. A host-level rehearsal
-  using existing Codex/Claude Code is also possible before implementation if selected; it checks
-  scientific preservation/reviewer inputs, not enforcement by the application.
-- Enable **scratch apply** only after the preceding real services and the approved write policy
-  pass their joint checks. A fake review gate is acceptable inside an isolated component test,
-  never as the operational review prerequisite. Real-source authoring stays in a named P4 pilot.
-
-These are demonstrations composed from development lines, not a second P0–P5 status ledger.
-The proposed priority is to start task/context correctness, the minimal shell and the required
-source-adapter slices together, then assemble the Markdown proposal/review route early. Remaining
-readers and desktop attachment advance independently as capacity and the selected goals allow.
+The [single implementation sequence](#next-implementation-slice) owns which combined example comes next. Independent providers can be built against controlled fixtures; acceptance requires connecting their real services. A static illustration, callback stub or queued review cannot establish a working PDF adapter, model attachment or independent reviewer. A rehearsal using Codex/Claude Code on Markdown copies can test scientific preservation and reviewer inputs before the application path exists, but cannot verify the application's mechanisms.
 
 ### Keep shared edits and activation under control
 
@@ -220,31 +250,22 @@ Its approval does not activate unrelated lines, a new writing policy, real-note 
 effects. Component behavior, actual integration and researcher/scientific acceptance remain
 distinct. Shared heavy-process limits still apply even when development is concurrent.
 
-The child table retains the prior proposed product order. If the researcher selects the independent sequence, revise those dependency cells together: readers/desktop become independently selectable, and Markdown proposal/review depends on its real services. Host adoption alone does not choose that reorder or authorize every development line. Preserve proposal → assessed review → controlled apply and the P4 real-source boundary.
+The [child table](#child-gates) uses actual capability dependencies. Readers and desktop attachment can advance independently; Markdown proposal/review needs its real source/task services. Preserve proposal → assessed review → controlled apply and the named real-source boundary.
 
 ## Delivery agreement
 
-P0–P5 are researcher-visible milestones. GPT-6.1 Sol with reasoning **high** implements each approved
-milestone. Shared contracts and composition changes have one integrator. Independent review runs in a
-separate reviewer session with access to the original material, not just the implementer's account.
+Claude owns UI implementation; Codex owns the core/backend integration and relevant tests under the [crosswalk](#development-crosswalk). Shared contracts and composition changes have one integrator. Independent review has access to the original material and session evidence, not only the implementer's account. Use the actual selected model/settings and record them when they affect evidence; this plan does not mandate a particular implementation model.
 
-At the end of **every** milestone, show the working result, changes, measured limitations and the four gates
-below, then **stop and obtain the researcher's explicit approval before starting the next milestone**.
-Passing tests or receiving an agent review does not supply that approval. Ordinary work within an approved
-milestone proceeds without repeated permission requests. This staged approval rule is part of this proposed
-delivery agreement, rather than a rule that every research action or file read needs confirmation.
+For each bounded increment, implement, run relevant checks, inspect the result and update the affected architecture, cases, current issues and implementation evidence. Continue ordinary authorized work without requesting a new approval after every passing test or numbered group. Report material blockers and decisions before dependent work: changing core research assumptions, choosing unsettled product authority defaults, real-note authoring or new external effects remain bounded by actual user instructions. Publishing this coordinated documentation is explicitly authorized.
 
-| Gate | Evidence the researcher receives |
+| Acceptance dimension | Evidence the researcher receives |
 | --- | --- |
-| Scientific | Source claims, qualifications, unresolved questions, ownership and stopping conditions remain faithful to the example; execution success and scientific support remain distinct |
-| UI | The demonstrated screens implement the selected design, preserve source/context distinctions and expose errors without misleading success states |
-| Usability | The researcher can complete the milestone's named task in the running product; report observed friction and assistance needed, not a claim that a scripted walkthrough proves usability |
-| Technical | Relevant contract, behavior, recovery and boundary checks pass; report skipped, mocked and live checks separately |
+| Scientific | Claims, qualifications, unresolved questions and ownership stay faithful to the example; execution success and scientific support remain distinct |
+| UI | Delivered screens implement the selected design, preserve source/context distinctions and expose errors; ownership assignment is not implementation evidence |
+| Usability | A person completes the named task and reports friction/assistance; scripted walkthroughs cannot establish usability |
+| Technical and comparative | Relevant behavior/recovery checks plus the corresponding [AITP-agent versus Codex + AITP comparison](13-research-journeys.md#comparative-evaluation); report failed, skipped, mocked and live evidence separately |
 
-Each gate may be accepted, returned for correction, or explicitly reduced in scope. A waived item and its
-consequence remain visible in the milestone's existing implementation note. There is no additional approval
-database, session diary or parallel completion ledger. The agreed scope is retained in the design owner;
-implementation evidence belongs in [the existing integration note](../../agent/notes/integration.md).
+Researcher acceptance is recorded only when it occurs, with its scope. An unavailable test stays unavailable with the reason and useful alternative; it does not halt unrelated work or turn into a pass. Keep detailed executed evidence in the [Harness integration account](../../agent/notes/harness-integration.md) or its scoped linked receipt, with this plan owning the resulting development judgment. No parallel approval database or completion ledger is needed.
 
 ## Retained Pi baseline and reuse
 
@@ -341,7 +362,7 @@ at the action/result itself. Retain the prior prototype alongside the proposal w
 Deleting or replacing the prototype is unnecessary to reject a design. P0 does not migrate notes, change
 runtime contracts, install packages, run real research jobs or enable writes.
 
-**Stop:** the researcher approves the format, screen behavior, implementation sequence and P1 scope.
+**UI acceptance:** the researcher assesses the format and screen behavior for the chosen P1 integration. Headless memory work and independent provider development do not wait for this UI decision.
 
 <a id="p1"></a>
 ## P1 — A usable read-only project workspace
@@ -349,7 +370,7 @@ runtime contracts, install packages, run real research jobs or enable writes.
 **Usable result.** The running agent opens projects with the approved concise state and detailed account,
 shared tabs and split panes. The researcher can resume a thread, attach a source, continue a conversation and
 inspect what context reached the model. Everything in this milestone is read-only with respect to research
-files. Backend contracts are delivered with these working interactions, not as a separate invisible milestone.
+files. P1 connects the headless memory/source contracts to working interactions; its UI integration does not delay the earlier headless slice.
 
 | Module | Concrete change and proposed interface |
 | --- | --- |
@@ -378,8 +399,7 @@ pending choices. Distinguish an ordinary plan draft from a required-choice card:
 authorized next step must not reproduce the old Pi `propose_plan` behavior that always creates a blocking card.
 
 P1 preserves actual user choices and distinguishes them from preferences and generated interpretations; its selected read-only tools use existing host permissions. It does not implement a fixed research-action policy. Context coverage describes observed input, not scientific correctness. If budget or relevance changes omit important material, retain the omission and its reason so the model can retrieve it or qualify its answer.
-No agent can claim all hidden premises have been detected. P1 does not deliver real literature retrieval,
-code execution, document writes or a universal autonomous research controller.
+No agent can claim all hidden premises have been detected. P1 does not add literature retrieval, research-linked execution receipts, document writes or a universal autonomous research controller. Generic Harness execution already exists under host permissions; it is outside the read-only research workspace demo.
 
 Assign concrete UI files inside the selected Harness client plugin packages before parallel implementation. Reuse its slot, routing, state and panel primitives where they satisfy the named behavior. Layout persistence has a local schema version and a reset-to-default route; it contains no scientific claims.
 
@@ -642,24 +662,21 @@ a controller stops new admissions; it does not erase workers' results or resolve
 No remote hosting, multi-user system, vector database, unrestricted autonomous campaign or wholesale note
 migration is included. Those would require a separate product decision.
 
-**Stop:** review the delivered scope with the researcher before another implementation cycle or release.
+**Handoff:** review delivered behavior and unresolved choices; continue the authorized sequence. A release or newly expanded capability follows its own explicit scope.
 
 <a id="child-gates"></a>
-## Mandatory child gates inside broad phases
+## Capability acceptance inside broad phases
 
-P2 and P3 group capability acceptance. This table retains the earlier proposed product sequence; the independent-development section identifies the technical dependencies and recommended alternative. Harness selection does not itself approve that reorder. Neither grouping supplies permission to implement every resource or all authoring in one pass.
-The four review dimensions and evidence requirements above apply at each child gate below. Stop for explicit
-researcher continuation between child gates. Routine fixes/tests within an approved child slice proceed
-without repeated permission questions.
+P2 and P3 group capability acceptance; the [single sequence](#next-implementation-slice) owns development order. The dependencies below supersede the earlier serial reader/desktop proposal. Each bounded result receives the four acceptance dimensions from the delivery agreement. Continue authorized development without a mandatory pause between reader slices; controlled apply and real-source pilots retain their own policy/scope decisions.
 
 | Child gate | Inspectable result and scope | Dependency and demonstration |
 | --- | --- | --- |
-| P2a Notes and knowledge | Actual mathematical note/source views, global wiki navigation, source-backed knowledge and where-used | P1 accepted; argument→premise→knowledge comparison plus global index→entry→source→return, with source and reading labels |
-| P2b Library and reader | Global collection/work browsing, actual local PDF viewer, editions, page locators and optional selection-to-session | Prior proposal: P2a accepted; technical need: resource/selection and bounded-source services; library→edition→reading note→return, wrong/missing editions and incomplete index |
-| P2c Code and Git | Actual bounded source/diff/history for attached local checkouts, no mutation | Prior proposal: P2b accepted; technical need: checkout/source and resource interfaces; formula→exact checkout→dirty diff, unrelated change attribution unknown |
-| P2d Desktop host | Existing Harness carrier with explicit research host/root attachment and measured lifecycle | Prior proposal: P2c accepted; technical need: host/client/auth services; actual Windows↔WSL identity, open-in-editor, close/reopen, disconnected-host behavior; no added filesystem authority |
-| P3a Scratch proposal | Editable copied note, full diff, source/argument observations and preservation diagnostics; apply disabled | Prior proposal: P2 accepted; technical need: agreement/source observations, preview and minimal note/proposal view; missing/ambiguous locator and changed premise. Earlier Markdown scheduling remains proposed |
-| P3b Actual independent review | Real read-only reviewer for proposals and existing entries, coverage, author assessment, stale/missing review states; apply disabled | P3a accepted; intentionally dropped caveat and changed dependency outside the edit range, plus a bounded entry review with no proposed edit and unread dependencies |
+| P2a Notes and knowledge | Actual mathematical note/source views, global wiki navigation, source-backed knowledge and where-used | Research-record/source interfaces and view callbacks; argument→premise→knowledge comparison plus global index→entry→source→return, with source and reading labels |
+| P2b Library and reader | Global collection/work browsing, actual local PDF viewer, editions, page locators and optional selection-to-session | resource/selection and bounded-source services; library→edition→reading note→return, wrong/missing editions and incomplete index |
+| P2c Code and Git | Actual bounded source/diff/history for attached local checkouts, no mutation | checkout/source and resource interfaces; formula→exact checkout→dirty diff, unrelated change attribution unknown |
+| P2d Desktop host | Existing Harness carrier with explicit research host/root attachment and measured lifecycle | host/client/auth services; actual Windows↔WSL identity, open-in-editor, close/reopen, disconnected-host behavior; no added filesystem authority |
+| P3a Scratch proposal | Editable copied note, full diff, source/argument observations and preservation diagnostics; apply disabled | Agreement/source observations, preview and minimal note/proposal view; missing/ambiguous locator and changed premise; no dependency on the complete P2 readers |
+| P3b Actual independent review | Real read-only reviewer for proposals and existing entries, coverage, author assessment, stale/missing review states; apply disabled | Existing entry or proposal revision, source/task observations and bounded subagent tools; intentionally dropped caveat and changed dependency outside the edit range, plus a bounded entry review with no proposed edit and unread dependencies |
 | P3c Controlled scratch apply | Approved non-hash policy, scoped authority, apply/read-back, concurrency and recovery | P3b accepted; external scratch edit and interrupted multi-file application; no real roots writable |
 
 P2d reuses Harness Electron, as specified in [10](10-project-workspace.md#windows-wsl-and-the-desktop-host). Its local carrier owns startup/shutdown according to upstream design; separately identify an independent WSL/remote backend's lifecycle. Test selected host/root, authentication, missing host and reconnect on the actual Windows–WSL system. The old attach-only Pi cookie/bootstrap prescription is not the Harness implementation. Automatic WSL start is a separate capability.
@@ -684,8 +701,7 @@ a waiting-thread continuation and parent-use context, plus sign-in, restart, a s
 compaction. Run external-note-change exercises on copies. Retain the old 38/40 result as historical evidence;
 the subsequent private inventory audit found the threshold included provenance copies. A revised project
 model needs an explicitly specified expected/missing/excluded inventory and a reviewed test change, not a
-silently relaxed number or an assertion that the old gate passed. A matched usual-Codex comparison may inform quality evaluation;
-report it as outstanding until performed, without making it block the redesigned read-only resource views.
+silently relaxed number or an assertion that the old gate passed. The requested [Codex + AITP comparison](13-research-journeys.md#comparative-evaluation) accompanies the relevant implemented research capabilities; report it as outstanding until performed. An unavailable comparison does not block unrelated reader development or justify a quality claim.
 
 **Testing respects the workspace.** Unit and integration tests use temporary directories and synthetic
 fixtures. Any read-only check of actual projects must be separately identified, bounded and free of retained
@@ -699,4 +715,4 @@ Application rollback must not run destructive git commands or restore research f
 working read-only route while a replacement is evaluated. A rejected design, failed test or denied write
 leaves the original material and its history available for the next decision.
 
-Complete the authorized Harness/GPT scope, then choose the first bounded research integration slice. Maintain architecture, progress and cases as behavior and evidence change. Host adoption does not authorize real-note migration or imply full P1 acceptance.
+Follow the [single implementation sequence](#next-implementation-slice) and [development ownership](#development-crosswalk). Maintain architecture, progress and cases as behavior and evidence change. Documentation publication is authorized; host adoption and a passing headless slice do not authorize real-note migration or imply full P1 acceptance.
