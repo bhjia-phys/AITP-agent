@@ -2,9 +2,13 @@
 
 [English](README.md) | 中文
 
-这是面向理论物理科研的模块化工作台，基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 开发，由 [AITP Research Protocol](https://github.com/bhjia-phys/AITP-Research-Protocol) 提供可移植的科研方法。科研记录仍是普通文件；研究者确定目标与边界，AI 自主推进已授权的常规步骤。规则编辑和只显示必要信息的科研界面仍是需要落实的设计。
+这是一个专注于理论物理科研与学习的 agent。我们的目的是借助 AI，更高效地探知真理：理解物理问题，检验已有认识，发现并纠正错误，逐步建立有依据的新认识。
 
-当前主线使用 Harness 的插件、服务、Web 和桌面基础设施。 AITP 的底层接入以科研记忆的选择、读取、上下文交付、压缩恢复和维护为核心；Skills 是其中的方法指导。AI 根据问题和证据自主选择动作，不设置固定科研动作流程。具体方案见[运行时记忆设计](docs/agent/10-project-workspace.md#aitp-runtime-integration)。`agent/` 保留此前的 Pi 实现与检查证据，不是新主线。旧测试通过不能证明新应用已完成科研记忆、上下文、独立审阅或写回；实际覆盖见规划和场景文档。
+学习与科研是同一个探索过程：阅读原始文献、理解必要的基础、展开理论推导、通过计算检验想法，并在证据变化时修正结论。项目设计重视明确的假设、可追溯的来源、可复现的检验，以及对不确定性的如实表达。进展意味着对物理有了更清楚的认识，论证过程及其局限也能由他人检查。
+
+这个模块化科研工作台基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 开发，由 [AITP Research Protocol](https://github.com/bhjia-phys/AITP-Research-Protocol) 提供可移植的科研方法。科研记录仍是普通文件；研究者确定目标与边界，AI 自主推进其中的常规步骤。规则编辑和只显示必要信息的科研界面仍是需要落实的设计。
+
+当前主线使用 Harness 的插件、服务、Web 和桌面基础设施。AITP 的底层接入以科研记忆的选择、读取、上下文交付、压缩恢复和维护为核心；Skills 是其中的方法指导。AI 根据问题和证据自主选择动作，不设置固定科研动作流程。具体方案见[运行时记忆设计](docs/agent/10-project-workspace.md#aitp-runtime-integration)。`agent/` 保留此前的 Pi 实现与检查证据，不是新主线。旧测试通过不能证明新应用已完成科研记忆、上下文、独立审阅或写回；实际覆盖见规划和场景文档。
 
 ## 从哪里开始
 

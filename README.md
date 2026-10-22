@@ -2,7 +2,11 @@
 
 English | [中文](README.zh.md)
 
-A modular research workbench for theoretical physics, developed on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and guided by the [AITP Research Protocol](https://github.com/bhjia-phys/AITP-Research-Protocol). The research design stays centered on ordinary scientific records, explicit goals and boundaries, autonomous routine work, editable collaboration rules, and interfaces that show the information needed for the current decision.
+An agent dedicated to theoretical-physics research and learning. Our purpose is to use AI to explore physical truth more effectively: understand physical questions, test what we think we know, find and correct errors, and develop new understanding supported by evidence.
+
+Learning and research belong to the same process: reading original literature, understanding prerequisites, deriving consequences, testing ideas through computation, and revising conclusions when evidence changes. The design prioritizes explicit assumptions, traceable sources, reproducible checks and honest uncertainty. Progress means a clearer understanding of physics, with the argument and its limits available for others to examine.
+
+The modular research workbench is developed on [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and guided by the [AITP Research Protocol](https://github.com/bhjia-phys/AITP-Research-Protocol). Research records remain ordinary files. Researchers define goals and boundaries; the agent autonomously handles routine steps within them. Editable collaboration rules and selective information display are part of the intended design.
 
 The active application uses Harness plugins, services, Web UI and desktop infrastructure. AITP is designed to retrieve, prioritize, deliver and maintain important research memory through runtime services; portable Skills guide how the agent uses it. The agent chooses research actions flexibly from the question and evidence, without a fixed action-policy workflow. The current integration prepares the host, naming, method discovery and GPT login. The [runtime integration design](docs/agent/10-project-workspace.md#aitp-runtime-integration) and [development dependencies](docs/agent/14-implementation-blueprint.md#runtime-integration-plan) describe the research layer still to build. The earlier Pi implementation is retained under `agent/` as a reference and comparison baseline; its previous checks do not certify these workflows on Harness.
 
