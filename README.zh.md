@@ -16,20 +16,22 @@
 - [Harness 集成证据](agent/notes/harness-integration.md)：当前基线、实际检查和 GPT 验证限制。
 - [Harness 架构](docs/architecture.zh.md) 与[开发指南](docs/development.zh.md)：底层框架和构建要求。
 
+欢迎外部贡献，通过 PR 合入 `main`；范围、审阅与验证见[贡献指南](CONTRIBUTING.zh.md)。[自动化就绪情况](docs/agent/14-implementation-blueprint.md#development-readiness)区分本地检查与远程强制保障。
+
 行为或证据变化时，同步维护受影响的架构、规划、场景和 current.md。通用科研方法仍归上游 AITP Skills，不在应用中维护另一套副本。
 
 ## 仓库与分支
 
-公开地址保留为 [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent)。`harness` 分支继承官方 DeepSeek Harness 历史，并合入原 AITP-agent 历史；`main` 保留此前发布的 Pi 基线。官方 Harness 是 Git `upstream`；保留原地址不会自动改变 GitHub 的 fork 网络标识。
+公开地址保留为 [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent)。`main` 是集成与默认分支，以快进方式接纳 Harness 主线及原 AITP-agent 历史，不改写已有提交。原 Pi `main` 保留在 `legacy/pi-foundation`；`harness` 继续保留为迁移分支。官方 Harness 是 Git `upstream`；保留原地址不会自动改变 GitHub 的 fork 网络标识。
 
 ```sh
-git clone --branch harness --recurse-submodules https://github.com/bhjia-phys/AITP-agent.git
+git clone --branch main --recurse-submodules https://github.com/bhjia-phys/AITP-agent.git
 cd AITP-agent
 git remote add upstream https://github.com/deepseek-ai/deepseek-harness.git
 git fetch upstream
 ```
 
-Git remote 是本地设置，新克隆需添加一次 `upstream`，`origin` 保持 AITP-agent 地址。后续通过审阅过的合并吸收官方更新，并验证 AITP 插件与科研约定。固定版本的 [`aitp/`](aitp/) 子模块连接科研协议和 Skills；已有克隆可运行 `git submodule update --init --recursive` 初始化。
+Git remote 是本地设置，新克隆需添加一次 `upstream`，`origin` 保持 AITP-agent 地址。后续在任务分支审阅官方更新，再合入 `main`，并验证 AITP 插件与科研约定。固定版本的 [`aitp/`](aitp/) 子模块连接科研协议和 Skills；已有克隆可运行 `git submodule update --init --recursive` 初始化。
 
 ```text
 packages/, apps/    当前 Harness 应用与插件/服务实现

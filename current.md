@@ -32,7 +32,7 @@
 - 应用底座已选定 Harness/Cordis；通过其服务、事件和插件实现模块化，不额外运行旧 Pi 任务循环。应用开发流程不成为上游可移植科研 Skills 的前置条件；其 owner 仍在 `aitp/plugins/aitp/`。
 - 用户进一步明确：AITP 要接入底层，重点是优先向 AI 暴露科研中重要的上下文作为记忆，不采用固定科研动作约束。运行时负责选择、读取、交付、恢复和更新重要信息，AI 根据实际问题自主选择下一步；Skills 提供方法。明确的用户要求仍须遵守，现有宿主权限保留，但缺一项前提不自动封锁研究。具体设计归 [10](docs/agent/10-project-workspace.md#aitp-runtime-integration)，开发依赖归 [14](docs/agent/14-implementation-blueprint.md#runtime-integration-plan)。
 - 所有哈希相关检查保持禁用。后续精确文本比较等非哈希写入策略仍是待确定的方案，不能借“修漏洞”恢复已禁用的版本、冲突或批准摘要检查。
-- 用户已要求整理插件和任务、逐项实施并随实现维护文档，现授权把本轮研究后的规划与架构发布到公开仓库。**UI 设计与实现由 Claude 负责；Codex 负责规划协调、GPT 与底层能力实现及对照测试。** 文件分工和唯一实施顺序由 [14](docs/agent/14-implementation-blueprint.md#next-implementation-slice)维护；规划发布不等于功能已实现，也不授权真实笔记迁移、科研写入或计算任务。
+- 用户已要求整理插件和任务、逐项实施并随实现维护文档，现授权把本轮研究后的规划与架构发布到公开仓库。**Claude 已交付 UI 设计与合成原型；Codex 负责客户端和底层逐步实现、GPT、规划协调及对照测试。** 文件分工和唯一实施顺序由 [14](docs/agent/14-implementation-blueprint.md#next-implementation-slice)维护；规划发布不等于功能已实现，也不授权真实笔记迁移、科研写入或计算任务。
 - 保留已有脏工作树、原始科研材料和历史证据。此次文档提交与推送按用户明确授权进行；本文和 Skill 不另行授予重置、清理、覆盖无关改动或发布私人研究资料的权限。
 
 ## 当前能确认到哪一步
@@ -132,6 +132,8 @@
 <a id="q05"></a>
 ### Q05：精确引用、来源身份与旧协议的迁移尚未接通
 
+新 UI 将资源放在全局面板阅读区或会话 dock tab，比较两个来源时使用单个 comparison tab。每个区域／tab 保留自己的 resource、locator 和阅读位置；Sources & memory 必须显示实际交付和当前可用状态。新原型展示这些状态，不能替代引用、会话外读取和观察投影的运行证据。
+
 **性质：实现缺口与契约演进风险。** 10 已提出 Global origin、host/root 地址和“当时实际交付的片段”。当前 [SessionMeta](agent/packages/protocol/src/sessions.ts)仍要求 location，[服务端](agent/packages/server/src/app.ts)要求识别出的科研位置。新提案不能直接作为已有 API 调用。
 
 [Markdown 渲染](agent/apps/workbench/src/Markdown.tsx)仍使用 `skipHtml`，显式 HTML anchor 不会按设计呈现；全局 DOM ID 查找和跨文件打开也未实现完整的 pane/locator 语义。历史回答中的引用、当前文件、同名章节和两个分屏可能因此不能准确对应。过去的同页修复不证明这些问题都已解决。
@@ -180,6 +182,8 @@
 <a id="q09"></a>
 ### Q09：知识库、文献库和代码视图已有设计，但材料适配能力仍为空缺
 
+[12 的 Harness 映射](docs/agent/12-desktop-interface.md#harness-integration-map-and-missing-backend-information)已明确：右 dock 仅属于打开的会话且最多两个 pane；无会话浏览走全局面板，共用同一 reader，不能为打开资料伪造会话。Harness Workspaces 保持唯一项目列表，课题是其内部视图；会话外研究根读取、课题投影和 resource protocol 尚待实现。
+
 **性质：计划内的实现缺口，不应伪装为已完成能力。** [knowledge](agent/packages/core/src/knowledge/index.ts)、[works](agent/packages/core/src/works/index.ts)、[checkouts](agent/packages/core/src/checkouts/index.ts)等服务是占位；上下文中的相应分支不等于能取得真实知识、版本和代码资料。
 
 尚需把全局浏览、原文阅读路线、work/edition/file 区分、页码/公式定位、缺失 PDF、知识前置条件和阅读覆盖接到真实材料。导入、分类修改、合并重复记录与只读浏览有不同效果，不能混为一个已经可用的 Library 功能。
@@ -218,7 +222,7 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 真实界面还需验证长公式、同名资源、200% 缩放、缺失材料、键盘操作与恢复后的定位。原型的通过、程序能启动和研究者能顺利完成任务是不同证据。
 
-研究者要求隐藏不必要的信息并展示真正影响协调的内容。[12 的分层展示](docs/agent/12-desktop-interface.md#progressive-disclosure)改为“研究／资料／协作规则”三个候选入口，插件不自动获得一级菜单；[11](docs/agent/11-research-memory.md#memory-user-view)把记忆呈现为研究记录、当前依据和待整合成果。当前 [AgentDock](agent/apps/workbench/src/AgentDock.tsx)仍直接渲染工具轨迹与 token，全部 omitted 放在折叠详情里；它尚不能区分关键缺口和可选背景。验收要检查抽屉关闭时仍能看到限制、结论成立条件、未读关键前提、待决定项和未写回状态，同时普通阅读无需打开会话或技术面板。
+[12 的新设计](docs/agent/12-desktop-interface.md#progressive-disclosure)沿用 Harness 框架：侧栏的 Research／Materials／Rules 全局面板用于无会话浏览；课题主页、会话任务卡及 Sources & memory 呈现重要信息。研究者原话、模型暂定项、来源、生成摘要和缺失状态有文字标签，不只靠颜色。Harness 压缩后仍显示更早的消息行，因此看得见旧文本不等于模型仍有该文本；实际可用性必须来自底层投影。旧 Pi [AgentDock](agent/apps/workbench/src/AgentDock.tsx)只解释旧实现缺口。新 [Harness-frame 原型](docs/agent/prototype/harness-frame/README.md)展示七组场景，浏览器检查属于合成展示证据，尚未证明真实插件、科研判断或人工可用性。
 
 <a id="q12"></a>
 ### Q12：文档中的目标、源码契约和历史验收语言仍容易混淆
@@ -261,6 +265,8 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 <a id="q16"></a>
 ### Q16：发现 Skill 不等于知道怎样用于当前问题，部分借鉴与蒸馏反馈尚未接通
 
+[新 UI 的 W4／W5](docs/agent/12-desktop-interface.md#scenario-walkthroughs)展示部分借鉴、同名来源冲突和蒸馏状态；完整候选列表、来源限定调用、正文可用性及方法采用记录仍需 Q03 和对应 provider 支持。UI 不能将选中的副本静默替换为按名称胜出的副本。
+
 **性质：新宿主源码确认的能力差距，尚无科研行为试验证据。** Harness 的 [Skill 服务](packages/skill/skill/src/index.ts)已有目录和加载接口，但 [filesystem provider](packages/skill/skill-filesystem/src/index.ts)只扫描所配置根的直接子项。顶层 AITP Skills 被发现，不等于嵌套 domain methods、任意课题的 Skill 和主文档里的方法链接都能被发现。[Skill 工具](packages/skill/tool-skill/src/index.ts)的目录提示要求加载并遵循完整适用指令，正文也以完整指令交付；目前没有区分“查看候选”“调用方法”“借用部分步骤”的 AITP 适配。
 
 [启动器](scripts/aitp-agent.ts)将固定版本的 AITP 根作为优先级最低的 bundled source；它设置 `DSH_HOME`，没有隔离共享 `DSH_AGENTS_HOME`。同名项目／个人 Skill 因而可以覆盖固定版本，目录公开接口只返回胜出的副本，不能显示全部来源或按指定来源加载。优先级产品默认值仍未选定；不能声称“只接现有 registry”就支持重复来源诊断和来源限定调用。嵌套方法可通过明确根／manifest 声明或原有链接路径发现，不要求自动递归扫描整个研究目录。
@@ -272,6 +278,15 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 [蒸馏反馈设计](docs/agent/11-research-memory.md#skill-distillation-loop)沿用上游 `aitp-distill`；应用只负责实际使用证据、草稿提案、交付、评估结果和待整合状态。首个草稿可以明确结束于“迁移适用性未测试”。后续才将未安装的草稿作为候选指令交给有界 session／子代理，在不同合成／副本实例上运行并由独立审阅或研究者判断；交付与评估通路尚未实现。知识结论仍留在笔记，失败可以缩窄或否定提案，文件修改、安装和公开发布不自动发生。
 
 **验收反例：**同课题但假设不符、跨课题但诊断适用、借用残差检查而不更换已定求解器、同名不同来源、嵌套方法未发现、两次压缩后丢失采用范围、方法被改动或删除，以及原例成功但改变关键条件后失败。场景归 [C22](docs/agent/13-research-journeys.md#c22) 和 [C14](docs/agent/13-research-journeys.md#c14)；先验证真实交付和可解释的选择，再评估是否减少错误迁移。接口草图或模型自评不能关闭本问题。
+
+<a id="q17"></a>
+### Q17：开发规范已有文档和本地检查，远程协作保障尚未完成适配
+
+**性质：已核查的工程流程缺口。** 用户要求规范化开发并将主线推送到 `main`。既有 Skill、模块 owner、文档同步和验收边界已明确；本地提交／推送 hooks 已配置，但这不等于所有贡献都经过远程 CI 和审阅。此次把贡献指南从上游“不接受外部 PR”修正为 AITP 的任务分支／PR 流程，主线与旧 Pi 引用见 [README](README.md#relationship-to-aitp)。Claude 随后交付的 UI 设计和合成原型在隔离工作区协调后纳入此次发布；原工作区的未提交文件仍原样保留。
+
+2026-10-22 远程核查时，`main`、`harness` 无分支保护，rulesets 为空。主 PR CI 的重要任务等待上游专用 runner，push CI 仅针对 `master`；本 fork 没有配置 self-hosted runner。已有 [Issue lifecycle](https://github.com/bhjia-phys/AITP-agent/actions/runs/39809733681)因缺少 App 配置失败，[Issue policy](https://github.com/bhjia-phys/AITP-agent/actions/runs/39809733464)请求上游仓库 PR 而得到 404；这些继承的自动化尚不能算本项目可用的协作保障。
+
+本次仅为迁入 `main` 限定真实 DeepSeek E2E：本 fork 自动 push／PR 不调用 live API，需手动 dispatch 并显式开启仓库变量；没有运行模型或把跳过标成验证通过。其余远程自动化仍需适配。[14 的规范与就绪情况](docs/agent/14-implementation-blueprint.md#development-readiness)维护后续工作：先建立实际可运行的无凭据 CI，处理上游专属配置，验证 PR 路径，再配置可满足的必需检查与审阅策略。当前没有声称流程已被远程强制落实，也没有据此关闭 GPT／科研对照缺口。
 
 ## 后续开发怎样维护本文
 
@@ -289,6 +304,6 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 ## 建议下一轮共同讨论的焦点
 
-实施顺序只看 [14 的下一实施步骤](docs/agent/14-implementation-blueprint.md#next-implementation-slice)，不在本文另选主文档／资料／UI 的先后。Claude 的 UI 实现与 Codex 的 GPT／底层工作按同一接口分工协调。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
+实施顺序只看 [14 的下一实施步骤](docs/agent/14-implementation-blueprint.md#next-implementation-slice)，不在本文另选主文档／资料／UI 的先后。Claude 的 UI 设计已交接；Codex 的客户端实现与 GPT／底层工作按同一接口分工协调。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
 
 R-A、R-B、R-D 与压缩来源混同仍是 Pi 已复现缺陷，在新服务存在后须以相同反例重新核查。Q06/Q07 的写入与审阅策略必须在对应能力开放前明确；Q03/Q11/Q14 需要真实行为证据，Q15 的外部报告需要对应路线的复现与回归。设计文档补齐归属不关闭这些实现和验证缺口，后续状态随证据更新到原 owner。

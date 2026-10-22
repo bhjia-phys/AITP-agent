@@ -16,21 +16,23 @@ The active application uses Harness plugins, services, Web UI and desktop infras
 - [Harness integration evidence](agent/notes/harness-integration.md): the current source baseline, focused checks and remaining GPT validation.
 - [Harness architecture](docs/architecture.md) and [development guide](docs/development.md): the application framework being extended.
 
+External contributions are welcome through pull requests targeting `main`; see [Contributing](CONTRIBUTING.md) for scope, review and validation. The [automation readiness](docs/agent/14-implementation-blueprint.md#development-readiness) record distinguishes local checks from remote enforcement.
+
 Update the affected design, plan, cases and current.md together when behavior or evidence changes. Portable research procedures stay in the upstream AITP Skills; the application does not maintain a competing copy.
 
 <a id="relationship-to-aitp"></a>
 ## Repositories and branches
 
-The public repository remains [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent). The `harness` branch inherits official DeepSeek Harness history and merges the previous AITP-agent history without rewriting it. `main` retains the previous published Pi baseline. The selected upstream baseline is `687f282e86` (`0.2.1-rc.2`), verified against the official `master` on 2026-10-22.
+The public repository remains [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent). `main` is the integration and default branch. It fast-forwards the Harness-derived history, including the previous AITP-agent history, without rewriting commits. The former Pi `main` is preserved as `legacy/pi-foundation`; `harness` remains available as the migration branch. The selected upstream baseline is `687f282e86` (`0.2.1-rc.2`), verified against the official `master` on 2026-10-22.
 
 ```sh
-git clone --branch harness --recurse-submodules https://github.com/bhjia-phys/AITP-agent.git
+git clone --branch main --recurse-submodules https://github.com/bhjia-phys/AITP-agent.git
 cd AITP-agent
 git remote add upstream https://github.com/deepseek-ai/deepseek-harness.git
 git fetch upstream
 ```
 
-A Git remote is local checkout configuration, so each clone adds `upstream` once. Preserve the `origin` URL above. Future upstream updates are ordinary reviewed merges into `harness`; verify AITP plugins and retained research contracts before publishing. Keeping this repository address does not change GitHub's repository-network fork label.
+A Git remote is local checkout configuration, so each clone adds `upstream` once. Preserve the `origin` URL above. Future upstream updates are reviewed on a task branch and integrated into `main`; verify AITP plugins and retained research contracts before publishing. Keeping this repository address does not change GitHub's repository-network fork label.
 
 The pinned [`aitp/`](aitp/) submodule links the portable protocol and Skills to their owner. Initialize it in an existing clone with `git submodule update --init --recursive`.
 

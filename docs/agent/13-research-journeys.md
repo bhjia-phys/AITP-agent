@@ -36,6 +36,8 @@ executor or write path does not work in the application. These are evidence labe
 not an ordered maturity score. None of the cases below has been accepted as a
 complete researcher-operated workflow in the redesigned application.
 
+**UI handoff, 2026-10-22:** Claude completed the [Harness-frame design](12-desktop-interface.md) and [synthetic prototype](prototype/harness-frame/README.md); Codex owns application implementation. W1–W6 below identify proposed acceptance routes, not passed research workflows. The recorded prototype check exercises fixed synthetic states only. Harness Workspaces remain the sole project list; Research, Materials and Rules are global panels that need no Session. Their readers use panel regions; the right dock belongs to a displayed Session and has at most two panes, with a comparison tab when two sources must remain beside the conversation. No case gains application or researcher acceptance from this handoff.
+
 The retained Pi model-facing workspace tools are [read, search, outline and board][reader].
 [Sessions][sessions], [context delivery][context] and [compaction][compaction] are
 implemented; sessions still require a note location. Dedicated material adapters,
@@ -46,28 +48,28 @@ cannot close the missing parts of a case.
 
 | Case | Retained evidence and research gap to requalify | Planned implementation reference |
 | --- | --- | --- |
-| [C01 Return to a project](#c01) | Read-only foundation; recorded live recovery. New project shell and anchored thread lifecycle are mock/specification only | P1 |
+| [C01 Return to a project](#c01) | Pi read-only/recovery evidence retained; Harness topic and continuation route has synthetic design evidence only | Headless continuity; P1 / UI-1, W1 |
 | [C02 Idea to scoped question](#c02) | Discussion and choice-card foundation; idea lifecycle and approved branch creation unavailable | P1 context; P3–P4 authoring |
 | [C03 Discover and import literature](#c03) | Existing text can be searched; literature retrieval/import and edition adapter unavailable | P2b local library; separately approved retrieval |
-| [C04 Close reading across editions](#c04) | Note reading foundation; synthetic page selection mock; actual PDF/edition reader unavailable | P2b |
+| [C04 Close reading across editions](#c04) | Note reading foundation; W2 page/edition states are synthetic; actual research PDF/edition route unavailable | UI-1 note selection; P2b / UI-2, W2 |
 | [C05 Learn a framework](#c05) | Learning Skill/context foundation; dedicated knowledge/story view unavailable | P2a; P3–P4 retained writing |
 | [C06 Analytic derivation](#c06) | Source reading and model discussion foundation; no accepted analytic workflow or reviewed authoring | P1 scope; P2a; P3–P4 |
 | [C07 Cross-topic transfer](#c07) | Parent-use/source lookup foundation; full condition-aware relation view and integration unavailable | P2a; P3–P4 |
-| [C08 Formula, code and debugging](#c08) | Pi retained text reading/mock; Harness supplies generic preview, navigation and editing/execution machinery. Research checkout/formula links and integrated execution evidence remain unverified | P2c; P4 |
+| [C08 Formula, code and debugging](#c08) | Pi retained text reading/mock; Harness generic preview/navigation/editing/execution exists. W3 checkout/formula comparison is synthetic; research-linked execution remains unverified | P2c / UI-5, W3; P4 bounded execution |
 | [C09 Numerical campaign](#c09) | Retained text can be inspected; run adapter, scheduler and campaign controller unavailable | P4 bounded run; P5 orchestration |
 | [C10 Convergence and acceptance](#c10) | Qualified-answer recovery recorded live; material/run comparison and execution unavailable | P2a/P2c; P4 |
 | [C11 Raw data and matched diagnostics](#c11) | Notes can describe coverage; data/plot analysis and run provenance unavailable | P2 views; P4 analysis |
 | [C12 Manuscript, figures and citations](#c12) | Text reading foundation; proposal mock; document/manuscript/build paths unavailable | P3 scratch; P4 real pilot |
 | [C13 Reusable knowledge](#c13) | Knowledge text may be read/searched; knowledge service and promotion writes unavailable | P2a; P3–P4 |
-| [C14 Distill a procedure](#c14) | Distillation Skill can be read; method service and skill write/validation workflow unavailable | P4 named pilot |
+| [C14 Distill a procedure](#c14) | Distillation Skill can be read; W5 draft/evaluation/file states are synthetic; actual proposal/evaluation integration unavailable | Proposal/Skill-use slice; UI-6, W5; P4 named actual Skill-write pilot |
 | [C15 Independent review](#c15) | Requests and real log exports exist; review execution/assessment unavailable | P3b–c |
-| [C16 Interrupt and resume](#c16) | Restart/compaction and task preservation recorded live; external-effect reconciliation unavailable | P1; P3c/P4 |
+| [C16 Interrupt and resume](#c16) | Pi recovery evidence retained; W1/W6 memory/adoption states are synthetic; Harness research continuity and effect reconciliation unverified | Headless continuity; UI-1 W1; UI-4 W6; P3c/P4 effects |
 | [C17 Delegate and hand off](#c17) | Export/retained-note foundation; application worker execution unavailable | P3 review; P5 research workers |
 | [C18 Desktop, hosts and interoperability](#c18) | Local server and portable Markdown foundation; native attachment and fresh cross-host continuation unverified | P2d; explicit compatibility exercise |
 | [C19 Browse a knowledge wiki](#c19) | Existing text/link reading foundation; global wiki index, entry navigation and knowledge adapter unavailable | P2a |
 | [C20 Review knowledge against sources](#c20) | Source inspection and review-request foundation; scoped knowledge review execution and correction workflow unavailable | P2a/P2b inspection; P3 review; P4 selected correction |
 | [C21 Browse and curate the literature library](#c21) | Existing file reading foundation; collection/work/edition views and curation unavailable | P2b browsing; P3–P4 selected curation |
-| [C22 Select and adapt an applicable Skill](#c22) | Harness discovers configured Skill sources; problem-specific applicability, partial-use delivery and feedback remain proposed | Selected read-only context/catalog slice; C14 for later Skill revision |
+| [C22 Select and adapt an applicable Skill](#c22) | Harness discovers configured Skill sources; W4/W5 matching and feedback states are synthetic; applicability and partial-use integration remain proposed | Read-only context/catalog slice; UI-3 W4; C14 / UI-6 W5 |
 
 ## Scenarios choose cooperating plugins
 
@@ -136,6 +138,8 @@ The [recorded live pilot][integration] recovered qualified conclusions and stopp
 at a choice. Shared editors, source-backed project overview and the closed-thread
 outcome lifecycle remain [mock][prototype]/[specification][memory]. This is not a
 completed project-return journey.
+
+**Harness UI acceptance route — W1 / UI-1 (design only).** Open Research without creating a Session, follow verbatim topic and failed-route passages, then open the intended Session and inspect its task card and Sources & memory. The [W1 walkthrough](12-desktop-interface.md#scenario-walkthroughs) includes two compactions and a disconnected view; real recovery must preserve instructions, provisional items and last-observed labels. Headless continuity can be implemented and tested before this UI exists.
 
 **Acceptance and counterexample.** Return with no memorized path; locate the
 current owner and explain the limitation. Close a scratch thread, then open its old
@@ -224,6 +228,8 @@ notes. The [prototype][prototype] demonstrates a two-page synthetic paper, named
 and native-text selection, and rejected cross-pane provenance. It is not a PDF
 parser or real library. [WorksService][works] and edition selection are unavailable;
 delivery-bound source citations and pane-local anchors remain P1 requirements.
+
+**Harness UI acceptance route — W2 / UI-2 (design only).** In Materials, open the intended edition and compare its knowledge prerequisite without a Session. Ask about a located selection to create a Global draft with no inherited topic; distinguish attached, sent and currently available text. A missing edition offers explicit candidates without substitution. [W2](12-desktop-interface.md#scenario-walkthroughs) is synthetic; UI-1 first exercises only its note-selection part, while actual PDF/edition behavior needs the literature provider.
 
 **Acceptance and counterexample.** Restart and recover the page and task; select
 from one of two panes and verify that the attached source is that pane's edition.
@@ -352,6 +358,8 @@ The latter has no integrated case evidence here; an existing tool does not estab
 the proposed code workspace or scientific acceptance. [14](14-implementation-blueprint.md)
 owns the current UI/runtime work allocation and implementation progress. This case
 does not verify UI work performed in another development task.
+
+**Harness UI acceptance route — W3 / UI-5 (design only).** Read the checkout and retained log in Materials, then compare the formula and code in one comparison tab beside the Session. Respect the two-pane dock limit and keep checkout identity, unknown dirty-edit attribution and provisional residual derivation visible. [W3](12-desktop-interface.md#scenario-walkthroughs) supplies a synthetic mismatch; its fixed reply and file log do not establish an actual tool run or convergence of the physical system.
 
 **Acceptance and counterexample.** Use two checkouts and pre-existing dirty edits;
 select the intended one and separate observed diff from known session actions.
@@ -527,6 +535,8 @@ An existing Skill may already cover the useful choice; in that case the outcome 
 The repository's existing Skills are not evidence that the workbench can create,
 validate or distribute a new Skill. Harness can discover configured Skill sources, but the proposed [distillation view](12-desktop-interface.md#distillation-workbench), use-feedback route and research-specific change flow have no integrated application evidence.
 
+**Harness UI acceptance route — W5 / UI-6 (design only).** Inspect draft, evaluation, file, installed and published states separately; retain failed or untested transfer and distinguish pending note integration from a Skill proposal. [W5](12-desktop-interface.md#scenario-walkthroughs) uses fixed synthetic outcomes. The first real increment ends at transfer untested until a bounded evaluator receives the draft on a changed instance; it can keep or discard the proposal without a write or installation.
+
 **Acceptance and counterexample.** Compare a useful correction with an attractive
 but untested procedure. Retain the demonstrated boundary, exercise the failure
 case and avoid workstation-only assumptions in a portable Skill. Reuse the candidate in a task with a changed premise, preserve the failed use and revise the applicable conditions when supported; an unchanged method may need no revision. Failure: one successful run becomes a universal method, negative use disappears, a new Skill duplicates an existing one, or installation is reported as proof of scientific correctness. **Implementation reference:** a selected read-only catalog/context slice can inspect and evaluate a candidate before authoring. Applied changes to actual research Skill files need a specifically named [P4][p4] pilot; [P3][p3] can exercise only its selected scratch scope. No blanket Skill automation is promised by P1–P3.
@@ -595,6 +605,8 @@ The proposed [rule editor](12-desktop-interface.md#collaboration-rule-editor) ad
 continuation test: a scoped user rule change must survive restart with its exact source
 and actual adoption state. Rule editing/resolution is currently unavailable; a declared
 config API and readable Skill do not implement it.
+
+**Harness UI acceptance routes — W1 / UI-1 and W6 / UI-4 (design only).** [W1](12-desktop-interface.md#scenario-walkthroughs) exposes original instructions, provisional working items, source observations and generated summaries separately after compaction. W6 separately tests a rule edit during a running request: saved is not yet adopted, the next request records actual use, and save failure retains the draft. These are synthetic walkthroughs; real rule-source persistence/adoption and restart evidence are still required. UI-1 includes a read-only effective-rule view, not the rule editor.
 
 **Acceptance and counterexample.** Interrupt with a required choice pending;
 change a scratch source between delivery and resume; simulate an uncertain
@@ -771,6 +783,8 @@ actual changes. Bulk reorganization and external import need their own scope.
 **Useful output.** A method choice with a concise reason and decisive limitations, linked to the exact source and portions actually supplied. For example, a diagnostic for equation residuals may transfer while the original solver's update rule does not. Partial use retains all mandatory instructions and dependencies applicable to that portion; it cannot silently discard conditions or claim that the complete Skill was executed. If a necessary condition is unknown, the model may inspect it, explain conditional use, choose another route or retain the method only as a reference. The task continues adaptively under its actual instructions. The [Skill library and use view](12-desktop-interface.md#skill-library-and-use) exposes this distinction on demand; no new mode or automatic action lock is implied.
 
 **Current support and gap.** The Harness launcher connects the pinned AITP Skill source, and inherited Skill discovery supplies a platform basis. The application has no demonstrated task-specific applicability provider, selected-portion delivery with dependencies, or research-use feedback integration. The old Pi [method service][methods] remains historical placeholder evidence. Readable Skills and the proposed screen do not establish good matching, actual adoption or successful use.
+
+**Harness UI acceptance route — W4 / UI-3, with W5 feedback (design only).** Inspect a borrowed step with its dependencies and unused scope, then a selected topic copy shadowed by a same-named source; leave the mismatch unresolved until actual source-qualified loading exists. Show changed or compacted-away instructions accurately. [W4/W5](12-desktop-interface.md#scenario-walkthroughs) contain synthetic judgments and evaluations. Runtime acceptance requires real candidate listing, delivery evidence and the attributed main-model use item; changing the relationship cannot silently replace an agreed solver.
 
 **Acceptance and counterexample.** Use a same-topic candidate with an incompatible hypothesis and a differently named candidate with a transferable diagnostic. Check both a whole-method match and a partial match with a required prerequisite outside the selected section. An absent prerequisite remains unknown; the model must not cherry-pick around mandatory instructions or relabel reference use as completing the method. Then change the task's assumption or the Skill source after compaction, and verify that the retained use account identifies what was actually loaded while current applicability is reconsidered where affected. Include an explicit researcher correction, a selected topic method shadowed by a same-named catalog entry, and a case where no Skill fits. Failure: the closest title wins, source selection silently invokes another file, every project Skill enters context, a summary becomes the full procedure, stale selection persists after a relevant change, or partial borrowing silently changes the agreed algorithm. **Implementation reference:** a separately selected read-only context/Skill-catalog slice; [C14](#c14) owns later distillation and actual method revision.
 

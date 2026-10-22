@@ -91,18 +91,18 @@ what to inspect; none independently establishes what the researcher's files say.
 <a id="memory-user-view"></a>
 ### A clear user view of memory and its editable rules
 
-The UI presents **Research record**, **Current sources** and **Pending integration**.
-These are views of existing owners, not three new memory stores. The research record opens
-the main note and linked arguments; current sources show what this task actually received
-and still needs; pending integration exposes outcomes not yet retained in their source home.
-Runtime checkpoints, index caches and compaction internals remain available in diagnostics.
+The proposed [Harness interface](12-desktop-interface.md#what-the-interface-distinguishes) presents the **topic home**, **task card** and **Sources & memory** as views of existing owners. The Research panel opens the main note and linked arguments without creating a Session. During work, the task card above the composer summarizes the actual task, researcher instructions, provisional agent items, consequential gaps and changed rules. Sources & memory is a Session dock page containing the complete attributed items, actual source-delivery/availability records, rule and method adoption, generated summaries and collapsed diagnostics. Opening its detailed view leaves only the summary in the task card. Pending integration remains a named outcome in these views, not another memory store.
 
-Under Collaboration rules, the researcher can edit guidance for returning to a question,
+Researcher words and choice answers, provisional agent working items, source observations and generated summaries retain distinct labels. Choice answers include their question and selected option; a generated summary never acquires researcher styling or authority. Located, attached but unsent, delivered, currently available, condensed out, pointer-only and missing/unavailable sources describe different facts. A later reread is a new delivery. Backend observations supply these states and declared requirement levels; the UI neither infers scientific assessment from reading nor invents missing dependencies. These projections still require implementation; the synthetic prototype supplies no runtime evidence.
+
+Under Rules, the researcher can edit guidance for returning to a question,
 reading depth, retaining useful outcomes, main/detail placement and checking affected uses.
 The [editable-rule contract](10-project-workspace.md#editable-rules) preserves upstream
 `aitp-memory` as the default while allowing scoped customization. Changes apply to the
 selected guidance and future operations; they do not automatically restructure existing
 notes, repeat an earlier write or turn an old permission into a fresh grant.
+
+Draft, saved but not yet used, used by a particular request, and failed save remain distinguishable. A saved edit does not change an already running request. Hiding a panel or closing a tab changes no source, instruction, model context or permission. After disconnect, cached views say last observed and recover current backend state before presenting continuation as available.
 
 The compact interface keeps the supporting argument easy to reopen during a substantial edit.
 A compact current-answer view retains its decisive condition, even when the complete
@@ -113,11 +113,7 @@ the corresponding operation and evidence exist.
 
 ## 3. Objects and relationships
 
-The initial Project boundary is a top-level topic folder, with an explicitly chosen
-home note or family README. Folder discovery supplies candidates, not an assertion
-that every directory is a project. Archive stores, empty folders and trial copies
-remain distinguishable. Existing family and learning-workspace structures are
-supported without rewriting them into one prescribed hierarchy.
+Harness Workspaces own directory identity and Session grouping in a single sidebar list. The Research panel derives scientific topics and their homes from the containing root `research.md`, its links and supported family maps; a topic need not be another Workspace. If the researcher explicitly adds a topic directory or checkout as a Workspace, resolve the containing research root without duplicating its scientific topic. Folder discovery supplies candidates, not an assertion that every directory is a project. Archive stores, empty folders and trial copies remain distinguishable. Existing family and learning-workspace structures remain readable without a prescribed hierarchy or automatic note creation.
 
 | Object | Source and meaning | Relationship rule |
 | --- | --- | --- |
@@ -391,8 +387,12 @@ Reading and scientific checking have separate meanings:
 | State | What it establishes |
 | --- | --- |
 | Located | A reference or search candidate was found; its substantive content may be unread |
+| Attached, not sent | A passage is selected for a Session draft or queued input; it has not yet reached a model request |
 | Delivered observation | Specific text/page/region reached the model, with source and actual covered range; truncation and extraction limits remain visible |
 | Available for this inference | The current context contains the needed passage or it has been deliberately reopened; a removed passage or retained pointer is insufficient for a detail-dependent check |
+| Condensed out | A prior delivery remains recorded, but its passage is no longer available to the model; a subsequent reread creates a new delivery |
+| Pointer only | A source reference reached the model without its substantive content |
+| Missing or unavailable | A requested read failed, with its reason and affected declared need; cached content remains labelled last observed |
 | Scientifically assessed | A stated check addressed a particular claim under its conditions, with a result and limits; delivery alone never supplies this state |
 
 These distinctions describe coverage, not compulsory badges or permission to proceed.
@@ -430,6 +430,8 @@ recovery aid. It neither grants fresh authority nor silently overwrites a source
 that now contradicts the earlier observation. A status interjection and an
 unrelated tab switch preserve the active task and an unanswered consequential choice.
 
+Harness keeps pre-compaction rows visible in the conversation. Their presence on screen does not mean those instructions or passages remain available in the next model request. The task card and Sources & memory use the working-item and observation projections to expose the difference; the existing generated summary remains separately labelled and inspectable.
+
 On use, reopen relevant sources and distinguish current text from historical
 observations. A changed premise makes a dependent assessment worth revisiting;
 show that uncertainty without blocking unrelated work. Failed routes retain
@@ -445,6 +447,8 @@ The task/working-memory service owns the recoverable operational account. User m
 
 Every item has an origin: researcher-authored text, a complete choice answer, provisional model-authored text, or an actual source observation. Retain the originating session entry or resource locator and the task/subproblem it concerns. The model tool may update its own item, reference a user correction or report a suspected conflict, but cannot replace that correction or relabel an inference as a researcher decision. Source observations remain the source/observation service's facts; working items point to them rather than copying a second observation store. A method-use judgment and later use result therefore have an explicit producer, even when no Skill UI is loaded.
 
+The researcher can correct or retire an agent item through an explicit input operation. A correction retains the researcher's words and source event; the superseded model item remains inspectable. UI labels and controls render this lifecycle without rewriting its origin. Generated compaction summaries are recovery material alongside these items, never a replacement for them.
+
 Rebuild the projection from existing logged messages, interaction and tool records, context snapshots and visible history. The proposed tool's accepted add/revise/retire operation and result use that same log. A replay must distinguish proposed calls, successful operations, failed calls and repeated delivery. Retiring or superseding an item removes it from the active projection while leaving its origin inspectable; it does not delete the source record. Persisted tool results and session records survive compaction even when their original content is no longer visible to the model. An interrupted or unflushed write cannot be reported as a recovered update. Prefer these existing carriers; new session events require the compatibility review described in [10](10-project-workspace.md#aitp-runtime-integration).
 
 At request preparation, the context coordinator renders a bounded working block as a required `systemPrompt.context` contribution, separating actual instructions, provisional model items and source observations. Required delivery affects availability, not instruction authority. Keep still-effective user corrections verbatim and linked to their source; reconstruct their relevant meaning from explicit scope and later statements rather than retaining every user message forever. Include the current gap and pertinent failed routes with their conditions; retrieve older detail on demand. If the block cannot fit, expose that loss and revise the budget rather than silently truncating an instruction. Compaction's generated “Primary Request” or “Next Step” cannot supersede this source-attributed account.
@@ -457,6 +461,8 @@ Restriction lifetime and the destination for a saved standing rule remain produc
 The selected [runtime integration](10-project-workspace.md#aitp-runtime-integration) gives memory an application service, with source adapters, research-context prioritization and observation records. `aitp-memory` supplies methodological guidance for recovering and maintaining an argument; the service retrieves relevant material, prepares it for model requests and records actual delivery, current availability and recovery. This support does not depend on the model remembering to invoke a Skill. Its implementation remains pending.
 
 A read has four distinct stages: a provider locates a source; the reader observes specified content; the context coordinator includes selected content in a particular request; later compaction may remove it from the available request history. Record transitions and limits without promoting one stage into the next. Model-invoked reads use the same observation path as attachments. If an indirect tool exposes source content without sufficient locator/delivery information, report that coverage as unknown until an appropriate adapter exists. A request-independent “AI has read this file” boolean cannot represent these states.
+
+Research, Materials and Rules global panels can inspect resources without a Session, using explicitly scoped research-root read authority. Their display and navigation state do not create model-delivery records. The same reader component can later open in a Session dock tab; only actual request delivery changes availability records. Human-marked reading state remains separate from agent delivery and from whether a derivation has been explained. The Session-independent read service and these projections remain implementation work.
 
 On restart, reconstruct the agreement, observed coverage and pending outcome from durable runtime events, then reopen the scientific owners needed for the next step. When only Markdown transfers to another host, recover the scientific thread and explicitly report missing operational state. Read/write coordination, protocol-guided judgment and source content retain separate owners; no new canonical memory database or content-hash mechanism is required.
 

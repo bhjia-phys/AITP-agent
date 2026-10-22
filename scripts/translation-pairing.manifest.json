@@ -1,6 +1,7 @@
 {
   "manual": [
     "README.md",
+    "CONTRIBUTING.md",
     "current.md",
     "agent/",
     "aitp/",

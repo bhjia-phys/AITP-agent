@@ -1,23 +1,15 @@
-# Contributing
+# Contributing to AITP-agent
 
 English | [中文](CONTRIBUTING.zh.md)
 
-Thank you for your interest in contributing to DeepSeek Harness!
+AITP-agent welcomes contributions to its research workbench, GPT integration, plugins, documentation and scenario tests. `main` is the integration and default branch. Create a task branch from it and submit a pull request to `main`; use the PR to agree scope and review the resulting behavior before merging. Repository setup and the retained Pi history are described in [README](README.md).
 
-We deeply believe in the power of open source communities, and that belief has shaped this project from the very beginning.
+Start with [AGENTS.md](AGENTS.md) and the repository [development Skill](.agents/skills/develop-aitp-agent/SKILL.md). Read the relevant [current design gaps](current.md), [development ownership and dependencies](docs/agent/14-implementation-blueprint.md#development-crosswalk), [architecture](docs/agent/10-project-workspace.md) and [research cases](docs/agent/13-research-journeys.md). The development plan owns current scope and progress; a proposed feature is not evidence that it exists.
 
-DeepSeek Harness is still at an early stage and under active development. We are sorry that we cannot accept external pull requests at the moment. However, contributing code to this repository is far from the only way to help. There are many other ways to get involved:
+Before parallel work, identify the concrete problem, affected case, file ownership and shared interfaces in the issue or PR. Claude has delivered the UI design and synthetic prototype in document 12. Codex owns incremental client implementation, GPT, core/backend work and shared definitions; coordinate client changes against that handoff. Independent contributors can take a bounded provider or regression case using the plan's ownership map. Preserve other contributors' uncommitted work. Portable research methodology belongs upstream in the pinned `aitp/` project; propose those changes there rather than duplicate it in the application.
 
-- Identify and report issues or bugs in GitHub Discussions:
-  - Upvote discussions that you would like to bring to the team's attention. We are a very small team and may not be able to reply to every post, but we monitor them and consider them when allocating resources.
-- Contribute to the ecosystem:
-  - Create a plugin that excites you and share it with others:
-    - Associate your GitHub project with the `dsh-plugin` topic to help others discover your plugin.
-  - Write blog posts and how-to guides about DeepSeek Harness.
-  - Answer questions and help other members of the community.
+Keep each PR focused and describe the problem, resulting behavior and relevant validation. Update affected architecture, plan, cases and `current.md` in the same change. Follow the [testing policy](docs/testing.md) and [pre-push guidance](.agents/skills/dsh-pre-push-checks/SKILL.md): run checks appropriate to the changed behavior and report their actual results. Distinguish source inspection, replay/mock tests, live-provider tests and human scientific assessment; failed, skipped or unavailable checks remain visible. Relevant research features also need the planned [Codex + AITP comparison](docs/agent/13-research-journeys.md#comparative-evaluation), or an explicit account of why that comparison remains unavailable.
 
-DeepSeek Harness is designed to be deeply customizable. We do not believe that packages in the official repository are inherently more important than packages created by the community. You may consider this repository an idea, an official showcase, and a source of inspiration, but not a mandate from us.
+Use synthetic fixtures or isolated scratch copies. Keep credentials, private research and local trial records out of commits; documentation or development work does not authorize real-note writes. Follow the AITP manual documentation policy: maintain both language versions where present, and do not run hash-related AITP checks or create translation hashes.
 
-We have already seen exciting projects emerge from the community, and we hope to see the ecosystem continue to grow in its own directions.
-
-Into the unknown.
+Local hooks provide limited checks, including push-time typechecking. The inherited remote workflows still need adaptation to this fork's runners, branch names and review configuration; `main` does not yet have mandatory remote checks or review protection. A successful push therefore does not establish CI or research acceptance. Use PR review and report the evidence available while that enforcement work is completed.

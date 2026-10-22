@@ -10,7 +10,7 @@ The 2026-10-22 request authorizes the Harness-derived branch, product naming and
 
 For imported AITP design and the retained `agent/` implementation, use the AITP development documentation above as the content owner; keep current.md and 10–14 as the existing design/progress/case homes, rather than duplicating them into Harness Agent Notes. The upstream engineering instructions below continue to govern Harness code, packaging and tests.
 
-AITP-owned documentation uses the explicit `manual` entries in [the existing documentation manifest](scripts/translation-pairing.manifest.json): maintain accurate language versions and links through review, preserve existing formatting and evidence, and create no translation hashes or mandatory sidecars. The root Chinese README describes this fork; it is updated with material English changes. The pairing and paragraph-wrap gates skip only these named document families/subtrees. All other upstream documentation retains its existing rules; this exception does not waive package code, behavior, API, link or build checks.
+AITP-owned documentation uses the explicit `manual` entries in [the existing documentation manifest](scripts/translation-pairing.manifest.json): maintain accurate language versions and links through review, preserve existing formatting and evidence, and create no translation hashes or mandatory sidecars. The root README and contributor guide describe this fork; keep their English and Chinese versions accurate together. The pairing and paragraph-wrap gates skip only these named document families/subtrees. All other upstream documentation retains its existing rules; this exception does not waive package code, behavior, API, link or build checks.
 
 ---
 

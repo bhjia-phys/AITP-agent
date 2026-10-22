@@ -73,3 +73,5 @@ The desktop screenshots are 1440 × 900; compact screenshots are 1024 × 768. Th
 At compact widths, splitting temporarily hides the Explorer to preserve reading width; closing the split restores the existing sidebar preference. The session draft keeps its submission footer visible while its context body scrolls. The titlebar shows the focused resource's project or explicit Global collection ownership.
 
 The design contract is [Desktop interface](../12-desktop-interface.md); this mockup is evidence for interaction review, not evidence of production readiness.
+
+The interface has since been rebound to the Harness Web/Electron frame. Its current design prototype is the separate [Harness-frame prototype](harness-frame/README.md); this standalone shell remains for comparison and for its reader and selection-provenance checks.

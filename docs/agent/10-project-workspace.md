@@ -4,10 +4,10 @@ Living architecture, updated 2026-10-22. This is the canonical explanation of ho
 
 The product is a place to return to a scientific question, inspect what supports the current answer, and carry out the next authorized piece of work. A project opens on its research state. Papers, knowledge, notes and code have independently usable workspaces. A conversation is work on a selected object and can sit beside its material; it is never the prerequisite for finding that material.
 
-The user-facing model has three proposed entrances: **Research**, **Materials** and
-**Collaboration rules**. Research shows the current question and work; Materials finds
-sources and methods; Collaboration rules lets the researcher inspect and edit how the
-agent should work. The [interface](12-desktop-interface.md#progressive-disclosure) hides
+The user-facing model has three session-independent Harness panels: **Research**, **Materials** and
+**Rules**. Research shows the current question and work; Materials finds
+sources and methods; Rules lets the researcher inspect and edit how the
+agent should work. Harness Workspaces remain the single project list; research topics are source-backed views inside a workspace. The [interface](12-desktop-interface.md#progressive-disclosure) hides
 implementation detail while retaining consequential conditions and choices. Internally,
 [plugins](#plugin-composition) supply capabilities, shared services coordinate them and
 Harness executes model/tool work. These internal parts do not each require a navigation page.
@@ -22,13 +22,15 @@ Harness/Cordis is now the selected plugin framework; exact research-service inte
 | Document | Responsibility |
 | --- | --- |
 | [11 Research memory](11-research-memory.md) | Object ownership, format alternatives, trial limits, identities and migration |
-| [12 Desktop interface](12-desktop-interface.md) | Screens, transitions, layout alternatives, components and visual acceptance |
+| [12 Desktop interface](12-desktop-interface.md) | Harness frame, research views, transitions, components and visual acceptance |
 | [13 Research cases](13-research-journeys.md) | Concrete scientific situations, required cooperation, implementation coverage and suitability checks |
 | [14 Development plan](14-implementation-blueprint.md) | Current progress, next scope, dependencies, evidence and implementation gates |
-| [Isolated prototype](prototype/README.md) | Synthetic interaction demonstration, run instructions and tested limits |
+| [Harness-frame prototype](prototype/harness-frame/README.md) | Current synthetic design demonstration and tested limits; the [earlier standalone prototype](prototype/README.md) retains historical reader/selection evidence |
 | [15 Design review](15-design-review.md) | Astra critique, disposition and remaining decisions |
 
 Evidence categories used throughout: **observed** means inspected code or retained experiment; **recorded** means a prior result whose original run was not repeated here; **inference** is an architectural judgment; **proposal** requires design approval; **open** is a decision or evidence gap. Public examples are synthetic. The real-note examples and trial outputs remain in the established private design/build record.
+
+Claude has delivered the revised UI design and synthetic Harness-frame prototype. They specify client integration and required backend data; they do not implement those research services or establish usability. Codex's incremental implementation follows [14](14-implementation-blueprint.md).
 
 ## What AITP-agent should add
 
@@ -79,7 +81,7 @@ References were inspected on 2026-10-21. These are sources for interaction choic
 | --- | --- | --- |
 | [OpenAI projects and chats](https://learn.chatgpt.com/docs/projects) | Project organisation and associated conversations | Keep project navigation and conversation history distinct; open the scientific overview on entry |
 | [OpenAI code review](https://learn.chatgpt.com/docs/code-review?surface=app) | Explicit unstaged/staged/commit/branch/last-turn scopes; line-specific review | Label repository scope and attribution. A workspace diff is not automatically the agent's work |
-| [VS Code user interface](https://code.visualstudio.com/docs/editing/getting-started/userinterface) | Persistent explorer, editor groups, tabs and keyboard navigation | Resources and work sessions share an editor area; two panes can compare different kinds of evidence |
+| [VS Code user interface](https://code.visualstudio.com/docs/editing/getting-started/userinterface) | Persistent explorer, editor groups, tabs and keyboard navigation | Keep resource-local navigation and evidence comparison, adapted to Harness panels and dock tabs |
 | [VS Code WSL](https://code.visualstudio.com/docs/remote/wsl) | UI and tools can run on different sides of the Windows/WSL boundary | File access and Git execute with the filesystem host; the renderer receives resource identities |
 | [ZCode source](https://github.com/zai-org/ZCode), especially `DESIGN.md`, `docs/design/workspace-independent-panels.md`, `docs/workspace-entry-draft.md` and `packages/ui/src/app-shell/WorkspaceShellLayout.tsx` | Semantic UI tokens, independently resizable panels, workspace identity and restored layout separated from session creation | Use a shared shell and explicit host identity; opening a project must neither send a prompt nor create a formal session |
 
@@ -122,7 +124,7 @@ AITP service definitions specify research resources, agreements, observations an
 
 | Component | Responsibility in the completed product | Connections and boundary |
 | --- | --- | --- |
-| Workbench plugins | Project state, threads, resource readers, shared editor groups, session view, context/proposal inspection | Contribute through Harness client APIs and slots; layout/drafts are not accepted scientific conclusions or credentials |
+| Workbench plugins | Topic state, threads, global panels, shared panel/dock readers, Session task/memory views and proposal inspection | Contribute through Harness client APIs and slots; layout/drafts are not accepted scientific conclusions or credentials |
 | Harness composition and host | Authenticate clients, expose APIs, deliver resources, compose plugins and manage lifecycle | Reuse supported profiles/bundles and host APIs; research policy is a plugin consumer, not a second server |
 | AITP resource providers | Read and interpret source owners; resolve references; expose notes, library, knowledge, checkout, run and manuscript adapters | Use configured filesystem authority; return explicit missing/ambiguous/unsupported results; derived relations never prove a theorem |
 | AITP coordination services | Actual user choices, prioritized research memory, observations, review/application support and pending outcomes | Combine actual decisions with sources; use logged events/projections; never delegate permission to retrieved text |
@@ -137,7 +139,7 @@ Research-source interpretation remains independent of model transport. Cordis pr
 
 The **project view** is a projection of the main note's question, qualified answer and Current work. Its thread links lead to the owning passage, related evidence and operational sessions. The **library** locates a work and a specific edition; its reader produces an edition-bound selection. The **knowledge view** finds explanations and conditions reusable across projects. These share references, but a source reading, a proposed idea and an accepted result remain different kinds of material.
 
-Global **Knowledge** and **Library** are independent entry points. Their indexes read existing owners through Core; collection filters, cross-links, outlines and back/forward navigation use the shared resource resolver and editor state. The knowledge route can run from a subject to a concept, its prerequisites and the original derivation. The library route can run from a collection to a work, a particular edition and its source-ordered reading notes. Paper sections, equations and unresolved steps remain reachable; a wiki overview does not replace close reading. Unknown index coverage and unavailable files are explicit. Browsing does not create a session, mark material read or reorganize files.
+Global **Knowledge** and **Library** are independently browsable tabs in Materials. Their indexes read existing owners through Core; collection filters, cross-links, outlines and back/forward navigation use the shared resource resolver and panel-local view state. The knowledge route can run from a subject to a concept, its prerequisites and the original derivation. The library route can run from a collection to a work, a particular edition and its source-ordered reading notes. Paper sections, equations and unresolved steps remain reachable; a wiki overview does not replace close reading. Unknown index coverage and unavailable files are explicit. Browsing does not create a session, mark material read or reorganize files.
 
 A **knowledge review** starts from a selected passage or bounded collection, even when no edit has been proposed. Human inspection uses the same source comparison panes. A requested model review passes that scope and source observations to Runtime's independent reviewer; its findings identify what was actually inspected and which dependencies remain unread. A correction then uses the existing proposal, assessment and application flow. Bibliographic curation follows that flow for its named metadata owners. Search links and duplicate candidates are navigation aids, not judgments of scientific support or authority to merge records. P2 supplies reading surfaces; actual reviewer execution and writes retain the later gates in [14](14-implementation-blueprint.md).
 
@@ -217,7 +219,7 @@ Three kinds of record have different owners:
 
 | Concept | Meaning and owner | What it is not |
 | --- | --- | --- |
-| Project | Durable workspace initially associated with a top-level topic folder; its home is an existing main note or family README | A session or automatically generated summary |
+| Workspace and topic | Harness Workspace owns directory identity and Session grouping; a research root contains the root `research.md`, and the Research panel derives topics and their homes from its source links or supported family maps | Two competing project lists, a Session or an automatically generated scientific summary |
 | Direction | A question or programme grouping, expressed in source links | A mandatory extra directory level |
 | Subproject/branch | A question with its own argument and main note; may have several scientific parents | Every subdirectory |
 | Thread | A continuation owned once by a Current work entry | The latest chat or scheduled job |
@@ -241,22 +243,18 @@ Discovery follows configured roots, root/README links and explicitly attached pa
 
 ## One interface, three entrances and independently navigable resources
 
-The default entrances are Research, Materials and Collaboration rules, with global Search
-and ordinary Settings. Research contains projects, branches and work sessions; Materials
-contains literature, knowledge, notes, code and method Skills. Resource types remain
-independently browsable and pinnable without becoming compulsory top-level pages.
-Collaboration rules displays editable source guidance and the effective task rules through
-the [shared rule projection](#editable-rules). Project selection supplies an optional filter,
-not a prerequisite. Switching entrances retains open editors and does not mutate task scope.
-The header shows the current project or Global and host; the same paper edition can be
-opened from different projects without being copied.
+AITP contributes Research, Materials and Rules through Harness's `sidebar.panellist`; each global panel renders in the root `main` slot without creating a Session. Harness's Workspace sidebar remains the only project list. Research derives topics and branch links from the selected research root; Materials offers independent library, knowledge, code and Skill browsing with an optional topic filter. Rules displays owned guidance and adoption through the [shared rule projection](#editable-rules). An explicitly added topic directory or checkout can remain a nested Harness Workspace without becoming a duplicate scientific topic.
+
+The main column displays either a global panel or the Harness conversation. Global panels own a navigator, one or two reading regions and their navigation history. The per-Session right dock supports at most two panes and has no Session-free surface. Shared resource readers render in either panel regions or dock tabs; a comparison tab can display two resources while the conversation remains visible. Moving selected material into work first opens the target Session, then opens its dock resource. Session-independent resource reads need explicit research-root authority; a hidden or fabricated Session cannot supply it.
 
 ```text
-Application shell
-  ├─ project/resource explorer ── sourced objects and links
-  ├─ editor groups ───────────── overview | thread | note | PDF | code | session
-  ├─ optional inspector ──────── evidence | relations | history | context
-  └─ optional activity panel ─── actions | runs | problems
+Harness frame
+  ├─ sidebar ── Research | Materials | Rules; one Workspace/Session list
+  ├─ main ───── global panel with reading regions OR Harness conversation
+  │               conversation: header actions + task card above composer
+  └─ Session dock ── at most two panes of resource/page tabs
+                       comparison tab: two resources beside the conversation
+                       Sources & memory: task, observations and adoption
 
 Selected object → prepare work → visible task + source selection → durable session
                                   ↓
@@ -264,6 +262,8 @@ Selected object → prepare work → visible task + source selection → durable
 ```
 
 A project overview has the question, qualified current answer and decisive gap, then active threads and pending decisions. It displays source passages with their caveats. Long passages expand in place or open the owning note; a character cutoff may never turn a conditional result into an unqualified headline. Ideas and related subprojects follow, with activity in a secondary region. There is no completion percentage for a research project.
+
+The Session origin chip and Sources & memory action use `conversation.session.header.actions`; the single `lineage` seat remains Harness's subagent breadcrumb. A task card in `conversation.input.dock` summarizes researcher instructions, provisional agent items and consequential gaps above the composer. Sources & memory exposes their origins, actual availability and adoption without becoming another owner. Panel changes, tab closure and hidden details do not change task scope, source text, context delivery or execution state. [12](12-desktop-interface.md#application-frame-on-harness) owns the complete interaction specification; the old standalone shell is no longer the target.
 
 The useful difference from a note reader is testable: entering a thread locates its current owner, limiting evidence and relevant past work without explaining filenames to a model; the researcher can inspect a source and code side by side before starting a session; after a session, an explicit outcome links the changed argument to the actual artifacts. Merely adding colourful cards does not meet that test.
 
@@ -284,7 +284,7 @@ Project/library context and session/task context are independent. Switching proj
 
 Context assembly uses existing instruction/data separation, bounded budgets and the recorded manifest. Origins and recipes extend `SessionMeta`; global origins use the explicit `ContextHome` union below instead of faking a workspace path or relying on two independent optional fields. A draft can be abandoned without creating a runtime conversation. Once sent, `create/submit` receives a stable request ID; reconnect does not submit twice.
 
-On resume, show the retained task and reread current sources. Recorded observations and current text remain distinguishable. The inspector can show what was delivered at a particular request, including omissions. Hash checks are disabled: observation time is not proof of unchanged content, and a current-file citation is not an immutable snapshot. Where exact prior text is retained, give it an opaque observation/snapshot ID and the captured excerpt. Historical Git references identify commits without treating them as authority for execution.
+On resume, show the retained task and reread current sources. Recorded observations and current text remain distinguishable. Sources & memory shows what was delivered at a particular request, including omissions and later loss from the model context. Visible pre-compaction conversation rows are not evidence of current model availability. Hash checks are disabled: observation time is not proof of unchanged content, and a current-file citation is not an immutable snapshot. Where exact prior text is retained, give it an opaque observation/snapshot ID and the captured excerpt. Historical Git references identify commits without treating them as authority for execution.
 
 <a id="research-control"></a>
 ## Research decisions, constraints and the next useful action
@@ -434,13 +434,13 @@ Use Harness's service-definition/provider/consumer organization within one appli
 | Source providers | Project projection, anchors, bounded resources and where-used | Harness filesystem services; reusable parsers only after assumption checks |
 | Coordination providers | Context selection/delivery, remembered choices, review/application support and outcomes | Harness request/tool/compaction events and session projections |
 | Host API | Authenticated resolution, paged projections and binary access | Existing Harness host/API services |
-| Client | Shared readers, research navigation, inspector and presentation state | Typed slots and supported client state/API contributions |
+| Client | Shared readers, global research panels, Session task/memory views and presentation state | Harness typed panel, header, input-dock and right-dock contributions |
 | Host capability | Open/reveal, desktop lifecycle and explicit resource host | Existing Harness carrier/capabilities, with actual WSL acceptance |
 | Model/execution | Model transport, agent loop, sessions, tool dispatch and subagents | Existing Harness providers; no private UI imports or parallel execution loop |
 
 Proposed research operations include project/object lookup, bounded relations, session-draft preview and resource resolution. Specify their Harness service/API names when implementing the selected slice. Preview is read-only and returns draft, instruction/data refs and omissions without creating a task. Actual submission uses the Harness input/request path. Reads retain observation time, locators and diagnostics; an unavailable provider never returns fabricated successful emptiness. Settle each shared interface before its concurrent consumers, without freezing every future interface first.
 
-UI layout is local view state: editor groups, focus, project filters, scroll, draft and resource locators. It stores no scientific answer. Operational metadata has explicit compatibility and an export path; an unavailable index can be rebuilt. Old Pi sessions stay in the retained implementation/export; no automatic runtime-store migration is authorized.
+UI layout is local view state: selected panel, reading regions, dock tabs, focus, filters, scroll, draft and resource locators. Global panels own their back/forward history; dock tabs use Harness tab focus. It stores no scientific answer. Operational metadata has explicit compatibility and an export path; an unavailable index can be rebuilt. Old Pi sessions stay in the retained implementation/export; no automatic runtime-store migration is authorized.
 
 <a id="independent-development-boundaries"></a>
 ### Independent development boundaries (proposal)
@@ -557,13 +557,13 @@ The retained Pi tree pins `pi-ai` and `pi-durable` to 1.3.0 and uses [static run
 <a id="scenario-plugin-map"></a>
 #### Design plugins around complete research situations
 
-The requested design starts with what the researcher needs to accomplish. A plugin owns a coherent resource or capability, its backend contribution and any optional views. One plugin can contribute to the topic home, a global library and an inspector; those placements do not require three independent implementations. The [case cooperation table](13-research-journeys.md#scenarios-choose-cooperating-plugins) connects concrete tasks to these functional areas and their distinguishing failures. These routes remain design examples, not completed runtime demonstrations.
+The requested design starts with what the researcher needs to accomplish. A plugin owns a coherent resource or capability, its backend contribution and any optional views. One plugin can contribute to the topic home, a Materials tab and a Session dock page; those placements do not require three independent implementations. The [case cooperation table](13-research-journeys.md#scenarios-choose-cooperating-plugins) connects concrete tasks to these functional areas and their distinguishing failures. These routes remain design examples, not completed runtime demonstrations.
 
 A paper-reading task can move from Literature's exact edition to Knowledge's prerequisite explanation and back to the reading position, with shared context recording any model delivery. A code-comparison task joins Research records' formula and conventions to Code's actual checkout and diagnostic evidence. Method choice adds the Skill catalog and candidate provider; a demonstrated correction may later involve Distillation and document changes. Each collaboration follows the question's need rather than activating every plugin in sequence.
 
 The topic home brings these contributions together around one scientific owner: question, supported answer, limitation and live branch links first, then relevant papers, knowledge, code and methods. It reads the same projections used by global browsing and headless sessions. A plugin can contribute a relevant resource link without copying that resource into a project. Method relevance is a reason to inspect it, not a claim that every Skill associated with the topic should run.
 
-The shell owns panes, navigation, focus and restoration. Domain plugins own their resource interpretation and commands. Shared memory/context services own what the model actually receives; document-change services own applied source edits. The [interface](12-desktop-interface.md) specifies the visible interactions, and [14](14-implementation-blueprint.md#independent-development) assigns development dependencies. This split permits a better context selector or a different editor without rewriting the scientific records.
+Harness owns the frame and Session dock; AITP global panels own their reading regions and navigation history. Domain plugins own resource interpretation, shared reader components and commands. Shared memory/context services own what the model actually receives; document-change services own applied source edits. The [interface](12-desktop-interface.md) specifies the visible interactions, and [14](14-implementation-blueprint.md#independent-development) assigns development dependencies. This split permits a better context selector or a different reader without rewriting the scientific records.
 
 <a id="aitp-runtime-integration"></a>
 #### Runtime research memory and contextual guidance
@@ -606,7 +606,7 @@ The [single next implementation slice](14-implementation-blueprint.md#next-imple
 | Main notes, knowledge and literature | Filesystem/search capabilities, host APIs and client contributions | Main/subnote projections, source-backed knowledge, work/edition identity and readers; none is supplied by a generic file browser |
 | Rules and methods | [Settings](../../packages/settings/settings/README.md), [Skill discovery](../../packages/skill/README.md), instruction contributors | One owned rule source, scoped overrides, saved versus adopted revisions, bounded topic-method discovery, duplicate diagnostics and source-qualified inspection/invocation. The model records applicability in working memory; the current winner-only registry is insufficient for these promises |
 | Independent review and writing | [Subagent services](../../packages/subagent/README.md), tools, sessions and persisted outcomes | Read-only reviewer composition, exact reviewed premises/proposal revision, assessment, pending integration and bounded apply/recovery |
-| Workbench and native host | [Client](../../packages/client/README.md), typed slots, host APIs and [Electron carrier](../../apps/desktop/README.md) | Research/Materials/Collaboration entrances, shared readers, selective disclosure and actual Windows–WSL acceptance |
+| Workbench and native host | [Client](../../packages/client/README.md), `sidebar.panellist`, root `main`, `conversation.session.header.actions`, `conversation.input.dock`, right-dock resource/tab registration and [Electron carrier](../../apps/desktop/README.md) | Research/Materials/Rules global panels, shared panel/dock readers, task card and Sources & memory projections. The dock requires a Session and allows at most two panes; global reading needs explicit Session-independent root authority. Native attachment requires actual Windows–WSL acceptance |
 | GPT integration | [Model services/adapters](../../packages/llm/README.md) and [credential services](../../packages/credentials/README.md) | The [provider integration owner](#gpt-integration) isolates transport/projection defects from research-context and model-quality failures; test each supported route before claiming GPT research readiness |
 
 Use durable events for facts needed after restart and projections for their derived state. A model-visible agreement, premise or rule change must be reconstructable from the session log. Do not store a second transcript in an AITP service, assume a generic compaction summary preserves the agreement, or infer scientific authority from a plugin setting. Unsupported old Pi sessions remain readable through the retained implementation/export; automatic runtime-store migration is outside the selected scope.
@@ -619,8 +619,8 @@ The [base composition](../../packages/bundle/base/cordis.patch.yml) already moun
 | [Goal-round driver](../../packages/goal/goal-round-driver/README.md) | The generated user-role prompt repeats the objective and directs use of current durable state. It is not a new human decision. The first continuity fixture can omit autonomous rounds; separately test a later correction followed by a goal round before enabling unattended AITP continuation. Whether the live model actually disregards that correction is unverified |
 | [Plan mode](../../packages/plan/plan-mode/README.md) | Keep optional user-invoked planning distinct from ordinary task progress. Its reviewed exit belongs to that explicit mode; presenting a routine plan or updating working memory must not enter it automatically. The review's proposed default disablement remains a composition choice, not an implemented setting |
 | [Todo tool](../../packages/todo/README.md) | Reuse implementation-task bookkeeping where useful. A todo list is neither the scientific argument nor an instruction from the researcher; changing it cannot alter the task agreement |
-| [Workspace projects](../../packages/workspace/workspace/README.md) | Reuse directory/session grouping and project identity. Research records own the scientific topic projection and home; the shell renders it alongside those existing groups. A scientific branch need not create another directory project |
-| [Compaction summary](../../packages/compaction/compaction-basic/README.md) | Retain it as generated recovery material, including its request/next-step sections. Recover the current source-attributed working block independently. On conflict, actual user instructions retain authority and generated claims remain revisable; required context delivery does not promote model items or source excerpts to instructions |
+| [Workspace projects](../../packages/workspace/workspace/README.md) | Keep the Harness Workspace sidebar as the only project list and Session grouping. Research records derive topic homes and branch links from the root note inside the selected research Workspace. Explicitly added topic/checkouts remain nested Workspace entries; resolve their containing research root without inventing duplicate topics |
+| [Compaction summary](../../packages/compaction/compaction-basic/README.md) | Retain it as generated recovery material, including its request/next-step sections. Recover the current source-attributed working block independently. Harness keeps earlier rows visible; Sources & memory must separately report whether their content is still available to the model. On conflict, actual user instructions retain authority and generated claims remain revisable; required context delivery does not promote model items or source excerpts to instructions |
 
 The present base defaults to `workspace-write` and mounts generic writing and execution tools. AITP's design-stage restriction on real-note changes is not technical enforcement by the launcher. Keep experiments on isolated synthetic/scratch roots with an explicit permission profile; the product default and access to research roots outside a session remain open decisions. A code reader's future UI must not imply the generic agent currently lacks edit or execution tools.
 
@@ -639,14 +639,14 @@ The [scenario comparison design](13-research-journeys.md#comparative-evaluation)
 | Knowledge | Reusable explanations, conditions, source routes, wiki browsing and concept search; contribute explicit links to Research records' affected-use query | Research-record/source interfaces and affected-use projection; no separate editable scientific truth |
 | Literature | Work/edition/file identity, PDF reading, locators, citations and optional retrieval adapters | Sources, observations, resource navigation; network/import effects separately scoped |
 | Code | Checkout/file tree, search/symbol navigation, source/diff/history panes and source-linked selections; later scoped editing/execution controls | Filesystem/Git/LSP capabilities, resource navigation and observations; editing and process execution keep their actual host permissions |
-| Skill catalog | Global/project/topic method browsing, source descriptions, names, shadowed candidates and actual loaded instructions; explicit method links as well as configured roots | Harness registry/provider APIs plus required duplicate/source-resolution extensions and bounded reads; applicability judgment stays with the main model |
+| Skill catalog | Materials Skill tab and Session use view: global/project/topic browsing, all source candidates, shadowing, loaded/current instructions and attributed use; explicit method links as well as configured roots | Harness registry/provider APIs plus all-candidate listing, source-qualified inspection/loading and bounded reads; applicability judgment stays with the main model's working item |
 | Distillation | Actual use evidence, existing Skill comparison, focused draft, evaluation and later reuse feedback, guided by portable `aitp-distill` | Catalog, research records, context/use observations, model execution, review and document changes |
 | Collaboration rules | Source-backed writing/memory preferences and task-scoped guidance; saved versus adopted state | Existing instruction/configuration sources, working memory, context and document changes; no parallel rule store |
 | Review | Existing-entry or proposal review workflows, real reviewer execution, coverage, findings and author assessment | Agreement, actual observations, proposal revision and Harness subagent execution |
-| Workbench presentation | Shared layout/navigation and slots for explorers, resource editors, inspectors, commands and result views; hosts the Research records topic-home contribution | Typed resource and session APIs; feature plugins own their domain data and optional client parts |
-| Desktop host | Window lifecycle, authenticated backend attachment and explicit OS/editor capabilities | Same workbench/backend contracts; no independent scientific state |
+| Workbench presentation | Harness sidebar panel entries; Research/Materials/Rules global panels with local navigation; shared reader components in panel regions and Session dock tabs; header actions, task card, comparison tab and Sources & memory | Typed resource protocols, Session projections and existing client extension points; feature plugins own domain data, no second project list or standalone shell |
+| Desktop host | Reused Harness carrier, window lifecycle, authenticated backend attachment and explicit OS/editor capabilities | The same client/backend contracts plus research-root identity and read authority; the desktop host does not create a Session-free dock or own scientific state |
 
-These ten areas describe product responsibility; the runtime modules above describe their shared support. [14's development crosswalk](14-implementation-blueprint.md#independent-development) is the single assignment map, including GPT integration and shared services. They are not competing package lists or ten mandatory screens. A feature may use separate host/client entries, and a replaceable provider may serve several areas. Reuse Harness's [dock layout](../../packages/client/ui-sidebar-right/README.md) and [document preview](../../packages/client/ui-sidebar-documentpreview/README.md): the latter provides generic file previews, including PDF and code, but its documented browser preview does not deliver source content to the model, and code preview is not an editor. Global resources usable before a conversation need explicit resource addressing and read authority rather than a fabricated session. AITP's exact source/edition selections, topic associations and delivery observations remain additional work.
+These ten areas describe product responsibility; the runtime modules above describe their shared support. [14's development crosswalk](14-implementation-blueprint.md#independent-development) is the single assignment map, including GPT integration and shared services. They are not competing package lists or ten mandatory screens. A feature may use separate host/client entries, and a replaceable provider may serve several areas. Reuse Harness's [dock layout](../../packages/client/ui-sidebar-right/README.md) and [document preview](../../packages/client/ui-sidebar-documentpreview/README.md): the dock exists only for a mounted Session and permits at most two panes. Generic file previews include PDF and code, but browser preview does not deliver source content to the model, and code preview is not an editor. Session-free panels need explicit resource addressing and read authority rather than a fabricated Session. AITP's exact source/edition selections, topic associations and delivery observations remain additional work; [12's integration map](12-desktop-interface.md#harness-integration-map-and-missing-backend-information) names the missing backend data for each view.
 
 Computation, scheduler and manuscript-build providers can be added in separately selected
 slices. A domain plugin may have a backend and an optional client entry; its reading or
@@ -748,7 +748,7 @@ Context selection distinguishes important premises from optional background and 
 
 P1 citations use existing retained delivered data and session entry/block IDs. A citation carries its current `ResourceRef` and, when available, a delivered observation locator (session, entry/block, excerpt range and observed time). Opening an answer citation defaults to that exact retained excerpt with “As used in this answer”; Open current source is a separate action. A full-file historical view is offered only if that file was actually captured. If old context is unavailable, state that explicitly and offer the current source without claiming it is identical. P3's opaque snapshot storage extends this capability for authoring baselines; P1 citation fidelity cannot wait until P3.
 
-The Markdown navigation boundary must change in P1 even when the rendering pipeline is reused. Recognized safe anchor nodes are mapped to pane-local targets; arbitrary source HTML stays disabled. `openResource(ref, locator, group)` preserves cross-file fragments. DOM IDs include group/pane identity, so two views of the same note never scroll each other through global `getElementById`. Unresolved anchors open the source with a diagnostic. Acceptance includes two panes of the same note, cross-note durable anchors, and a scratch-source edit after delivery whose old citation still opens the delivered excerpt.
+The Markdown navigation boundary must change in P1 even when the rendering pipeline is reused. Recognized safe anchor nodes map to targets local to the panel reading region or dock tab; arbitrary source HTML stays disabled. `openResource(ref, locator, region)` preserves cross-file fragments. DOM IDs include the reader-instance identity, so two views of the same note never scroll each other through global `getElementById`. Unresolved anchors open the source with a diagnostic. Acceptance includes two views of the same note, cross-note durable anchors, and a scratch-source edit after delivery whose old citation still opens the delivered excerpt.
 
 ## Windows, WSL and the desktop host
 
@@ -777,7 +777,7 @@ No hash/version/conflict/approval-digest checks are restored. Future exact ancho
 | Choice | Alternatives | Recommendation and cost |
 | --- | --- | --- |
 | Research state | Database authority; YAML sidecar; stricter readable Markdown; distributed account | Recommend F2-style readable conventions with optional anchors and selective supporting notes, from 11's qualified assessment; preserve old formats |
-| Main layout | Permanent chat dock; fixed workflow dashboards; shared resource/session tabs | Shared editors with optional inspector. Costs an explicit tab/focus model but permits work without chat |
+| Main layout | Earlier standalone shell; permanent chat dock; Harness panels and Session dock | Use the Harness frame specified in [12](12-desktop-interface.md#application-frame-on-harness). Global panels support reading without a Session; a mounted Session enables at most two dock panes, with comparison inside one tab |
 | Scientific graph | Mandatory graph canvas; implicit prose only; typed sourced relations | Lists/where-used first, local graph only on demand; no inferred support edges |
 | Desktop | New wrapper; browser only; inherited Harness Web/Electron carrier | Reuse the selected Harness carrier; test actual research-root attachment and lifecycle independently of resource-reader completion |
 | History | Global auto-Git; runtime copy of all notes; approved local Git | Opt-in local Git, with missing-history honesty and no automatic commits |
