@@ -356,8 +356,7 @@ in its [base composition](../../packages/bundle/base/cordis.patch.yml), subject 
 the selected configuration and permissions. These are three distinct scopes:
 code inspection, generic agent editing/execution, and the research integration
 that connects a specific checkout, equation, operation and scientific implication.
-The latter has no integrated case evidence here; an existing tool does not establish
-the proposed code workspace or scientific acceptance. [14](14-implementation-blueprint.md)
+The proposed research-linked code workspace still has no integrated UI/service evidence. In the [2026-10-23 live comparison](../../agent/notes/harness-integration.md#gpt-live-acceptance), both hosts repaired a residual-stopping defect in two synthetic instances, preserved the agreed iteration and protected files, and identified shared-helper agreement as non-independent. This exercises generic tools plus portable guidance, not the proposed workspace or scientific acceptance. [14](14-implementation-blueprint.md)
 owns the current UI/runtime work allocation and implementation progress. This case
 does not verify UI work performed in another development task.
 
@@ -603,6 +602,8 @@ selected source makes context preparation fail instead of appearing as an omissi
 Compaction neither re-delivers interjection-attached material nor separates researcher
 decisions from model summaries.
 
+**New Harness evidence.** The [2026-10-23 paired live exercise](../../agent/notes/harness-integration.md#gpt-live-acceptance) completed two native compactions and fresh-process recovery in each of four synthetic sessions. Both hosts respected the mid-task analytic-only correction, reported an unread source removed before continuation, and derived the correct unpinned/pinned limiting gap. AITP retained operative meaning in generated summaries after the original instruction was shadowed; it did not preserve the complete user correction verbatim. Codex retained the correction in its native replacement history. These short, manually compacted examples do not establish equivalent stress, the planned agreement/source-observation services, automatic missing-premise discovery or near-capacity continuity. No real notes were written.
+
 The proposed [rule editor](12-desktop-interface.md#collaboration-rule-editor) adds a related
 continuation test: a scoped user rule change must survive restart with its exact source
 and actual adoption state. Rule editing/resolution is currently unavailable; a declared
@@ -841,7 +842,7 @@ and GPT readiness; the [Harness integration account](../../agent/notes/harness-i
 owns actual trial evidence. No separate benchmark platform or scientific score is
 required.
 
-The [GPT reliability slice](../../agent/notes/harness-integration.md#gpt-reliability-slice) supplies engineering prerequisites for C08 (tool execution) and C16 (continuation): same-mode filesystem/PowerShell and actual child-agent handling, unchanged-failure suppression, bounded small-window compaction, restored-loop routing and Codex protocol/retry handling. These tests use synthetic inputs. A live ChatGPT/SSE C08 engineering smoke read two Pauli-matrix fixture files, fixed an incorrect commutator, ran the check once and exited naturally; the recorded run recovered from one visible transport retry. A later deterministic race test exposed an orphan WebSocket under concurrent title/main requests; after correcting cache ownership, both auto and explicit WebSocket read/edit/run scratch tasks also exited naturally. These checks do not cover every proxy/disconnection case, and no physical claim follows from this finite matrix check. These results do not establish retention of physical assumptions, native Windows behavior or an AITP-agent versus Codex + AITP advantage; those comparisons remain unrun.
+The [GPT reliability slice](../../agent/notes/harness-integration.md#gpt-reliability-slice) supplies engineering prerequisites for C08 (tool execution) and C16 (continuation): same-mode filesystem/PowerShell and actual child-agent handling, unchanged-failure suppression, bounded small-window compaction, restored-loop routing and Codex protocol/retry handling. These tests use synthetic inputs. A live ChatGPT/SSE C08 engineering smoke read two Pauli-matrix fixture files, fixed an incorrect commutator, ran the check once and exited naturally; the recorded run recovered from one visible transport retry. A later deterministic race test exposed an orphan WebSocket under concurrent title/main requests; after correcting cache ownership, both auto and explicit WebSocket read/edit/run scratch tasks also exited naturally. These checks do not cover every proxy/disconnection case, and no physical claim follows from this finite matrix check. Those earlier transport checks did not establish retention of physical assumptions. The subsequent [C08/C16 paired exercise](../../agent/notes/harness-integration.md#gpt-live-acceptance) now supplies bounded behavior evidence: two instances per case and host, with protected-file and finite mathematical checks. Both products met those checks; no comparative advantage, native Windows acceptance, full-window reliability or acceptance of the other scientific workflows follows.
 
 ### Keep three kinds of evidence separate
 
