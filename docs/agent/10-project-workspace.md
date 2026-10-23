@@ -17,6 +17,8 @@ can be optimized and upgraded independently. UI-editable collaboration rules and
 information display are also requested capabilities. These requirements are settled;
 Harness/Cordis is now the selected plugin framework; exact research-service interfaces and each research implementation slice remain to be specified within the scope in 14.
 
+The researcher’s three principles—composability under scientific conditions, structured knowledge and state that outlives Sessions—constrain this architecture. [16](16-topic-centred-redesign.md#principles) specifies their consequences and distinguishes executable capabilities, scientific objects, persistent artifacts and UI projections. The researcher now permits going beyond the research.md format. The latest scope is frontend work with explicit backend interfaces: typed topic views, complete document references and linked resources behind a replaceable adapter. Storage, existing-note mapping, permissions and persistence belong to the backend being developed separately. This task specifies the boundary and uses synthetic data; it does not implement a second backend or adopt a migration.
+
 ## Design package and evidence
 
 | Document | Responsibility |

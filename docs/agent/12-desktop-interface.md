@@ -15,7 +15,9 @@ Evidence labels used below:
 | **Synthetic demonstration** | Shown in a static prototype with invented data; establishes neither backend support nor usability |
 | **Functioning AITP feature** | Working application behavior with recorded evidence in [14](14-implementation-blueprint.md); none of the research views below has reached this state |
 
-Two isolated prototypes exist. The [Harness-frame prototype](prototype/harness-frame/README.md) demonstrates this revision with seven deep-linkable walkthroughs and a browser check. The [earlier prototype](prototype/README.md) demonstrates the superseded shell and its selection-provenance checks; its interactions remain useful evidence for reader behavior, not for the frame.
+Two earlier isolated prototypes remain available. The [Harness-frame prototype](prototype/harness-frame/README.md) demonstrates this revision with seven deep-linkable walkthroughs and a browser check. The [earlier prototype](prototype/README.md) demonstrates the superseded shell and its selection-provenance checks; its interactions remain useful evidence for reader behavior, not for the frame.
+
+The [topic-centred redesign](16-topic-centred-redesign.md#navigation) now prioritizes project overview → topic → subtopic → material. Its [interactive prototype](prototype/topic-workspace/README.md) shows clickable child cards, one sidebar switching between Topics and Conversations, and Overview / Work & choices / Claims & routes / Materials / Activity sections. Existing UI-1 renders branches and materials mainly as text; it has no parent-child index or material target contract, so this requires new read contracts and host integration rather than a styling-only change. The prototype’s contextual sidebar is not an existing `sidebar.workspaces` child slot. UI-1 remains the stable implementation reference; the revised layout and data model are proposed, not connected production features.
 
 ## Design commitments
 

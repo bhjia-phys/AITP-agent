@@ -75,3 +75,5 @@ At compact widths, splitting temporarily hides the Explorer to preserve reading 
 The design contract is [Desktop interface](../12-desktop-interface.md); this mockup is evidence for interaction review, not evidence of production readiness.
 
 The interface has since been rebound to the Harness Web/Electron frame. Its current design prototype is the separate [Harness-frame prototype](harness-frame/README.md); this standalone shell remains for comparison and for its reader and selection-provenance checks.
+
+The [topic-centred workspace prototype](topic-workspace/README.md) is the review artifact for the later [unified redesign proposal](../16-topic-centred-redesign.md). It does not supersede the implemented UI-1 baseline or authorize the proposed write service.

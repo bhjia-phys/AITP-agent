@@ -23,6 +23,8 @@ actual tool permissions and honest scientific qualifications remain applicable. 
 references below locate implementation work; they are not phases every research task must
 pass through. Read/write policies remain to be specified for the selected authoring scope.
 
+[16’s three case walkthroughs](16-topic-centred-redesign.md#cases) assess theory/code/evidence, competing routes and an exploratory seed against read-only inspection of actual records. They specify correction, recovery and failure acceptance routes. The revised overview must expose each child’s own answer, decisive limit and materials through direct navigation. A work label or completed child control must not make the parent claim appear accepted. The linked prototype tests synthetic interactions only; these are not passed application workflows on real research.
+
 ## Read the coverage honestly
 
 **Host migration, 2026-10-22:** the researcher selected Harness and authorized fork/naming/GPT work. The table and existing source links below retain **Pi-specific baseline evidence**; they are not a statement that the active Harness application has those research workflows or the same reproduced failures. Generic Harness tools, subagents and Electron are available platform machinery, but each research case needs its own integration and checks. No case is promoted by the host switch; [14](14-implementation-blueprint.md#harness-migration) and the [Harness receipt](../../agent/notes/harness-integration.md) own new implementation evidence. Treat every “Current support and gap” paragraph citing `agent/` as the retained baseline until actual Harness case evidence replaces it.

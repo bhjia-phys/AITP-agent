@@ -14,6 +14,8 @@ implementation issues, then use the repository-local
 and maintenance workflow. Update relevant issues there in the same change as development
 or architecture changes; the three documents below retain their existing responsibilities.
 
+The [topic-centred redesign proposal](16-topic-centred-redesign.md) joins research philosophy, the state-change specification and navigation alternatives. Its [interactive prototype](prototype/topic-workspace/README.md) is a local simulation. The proposal requires design selection before production changes; 14 remains the owner of authorized scope and progress.
+
 ## Three maintained development documents
 
 | Primary document | Role |

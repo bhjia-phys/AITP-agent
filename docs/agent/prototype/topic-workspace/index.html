@@ -1,0 +1,1606 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AITP Topic Workspace</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+/* Layout: a page header, then the application window (host sidebar · main column · optional dock), then a short guide.
+   Palette and type follow aitp-agent's own theme layer: warm neutrals, a forest accent, a serif reading face. */
+:root {
+  --page: #efede6;
+  --base: #fbfaf6;
+  --side: #f3f2ec;
+  --layer: #fffefb;
+  --sunk: #f5f4ee;
+  --line: #e7e5dc;
+  --line-2: #dcd9cf;
+  --ink: #1f2421;
+  --ink-2: #4b524d;
+  --ink-3: #6b726d;
+  --accent: #346b59;
+  --accent-ink: #fbfaf6;
+  --accent-tint: #e3eee9;
+  --agent: #6a4f9a;
+  --agent-tint: #efe9f8;
+  --warn: #8a5a00;
+  --warn-tint: #fbf0dd;
+  --bad: #a1301e;
+  --bad-tint: #f9e6e1;
+  --info: #2f5f8a;
+  --info-tint: #e4eef7;
+  --shadow: 0 1px 2px rgba(31, 36, 33, 0.06), 0 8px 24px rgba(31, 36, 33, 0.10);
+  --f-read: "Source Serif 4", "Source Serif Pro", Charter, "Iowan Old Style", Georgia, serif;
+  --f-ui: "Source Sans 3", "Source Sans Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #161a18; --base: #1e2421; --side: #1a1f1c; --layer: #242b27; --sunk: #2a322d;
+    --line: #323b36; --line-2: #3f4a43; --ink: #e4e9e5; --ink-2: #bcc5bf; --ink-3: #9aa49d;
+    --accent: #a4c799; --accent-ink: #18201b; --accent-tint: #2c3a31; --agent: #b9a8ec; --agent-tint: #2f2a3d;
+    --warn: #e2a75a; --warn-tint: #3a2f1f; --bad: #f08a78; --bad-tint: #3d2520; --info: #9cc3e8; --info-tint: #22303c;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #161a18; --base: #1e2421; --side: #1a1f1c; --layer: #242b27; --sunk: #2a322d;
+  --line: #323b36; --line-2: #3f4a43; --ink: #e4e9e5; --ink-2: #bcc5bf; --ink-3: #9aa49d;
+  --accent: #a4c799; --accent-ink: #18201b; --accent-tint: #2c3a31; --agent: #b9a8ec; --agent-tint: #2f2a3d;
+  --warn: #e2a75a; --warn-tint: #3a2f1f; --bad: #f08a78; --bad-tint: #3d2520; --info: #9cc3e8; --info-tint: #22303c;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--page);
+  color: var(--ink);
+  font: 400 14px/1.5 var(--f-ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+p, h1, h2, h3, h4, ul, ol { margin: 0; }
+button { font: inherit; color: inherit; }
+button:focus-visible, [tabindex]:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.page { max-width: 1680px; margin: 0 auto; display: grid; gap: 16px; }
+
+/* Page header */
+.intro { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.intro-text { display: grid; gap: 4px; max-width: 78ch; min-width: 0; }
+.intro h1 { font: 400 26px/1.2 var(--f-read); text-wrap: balance; }
+.intro p { color: var(--ink-2); }
+.intro-tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px; font-size: 12px; background: var(--warn-tint); color: var(--warn); }
+.tbtn { border: 1px solid var(--line-2); background: var(--layer); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 13px; }
+.tbtn:hover { background: var(--sunk); }
+
+/* Application window */
+.app {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--sbw, 232px) minmax(0, 1fr) var(--dockw, 0px);
+  height: clamp(620px, calc(100vh - 150px), 920px);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--base);
+  box-shadow: var(--shadow);
+  container-type: inline-size;
+}
+.app.rail { --sbw: 52px; }
+.app.with-dock { --dockw: clamp(320px, 34%, 460px); }
+
+/* Host sidebar (Harness) */
+.host { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.host-top { display: flex; align-items: center; gap: 8px; padding: 12px 12px 8px; }
+.brand { font-weight: 600; font-size: 15px; white-space: nowrap; overflow: hidden; }
+.host-top .spacer { flex: 1; }
+.ibtn { width: 28px; height: 28px; display: inline-grid; place-items: center; border: 0; border-radius: 7px; background: transparent; cursor: pointer; color: var(--ink-2); flex: none; }
+.ibtn:hover { background: var(--sunk); color: var(--ink); }
+.newsess { margin: 4px 10px 10px; padding: 7px 10px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--layer); cursor: pointer; text-align: center; white-space: nowrap; overflow: hidden; }
+.navlist { display: grid; gap: 2px; padding: 0 8px; }
+.navitem { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 8px; border: 0; background: transparent; cursor: pointer; text-align: left; white-space: nowrap; overflow: hidden; }
+.navitem:hover { background: var(--sunk); }
+.navitem[aria-current="page"] { background: var(--line); }
+.navitem .glyph { width: 16px; text-align: center; color: var(--ink-2); flex: none; }
+.host-sec { margin: 14px 16px 4px; font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.wslist { display: grid; gap: 1px; padding: 0 8px; overflow: auto; min-height: 0; }
+.wsrow { padding: 4px 8px; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+.srow { position: relative; display: flex; align-items: center; gap: 8px; padding: 5px 8px 5px 18px; border-radius: 8px; border: 0; background: transparent; cursor: pointer; text-align: left; width: 100%; min-width: 0; }
+.srow:hover { background: var(--sunk); }
+.srow[aria-current="page"] { background: var(--line); }
+.srow .stitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tmark { flex: none; font-size: 10.5px; line-height: 16px; padding: 0 5px; border-radius: 4px; background: var(--accent-tint); color: var(--accent); white-space: nowrap; max-width: 76px; overflow: hidden; text-overflow: ellipsis; }
+.tmark.seed { background: var(--sunk); color: var(--ink-3); }
+.hovercard { position: absolute; left: calc(100% + 6px); top: -4px; z-index: 30; width: 260px; padding: 10px 12px; border-radius: 10px; background: var(--layer); border: 1px solid var(--line-2); box-shadow: var(--shadow); display: none; text-align: left; white-space: normal; }
+.srow:hover .hovercard, .srow:focus-visible .hovercard { display: grid; gap: 4px; }
+.hovercard b { font-weight: 600; }
+.hovercard small { color: var(--ink-3); }
+.app.rail .brand, .app.rail .newsess span, .app.rail .navitem .label, .app.rail .host-sec, .app.rail .wslist { display: none; }
+.app.rail .newsess { padding: 7px 0; }
+.app.rail .navitem { justify-content: center; padding: 8px 0; }
+.app.rail .host-top { justify-content: center; padding-inline: 0; }
+.app.rail .host-top .spacer { display: none; }
+
+/* Main column */
+.mainc { min-width: 0; display: flex; flex-direction: column; min-height: 0; position: relative; }
+.rp-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--line); min-width: 0; }
+.crumbs { display: flex; align-items: center; gap: 2px; min-width: 0; flex: 1; overflow: hidden; }
+.crumb { border: 0; background: transparent; padding: 4px 6px; border-radius: 6px; cursor: pointer; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+.crumb:hover { background: var(--sunk); color: var(--ink); }
+.crumb.last { color: var(--ink); font-weight: 500; }
+.crumb .caret { color: var(--ink-3); margin-left: 3px; font-size: 11px; }
+.sep { color: var(--ink-3); flex: none; }
+.searchbtn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line-2); background: var(--layer); border-radius: 8px; padding: 5px 9px; color: var(--ink-3); cursor: pointer; white-space: nowrap; }
+.searchbtn kbd, kbd { font: 11px/1 var(--f-mono); border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 4px; padding: 2px 4px; color: var(--ink-2); background: var(--base); }
+.primary { border: 0; border-radius: 8px; padding: 6px 12px; background: var(--accent); color: var(--accent-ink); cursor: pointer; white-space: nowrap; font-weight: 500; }
+.primary:hover { filter: brightness(1.06); }
+.ghost { border: 0; border-radius: 7px; padding: 5px 9px; background: transparent; cursor: pointer; color: var(--ink-2); white-space: nowrap; }
+.ghost:hover { background: var(--sunk); color: var(--ink); }
+.link { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; font: inherit; }
+.link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.rp-body { position: relative; flex: 1; min-height: 0; overflow: auto; }
+
+/* Project home */
+.home { max-width: 980px; margin: 0 auto; padding: 26px 32px 48px; display: grid; gap: 26px; }
+.home h2 { font: 400 28px/1.2 var(--f-read); }
+.home .sub { color: var(--ink-2); }
+.dir { display: grid; gap: 4px; }
+.dir-head { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.trow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; padding: 12px 6px; border-bottom: 1px solid var(--line); cursor: pointer; border-radius: 6px; }
+.trow:hover { background: var(--sunk); }
+.trow .tt { font: 400 18px/1.35 var(--f-read); }
+.trow .tq { grid-column: 1 / -1; color: var(--ink-2); font: 400 15px/1.55 var(--f-read); }
+.trow .tm { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; line-height: 18px; padding: 0 7px; border-radius: 999px; background: var(--sunk); color: var(--ink-2); white-space: nowrap; }
+.chip.ok { background: var(--accent-tint); color: var(--accent); }
+.chip.wait { background: var(--warn-tint); color: var(--warn); }
+.chip.agent { background: var(--agent-tint); color: var(--agent); }
+.chip.bad { background: var(--bad-tint); color: var(--bad); }
+.chip.info { background: var(--info-tint); color: var(--info); }
+.seedrow { padding: 10px 6px; border-bottom: 1px dashed var(--line-2); display: grid; gap: 4px; }
+.seedrow .prov { font-size: 12px; color: var(--ink-3); font-style: italic; }
+
+/* Topic state */
+.ts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 320px); gap: 0 28px; padding: 22px 28px 48px; max-width: 1240px; margin: 0 auto; }
+.ts-main, .ts-side { display: grid; gap: 22px; align-content: start; min-width: 0; }
+.ts-side { position: sticky; top: 0; }
+@container (max-width: 980px) {
+  .ts { grid-template-columns: minmax(0, 1fr); gap: 22px; padding-inline: 20px; }
+  .ts-side { position: static; order: -1; }
+}
+.eyebrow { font-size: 12px; color: var(--ink-3); }
+.ts-title { font: 400 27px/1.22 var(--f-read); text-wrap: balance; margin-top: 2px; }
+.meta { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--ink-3); font-size: 12px; margin-top: 4px; }
+.sec { display: grid; gap: 8px; }
+.sec-h { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.sec-h .count { font-weight: 400; color: var(--ink-3); }
+.sec-h .spacer { flex: 1; }
+.opening { display: grid; gap: 12px; }
+.op-part { display: grid; gap: 3px; padding-left: 14px; border-left: 2px solid var(--line-2); }
+.op-part.answer { border-left-color: var(--accent); }
+.op-part.gap { border-left-color: var(--warn); }
+.op-label { font-size: 12px; color: var(--ink-3); display: flex; gap: 8px; align-items: center; }
+.read { font: 400 16px/1.62 var(--f-read); max-width: 72ch; overflow-wrap: anywhere; }
+.read math { font-size: 1.04em; }
+.qual { display: block; margin-top: 4px; font: 400 13px/1.5 var(--f-ui); color: var(--warn); }
+.rows { display: grid; border-top: 1px solid var(--line); }
+.row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; gap: 2px 10px; padding: 10px 2px; border-bottom: 1px solid var(--line); align-items: start; }
+.row .dot { margin-top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--line-2); justify-self: center; }
+.row .dot.ok { background: var(--accent); }
+.row .dot.wait { background: var(--warn); }
+.row .dot.agent { background: var(--agent); }
+.row .dot.bad { background: var(--bad); }
+.row-title { font-weight: 500; overflow-wrap: anywhere; }
+.row-title .ptr { color: var(--ink-3); font-weight: 400; }
+.row-text { grid-column: 2 / -1; color: var(--ink-2); overflow-wrap: anywhere; }
+.row-text .clause { color: var(--ink); font-weight: 500; }
+.row-links { grid-column: 2 / -1; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink-3); }
+.row-actions { display: flex; align-items: center; gap: 2px; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.fchip { border: 1px solid var(--line-2); background: transparent; border-radius: 999px; padding: 2px 10px; font-size: 12.5px; cursor: pointer; color: var(--ink-2); }
+.fchip[aria-pressed="true"] { background: var(--ink); color: var(--base); border-color: var(--ink); }
+.stmt { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 12px 2px 12px 14px; border-bottom: 1px solid var(--line); position: relative; }
+.stmt::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 2px; border-radius: 2px; background: var(--line-2); }
+.stmt.k-assumption::before { background: var(--info); }
+.stmt.k-hypothesis::before { background: var(--agent); }
+.stmt.k-result::before { background: var(--accent); }
+.stmt.k-evidence::before { background: var(--ink-3); }
+.stmt.k-question::before { background: var(--warn); }
+.stmt.invalid::before { background: var(--bad); }
+.stmt.declined { opacity: 0.72; }
+.stmt.declined .read { text-decoration: line-through; text-decoration-color: var(--ink-3); }
+.stmt-label { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-3); }
+.stmt-label b { color: var(--ink-2); font-weight: 600; }
+.stmt .read { grid-column: 1 / -1; font-size: 15.5px; }
+.clauses { grid-column: 1 / -1; display: grid; gap: 2px; font-size: 13px; color: var(--ink-2); }
+.clauses .k { color: var(--ink-3); }
+.rel { color: var(--accent); }
+.rel.suggested { color: var(--agent); border-bottom: 1px dashed var(--agent); }
+.prov { font-size: 12px; color: var(--ink-3); }
+.alt { padding: 9px 2px; border-bottom: 1px dashed var(--line-2); display: grid; gap: 2px; }
+.alt .read { font-size: 15px; }
+.side-card { display: grid; gap: 8px; padding: 12px 14px; border-radius: 10px; background: var(--layer); border: 1px solid var(--line); }
+.side-card.attn { border-color: var(--warn); background: var(--warn-tint); }
+.side-card.attn .sec-h { color: var(--warn); }
+.side-item { display: grid; gap: 4px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 13px; }
+.side-item:first-of-type { border-top: 0; padding-top: 0; }
+.side-card.attn .side-item { border-top-color: rgba(138, 90, 0, 0.2); }
+.side-item .who { font-size: 12px; color: var(--ink-3); }
+.btnrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.sbtn { border: 1px solid var(--line-2); background: var(--layer); border-radius: 7px; padding: 3px 9px; font-size: 12.5px; cursor: pointer; }
+.sbtn:hover { background: var(--sunk); }
+.sbtn.go { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.empty { color: var(--ink-3); font-size: 13px; }
+
+/* Inline editors and diff previews */
+.editor { display: grid; gap: 8px; padding: 12px; border-radius: 10px; border: 1px solid var(--accent); background: var(--layer); margin-top: 6px; }
+.editor label { font-size: 12.5px; color: var(--ink-2); }
+.editor textarea, .editor input[type="text"], .editor select { width: 100%; font: 400 15px/1.5 var(--f-read); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--base); color: var(--ink); resize: vertical; }
+.editor input[type="text"], .editor select { font-family: var(--f-ui); font-size: 14px; }
+.diff { display: grid; gap: 0; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; font: 12.5px/1.55 var(--f-mono); }
+.diff-h { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 6px 10px; background: var(--sunk); color: var(--ink-2); font-family: var(--f-ui); font-size: 12.5px; }
+.diff-body { overflow-x: auto; }
+.dl { padding: 2px 10px 2px 26px; position: relative; white-space: pre-wrap; overflow-wrap: anywhere; }
+.dl::before { position: absolute; left: 9px; }
+.dl.del { background: var(--bad-tint); color: var(--ink); }
+.dl.del::before { content: "−"; color: var(--bad); }
+.dl.add { background: var(--accent-tint); color: var(--ink); }
+.dl.add::before { content: "+"; color: var(--accent); }
+.dl.ctx { color: var(--ink-3); }
+.prop { display: grid; gap: 3px; font-size: 13px; color: var(--ink-2); }
+.prop li { margin-left: 18px; }
+.impact { display: grid; gap: 6px; }
+.impact label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--ink); }
+.impact label small { color: var(--ink-3); }
+.conflict { border-color: var(--bad); }
+.conflict .three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@container (max-width: 760px) { .conflict .three { grid-template-columns: minmax(0, 1fr); } }
+.conflict .three div { padding: 8px; border-radius: 8px; background: var(--sunk); font-size: 13px; }
+.conflict .three b { display: block; font-size: 12px; color: var(--ink-3); font-weight: 500; margin-bottom: 4px; }
+
+/* Menus, palette, outline, toast */
+.menu { position: fixed; z-index: 60; min-width: 220px; max-width: 300px; padding: 5px; border-radius: 10px; background: var(--layer); border: 1px solid var(--line-2); box-shadow: var(--shadow); display: grid; gap: 1px; }
+.menu .mh { font-size: 11.5px; color: var(--ink-3); padding: 6px 9px 2px; letter-spacing: 0.03em; text-transform: uppercase; }
+.menu button { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 0; background: transparent; text-align: left; padding: 6px 9px; border-radius: 7px; cursor: pointer; }
+.menu button:hover, .menu button:focus-visible { background: var(--sunk); outline: none; }
+.menu button small { color: var(--ink-3); font-size: 11.5px; }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 2px; }
+.scrim { position: fixed; inset: 0; z-index: 70; background: rgba(20, 24, 22, 0.28); display: grid; justify-items: center; align-items: start; padding-top: 12vh; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.palette { width: min(620px, 100%); border-radius: 12px; background: var(--layer); border: 1px solid var(--line-2); box-shadow: var(--shadow); overflow: hidden; }
+.palette input { width: 100%; border: 0; border-bottom: 1px solid var(--line); padding: 14px 16px; font-size: 16px; background: transparent; color: var(--ink); outline: none; }
+.pal-list { max-height: 52vh; overflow: auto; padding: 6px; display: grid; gap: 1px; }
+.pal-item { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 7px 10px; border-radius: 8px; cursor: pointer; }
+.pal-item[aria-selected="true"] { background: var(--accent-tint); }
+.pal-item .kind { font-size: 11.5px; color: var(--ink-3); }
+.pal-item .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pal-item .where { grid-column: 2; font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pal-foot { display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-3); flex-wrap: wrap; }
+.outline { position: absolute; top: 0; left: 0; bottom: 0; z-index: 20; width: min(340px, 90%); background: var(--layer); border-right: 1px solid var(--line-2); box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.outline.pinned { position: static; box-shadow: none; flex: none; width: 280px; }
+.outline-h { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 13px; }
+.outline-h .spacer { flex: 1; }
+.otree { overflow: auto; padding: 8px; display: grid; gap: 1px; }
+.onode { display: flex; align-items: baseline; gap: 6px; padding: 5px 8px; border-radius: 7px; border: 0; background: transparent; text-align: left; cursor: pointer; width: 100%; }
+.onode:hover { background: var(--sunk); }
+.onode[aria-current="page"] { background: var(--accent-tint); }
+.onode .on { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.onode .oc { font-size: 11.5px; color: var(--ink-3); flex: none; }
+.odir { font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); padding: 10px 8px 4px; }
+.rp-split { display: flex; height: 100%; min-height: 0; }
+.rp-split > .rp-scroll { flex: 1; min-width: 0; overflow: auto; position: relative; }
+.toasts { position: fixed; z-index: 80; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 6px; width: min(560px, calc(100% - 32px)); }
+.toast { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px; background: var(--ink); color: var(--base); box-shadow: var(--shadow); font-size: 13px; }
+.toast .t { flex: 1; min-width: 0; }
+.toast button { border: 0; background: transparent; color: var(--base); text-decoration: underline; cursor: pointer; padding: 0; }
+
+/* Conversation */
+.conv { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.conv-head { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); min-width: 0; }
+.conv-title { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.origin { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.conv-head .spacer { flex: 1; }
+.msgs { flex: 1; overflow: auto; padding: 18px 24px; display: grid; gap: 16px; align-content: start; }
+.msg { max-width: 760px; width: 100%; margin: 0 auto; display: grid; gap: 4px; }
+.msg.user .bubble { justify-self: end; max-width: 85%; background: var(--sunk); padding: 8px 12px; border-radius: 12px; }
+.msg.agent .bubble { font: 400 15.5px/1.6 var(--f-read); }
+.msg .who { font-size: 12px; color: var(--ink-3); }
+.msg.user .who { justify-self: end; }
+.eq { display: block; overflow-x: auto; padding: 6px 0; text-align: center; }
+.composer-wrap { padding: 8px 16px 14px; display: grid; gap: 6px; max-width: 800px; width: 100%; margin: 0 auto; }
+.stale { display: grid; gap: 4px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--info); background: var(--info-tint); color: var(--ink); font-size: 13px; }
+.stale b { color: var(--info); font-weight: 600; }
+.taskcard { display: grid; gap: 4px; padding: 8px 12px; border-radius: 10px; background: var(--layer); border: 1px solid var(--line); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04); font-size: 13px; }
+.taskcard .facts { display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--ink-3); font-size: 12px; }
+.composer { border: 1px solid var(--line-2); border-radius: 14px; background: var(--layer); padding: 8px 10px; display: grid; gap: 6px; }
+.composer textarea { border: 0; background: transparent; resize: none; width: 100%; font: inherit; color: var(--ink); min-height: 44px; outline: none; }
+.composer .crow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.draftchip { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; padding: 2px 8px; border-radius: 6px; background: var(--accent-tint); color: var(--accent); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.composer .crow .spacer { flex: 1; }
+.sendbtn { width: 30px; height: 30px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+
+/* Dock */
+.dock { border-left: 1px solid var(--line); background: var(--base); min-width: 0; display: flex; flex-direction: column; min-height: 0; }
+.dock-tabs { display: flex; align-items: center; gap: 2px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.dtab { border: 0; background: transparent; padding: 5px 10px; border-radius: 7px; cursor: pointer; color: var(--ink-2); white-space: nowrap; }
+.dtab[aria-selected="true"] { background: var(--sunk); color: var(--ink); font-weight: 500; }
+.dock-tabs .spacer { flex: 1; }
+.dock-body { flex: 1; min-height: 0; overflow: auto; padding: 14px 14px 32px; display: grid; gap: 16px; align-content: start; container-type: inline-size; }
+.dock .ts-title { font-size: 20px; }
+.dock .read { font-size: 15px; }
+.oneline { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+details.fold > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+details.fold > summary::-webkit-details-marker { display: none; }
+details.fold > summary::before { content: "▸"; color: var(--ink-3); font-size: 11px; transition: transform 120ms; }
+details.fold[open] > summary::before { transform: rotate(90deg); }
+details.fold > .fold-body { margin-top: 8px; }
+
+/* Note reader */
+.note { max-width: 780px; margin: 0 auto; padding: 22px 32px 56px; display: grid; gap: 14px; }
+.note h3 { font: 400 22px/1.3 var(--f-read); margin-top: 8px; }
+.note .read { font-size: 16.5px; }
+.note .bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.note .path { font-size: 12px; color: var(--ink-3); }
+.note mark { background: var(--warn-tint); color: inherit; border-radius: 3px; padding: 0 2px; }
+
+/* Guide below the window */
+.guide { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 24px; }
+.guide section { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.guide h2 { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.guide ol, .guide ul { padding-left: 18px; display: grid; gap: 4px; color: var(--ink-2); }
+
+/* Narrow windows and phones */
+@media (max-width: 1000px) {
+  .app.with-dock { --dockw: 0px; }
+  .app.with-dock .dock { position: absolute; inset: 0 0 0 auto; width: min(400px, 92%); z-index: 25; box-shadow: var(--shadow); }
+}
+@media (max-width: 720px) {
+  .app { grid-template-columns: 52px minmax(0, 1fr); height: auto; min-height: 640px; }
+  .app .brand, .app .newsess span, .app .navitem .label, .app .host-sec, .app .wslist { display: none; }
+  .app .navitem { justify-content: center; padding: 8px 0; }
+  .app .host-top .spacer { display: none; }
+  .app .host-top { justify-content: center; padding-inline: 0; }
+  .app.with-dock { grid-template-columns: 52px minmax(0, 1fr); }
+  .home, .note { padding-inline: 16px; }
+  .searchbtn .slabel, .rp-head .primary .plabel { display: none; }
+  .crumb { max-width: 120px; }
+}
+.synthetic-note { white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.7 var(--f-mono); }
+.context-read { padding: 12px; border: 1px solid var(--line); margin-bottom: 16px; }
+.context-read p { margin-top: 8px; }
+.read, .row-text, .path, .ts-title { overflow-wrap: anywhere; }
+@media (max-width: 1100px) { .app.with-dock { --dockw: 0px; } .app.with-dock .dock { position: absolute; inset: 0 0 0 auto; width: min(400px, 92%); z-index: 25; box-shadow: var(--shadow); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+/* Overview first; documents, claims and work have their own destinations. */
+.host-modes { display: flex; margin: 14px 12px 5px; gap: 4px; }
+.host-modes button { flex: 1; border: 0; background: transparent; padding: 5px; border-radius: 6px; color: var(--ink-3); cursor: pointer; font-size: 12px; }
+.host-modes button[aria-pressed="true"] { background: var(--layer); color: var(--ink); }
+.host-tree { overflow: auto; padding: 4px 10px; min-height: 0; }
+.tree-dir { margin: 14px 6px 5px; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.tree-node { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: transparent; border-radius: 6px; padding: 6px; cursor: pointer; text-align: left; font-size: 13px; }
+.tree-node span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-node:hover { background: var(--sunk); }
+.tree-node[aria-current="page"] { background: var(--accent-tint); color: var(--accent); }
+.app.rail .host-tree, .app.rail .host-modes { display: none; }
+.workspace { max-width: 1220px; padding: 24px 30px 48px; margin: 0 auto; display: grid; gap: 24px; }
+.workspace h2 { font: 400 28px/1.25 var(--f-read); }
+.workspace h3 { font-size: 16px; font-weight: 600; }
+.summary-strip { display: flex; flex-wrap: wrap; gap: 10px 26px; padding: 12px 0; border-block: 1px solid var(--line); color: var(--ink-2); }
+.summary-strip b { color: var(--ink); font-size: 19px; margin-right: 6px; font-weight: 500; }
+.topic-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(285px, 100%), 1fr)); gap: 14px; }
+.overview-card { display: grid; gap: 11px; padding: 18px; background: var(--layer); border: 1px solid var(--line-2); border-radius: 11px; min-width: 0; align-content: start; }
+.overview-card:hover { border-color: var(--accent); }
+.card-heading { display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+.card-heading button { font: 500 18px/1.3 var(--f-read); text-align: left; }
+.card-copy { display: grid; gap: 5px; font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+.card-copy .card-label { display: block; text-transform: uppercase; letter-spacing: .04em; font-size: 10px; color: var(--ink-3); margin-bottom: 3px; }
+.card-limit { border-top: 1px solid var(--line); padding-top: 10px; }
+.child-links { display: grid; gap: 4px; padding-top: 9px; border-top: 1px solid var(--line); }
+.child-links button { text-align: left; padding: 3px 0; font-size: 13px; }
+.topic-hero { display: grid; gap: 14px; }
+.topic-hero .opening { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; padding: 18px; background: var(--layer); border: 1px solid var(--line); border-radius: 11px; }
+.topic-hero .op-part:first-child { grid-column: 1 / -1; border: 0; padding-left: 0; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.topic-hero .read { font-size: 15px; max-width: none; }
+
+.page-tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line-2); }
+.page-tabs button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--ink-3); cursor: pointer; padding: 9px 12px; }
+.page-tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.overview-body { display: grid; gap: 22px; }
+.overview-body .sec { gap: 12px; }
+.overview-bottom { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 16px; align-items: start; }
+.resource-row { display: flex; justify-content: space-between; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.resource-row > div { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.resource-preview { padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--layer); }
+.tab-panel { min-width: 0; }
+.card-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--ink-3); font-size: 12px; }
+@media (max-width: 900px) { .workspace { padding-inline: 18px; } .topic-hero .opening { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 720px) { .app .host-tree, .app .host-modes { display: none; } .page-tabs button { padding-inline: 7px; font-size: 12px; } .workspace { padding: 18px 14px 32px; } .resource-row { flex-wrap: wrap; } }
+</style>
+
+<div class="page">
+  <header class="intro">
+    <div class="intro-text">
+      <h1>Topic workspace prototype</h1>
+      <p>Explore a project, open a topic, drill into a subtopic, and read its materials. Topic cards, Markdown previews and AI context share one synthetic state. Reload resets edits; no research files or model are connected.</p>
+    </div>
+    <div class="intro-tools">
+      <span class="pill">Synthetic content · no files are read or written</span>
+      <button class="tbtn" type="button" id="theme-btn" data-action="theme">Theme: system</button>
+      <button class="tbtn" type="button" id="sim-btn" data-action="sim-menu">Simulate ▾</button>
+      <button class="tbtn" type="button" id="reset-btn" data-action="reset">Reset</button>
+    </div>
+  </header>
+
+  <div class="app" id="app"></div>
+
+  <div class="guide">
+    <section>
+      <h2>Try the research-state scenarios</h2>
+      <ol>
+        <li><b>Change the objective:</b> open the topic, edit Question and scope, review the diff, Apply.</li>
+        <li><b>Correct an interpretation:</b> open Claims & routes; on the imported result, choose Correct.</li>
+        <li><b>Reject a hypothesis:</b> under Claims & routes, on the agent's hypothesis, choose Decline.</li>
+        <li><b>Change a route:</b> open Work & choices; on Frequency dependence, choose Supersede by.</li>
+        <li><b>Invalidate an assumption:</b> under Claims & routes, flag Applicability condition as invalid and review its dependents.</li>
+        <li><b>Update evidence:</b> under Work & choices, on the benchmark pointer, choose Record result.</li>
+      </ol>
+    </section>
+    <section>
+      <h2>See the research, then drill into it</h2>
+      <ul>
+        <li><kbd>Ctrl</kbd> <kbd>K</kbd> opens the research palette; type part of a topic, thread or assumption.</li>
+        <li><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>O</kbd> opens the outline over the page; pin it on wide screens.</li>
+        <li>The sidebar switches between Topics and Conversations in one column. Cards and breadcrumbs keep the route visible.</li>
+        <li>Overview shows subtopics; Work, Claims, Materials and Activity open their details.</li>
+      </ul>
+    </section>
+    <section>
+      <h2>See the loop with the agent</h2>
+      <ul>
+        <li>On any card, Ask agent opens the conversation with a scoped draft; the topic stays in the dock.</li>
+        <li>Send the draft for Challenge assumptions: the agent's proposal appears under Needs you.</li>
+        <li>Apply a change while a Session is open: that Session shows what changed before its next request.</li>
+        <li>Preview an objective edit, then Simulate ▾ an external edit before Apply to see a conflict.</li>
+      </ul>
+    </section>
+  </div>
+</div>
+
+<div id="layer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script>
+(() => {
+  'use strict'
+
+  // ---------- Synthetic research data ----------
+  const TODAY = '2026-10-23'
+  const ROOT_PATH = 'physics'
+  function seedData() {
+    return {
+      project: {
+        name: 'Physics research',
+        path: 'research.md',
+        directions: [
+          { id: 'interacting-topology', title: 'Interacting topology', topics: ['topo-ham', 'frac-gap'] },
+          { id: 'spectral-methods', title: 'Spectral methods', topics: ['damped-maps'] },
+        ],
+        seeds: [
+          { id: 'alt-quant', title: 'Alternate quantization and the bulk response', prov: 'proposed by the researcher · assessed · not yet an agreed topic', text: 'Changing the boundary condition of a bulk scalar from standard to alternate quantization flows to a different boundary theory. Which bulk response would distinguish the two in a finite-temperature background?', missing: 'the researcher’s decision to open a topic; a first check comparing the two retarded correlators.' },
+          { id: 'zeros-hall', title: 'Do zeros of G leave a Hall signature?', prov: 'proposed by the agent while drafting · not yet discussed', text: 'If the invariant changes through a zero of the Green function rather than a gap closing, the measurable Hall response may not jump. Possible first check: the Středa response across the zero line in the two-orbital model.', missing: 'a statement of which response is meant.' },
+        ],
+        connections: [
+          { text: 'The zero-crossing question in Topological Hamiltonian also decides whether the fractional gap route can use a Green-function invariant.', a: 'topo-ham', b: 'frac-gap' },
+        ],
+      },
+      topics: {
+        'topo-ham': {
+          id: 'topo-ham', kind: 'Topic', title: 'Is the topological-Hamiltonian invariant reliable with interactions?', short: 'Topological Hamiltonian',
+          direction: 'interacting-topology', path: 'interacting-topology/topological-hamiltonian/research.md', parent: null,
+          children: ['zeros', 'three-band', 'solver'], observed: '10:31',
+          implication: 'A sampled agreement is recorded; invariant applicability and physical response remain separate open questions.',
+          opening: {
+            question: 'Does the Chern number computed from the topological Hamiltonian $H_t = -G^{-1}(\\omega = 0, \\mathbf{k})$ equal the invariant of the interacting ground state of the two-orbital Chern–Hubbard model?',
+            scope: 'Analytic argument and finite-$U$ numerics on this model; materials are out of scope for this stage.',
+            answer: 'For $U \\le 2.4\\,t$ the two agree on a $24 \\times 24$ mesh with the second-order self-energy, as a fictional numerical observation, without an accepted response calculation. This does not establish agreement near the transition.',
+            gap: 'Whether a zero of $G(\\omega = 0, \\mathbf{k})$ crosses the Fermi level before the single-particle gap closes.',
+          },
+          threads: [
+            { id: 'freq', title: 'Frequency dependence near zeros', disp: 'active', date: '2026-10-21', text: 'The second-order self-energy shows zeros of $\\det G$ approaching $\\omega = 0$ near $U \\approx 2.6\\,t$.', clause: ['Next', 'evaluate the winding of $\\det G$ along the zero line on a $48 \\times 48$ mesh.'], links: ['notes/derivation.md#zero-line', 'reports/mesh-24.md'] },
+            { id: 'bench', title: 'Benchmark model', disp: 'waiting on the researcher', date: '2026-10-20', text: 'Both candidate models have known phase diagrams; they test different mechanisms.', clause: ['Pending choice', 'use the three-band model or the Haldane–Hubbard model as the common benchmark.'], links: ['notes/benchmarks.md'], choice: ['Three-band model', 'Haldane–Hubbard model'] },
+            { id: 'p-three', pointer: 'three-band', title: 'Three-band benchmark', text: 'supplies the reference $U_c$ from exact diagonalization; its 12-site value is not yet extrapolated.' },
+            { id: 'p-solver', pointer: 'solver', title: 'Solver implementation', text: 'provides the self-energy on the mesh; vertex corrections are not included.' },
+          ],
+          statements: [
+            { id: 'static-reference', kind: 'assumption', label: 'Assumption', title: 'Applicability condition', text: 'A suitable nonsingular deformation is assumed for this illustrative argument; it has not been checked for the chosen model.', valid: 'no zero of $G$ crosses $\\omega = 0$ along the path.', prov: 'stated in the opening argument · researcher, 2026-10-12' },
+            { id: 'bare-vertex', kind: 'assumption', label: 'Assumption', title: 'Bare vertex', text: 'The chosen response approximation is assumed adequate; the required response identities have not been checked.', prov: 'derivation note, §2 · researcher, 2026-10-12' },
+            { id: 'mesh-24', kind: 'assumption', label: 'Assumption', title: 'Mesh resolution', text: 'A $24 \\times 24$ mesh resolves the Berry curvature for $U \\le 2.4\\,t$.', prov: 'mesh report · agent, accepted by the researcher 2026-10-15' },
+            { id: 'zero-crossing', kind: 'hypothesis', label: 'Hypothesis', title: 'Zero crossing', text: 'Near $U_c$ the invariant changes through a zero of $G$ crossing $\\omega = 0$, not through a closing of the single-particle gap.', prov: 'proposed by the agent in Session “Zero search”, 2026-10-22 · provisional', agent: true, tests: 'winding along the zero line (Frequency dependence thread)' },
+            { id: 'th-equals', kind: 'result', label: 'Claim (unchecked)', title: 'Invariant equality', text: 'The illustrative claim to check relates the Chern number of $H_t$ to the Ishikawa–Matsuyama winding number.', assumes: ['static-reference', 'bare-vertex'], tested: 'mesh-agreement', prov: 'synthetic derivation placeholder · no independent check performed' },
+            { id: 'imported-th', kind: 'result', label: 'Result (imported)', title: 'Topological Hamiltonian formalism', text: 'Imported claim in this synthetic fixture: a zero-frequency construction may simplify an invariant under source-specific hypotheses. Applicability and response correspondence have not been checked.', assumes: ['static-reference'], prov: 'source reading · imported, conditions as stated by the source' },
+            { id: 'mesh-agreement', kind: 'evidence', label: 'Evidence', title: 'Mesh agreement', text: 'Chern numbers from $H_t$ and from the winding integral agree for $U \\le 2.4\\,t$ on the $24 \\times 24$ mesh.', assumes: ['mesh-24'], prov: 'reports/mesh-24.md · traced to its output' },
+            { id: 'hall-question', kind: 'question', label: 'Open question', title: 'Measurable signature', text: 'Does a zero crossing leave any signature in the Hall response?', prov: 'account, §5' },
+          ],
+          suggested: { 'static-reference': [{ id: 'hall-question', why: 'mentions the same zero line without an Assumes clause' }] },
+          decisions: [
+            { text: '2026-10-12 · second-order self-energy as the working approximation · numerics in this topic · researcher' },
+          ],
+          alternatives: [
+            { title: 'Direct Matsubara winding integral', kind: 'deferred', text: 'Exact, but expensive on dense meshes. Survives as the check for $H_t$. Reopen if the zero line comes too close to $\\omega = 0$ for $H_t$ to be trusted.' },
+          ],
+          evidence: [
+            { label: 'Derivation of the invariant equality', path: 'notes/derivation.md', note: 'derivation' },
+            { label: 'Mesh agreement report', path: 'reports/mesh-24.md', note: 'mesh' },
+            { label: 'chern-solver checkout · branch second-order', path: 'code/chern-solver' },
+            { label: 'Wang and Zhang (2012), Phys. Rev. X 2, 031008', path: 'library/wang-zhang-2012' },
+          ],
+        },
+        'zeros': { id: 'zeros', kind: 'Branch', title: 'Zeros of G and changes of the invariant', short: 'Zeros', direction: 'interacting-topology', parent: 'topo-ham', path: 'interacting-topology/topological-hamiltonian/zeros/research.md', children: [], observed: '10:31',
+          opening: { question: 'Where are the zeros of $G(0, \\mathbf{k})$ in the Brillouin zone as $U$ grows, and do they cross the Fermi level?', scope: 'Second-order self-energy; the two-orbital model only.', answer: 'A zero line appears near the $M$ point for $U > 2.3\\,t$; whether it crosses is unresolved.', gap: 'Resolution of the zero line near $U_c$.' },
+          threads: [{ id: 'z1', title: 'Zero-line tracking', disp: 'active', date: '2026-10-22', text: 'Zero line located on the $24 \\times 24$ mesh.', clause: ['Next', 'repeat on $48 \\times 48$ with the same broadening.'], links: ['reports/zeros.md'] }],
+          statements: [], decisions: [], alternatives: [], evidence: [{ label: 'Zero-line report', path: 'reports/zeros.md', note: 'zero-report' }] },
+        'three-band': { id: 'three-band', kind: 'Branch', title: 'Three-band benchmark', short: 'Three-band benchmark', direction: 'interacting-topology', parent: 'topo-ham', path: 'interacting-topology/topological-hamiltonian/three-band/research.md', children: [], observed: '10:31',
+          opening: { question: 'What is $U_c$ for the three-band model from exact diagonalization?', scope: 'Clusters up to 12 sites.', answer: '$U_c \\approx 2.9\\,t$ on 12 sites; no extrapolation yet.', gap: 'Finite-size extrapolation.' },
+          threads: [{ id: 'b1', title: 'Twelve-site run', disp: 'waiting on run', date: '2026-10-21', text: 'Job submitted with twisted boundary conditions.', clause: ['Next', 'compare 9- and 12-site values once the run finishes.'], links: ['runs/ed-12/README.md'] }],
+          statements: [], decisions: [], alternatives: [], evidence: [{ label: 'ED run report', path: 'runs/ed-12/README.md' }] },
+        'solver': { id: 'solver', kind: 'Branch', title: 'Solver implementation', short: 'Solver', direction: 'interacting-topology', parent: 'topo-ham', path: 'interacting-topology/topological-hamiltonian/solver/research.md', children: [], observed: '10:31',
+          opening: { question: 'Does the implementation reproduce the analytic second-order self-energy?', scope: 'The chern-solver checkout, branch second-order.', answer: 'Matches the analytic limit at small $U$ to $10^{-6}$.', gap: 'Vertex corrections are not implemented.' },
+          threads: [{ id: 's1', title: 'Vertex corrections', disp: 'dormant', date: '2026-10-11', text: 'Not needed while the bare-vertex assumption holds.', clause: ['Resume when', 'the bare-vertex assumption is questioned.'], links: [] }],
+          statements: [], decisions: [], alternatives: [], evidence: [{ label: 'chern-solver checkout', path: 'code/chern-solver' }] },
+        'frac-gap': {
+          id: 'frac-gap', kind: 'Topic', title: 'Gap of a lattice fractional Chern state', short: 'Lattice fractional gap',
+          direction: 'interacting-topology', path: 'interacting-topology/fractional-gap/research.md', parent: null, children: [], observed: '10:31',
+          implication: 'Three routes to the neutral gap are compared; none is adopted, and the benchmark choice waits on the researcher.',
+          opening: {
+            question: 'How large is the neutral gap of the $\\nu = 1/3$ fractional Chern state in a flat-band lattice model, and which approximate route predicts it reliably?',
+            scope: 'Model study before any material; agreed sequence: model first.',
+            answer: 'Exact diagonalization gives a gap of about $0.05\\,U$ on 27 sites. The approximate routes disagree by more than their stated uncertainties; none is adopted.',
+            gap: 'A common benchmark in which the three routes can be compared under the same conventions.',
+          },
+          threads: [
+            { id: 'routes', title: 'Route comparison', disp: 'waiting on the researcher', date: '2026-10-19', text: 'Each route is defined on the same model; their conventions for the interaction differ.', clause: ['Pending choice', 'which route serves as the reference for the benchmark.'], links: ['notes/routes.md'], choice: ['Composite-fermion mean field', 'Parton projection', 'ED extrapolation only'] },
+          ],
+          statements: [
+            { id: 'cf-mf', kind: 'hypothesis', label: 'Hypothesis', title: 'Composite-fermion mean field', text: 'The composite-fermion mean field with a fluctuation correction predicts the gap within 20 percent.', prov: 'route note · alternative, not adopted' },
+            { id: 'parton', kind: 'hypothesis', label: 'Hypothesis', title: 'Parton projection', text: 'A projected parton wavefunction captures the gap trend with flatness but overestimates its size.', prov: 'route note · alternative, not adopted' },
+            { id: 'ed-only', kind: 'hypothesis', label: 'Hypothesis', title: 'Extrapolated diagonalization', text: 'Extrapolating 18, 24 and 27 sites gives the gap to 10 percent without an analytic route.', prov: 'route note · alternative, not adopted' },
+          ],
+          suggested: {},
+          decisions: [{ text: '2026-10-05 · model before materials · this topic · researcher' }],
+          alternatives: [],
+          evidence: [{ label: 'Route comparison note', path: 'notes/routes.md' }, { label: 'ED gaps, 18–27 sites', path: 'reports/ed-gaps.md' }],
+        },
+        'damped-maps': {
+          id: 'damped-maps', kind: 'Topic', title: 'Self-consistent spectra of damped fixed-point maps', short: 'Damped fixed-point spectra',
+          direction: 'spectral-methods', path: 'spectral-methods/damped-maps/research.md', parent: null, children: [], observed: '10:31',
+          implication: 'Damped mixing reaches the agreed stopping rule on two of three systems; the third is unevaluated.',
+          opening: { question: 'Does damped linear mixing reach the agreed fixed point for all three test systems?', scope: 'Three small systems with the frozen-core basis.', answer: 'Systems A and B meet the stopping rule within 40 iterations; system C has not been checked against the same rule.', gap: 'The residual on system C.' },
+          threads: [{ id: 'c', title: 'Third-system comparison', disp: 'active', date: '2026-10-21', text: 'Step size is small; the residual is not evaluated.', clause: ['Next', 'evaluate $\\lVert F(x_k) - x_k \\rVert$ on system C.'], links: [] }],
+          statements: [], suggested: {}, decisions: [], alternatives: [], evidence: [],
+        },
+      },
+      sessions: [
+        { id: 'zero', title: 'Zero search', topic: 'topo-ham', thread: 'freq', task: 'Locate the zero line and its winding near U_c.', time: '10-22 17:40' },
+        { id: 'basis', title: 'Basis check', topic: 'topo-ham', thread: 'p-solver', task: 'Check the self-energy against the analytic limit.', time: '10-19 11:02' },
+        { id: 'routes', title: 'Route comparison', topic: 'frac-gap', thread: 'routes', task: 'Put the three routes on one convention.', time: '10-19 15:26' },
+        { id: 'boundary', title: 'Boundary ideas', topic: 'seed:alt-quant', thread: null, task: 'Explore; no topic created.', time: '10-18 20:10' },
+      ],
+      messages: {
+        zero: [
+          { who: 'user', text: 'Track where the zeros of G sit near U_c, and tell me whether the invariant can change without the gap closing.' },
+          { who: 'agent', text: 'Scripted discussion: the candidate argument must distinguish a zero of G from a pole of G. These possible singularities are questions for the model-specific check, not evidence that an invariant or physical response has changed.', eq: '\\det G(0, \\mathbf{k}) = 0 \\qquad \\det G^{-1}(0, \\mathbf{k}) = 0', after: 'No calculation was performed for this prototype. A finer mesh alone would not establish the missing applicability or response argument.' },
+        ],
+        basis: [{ who: 'agent', text: 'The second-order self-energy matches the analytic small-$U$ limit to $10^{-6}$ on all checked momenta.' }],
+        routes: [{ who: 'agent', text: 'The three routes use different interaction normalizations; I listed the conversion factors in the route note. No route is preferred yet.' }],
+        boundary: [{ who: 'agent', text: 'This stays a seed. Both quantizations give a well-defined boundary theory; the distinguishing response is still to be chosen.' }],
+      },
+      notes: {
+        'zero-report': { path: 'interacting-topology/topological-hamiltonian/zeros/reports/zeros.md', title: 'Tracking the zero line', body: [
+          ['p', 'Synthetic report for navigation review. No calculation was run and no numerical output is attached.'],
+          ['h', 'What this subtopic is trying to settle'],
+          ['p', 'Locate the candidate zero line and determine whether its apparent crossing survives a resolution check. This contributes one prerequisite to the parent invariant argument.'],
+          ['h', 'Recorded observation and its limit'],
+          ['p', 'The fixture records a candidate line on the original mesh. It leaves the crossing unresolved. A located line alone does not establish invariant applicability or a physical response.'],
+          ['h', 'Next discriminating check'],
+          ['p', 'Repeat on a finer mesh using the same broadening, then inspect how the candidate line changes. The full parent argument remains a separate task.'],
+        ] },
+        derivation: { path: 'interacting-topology/topological-hamiltonian/notes/derivation.md', title: 'Illustrative invariant argument — unchecked', body: [
+          ['p', 'Synthetic reading excerpt for layout review. No displayed formula or model result is a verified research conclusion.'],
+          ['h', 'The setting'],
+          ['p', 'Write the single-particle Green function of the interacting insulator as $G(i\\omega, \\mathbf{k})$. The Ishikawa–Matsuyama invariant is a winding number of $G$ over frequency and the Brillouin zone,'],
+          ['eq', 'N = \\frac{1}{24\\pi^2} \\int d\\omega\\, d^2k\\; \\epsilon^{\\mu\\nu\\rho}\\, \\mathrm{tr}\\big[ G\\,\\partial_\\mu G^{-1}\\, G\\,\\partial_\\nu G^{-1}\\, G\\,\\partial_\\rho G^{-1} \\big] .'],
+          ['h', 'Deforming to zero frequency'],
+          ['p', 'The proposed argument must identify a nonsingular deformation and its domain, and separately justify any connection to the measured response. The zero-frequency expression below is the candidate object under discussion.'],
+          ['eq', 'H_t(\\mathbf{k}) = -G^{-1}(0, \\mathbf{k}) .'],
+          ['p', '<mark>Applicability remains unchecked in this synthetic note.</mark> A source-backed derivation and its conditions are required before treating the illustrative claim as a result.'],
+        ] },
+        mesh: { path: 'interacting-topology/topological-hamiltonian/reports/mesh-24.md', title: 'Mesh agreement on 24 × 24', body: [
+          ['p', 'Chern numbers from $H_t$ and from the frequency winding integral, second-order self-energy, broadening $\\eta = 0.01\\,t$.'],
+          ['p', 'Agreement for all $U \\le 2.4\\,t$. At $U = 2.5\\,t$ the winding integral is not converged with this mesh. Raw outputs: <code>runs/mesh-24/out/*.h5</code>.'],
+        ] },
+      },
+    }
+  }
+
+  // ---------- State ----------
+  const state = {
+    data: seedData(),
+    view: { kind: 'home' },
+    lastTopic: 'topo-ham',
+    rail: false,
+    outline: false,
+    pinned: false,
+    topicTab: 'overview',
+    navMode: 'research',
+    filter: 'all',
+    dockTab: 'topic',
+    editor: null,
+    menu: null,
+    palette: null,
+    changes: [],
+    integration: [],
+    proposals: [],
+    stale: {},
+    external: null,
+    toasts: [],
+    contexts: {},
+    sent: {},
+    drafts: {},
+    theme: 'system',
+  }
+  let nextId = 1
+
+  // ---------- Helpers ----------
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  function rich(text, allowHtml) {
+    const parts = String(text).split(/(\$[^$]+\$)/g)
+    return parts.map((part) => {
+      if (/^\$[^$]+\$$/.test(part)) return `<span class="tex" data-tex="${esc(part.slice(1, -1))}">${esc(part.slice(1, -1))}</span>`
+      return allowHtml ? part : esc(part)
+    }).join('')
+  }
+  function texBlock(tex) { return `<span class="tex eq" data-display="1" data-tex="${esc(tex)}">${esc(tex)}</span>` }
+  function renderMath(root) {
+    if (!window.katex) return
+    root.querySelectorAll('.tex[data-tex]').forEach((el) => {
+      if (el.dataset.done) return
+      try { window.katex.render(el.dataset.tex, el, { output: 'mathml', displayMode: el.dataset.display === '1', throwOnError: false }) } catch (error) { /* leave the TeX source visible */ }
+      el.dataset.done = '1'
+    })
+  }
+  const topic = (id) => state.data.topics[id]
+  const stmtOf = (t, id) => t.statements.find((s) => s.id === id)
+  const threadOf = (t, id) => t.threads.find((x) => x.id === id)
+  function dispClass(d) {
+    if (!d) return ''
+    if (/waiting on the researcher|waiting on you/.test(d)) return 'wait'
+    if (/active/.test(d)) return 'ok'
+    if (/superseded|concluded/.test(d)) return ''
+    if (/waiting/.test(d)) return 'info'
+    return ''
+  }
+  function crumbsFor(id) {
+    const out = []
+    let t = topic(id)
+    while (t) { out.unshift(t); t = t.parent ? topic(t.parent) : null }
+    return out
+  }
+  function dirOf(t) { return state.data.project.directions.find((d) => d.id === t.direction) }
+  function toast(text, undo) {
+    const id = nextId++
+    state.toasts.push({ id, text, undo })
+    renderLayer()
+    setTimeout(() => { state.toasts = state.toasts.filter((x) => x.id !== id); renderLayer() }, 9000)
+  }
+  function openSessionsOn(topicId) { return state.data.sessions.filter((s) => s.topic === topicId) }
+  function markStale(topicId, summary) {
+    for (const s of openSessionsOn(topicId)) {
+      state.stale[s.id] = state.stale[s.id] || []
+      state.stale[s.id].push(summary)
+    }
+  }
+
+  // ---------- Change requests ----------
+  // A prepared change carries the file, locator, before/after lines and propagation items; apply() mutates
+  // the synthetic note, records the change and its undo, and informs Sessions on the topic.
+  const snapshot = (id) => JSON.stringify(topic(id))
+  function refreshContext(sid) {
+    const sess = state.data.sessions.find((x) => x.id === sid)
+    if (!sess || sess.topic.startsWith('seed:')) return
+    const t = topic(sess.topic)
+    state.contexts[sid] = { scope: t.opening.scope, answer: t.opening.answer,
+      statements: t.statements.map((x) => ({ title: x.title, label: x.label, text: x.text, qual: x.qual, prov: x.prov })),
+      threads: t.threads.map((x) => ({ title: x.title, disposition: x.disp || 'branch pointer' })) }
+    state.stale[sid] = []
+  }
+  function prepare(change) {
+    change.base = state.editor?.base ?? snapshot(change.topicId)
+    state.editor = { type: 'diff', change }
+    render()
+    focusSoon('[data-action="apply"]')
+  }
+  function apply(change) {
+    if (change.base !== undefined && change.base !== snapshot(change.topicId)) {
+      state.editor = { type: 'conflict', change, propId: state.editor?.propId, ext: { base: change.lines.filter((x) => x[0] === 'del').map((x) => x[1]).join(' '), current: topic(change.topicId).opening.scope, who: 'another simulated writer; topic changed since preview' } }
+      render(); return
+    }
+    const proposalId = state.editor?.propId
+    const undo = change.apply()
+    if (proposalId) state.proposals = state.proposals.filter((p) => p.id !== proposalId)
+    const rec = { id: nextId++, at: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), actor: change.actor || 'You', topicId: change.topicId, summary: change.summary, file: topic(change.topicId).path, undo, after: snapshot(change.topicId), reverted: false }
+    state.changes.unshift(rec)
+    for (const p of change.propagation || []) state.integration.push({ id: nextId++, topicId: change.integrationTopic || change.topicId, text: p, change: rec.id, done: false })
+    markStale(change.topicId, `${rec.actor}: ${change.summary}`)
+    state.editor = null
+    render()
+    toast(`Applied to the simulated note`, () => revert(rec.id))
+  }
+  function revert(recId) {
+    const rec = state.changes.find((r) => r.id === recId)
+    if (!rec || rec.reverted) return
+    if (rec.after !== snapshot(rec.topicId)) return toast('Revert conflict: this topic changed later. Review the current note; nothing was overwritten.')
+    rec.undo()
+    rec.reverted = true
+    state.integration = state.integration.filter((i) => i.change !== rec.id)
+    state.changes.unshift({ id: nextId++, actor: 'You', at: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), topicId: rec.topicId, summary: `Reverted: ${rec.summary}`, file: rec.file, undo: () => {}, reverted: true, isRevert: true })
+    markStale(rec.topicId, `Reverted: ${rec.summary}; recheck any dependent integration.`)
+    render()
+  }
+
+  // ---------- Operations (scenarios A–F and routine) ----------
+  function opObjective(t, newScope) {
+    const before = t.opening.scope
+    return {
+      topicId: t.id, region: 'opening', summary: 'Objective and scope changed', actor: 'You',
+      file: t.path, locator: 'opening › scope',
+      lines: [
+        ['ctx', `# ${t.title}`],
+        ['del', `Scope: ${before}`],
+        ['add', `Scope: ${newScope}`],
+        ['ctx', '…'],
+        ['ctx', '## Decisions and retained alternatives'],
+        ['add', `- ${TODAY} · objective now: ${newScope} · this topic · researcher · reason: not recorded`],
+      ],
+      propagation: ['Check Current work threads that fall outside the new scope', 'Revise the parent’s using passage if the contribution changed', 'State the changed implication in the root note'],
+      apply() { t.opening.scope = newScope; t.decisions.push({ text: `${TODAY} · objective now: ${newScope} · this topic · researcher` }); return () => { t.opening.scope = before; t.decisions.pop() } },
+    }
+  }
+  function opCorrect(t, s, correction) {
+    const before = s.text, prov = s.prov
+    return {
+      topicId: t.id, region: 'stmt:' + s.id, summary: `Correction to “${s.title}”`, actor: 'You', file: t.path, locator: `account › ${s.title}`,
+      lines: [['del', `**${s.label}.** ${before}`], ['add', `**${s.label}.** ${correction}`], ['add', `Correction (${TODAY}, researcher): the earlier reading overstated the source; what survives is stated above.`]],
+      propagation: [`Find maintained uses of “${s.title}” and correct those whose meaning changes`],
+      apply() { s.text = correction; s.prov = `corrected by the researcher, ${TODAY} · was: ${before}`; return () => { s.text = before; s.prov = prov } },
+    }
+  }
+  function opDecline(t, s, mode, reason) {
+    const label = s.label, prov = s.prov, priorDeclined = s.declined
+    const word = mode === 'unsupported' ? 'Unsupported' : 'Declined by the researcher'
+    return {
+      topicId: t.id, region: 'stmt:' + s.id, summary: `Hypothesis “${s.title}” marked ${mode === 'unsupported' ? 'unsupported' : 'declined'}`, actor: 'You', file: t.path, locator: `account › ${s.title}`,
+      lines: [['del', `**${label}.** ${s.text}`], ['add', `**${label} (${word.toLowerCase()}, ${TODAY}).** ${s.text}`], ['add', `Reason: ${reason}`], ['ctx', '## Decisions and retained alternatives'], ['add', `- ${s.title} · ${mode === 'unsupported' ? 'unsupported; no refutation established' : 'declined by the researcher'} · survives: the observation that motivated it · reopen if: not recorded`]],
+      propagation: ['Retire the agent’s working item that assumed this hypothesis', 'Remove it from any Next clause that depends on it'],
+      apply() { s.label = `${label} (${word.toLowerCase()})`; s.declined = true; s.prov = `${word}, ${TODAY}: ${reason}`; t.alternatives.push({ title: s.title, kind: mode === 'unsupported' ? 'unsupported' : 'declined by the researcher', text: `${reason} Reopen if: not recorded.` }); return () => { s.label = label; if (priorDeclined === undefined) delete s.declined; else s.declined = priorDeclined; s.prov = prov; t.alternatives.pop() } },
+    }
+  }
+  function opSupersede(t, th, newTitle, why) {
+    const idx = t.threads.indexOf(th)
+    return {
+      topicId: t.id, region: 'thread:' + th.id, summary: `Route “${th.title}” superseded by “${newTitle}”`, actor: 'You', file: t.path, locator: `Current work › ${th.title}`,
+      lines: [['del', `- **${th.title}** — ${th.disp} · ${th.date}. …`], ['add', `- **${newTitle}** — active · ${TODAY}. Next: define the first discriminating check.`], ['ctx', '## Decisions and retained alternatives'], ['add', `- ${TODAY} · pursue ${newTitle} instead of ${th.title} · this topic · researcher`], ['add', `- ${th.title} · superseded · survives: ${th.text.replace(/\$[^$]*\$/g, '…')} · reopen if: ${why}`]],
+      propagation: ['Update the opening if it still presents the old route as current', 'Re-point plans linked from the old thread'],
+      apply() {
+        const nt = { id: 'n' + nextId, title: newTitle, disp: 'active', date: TODAY, text: 'New route agreed by the researcher.', clause: ['Next', 'define the first discriminating check.'], links: [] }
+        t.threads.splice(idx, 1, nt)
+        t.alternatives.push({ title: th.title, kind: 'superseded', text: `${th.text} Reopen if: ${why}` })
+        t.decisions.push({ text: `${TODAY} · pursue ${newTitle} instead of ${th.title} · this topic · researcher` })
+        return () => { t.threads.splice(idx, 1, th); t.alternatives.pop(); t.decisions.pop() }
+      },
+    }
+  }
+  function opInvalidate(t, s, reason, picked) {
+    const deps = picked.map((id) => stmtOf(t, id)).filter((d) => d && (d.assumes || []).includes(s.id))
+    const candidates = picked.map((id) => stmtOf(t, id)).filter((d) => d && !(d.assumes || []).includes(s.id))
+    const label = s.label, prov = s.prov, priorInvalid = s.invalid
+    const priorQual = deps.map((d) => d.qual)
+    return {
+      topicId: t.id, region: 'stmt:' + s.id, summary: `Assumption “${s.title}” flagged invalid`, actor: 'You', file: t.path, locator: `account › ${s.title}`,
+      lines: [['del', `**${label}.** ${s.text}`], ['add', `**${label} (flagged invalid, ${TODAY}).** ${s.text}`], ['add', `Reason: ${reason}`], ...deps.flatMap((d) => [['ctx', `**${d.label}.** ${d.text}`], ['add', `Conditional on [${s.title}](#${s.id}), now flagged invalid; re-evaluate before relying on it.`]])],
+      propagation: deps.map((d) => `Re-evaluate “${d.title}” without “${s.title}”`).concat(candidates.map((d) => `Review suggested dependency of “${d.title}” on “${s.title}”; no dependency has been recorded`)),
+      apply() {
+        s.invalid = true; s.label = `${label} (flagged invalid)`; s.prov = `flagged invalid by the researcher, ${TODAY}: ${reason}`
+        for (const d of deps) d.qual = `Conditional on “${s.title}”, now flagged invalid; re-evaluate.`
+        return () => { if (priorInvalid === undefined) delete s.invalid; else s.invalid = priorInvalid; s.label = label; s.prov = prov; deps.forEach((d, i) => { if (priorQual[i] === undefined) delete d.qual; else d.qual = priorQual[i] }) }
+      },
+    }
+  }
+  function opRecord(t, th, value) {
+    const child = th.pointer ? topic(th.pointer) : null
+    const before = child ? child.opening.answer : th.text
+    const target = child || t
+    return {
+      topicId: target.id, integrationTopic: t.id, region: 'answer', summary: `Result recorded in ${target.short}`, actor: 'You', file: target.path, locator: 'opening › current answer',
+      lines: [['del', `Current answer: ${before}`], ['add', `Current answer: ${value}`], ['add', `Evidence: [run report](runs/ed-12/README.md) · recorded ${TODAY}`]],
+      propagation: child ? [`Revise the parent’s using passage in “${t.short}” if the contribution changed`] : ['Revise the opening and conclusion if the answer changed'],
+      apply() { if (child) { child.opening.answer = value; if (child.threads[0]) { child.threads[0].disp = 'waiting on integration'; child.threads[0].date = TODAY } } else { th.text = value } return () => { if (child) { child.opening.answer = before; if (child.threads[0]) child.threads[0].disp = 'waiting on run' } else th.text = before } },
+    }
+  }
+  function opDisposition(t, th, disp) {
+    const before = th.disp, bdate = th.date
+    return {
+      topicId: t.id, region: 'thread:' + th.id, summary: `“${th.title}” → ${disp}`, actor: 'You', consequential: false, file: t.path, locator: `Current work › ${th.title}`,
+      lines: [['del', `- **${th.title}** — ${before} · ${bdate}.`], ['add', `- **${th.title}** — ${disp} · ${TODAY}.`]],
+      apply() { th.disp = disp; th.date = TODAY; return () => { th.disp = before; th.date = bdate } },
+    }
+  }
+  function opDecide(t, th, option) {
+    const before = { disp: th.disp, clause: th.clause, date: th.date }
+    return {
+      topicId: t.id, region: 'thread:' + th.id, summary: `Decided: ${option}`, actor: 'You', file: t.path, locator: `Current work › ${th.title}`,
+      lines: [['del', `  Pending choice: ${th.clause[1]}`], ['add', `  Next: proceed with ${option}.`], ['ctx', '## Decisions and retained alternatives'], ['add', `- ${TODAY} · ${option} · ${th.title.toLowerCase()} in this topic · researcher`]],
+      propagation: ['Plan the first step on the chosen option'],
+      apply() { th.disp = 'active'; th.clause = ['Next', `proceed with ${option}.`]; th.date = TODAY; delete th.chosen; t.decisions.push({ text: `${TODAY} · ${option} · ${th.title.toLowerCase()} · researcher` }); return () => { th.disp = before.disp; th.clause = before.clause; th.date = before.date; t.decisions.pop() } },
+    }
+  }
+
+  // Agent proposal produced by "Challenge assumptions" in the conversation.
+  function agentProposalFor(t, s) {
+    return {
+      id: nextId++, topicId: t.id, by: 'Agent · Session “' + (state.view.sessionTitle || 'Zero search') + '”',
+      text: `Add a validity condition to “${s.title}”: model-specific applicability remains unchecked; do not infer the physical response from the displayed invariant alone.`,
+      change: {
+        topicId: t.id, region: 'stmt:' + s.id, base: snapshot(t.id), summary: `Validity condition added to “${s.title}”`, actor: 'Agent (accepted by you)', file: t.path, locator: `account › ${s.title}`,
+        lines: [['ctx', `**${s.label}.** ${s.text}`], ['del', `Valid when: ${s.valid || 'not stated'}`], ['add', `Valid when: ${s.valid ? s.valid.replace(/\.$/, '') : 'no zero of $G$ crosses $\\omega = 0$'}, model-specific applicability and response remain unchecked.`]],
+        propagation: [`Check uses of “${s.title}” for the added condition`],
+        apply() { const v = s.valid; s.valid = (s.valid ? s.valid.replace(/\.$/, '') : 'no zero of $G$ crosses $\\omega = 0$') + '; model-specific applicability and response remain unchecked.'; return () => { s.valid = v } },
+      },
+    }
+  }
+
+  // ---------- Rendering: host sidebar ----------
+  function hostbar() {
+    const v = state.view
+    const sessions = state.data.sessions
+    const rows = sessions.map((s) => {
+      const isSeed = s.topic.startsWith('seed:')
+      const t = isSeed ? null : topic(s.topic)
+      const markText = isSeed ? 'seed' : t.short
+      const th = t && s.thread ? threadOf(t, s.thread) : null
+      const stale = state.stale[s.id] && state.stale[s.id].length ? ' · state changed' : ''
+      return `<button class="srow" type="button" data-action="open-session" data-id="${s.id}" ${v.kind === 'session' && v.sessionId === s.id ? 'aria-current="page"' : ''}>
+        <span class="stitle">${esc(s.title)}</span><span class="tmark ${isSeed ? 'seed' : ''}">${esc(markText)}</span>
+        <span class="hovercard" role="tooltip"><b>${esc(s.title)}</b><span>${esc(isSeed ? 'Seed: ' + state.data.project.seeds.find((x) => 'seed:' + x.id === s.topic).title : t.short + (th ? ' › ' + th.title : ''))}</span><small>Task: ${esc(s.task)}</small><small>Last request ${esc(s.time)}${esc(stale)}</small></span>
+      </button>`
+    }).join('')
+
+    const treeNode = (id, depth) => {
+      const t = topic(id)
+      return `<button class="tree-node" type="button" data-action="open-topic" data-id="${id}" style="padding-left:${6+depth*15}px" ${v.topicId===id ? 'aria-current="page"' : ''}><span>${depth ? '↳ ' : '◌ '}${esc(t.short)}</span></button>` + t.children.map(child=>treeNode(child,depth+1)).join('')
+    }
+    const tree = state.data.project.directions.map(d=>`<div class="tree-dir">${esc(d.title)}</div>${d.topics.map(id=>treeNode(id,0)).join('')}`).join('')
+    return `<aside class="host" aria-label="Harness sidebar">
+      <div class="host-top"><span class="brand">aitp-agent</span><span class="spacer"></span>
+        <button class="ibtn" type="button" data-action="rail" aria-label="${state.rail ? 'Expand sidebar' : 'Collapse sidebar'}" title="${state.rail ? 'Expand sidebar' : 'Collapse sidebar'}">${state.rail ? '»' : '«'}</button></div>
+      <button class="newsess" type="button" data-action="new-session" aria-label="New session">＋ <span>New session</span></button>
+      <nav class="navlist" aria-label="Panels">
+        <button class="navitem" type="button" data-action="go-home" ${v.kind !== 'session' ? 'aria-current="page"' : ''}><span class="glyph">◉</span><span class="label">Research</span></button>
+        <button class="navitem" type="button" data-action="noop" data-msg="Materials is outside this prototype"><span class="glyph">▤</span><span class="label">Materials</span></button>
+        <button class="navitem" type="button" data-action="noop" data-msg="Rules is outside this prototype"><span class="glyph">§</span><span class="label">Rules</span></button>
+      </nav>
+      <div class="host-modes" aria-label="Sidebar content"><button data-action="nav-mode" data-mode="research" aria-pressed="${state.navMode==='research'}">Topics</button><button data-action="nav-mode" data-mode="sessions" aria-pressed="${state.navMode==='sessions'}">Conversations</button></div>
+      ${state.navMode==='research' ? `<nav class="host-tree" aria-label="Topic hierarchy">${tree}</nav>` : `<div class="wslist"><div class="wsrow">▾ ${ROOT_PATH}</div>${rows}</div>`}
+    </aside>`
+  }
+
+  // ---------- Rendering: research panel ----------
+  function header(crumbs) {
+    const segs = [`<button class="crumb ${crumbs.length ? '' : 'last'}" type="button" data-action="go-home">${esc(state.data.project.name)}<span class="caret">▾</span></button>`]
+    for (let i = 0; i < crumbs.length; i++) {
+      const c = crumbs[i]
+      if (i === 0) {
+        const d = dirOf(c)
+        segs.push(`<span class="sep">›</span><button class="crumb" type="button" data-action="crumb-menu" data-level="direction" data-id="${d.id}">${esc(d.title)}<span class="caret">▾</span></button>`)
+      }
+      segs.push(`<span class="sep">›</span><button class="crumb ${i === crumbs.length - 1 ? 'last' : ''}" type="button" data-action="crumb-menu" data-level="topic" data-id="${c.id}">${esc(c.short)}<span class="caret">▾</span></button>`)
+    }
+    const t = crumbs[crumbs.length - 1]
+    return `<div class="rp-head">
+      <nav class="crumbs" aria-label="Research location">${segs.join('')}</nav>
+      <button class="searchbtn" type="button" data-action="palette" aria-label="Search research (Ctrl K)">⌕ <span class="slabel">Search</span> <kbd>Ctrl K</kbd></button>
+      <button class="ibtn" type="button" data-action="outline" aria-label="Outline (Ctrl Shift O)" title="Outline (Ctrl Shift O)">☰</button>
+      ${t ? `<button class="primary" type="button" data-action="new-topic-session" data-id="${t.id}">＋ <span class="plabel">Session</span></button>` : ''}
+    </div>`
+  }
+  function outlinePanel() {
+    if (!state.outline) return ''
+    const cur = state.view.topicId
+    const node = (t, depth) => {
+      const live = t.threads.filter((x) => !x.pointer && /active|waiting/.test(x.disp)).length
+      const waits = t.threads.filter((x) => /waiting on the researcher/.test(x.disp || '')).length
+      return `<button class="onode" type="button" data-action="open-topic" data-id="${t.id}" style="padding-left:${8 + depth * 16}px" ${cur === t.id ? 'aria-current="page"' : ''}><span class="on">${esc(t.short)}</span><span class="oc">${live ? live + ' live' : ''}${waits ? ' · ' + waits + ' waits' : ''}</span></button>` + t.children.map((c) => node(topic(c), depth + 1)).join('')
+    }
+    const dirs = state.data.project.directions.map((d) => `<div class="odir">${esc(d.title)}</div>` + d.topics.map((id) => node(topic(id), 0)).join('')).join('')
+    const seeds = `<div class="odir">Seeds</div>` + state.data.project.seeds.map((s) => `<button class="onode" type="button" data-action="go-home"><span class="on">${esc(s.title)}</span><span class="oc">seed</span></button>`).join('')
+    return `<nav class="outline ${state.pinned ? 'pinned' : ''}" aria-label="Research outline">
+      <div class="outline-h">Outline<span class="spacer"></span><button class="ghost" type="button" data-action="pin">${state.pinned ? 'Unpin' : 'Pin'}</button><button class="ibtn" type="button" data-action="outline" aria-label="Close outline">✕</button></div>
+      <div class="otree">${dirs}${seeds}</div></nav>`
+  }
+
+  function workLabel(t) {
+    const live = t.threads.filter(x => !x.pointer)
+    if (live.some(x => /waiting on the researcher/.test(x.disp))) return 'Awaiting your choice'
+    if (live.some(x => /active/.test(x.disp))) return 'Active work'
+    if (live.some(x => /waiting on run/.test(x.disp))) return 'Waiting on run'
+    if (live.some(x => /dormant|paused/.test(x.disp))) return 'Work on hold'
+    return 'No active work recorded'
+  }
+  function overviewCard(t, showChildren) {
+    const next = t.threads.find(x => !x.pointer && /active|waiting/.test(x.disp)) || t.threads.find(x => !x.pointer)
+    return `<article class="overview-card" data-topic-card="${t.id}">
+      <div class="card-heading"><button class="link" type="button" data-action="open-topic" data-id="${t.id}">${esc(t.short)} ↗</button></div>
+      <div><span class="chip ${/Awaiting|Waiting/.test(workLabel(t)) ? 'wait' : ''}">${esc(workLabel(t))}</span></div>
+      <div class="card-copy"><span><span class="card-label">Current understanding</span>${rich(t.opening.answer)}</span></div>
+      <div class="card-copy card-limit"><span><span class="card-label">Still unresolved</span>${rich(t.opening.gap)}</span></div>
+      ${showChildren && t.children.length ? `<div class="child-links"><span class="eyebrow">${t.children.length} subtopics</span>${t.children.map(id=>`<button class="link" type="button" data-action="open-topic" data-id="${id}">↳ ${esc(topic(id).short)}</button>`).join('')}</div>` : next && next.clause ? `<div class="card-copy"><span><span class="card-label">${esc(next.clause[0])}</span>${rich(next.clause[1])}</span></div>` : ''}
+      <div class="card-footer"><span>${t.evidence.length} materials</span><button class="link" type="button" data-action="open-topic" data-id="${t.id}">Open topic →</button></div>
+    </article>`
+  }
+  function projectHome() {
+    const p = state.data.project
+    const all = Object.values(state.data.topics)
+    const waits = all.reduce((n,t)=>n+t.threads.filter(x=>/waiting on the researcher/.test(x.disp || '')).length,0)
+    const dirs = p.directions.map(d=>`<section class="sec"><h3>${esc(d.title)}</h3><div class="topic-grid">${d.topics.map(id=>overviewCard(topic(id), true)).join('')}</div></section>`).join('')
+    const seeds = p.seeds.map(s=>`<div class="seedrow"><b>${esc(s.title)}</b><span class="prov">${esc(s.prov)}</span><p>${rich(s.text)}</p><span class="prov">Open question: ${esc(s.missing)}</span><span class="btnrow"><button class="sbtn" type="button" data-action="seed-session" data-id="${s.id}">Explore in a Session</button><button class="sbtn" type="button" data-action="promote" data-id="${s.id}">Promote to topic…</button></span></div>`).join('')
+    return `<div class="workspace">
+      <div><p class="eyebrow">PROJECT OVERVIEW</p><h2>${esc(p.name)}</h2><p style="color:var(--ink-2);margin-top:6px">Where each question stands, what remains open, and where to continue.</p></div>
+      <div class="summary-strip"><span><b>${all.filter(t=>!t.parent).length}</b>topics</span><span><b>${all.filter(t=>t.parent).length}</b>subtopics</span><span><b>${waits}</b>choices need you</span><span><b>${p.seeds.length}</b>exploratory ideas</span></div>
+      ${dirs}
+      <details class="fold"><summary>Exploratory ideas <span class="count">${p.seeds.length} · not active topics</span></summary><div class="fold-body">${seeds}</div></details>
+      <details class="fold"><summary>Connections between topics</summary><div class="fold-body">${p.connections.map(c=>`<p>${esc(c.text)} <button class="link" data-action="open-topic" data-id="${c.a}">Open source topic →</button></p>`).join('')}</div></details>
+    </div>`
+  }
+
+  function statusChip(text) { return `<span class="chip ${dispClass(text)}">${esc(text)}</span>` }
+  function cardMenuBtn(kind, id) { return `<button class="ibtn" type="button" data-action="card-menu" data-kind="${kind}" data-id="${id}" aria-label="Actions">⋯</button>` }
+
+  function editorFor(match) {
+    const ed = state.editor
+    if (!ed || ed.match !== match) return ''
+    if (ed.type === 'objective') {
+      return `<form class="editor" data-form="objective"><label for="f-scope">New scope and objective (your words are kept verbatim)</label><textarea id="f-scope" rows="3">${esc(ed.value)}</textarea><div class="btnrow"><button class="sbtn go" type="submit">Preview change</button><button class="sbtn" type="button" data-action="cancel">Cancel</button></div></form>`
+    }
+    if (ed.type === 'correct') {
+      return `<form class="editor" data-form="correct"><label for="f-correct">Corrected statement</label><textarea id="f-correct" rows="3">${esc(ed.value)}</textarea><div class="btnrow"><button class="sbtn go" type="submit">Preview change</button><button class="sbtn" type="button" data-action="cancel">Cancel</button></div></form>`
+    }
+    if (ed.type === 'decline') {
+      return `<form class="editor" data-form="decline"><label for="f-reason">Reason (kept in the note)</label><input id="f-reason" type="text" value="${esc(ed.value || '')}" placeholder="Why this hypothesis is ${ed.mode === 'unsupported' ? 'unsupported' : 'declined'}"><div class="btnrow"><button class="sbtn go" type="submit">Preview change</button><button class="sbtn" type="button" data-action="cancel">Cancel</button></div></form>`
+    }
+    if (ed.type === 'supersede') {
+      return `<form class="editor" data-form="supersede"><label for="f-route">New route</label><input id="f-route" type="text" value="${esc(ed.value || 'Direct Matsubara winding on the zero line')}"><label for="f-reopen">Reopen the old route if</label><input id="f-reopen" type="text" value="the finer mesh resolves the zero line"><div class="btnrow"><button class="sbtn go" type="submit">Preview change</button><button class="sbtn" type="button" data-action="cancel">Cancel</button></div></form>`
+    }
+    if (ed.type === 'invalidate') {
+      const t = topic(ed.topicId), s = stmtOf(t, ed.id)
+      const rec = t.statements.filter((x) => (x.assumes || []).includes(s.id))
+      const sug = (t.suggested && t.suggested[s.id]) || []
+      return `<form class="editor" data-form="invalidate"><label for="f-why">Why the assumption fails</label><input id="f-why" type="text" value="a zero of G crosses ω = 0 at U ≈ 2.6 t"><div class="impact"><span class="op-label">Recorded dependents (stated in the notes)</span>
+        ${rec.length ? rec.map((d) => `<label><input type="checkbox" name="dep" value="${d.id}" checked> <span>${esc(d.label)} · ${esc(d.title)}<br><small>Assumes: ${esc(s.title)}</small></span></label>`).join('') : '<span class="empty">None recorded.</span>'}
+        <span class="op-label">Suggested, not recorded (found by search)</span>
+        ${sug.length ? sug.map((x) => { const d = stmtOf(t, x.id); return `<label><input type="checkbox" name="dep" value="${d.id}"> <span>${esc(d.label)} · ${esc(d.title)}<br><small>${esc(x.why)}</small></span></label>` }).join('') : '<span class="empty">None found.</span>'}</div>
+        <div class="btnrow"><button class="sbtn go" type="submit">Preview change</button><button class="sbtn" type="button" data-action="cancel">Cancel</button></div></form>`
+    }
+    if (ed.type === 'record') {
+      return `<form class="editor" data-form="record"><label for="f-value">New current answer for the branch</label><textarea id="f-value" rows="2">$U_c = 2.85 \\pm 0.05\\,t$ from 9- and 12-site clusters with twisted boundaries; not yet extrapolated to infinite size.</textarea><div class="btnrow"><button class="sbtn go" type="submit">Preview change</button><button class="sbtn" type="button" data-action="cancel">Cancel</button></div></form>`
+    }
+    if (ed.type === 'diff' || ed.type === 'conflict') return ''
+    return ''
+  }
+  function diffBlock(match, fromSide) {
+    const ed = state.editor
+    if (!ed || (ed.type !== 'diff' && ed.type !== 'conflict')) return ''
+    if (ed.change.region !== match) return ''
+    if (Boolean(ed.propId) !== Boolean(fromSide)) return ''
+    const c = ed.change
+    if (ed.type === 'conflict') {
+      return `<div class="editor conflict" role="alert"><span class="op-label" style="color:var(--bad)">This passage changed outside AITP since it was read</span>
+        <div class="three"><div><b>When read</b>${rich(ed.ext.base)}</div><div><b>Now in the file (${esc(ed.ext.who)})</b>${rich(ed.ext.current)}</div><div><b>Your change</b>${rich(c.lines.filter((l) => l[0] === 'add').map((l) => l[1]).join(' '))}</div></div>
+        <div class="btnrow"><button class="sbtn" type="button" data-action="conflict-keep">Keep the file's version</button><button class="sbtn go" type="button" data-action="conflict-mine">Prepare my version again</button><button class="sbtn" type="button" data-action="conflict-agent">Ask the agent to merge</button><button class="sbtn" type="button" data-action="cancel">Cancel</button></div></div>`
+    }
+    return `<div class="editor" role="group" aria-label="Change preview">
+      <div class="diff"><div class="diff-h"><span>${esc(c.file)}</span><span>${esc(c.locator)}</span></div>
+      <div class="diff-body">${c.lines.map((l) => `<div class="dl ${l[0]}">${esc(l[1])}</div>`).join('')}</div></div>
+      ${c.propagation && c.propagation.length ? `<div class="prop"><span class="op-label">Then the agent integrates (shown under Waiting on integration):</span><ul>${c.propagation.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></div>` : ''}
+      <div class="btnrow"><button class="sbtn go" type="button" data-action="apply">Apply <kbd>Ctrl ↵</kbd></button><button class="sbtn" type="button" data-action="cancel">Cancel</button></div></div>`
+  }
+
+  function topicState(t, compact) {
+    const crumbs = crumbsFor(t.id)
+    const parent = t.parent ? topic(t.parent) : null
+    const o = t.opening
+    const edMatch = (m) => editorFor(m) + diffBlock(m)
+    const opening = `<section class="sec opening" aria-label="Opening">
+      <div class="op-part"><span class="op-label">Question and scope <button class="link" type="button" data-action="edit-objective" data-id="${t.id}">✎ Edit</button></span><p class="read">${rich(o.question)}</p><p class="read" style="color:var(--ink-2)">${rich('Scope: ' + o.scope)}</p>${edMatch('opening')}</div>
+      <div class="op-part answer"><span class="op-label">Current understanding</span><p class="read">${rich(o.answer)}</p>${edMatch('answer')}</div>
+      <div class="op-part gap"><span class="op-label">Still unresolved</span><p class="read">${rich(o.gap)}</p></div>
+    </section>`
+    const threadRows = t.threads.map((th) => {
+      if (th.pointer) {
+        const c = topic(th.pointer)
+        const cd = c.threads[0] ? c.threads[0].disp : 'not stated'
+        return `<div class="row"><span class="dot ${dispClass(cd)}"></span><span class="row-title"><button class="link" type="button" data-action="open-topic" data-id="${c.id}">→ ${esc(th.title)}</button> <span class="ptr">· branch, live status: </span>${statusChip(cd)}</span><span class="row-actions">${cardMenuBtn('pointer', th.id)}</span>
+          <span class="row-text">Contributes: ${rich(th.text)}</span>${edMatch('thread:' + th.id)}${th.pointer === 'three-band' ? edMatch('answer-ptr') : ''}</div>`
+      }
+      return `<div class="row"><span class="dot ${dispClass(th.disp)}"></span><span class="row-title">${esc(th.title)} ${statusChip(th.disp)} <span class="ptr">· ${esc(th.date)}</span></span><span class="row-actions">${cardMenuBtn('thread', th.id)}</span>
+        <span class="row-text">${rich(th.text)} <span class="clause">${esc(th.clause[0])}:</span> ${rich(th.clause[1])}</span>
+        ${th.choice && /waiting on the researcher/.test(th.disp) ? `<span class="row-text"><span class="btnrow">${th.choice.map((c) => `<button class="sbtn" type="button" data-action="decide" data-id="${th.id}" data-opt="${esc(c)}">${esc(c)}</button>`).join('')}</span></span>` : ''}
+        ${th.links && th.links.length ? `<span class="row-links">${th.links.map((l) => `<span>${esc(l)}</span>`).join('')}</span>` : ''}
+        ${edMatch('thread:' + th.id)}</div>`
+    }).join('')
+    const kinds = { all: 'All', assumption: 'Assumptions', hypothesis: 'Hypotheses', result: 'Results', evidence: 'Evidence', question: 'Questions' }
+    const filtered = t.statements.filter((s) => state.filter === 'all' || s.kind === state.filter)
+    const stmts = filtered.map((s) => {
+      const assumes = (s.assumes || []).map((id) => { const a = stmtOf(t, id); return `<button class="link rel" type="button" data-action="scroll-stmt" data-id="${id}">${esc(a.title)}</button>` }).join(' · ')
+      const sug = ((t.suggested || {})[s.id] || []).map((x) => `<span class="rel suggested" title="${esc(x.why)}">${esc(stmtOf(t, x.id).title)}</span>`).join(' · ')
+      const usedBy = t.statements.filter((x) => (x.assumes || []).includes(s.id)).map((x) => `<button class="link rel" type="button" data-action="scroll-stmt" data-id="${x.id}">${esc(x.title)}</button>`).join(' · ')
+      return `<article class="stmt k-${s.kind} ${s.invalid ? 'invalid' : ''} ${s.declined ? 'declined' : ''}" id="stmt-${s.id}">
+        <span class="stmt-label"><b>${esc(s.label)}</b> · ${esc(s.title)} ${s.agent && !s.declined ? '<span class="chip agent">agent proposal · provisional</span>' : ''}${s.invalid ? '<span class="chip bad">flagged invalid</span>' : ''}</span>
+        <span class="row-actions">${cardMenuBtn('stmt', s.id)}</span>
+        <p class="read">${rich(s.text)}${s.qual ? `<span class="qual">⚠ ${esc(s.qual)}</span>` : ''}</p>
+        <div class="clauses">
+          ${s.valid ? `<span><span class="k">Valid when:</span> ${rich(s.valid)}</span>` : ''}
+          ${assumes ? `<span><span class="k">Assumes:</span> ${assumes}</span>` : ''}
+          ${s.tested ? `<span><span class="k">Tested by:</span> <button class="link rel" type="button" data-action="scroll-stmt" data-id="${s.tested}">${esc(stmtOf(t, s.tested).title)}</button></span>` : ''}
+          ${s.tests ? `<span><span class="k">Would be tested by:</span> ${esc(s.tests)}</span>` : ''}
+          ${usedBy ? `<span><span class="k">Used by:</span> ${usedBy}</span>` : ''}
+          ${sug ? `<span><span class="k">Suggested uses, not recorded:</span> ${sug}</span>` : ''}
+          <span class="prov">${esc(s.prov)}</span>
+        </div>${edMatch('stmt:' + s.id)}</article>`
+    }).join('')
+    const routes = `<section class="sec"><div class="sec-h">Routes and statements <span class="count">${t.statements.length} statements · ${t.alternatives.length} retained routes · ${t.decisions.length} decisions</span></div>
+      ${t.statements.length ? `<div class="filters" role="group" aria-label="Filter statements">${Object.entries(kinds).filter(([k]) => k === 'all' || t.statements.some((s) => s.kind === k)).map(([k, v]) => `<button class="fchip" type="button" data-action="filter" data-k="${k}" aria-pressed="${state.filter === k}">${v}</button>`).join('')}</div>` : ''}
+      <div>${stmts || '<p class="empty">No labelled statements in this note. Unlabelled paragraphs stay in the account and open in the note.</p>'}</div>
+      ${t.decisions.length ? `<details class="fold" open><summary>Decisions <span class="count">${t.decisions.length}</span></summary><div class="fold-body">${t.decisions.map((d) => `<div class="alt"><span class="prov">Binding choice</span><span>${rich(d.text)}</span></div>`).join('')}</div></details>` : ''}
+      ${t.alternatives.length ? `<details class="fold" open><summary>Retained alternatives <span class="count">${t.alternatives.length}</span></summary><div class="fold-body">${t.alternatives.map((a) => `<div class="alt"><span class="prov">${esc(a.kind)}</span><b>${esc(a.title)}</b><span class="read">${rich(a.text)}</span></div>`).join('')}</div></details>` : ''}
+    </section>`
+    const ev = `<details class="fold" ${compact ? '' : 'open'}><summary>Evidence and resources <span class="count">${t.evidence.length}</span></summary><div class="fold-body rows">${t.evidence.map((e) => `<div class="row"><span class="dot"></span><span class="row-title">${e.note ? `<button class="link" type="button" data-action="open-note" data-id="${e.note}">${esc(e.label)}</button>` : esc(e.label)}</span><span></span><span class="row-links">${esc(e.path)}</span></div>`).join('')}</div></details>`
+
+    // Side column: attention, integration, changes, sessions
+    const props = state.proposals.filter((p) => p.topicId === t.id)
+    const waiting = t.threads.filter((x) => /waiting on the researcher/.test(x.disp || ''))
+    const needs = props.length + waiting.length
+    const needsCard = needs ? `<section class="side-card attn" aria-label="Needs you"><div class="sec-h">Needs you <span class="count">${needs}</span></div>
+      ${waiting.map((w) => `<div class="side-item"><span><b>${esc(w.title)}</b></span><span>${rich(w.clause[1])}</span><span class="btnrow">${(w.choice || []).map((c) => `<button class="sbtn" type="button" data-action="decide" data-id="${w.id}" data-opt="${esc(c)}">${esc(c)}</button>`).join('')}</span></div>`).join('')}
+      ${props.map((p) => `<div class="side-item"><span class="who">${esc(p.by)}</span><span>${rich(p.text)}</span><span class="btnrow"><button class="sbtn go" type="button" data-action="prop-review" data-id="${p.id}">Review diff</button><button class="sbtn" type="button" data-action="prop-decline" data-id="${p.id}">Decline</button></span>${state.editor && state.editor.type === 'diff' && state.editor.propId === p.id ? diffBlock(state.editor.change.region, true) : ''}</div>`).join('')}
+    </section>` : ''
+    const integ = state.integration.filter((i) => i.topicId === t.id && !i.done)
+    const integCard = integ.length ? `<section class="side-card" aria-label="Waiting on integration"><div class="sec-h">Waiting on integration <span class="count">${integ.length}</span></div>
+      ${integ.map((i) => `<div class="side-item"><span>${esc(i.text)}</span><span class="btnrow"><button class="sbtn" type="button" data-action="integrate" data-id="${i.id}">Ask agent</button><button class="sbtn" type="button" data-action="integ-done" data-id="${i.id}">Done</button></span></div>`).join('')}</section>` : ''
+    const ch = state.changes.filter((c) => c.topicId === t.id || (topic(c.topicId) && topic(c.topicId).parent === t.id))
+    const changesCard = `<section class="side-card" aria-label="Recent changes"><div class="sec-h">Recent changes <span class="count">${ch.length || ''}</span></div>
+      ${ch.length ? ch.slice(0, compact ? 3 : 6).map((c) => `<div class="side-item"><span class="who">${esc(c.actor)} · today ${esc(c.at)}</span><span>${esc(c.summary)}</span>${!c.reverted && !c.isRevert ? `<span class="btnrow"><button class="sbtn" type="button" data-action="revert" data-id="${c.id}">Revert</button></span>` : ''}</div>`).join('') : '<p class="empty">No changes through AITP yet. Edits made elsewhere appear when the note is reread.</p>'}</section>`
+    const sess = openSessionsOn(t.id)
+    const sessCard = compact ? '' : `<section class="side-card" aria-label="Sessions on this topic"><div class="sec-h">Sessions on this topic <span class="count">${sess.length}</span></div>
+      ${sess.length ? sess.map((s) => { const th = s.thread ? threadOf(t, s.thread) : null; return `<div class="side-item"><button class="link" type="button" data-action="open-session" data-id="${s.id}">${esc(s.title)}</button><span class="who">${esc(th ? th.title : 'whole topic')} · ${esc(s.time)}</span></div>` }).join('') : '<p class="empty">No Session has started from this topic.</p>'}</section>`
+
+    if (compact) {
+      return `<div class="dock-topic"><p class="eyebrow">${esc(t.kind)} · ${esc(t.path)}</p><h3 class="ts-title">${esc(t.short)}</h3>
+        <p class="read oneline" style="margin-top:6px">${rich(o.question)}</p>
+        <button class="link" type="button" data-action="open-topic" data-id="${t.id}" style="margin-top:4px">Open full topic</button></div>
+        ${opening}${needsCard}${integCard}
+        <details class="fold" open><summary>Threads <span class="count">${t.threads.length}</span></summary><div class="fold-body rows">${threadRows}</div></details>
+        <details class="fold"><summary>Routes and statements <span class="count">${t.statements.length}</span></summary><div class="fold-body">${routes}</div></details>
+        ${changesCard}`
+    }
+
+    const tabs = { overview: 'Overview', work: 'Work & choices', claims: 'Claims & routes', materials: 'Materials', activity: 'Activity' }
+    const selected = state.topicTab
+    const children = t.children.map(id=>overviewCard(topic(id),false)).join('')
+    const overview = `<div class="overview-body">
+      ${t.children.length ? `<section class="sec" aria-label="Subtopics"><div class="sec-h"><h3>Subtopics</h3><span class="count">${t.children.length} · open a question to see its details</span></div><div class="topic-grid">${children}</div></section>` : `<section class="sec"><h3>Continue this question</h3><div class="rows">${threadRows}</div></section>`}
+      <div class="overview-bottom">${needsCard}${integCard}${sessCard}</div>
+      <div class="btnrow"><button class="sbtn" data-action="topic-tab" data-tab="materials">Browse ${t.evidence.length} materials →</button><button class="sbtn" data-action="topic-tab" data-tab="claims">Read claims and their conditions →</button></div>
+    </div>`
+    const materials = `<section class="sec"><h3>Documents, evidence and code</h3><p class="empty">Each item belongs to this topic. Subtopic materials open inside their own topic.</p>${t.evidence.length ? t.evidence.map((e,i)=>`<div class="resource-row"><div><b>${esc(e.label)}</b><span class="prov">${esc(e.path)}</span></div><button class="sbtn" data-action="open-resource" data-id="${t.id}:${i}">${e.note ? 'Read document' : 'View details'} →</button></div>`).join('') : '<p class="empty">No materials linked yet.</p>'}</section>`
+    const panels = { overview, work: `<div class="overview-body">${needsCard}${integCard}<section class="sec"><h3>Work on this topic</h3><div class="rows">${threadRows}</div></section></div>`, claims: routes, materials, activity: `<div class="overview-bottom">${changesCard}${sessCard}</div>` }
+    return `<div class="workspace topic-workspace">
+      <header class="topic-hero">
+        <div><p class="eyebrow">${parent ? `<button class="link" data-action="open-topic" data-id="${parent.id}">← ${esc(parent.short)}</button> / SUBTOPIC` : 'TOPIC OVERVIEW'}</p><h2 class="ts-title">${esc(t.short)}</h2>
+        <p class="meta"><span>${esc(workLabel(t))}</span><span>${t.children.length} subtopics · ${t.evidence.length} materials</span><button class="link" type="button" data-action="open-source" data-id="${t.id}">Markdown preview</button></p></div>
+        ${opening}
+      </header>
+      <div class="page-tabs" role="tablist" aria-label="Topic sections">${Object.entries(tabs).map(([k,label])=>`<button id="tab-${k}" role="tab" type="button" data-action="topic-tab" data-tab="${k}" aria-selected="${selected===k}" aria-controls="topic-panel">${label}</button>`).join('')}</div>
+      <div class="tab-panel" id="topic-panel" role="tabpanel" aria-labelledby="tab-${selected}">${panels[selected]}</div>
+    </div>`
+  }
+
+  function noteReader(noteId, inDock) {
+    if (noteId.startsWith('topic:')) {
+      const t = topic(noteId.slice(6))
+      const text = `# ${t.title}\n\n${t.opening.question}\n\nScope: ${t.opening.scope}\n\n${t.opening.answer}\n\nGap: ${t.opening.gap}\n\n## Current work\n` + t.threads.map((x) => `- **${x.title}** — ${x.disp || 'branch pointer'}. ${x.text} ${x.clause ? x.clause.join(': ') : ''}`).join('\n') + '\n\n## Statements\n' + t.statements.map((x) => `**${x.label}.** ${x.text} ${x.valid || ''} ${x.qual || ''}\n${x.prov}`).join('\n\n') + '\n\n## Decisions and retained alternatives\n' + t.decisions.map((x) => x.text).concat(t.alternatives.map((x) => `${x.title}: ${x.kind}. ${x.text}`)).join('\n')
+      return `<article class="note"><button class="ghost" data-action="open-topic" data-id="${t.id}">‹ Back to topic</button><h2>Markdown preview</h2><p class="empty">Generated from the same topic state. This preview is not a separate editable record.</p><p class="path">${esc(t.path)}</p><pre class="synthetic-note">${esc(text)}</pre></article>`
+    }
+
+    if (noteId.startsWith('resource:')) {
+      const [, ownerId, index] = noteId.split(':')
+      const t = topic(ownerId), e = t.evidence[Number(index)]
+      return `<article class="note"><button class="ghost" data-action="back-materials">‹ Back to materials</button><p class="eyebrow">LINKED MATERIAL</p><h2>${esc(e.label)}</h2><div class="resource-preview"><p>Topic: <button class="link" data-action="open-topic" data-id="${t.id}">${esc(t.short)}</button></p><p class="path">${esc(e.path)}</p><p style="margin-top:12px">This synthetic item records a location only. Its file contents and access have not been checked; no preview is included.</p></div></article>`
+    }
+    const n = state.data.notes[noteId]
+    const body = n.body.map(([k, v]) => k === 'h' ? `<h3>${esc(v)}</h3>` : k === 'eq' ? texBlock(v) : `<p class="read">${rich(v, true)}</p>`).join('')
+    return `<article class="note" ${inDock ? 'style="padding:6px 4px 24px"' : ''}>
+      ${inDock ? '' : `<div class="bar"><button class="ghost" type="button" data-action="back-materials">‹ Back to materials</button><span class="path">${esc(n.path)}</span></div>`}
+      <h2 class="ts-title">${esc(n.title)}</h2>${inDock ? `<p class="path">${esc(n.path)}</p>` : ''}${body}</article>`
+  }
+
+  function researchPanel() {
+    const v = state.view
+    let crumbs = []
+    let content = ''
+    if (v.kind === 'home') content = projectHome()
+    if (v.kind === 'topic') { crumbs = crumbsFor(v.topicId); content = topicState(topic(v.topicId), false) }
+    if (v.kind === 'note') { crumbs = crumbsFor(state.lastTopic); content = noteReader(v.noteId, false) }
+    return `<div class="mainc">${header(crumbs)}<div class="rp-body"><div class="rp-split">${state.outline && state.pinned ? outlinePanel() : ''}<div class="rp-scroll">${state.outline && !state.pinned ? outlinePanel() : ''}${content}</div></div></div></div>`
+  }
+
+  // ---------- Rendering: conversation and dock ----------
+  function conversation() {
+    const v = state.view
+    const s = state.data.sessions.find((x) => x.id === v.sessionId)
+    const isSeed = s.topic.startsWith('seed:')
+    const t = isSeed ? null : topic(s.topic)
+    const th = t && s.thread ? threadOf(t, s.thread) : null
+    const msgs = (state.data.messages[s.id] || []).concat(state.sent[s.id] || [])
+    const stale = state.stale[s.id] || []
+    const draft = state.drafts[s.id]
+    const context = state.contexts[s.id]
+    const mm = msgs.map((m) => `<div class="msg ${m.who}"><span class="who">${m.who === 'user' ? 'You' : 'Agent'}</span><div class="bubble">${rich(m.text)}${m.eq ? texBlock(m.eq) : ''}${m.after ? rich(m.after) : ''}</div></div>`).join('')
+    const staleBox = stale.length ? `<div class="stale" role="status"><b>Research state changed since this Session’s last request</b>${stale.map((x) => `<span>• ${esc(x)}</span>`).join('')}<span>The next request includes the changed passages. <button class="link" type="button" data-action="ack-stale">Read current state</button></span></div>` : ''
+    return `<div class="mainc"><div class="conv">
+      <div class="conv-head"><span class="conv-title">${esc(s.title)}</span><span class="origin">${isSeed ? 'Seed · exploring, no topic created' : `${esc(t.short)}${th ? ' › ' + esc(th.title) : ''}`}</span><span class="spacer"></span>
+        <button class="ibtn" type="button" data-action="toggle-dock" aria-label="Toggle dock" title="Topic beside the conversation">⫴</button></div>
+      <div class="msgs">${context ? `<details class="context-read"><summary>Context read from simulated note</summary><p>${esc(context.scope)}</p><p>${esc(context.answer)}</p>${context.statements.map((x) => `<p><b>${esc(x.label)} · ${esc(x.title)}</b> ${esc(x.text)} ${esc(x.qual || '')} ${esc(x.prov)}</p>`).join('')}</details>` : ''}${mm}</div>
+      <div class="composer-wrap">${staleBox}
+        ${t ? `<div class="taskcard"><span><b>Task</b> ${esc(s.task)}</span><span class="facts"><span>from you: 1</span><span>agent notes: provisional 1</span>${t.statements.some((x) => x.invalid) ? '<span style="color:var(--bad)">an assumption was flagged invalid</span>' : ''}</span></div>` : ''}
+        <form class="composer" data-form="send"><div class="crow">${draft ? `<span class="draftchip">Origin: ${esc(draft.origin)}</span>` : ''}</div>
+          <textarea id="composer" aria-label="Message" placeholder="Message, @ to cite a note">${esc(draft ? draft.text : '')}</textarea>
+          <div class="crow"><span class="prov">Model · scripted in this prototype</span><span class="spacer"></span><button class="sendbtn" type="submit" aria-label="Send">↑</button></div></form>
+      </div></div></div>`
+  }
+  function dock() {
+    const v = state.view
+    if (v.kind !== 'session' || !state.dockOpen) return ''
+    const s = state.data.sessions.find((x) => x.id === v.sessionId)
+    if (s.topic.startsWith('seed:')) {
+      const seed = state.data.project.seeds.find((x) => 'seed:' + x.id === s.topic)
+      return `<aside class="dock" aria-label="Dock"><div class="dock-tabs"><button class="dtab" type="button" aria-selected="true">Seed</button><span class="spacer"></span><button class="ibtn" type="button" data-action="toggle-dock" aria-label="Close dock">✕</button></div>
+        <div class="dock-body"><p class="eyebrow">Seed · root note</p><h3 class="ts-title">${esc(seed.title)}</h3><span class="prov">${esc(seed.prov)}</span><p class="read">${rich(seed.text)}</p><p class="prov">No established result. Promoting the seed to a topic is a separate decision.</p><button class="sbtn" type="button" data-action="promote" data-id="${seed.id}">Promote to topic…</button></div></aside>`
+    }
+    const t = topic(s.topic)
+    const tabs = `<div class="dock-tabs" role="tablist"><button class="dtab" role="tab" type="button" data-action="dock-tab" data-tab="topic" aria-selected="${state.dockTab === 'topic'}">Topic</button><button class="dtab" role="tab" type="button" data-action="dock-tab" data-tab="derivation" aria-selected="${state.dockTab === 'derivation'}">derivation.md</button><span class="spacer"></span><button class="ibtn" type="button" data-action="toggle-dock" aria-label="Close dock">✕</button></div>`
+    const body = state.dockTab === 'topic' ? topicState(t, true) : noteReader('derivation', true)
+    return `<aside class="dock" aria-label="Dock">${tabs}<div class="dock-body">${body}</div></aside>`
+  }
+
+  // ---------- Layer: menus, palette, toasts ----------
+  function menuHtml() {
+    const m = state.menu
+    if (!m) return ''
+    return `<div class="menu" role="menu" style="left:${m.x}px;top:${m.y}px">${m.items.map((it) => it.sep ? '<hr>' : it.head ? `<div class="mh">${esc(it.head)}</div>` : `<button type="button" role="menuitem" data-mi="${it.id}">${esc(it.label)}${it.hint ? `<small>${esc(it.hint)}</small>` : ''}</button>`).join('')}</div>`
+  }
+  function paletteItems() {
+    const out = []
+    const d = state.data
+    for (const t of Object.values(d.topics)) {
+      out.push({ kind: t.kind, label: t.short, where: t.path, run: () => go({ kind: 'topic', topicId: t.id }) })
+      for (const th of t.threads) out.push({ kind: 'Thread', label: th.title, where: t.short, run: () => go({ kind: 'topic', topicId: th.pointer || t.id }) })
+      for (const s of t.statements) out.push({ kind: s.label.replace(/ \(.*/, ''), label: s.title, where: t.short, run: () => { go({ kind: 'topic', topicId: t.id }); setTimeout(() => scrollToStmt(s.id), 30) } })
+    }
+    for (const s of d.project.seeds) out.push({ kind: 'Seed', label: s.title, where: 'root note', run: () => go({ kind: 'home' }) })
+    for (const [id, n] of Object.entries(d.notes)) out.push({ kind: 'Note', label: n.title, where: n.path, run: () => go({ kind: 'note', noteId: id }) })
+    for (const s of d.sessions) out.push({ kind: 'Session', label: s.title, where: s.task, run: () => openSession(s.id) })
+    out.push({ kind: 'Action', label: 'New session on the current topic', where: 'origin: current topic', run: () => newTopicSession(state.lastTopic) })
+    out.push({ kind: 'Action', label: 'Toggle outline', where: 'Ctrl Shift O', run: () => { state.outline = !state.outline; render() } })
+    out.push({ kind: 'Action', label: 'Go to project home', where: 'root note', run: () => go({ kind: 'home' }) })
+    return out
+  }
+  function paletteHtml() {
+    const p = state.palette
+    if (!p) return ''
+    const q = p.q.toLowerCase().trim()
+    const items = paletteItems().filter((it) => !q || q.split(/\s+/).every((w) => (it.label + ' ' + it.where + ' ' + it.kind).toLowerCase().includes(w))).slice(0, 40)
+    p.items = items
+    if (p.index >= items.length) p.index = Math.max(0, items.length - 1)
+    return `<div class="scrim" data-action="close-palette"><div class="palette" role="dialog" aria-modal="true" aria-label="Research palette" data-stop="1">
+      <input id="pal-input" type="text" value="${esc(p.q)}" placeholder="Topics, branches, threads, assumptions, notes, actions…" aria-label="Search research" autocomplete="off">
+      <div class="pal-list" role="listbox">${items.map((it, i) => `<div class="pal-item" role="option" data-pi="${i}" aria-selected="${i === p.index}"><span class="kind">${esc(it.kind)}</span><span class="lbl">${esc(it.label)}</span><span class="where">${esc(it.where)}</span></div>`).join('') || '<p class="empty" style="padding:10px">Nothing matches. The palette searches topic, thread, statement and note titles.</p>'}</div>
+      <div class="pal-foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>↵</kbd> open</span><span><kbd>Esc</kbd> close</span></div></div></div>`
+  }
+  function toastHtml() {
+    return `<div class="toasts">${state.toasts.map((t) => `<div class="toast" role="status"><span class="t">${esc(t.text)}</span>${t.undo ? `<button type="button" data-toast="${t.id}">Undo</button>` : ''}</div>`).join('')}</div>`
+  }
+  function renderLayer() {
+    const layer = document.getElementById('layer')
+    layer.innerHTML = menuHtml() + paletteHtml() + toastHtml()
+    if (state.palette) {
+      const input = document.getElementById('pal-input')
+      if (input && document.activeElement !== input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length) }
+    }
+    if (state.menu) { const first = layer.querySelector('.menu button'); if (first && !layer.contains(document.activeElement)) first.focus() }
+  }
+
+  // ---------- Render ----------
+  function render() {
+    const app = document.getElementById('app')
+    const focused = document.activeElement
+    const focusId = focused?.id
+    const focusAction = focused?.dataset?.action
+    const focusTarget = focused?.dataset?.id
+    const scrollers = Array.from(app.querySelectorAll('.rp-scroll, .dock-body, .msgs')).map((el) => el.scrollTop)
+    const folds = Array.from(app.querySelectorAll('details')).map((el) => [el.querySelector('summary')?.textContent, el.open])
+    const sessionView = state.view.kind === 'session'
+    app.className = 'app' + (state.rail ? ' rail' : '') + (sessionView && state.dockOpen ? ' with-dock' : '')
+    app.innerHTML = hostbar() + (sessionView ? conversation() : researchPanel()) + dock()
+    Array.from(app.querySelectorAll('.rp-scroll, .dock-body, .msgs')).forEach((el, i) => { if (scrollers[i] !== undefined && state.keepScroll) el.scrollTop = scrollers[i] })
+    state.keepScroll = true
+    for (const el of app.querySelectorAll('details')) { const prior = folds.find(([name]) => name === el.querySelector('summary')?.textContent); if (prior) el.open = prior[1] }
+    renderMath(app)
+    renderLayer()
+    renderMath(document.getElementById('layer'))
+    const tb = document.getElementById('theme-btn')
+    tb.textContent = 'Theme: ' + state.theme
+    if (!state.menu && !state.palette && focused && focused !== document.body && !document.body.contains(focused)) {
+      const target = (focusId && document.getElementById(focusId)) || (focusAction && app.querySelector(`[data-action="${CSS.escape(focusAction)}"]${focusTarget ? `[data-id="${CSS.escape(focusTarget)}"]` : ''}`)) || app.querySelector('h2, h3, .conv-title')
+      if (target) { if (!target.matches('button,input,textarea,a')) target.tabIndex = -1; target.focus({preventScroll:true}) }
+    }
+  }
+  function focusSoon(sel) { setTimeout(() => { const el = document.querySelector(sel); if (el) el.focus() }, 0) }
+  function scrollToStmt(id) { const el = document.getElementById('stmt-' + id); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.animate([{ background: 'var(--accent-tint)' }, { background: 'transparent' }], { duration: 1400 }) } }
+
+  // ---------- Navigation ----------
+  function go(view) {
+    if (state.view.kind === 'session' && view.kind !== 'session' && state.autoRail) { state.rail = false; state.autoRail = false }
+    state.view = view
+    state.topicTab = view.tab || 'overview'
+    state.navMode = 'research'
+    if (view.topicId) state.lastTopic = view.topicId
+    state.editor = null
+    state.menu = null
+    state.filter = 'all'
+    state.keepScroll = false
+    if (state.outline && !state.pinned) state.outline = false
+    render()
+  }
+  function openSession(id) {
+    const s = state.data.sessions.find((x) => x.id === id)
+    state.view = { kind: 'session', sessionId: id, sessionTitle: s.title }
+    state.dockOpen = true
+    state.navMode = 'sessions'
+    state.dockTab = 'topic'
+    state.editor = null
+    state.keepScroll = false
+    if (!state.rail && window.innerWidth < 1600) { state.rail = true; state.autoRail = true }
+    render()
+  }
+  function newTopicSession(topicId, draft) {
+    const t = topic(topicId)
+    const id = 's' + nextId++
+    const title = draft ? draft.title : 'New session'
+    state.data.sessions.unshift({ id, title, topic: topicId, thread: draft && draft.thread || null, task: draft ? draft.task : 'Not stated yet.', time: 'now' })
+    state.data.messages[id] = []
+    refreshContext(id)
+    if (draft) state.drafts[id] = { origin: draft.origin, text: draft.text, stmt: draft.stmt }
+    else state.drafts[id] = { origin: t.short, text: '' }
+    openSession(id)
+  }
+
+  // ---------- Menus ----------
+  function openMenu(anchor, items) {
+    const r = anchor.getBoundingClientRect()
+    const w = 250
+    let x = Math.min(r.right - w, window.innerWidth - w - 12)
+    x = Math.max(12, x)
+    let y = r.bottom + 4
+    const h = items.length * 30 + 20
+    if (y + h > window.innerHeight - 12) y = Math.max(12, r.top - h - 4)
+    state.menu = { x, y, items, anchor }
+    renderLayer()
+  }
+  function agentItems(kind, id) {
+    return [
+      { head: 'Ask the agent (opens the conversation)' },
+      { id: `ask:explain:${kind}:${id}`, label: 'Explain' },
+      { id: `ask:challenge:${kind}:${id}`, label: 'Challenge assumptions' },
+      { id: `ask:derive:${kind}:${id}`, label: 'Derive or check' },
+      { id: `ask:literature:${kind}:${id}`, label: 'Find literature' },
+      { id: `ask:compare:${kind}:${id}`, label: 'Compare with another route' },
+      { id: `ask:verify:${kind}:${id}`, label: 'Verify' },
+      { id: `ask:dependents:${kind}:${id}`, label: 'Update dependent notes' },
+      { id: `ask:investigate:${kind}:${id}`, label: 'Start an investigation' },
+    ]
+  }
+  function cardMenu(anchor, kind, id) {
+    const t = topic(state.view.kind === 'session' ? state.data.sessions.find((x) => x.id === state.view.sessionId).topic : state.view.topicId)
+    let items = []
+    if (kind === 'thread') {
+      const th = threadOf(t, id)
+      items = [{ head: 'Change the thread' },
+        { id: `disp:active:${id}`, label: 'Mark active', hint: 'routine' },
+        { id: `disp:paused (by the researcher):${id}`, label: 'Pause', hint: 'routine' },
+        { id: `disp:dormant:${id}`, label: 'Make dormant', hint: 'routine' },
+        { id: `supersede:${id}`, label: 'Supersede by another route…', hint: 'D' },
+        { sep: true }, ...agentItems('thread', id),
+        { sep: true }, { id: `source:${id}`, label: 'Open in note' }]
+      if (th.pointer) items.splice(1, 3)
+    } else if (kind === 'pointer') {
+      items = [{ head: 'Branch pointer' }, { id: `record:${id}`, label: 'Record result…', hint: 'F' }, { id: `openbranch:${id}`, label: 'Open branch' }, { sep: true }, ...agentItems('thread', id)]
+    } else if (kind === 'stmt') {
+      const s = stmtOf(t, id)
+      items = [{ head: s.label }]
+      if (s.kind === 'assumption' && !s.invalid) items.push({ id: `invalidate:${id}`, label: 'Flag as invalid…', hint: 'E' })
+      if (s.kind === 'hypothesis' && !s.declined) items.push({ id: `unsupported:${id}`, label: 'Mark unsupported…', hint: 'C' }, { id: `decline:${id}`, label: 'Decline…', hint: 'C' })
+      if (s.kind === 'result' || s.kind === 'evidence') items.push({ id: `correct:${id}`, label: 'Correct the interpretation…', hint: 'B' })
+      items.push({ sep: true }, ...agentItems('stmt', id), { sep: true }, { id: `source:${id}`, label: 'Open in note' })
+    }
+    openMenu(anchor, items)
+  }
+  function crumbMenu(anchor, level, id) {
+    let items = []
+    if (level === 'project') items = [{ head: 'Project' }, { id: 'home', label: 'Project home' }, { id: 'noop', label: 'physics-archive', hint: 'another research root' }]
+    if (level === 'direction') items = [{ head: 'Directions' }, ...state.data.project.directions.map((d) => ({ id: 'topic:' + d.topics[0], label: d.title }))]
+    if (level === 'topic') {
+      const t = topic(id)
+      const sibs = t.parent ? topic(t.parent).children : dirOf(t).topics
+      items = [{ head: t.parent ? 'Sibling branches' : 'Topics in this direction' }, ...sibs.map((x) => ({ id: 'topic:' + x, label: topic(x).short, hint: x === id ? 'current' : '' }))]
+      if (t.children.length) items.push({ head: 'Branches' }, ...t.children.map((x) => ({ id: 'topic:' + x, label: topic(x).short })))
+    }
+    openMenu(anchor, items)
+  }
+  function draftFor(op, kind, id) {
+    const sess = state.view.kind === 'session' ? state.data.sessions.find((x) => x.id === state.view.sessionId) : null
+    const t = topic(sess ? sess.topic : state.view.topicId)
+    const obj = kind === 'stmt' ? stmtOf(t, id) : threadOf(t, id)
+    const name = obj.title
+    const loc = `${t.path}#${id}`
+    const verbs = {
+      explain: `Explain “${name}” (${loc}) at the level of the derivation note, including the conditions it depends on.`,
+      challenge: `Challenge the assumptions behind “${name}” (${loc}). Check its stated validity condition against the recorded dependents and earlier failed routes, and propose any qualification as a change for me to review.`,
+      derive: `Derive or check “${name}” (${loc}) by an independent route; record which steps were re-derived and which only checked for consistency.`,
+      literature: `Find primary literature on “${name}” (${loc}); report which sources support which condition.`,
+      compare: `Compare “${name}” (${loc}) with the retained alternatives in this topic under the same conventions.`,
+      verify: `Verify “${name}” (${loc}) with the relevant aitp-verify checks; do not change its label.`,
+      dependents: `Update the notes that depend on “${name}” (${loc}); show each change for review.`,
+      investigate: `Start an investigation from “${name}” (${loc}): state what would settle it and the first discriminating step.`,
+    }
+    return { origin: `${obj.label || 'Thread'} · ${name}`, text: verbs[op], title: ({ explain: 'Explain ', challenge: 'Challenge ', derive: 'Derive ', literature: 'Literature on ', compare: 'Compare ', verify: 'Verify ', dependents: 'Update uses of ', investigate: 'Investigate ' })[op] + name.toLowerCase(), task: verbs[op].split('(')[0].trim(), thread: kind === 'thread' ? id : null, stmt: kind === 'stmt' ? id : null, op, topicId: t.id }
+  }
+  function runMenuItem(mi) {
+    state.menu = null
+    const t = topic(state.view.kind === 'session' ? state.data.sessions.find((x) => x.id === state.view.sessionId).topic : state.view.topicId)
+    const [a, b, c, d] = mi.split(':')
+    if (a === 'home') return go({ kind: 'home' })
+    if (a === 'noop') { renderLayer(); return toast('Another research root would open its own project home.') }
+    if (a === 'topic') return go({ kind: 'topic', topicId: b })
+    if (a === 'disp') { const th = threadOf(t, c); return apply(opDisposition(t, th, b)) }
+    if (a === 'supersede') { state.editor = { type: 'supersede', match: 'thread:' + b, topicId: t.id, id: b }; render(); return focusSoon('#f-route') }
+    if (a === 'record') { state.editor = { type: 'record', match: 'answer-ptr', topicId: t.id, id: b }; render(); return focusSoon('#f-value') }
+    if (a === 'openbranch') { const th = threadOf(t, b); return go({ kind: 'topic', topicId: th.pointer }) }
+    if (a === 'invalidate') { state.editor = { type: 'invalidate', match: 'stmt:' + b, topicId: t.id, id: b }; render(); return focusSoon('#f-why') }
+    if (a === 'unsupported' || a === 'decline') { state.editor = { type: 'decline', mode: a, match: 'stmt:' + b, topicId: t.id, id: b }; render(); return focusSoon('#f-reason') }
+    if (a === 'correct') { const s = stmtOf(t, b); state.editor = { type: 'correct', match: 'stmt:' + b, topicId: t.id, id: b, value: s.text }; render(); return focusSoon('#f-correct') }
+    if (a === 'source') return go({ kind: 'note', noteId: 'topic:' + t.id })
+    if (a === 'ask') {
+      const draft = draftFor(b, c, d)
+      if (state.view.kind === 'session') {
+        const sid = state.view.sessionId
+        state.drafts[sid] = { origin: draft.origin, text: draft.text, stmt: draft.stmt, op: b }
+        render(); return focusSoon('#composer')
+      }
+      const existing = state.data.sessions.find((s) => s.topic === draft.topicId && draft.thread && s.thread === draft.thread)
+      if (existing) { state.drafts[existing.id] = { origin: draft.origin, text: draft.text, stmt: draft.stmt, op: b }; openSession(existing.id); return focusSoon('#composer') }
+      newTopicSession(draft.topicId, draft)
+      state.drafts[state.view.sessionId].op = b
+      return focusSoon('#composer')
+    }
+    renderLayer()
+  }
+
+  // ---------- Events ----------
+  document.addEventListener('click', (e) => {
+    const toastBtn = e.target.closest('[data-toast]')
+    if (toastBtn) { const t = state.toasts.find((x) => String(x.id) === toastBtn.dataset.toast); if (t && t.undo) t.undo(); state.toasts = state.toasts.filter((x) => x !== t); return renderLayer() }
+    const mi = e.target.closest('[data-mi]')
+    if (mi) return runMenuItem(mi.dataset.mi)
+    const pi = e.target.closest('[data-pi]')
+    if (pi && state.palette) { const it = state.palette.items[Number(pi.dataset.pi)]; state.palette = null; renderLayer(); return it.run() }
+    if (state.menu && !e.target.closest('.menu')) { state.menu = null; renderLayer() }
+    const el = e.target.closest('[data-action]')
+    if (!el) return
+    if (el.dataset.action === 'close-palette' && e.target.closest('[data-stop]')) return
+    if (el.dataset.action === 'close-palette' && e.target.closest('[data-stop]')) return
+    const act = el.dataset.action
+    const id = el.dataset.id
+    const t = state.view.topicId ? topic(state.view.topicId) : (state.view.kind === 'session' ? topic(state.data.sessions.find((x) => x.id === state.view.sessionId).topic) : null)
+    switch (act) {
+      case 'theme': {
+        state.theme = state.theme === 'system' ? 'light' : state.theme === 'light' ? 'dark' : 'system'
+        if (state.theme === 'system') document.documentElement.removeAttribute('data-theme'); else document.documentElement.dataset.theme = state.theme
+        try { localStorage.setItem('aitp-proto-theme', state.theme) } catch (error) { /* storage unavailable: theme lasts for this visit */ }
+        return render()
+      }
+      case 'reset': state.data = seedData(); Object.assign(state, { view: { kind: 'home' }, changes: [], integration: [], proposals: [], stale: {}, external: null, sent: {}, contexts: {}, drafts: {}, editor: null, rail: false, outline: false, pinned: false, topicTab: 'overview', navMode: 'research' }); return render()
+      case 'sim-menu': return openMenu(el, [{ head: 'Simulate a failure' }, { id: 'sim:external', label: 'External edit to the opening scope', hint: 'Codex session' }, { id: 'sim:session', label: 'Another Session changes a thread', hint: 'second writer' }, { id: 'sim:agent', label: 'Agent proposes a qualification', hint: 'proposal' }])
+      case 'rail': state.rail = !state.rail; state.autoRail = false; return render()
+      case 'go-home': return go({ kind: 'home' })
+      case 'noop': return toast(el.dataset.msg || 'Outside this prototype.')
+      case 'new-session': return newTopicSession(state.lastTopic)
+      case 'new-topic-session': return newTopicSession(id)
+      case 'open-topic': return go({ kind: 'topic', topicId: id })
+      case 'nav-mode': state.navMode = el.dataset.mode; return render()
+      case 'topic-tab': state.topicTab = el.dataset.tab; state.filter = 'all'; state.editor = null; return render()
+      case 'open-resource': {
+        const [ownerId, index] = id.split(':')
+        const resource = topic(ownerId).evidence[Number(index)]
+        state.lastTopic = ownerId
+        return go({ kind: 'note', noteId: resource.note || 'resource:' + id })
+      }
+      case 'back-materials': return go({ kind: 'topic', topicId: state.lastTopic, tab: 'materials' })
+      case 'open-note': return go({ kind: 'note', noteId: id })
+      case 'open-source': return go({ kind: 'note', noteId: 'topic:' + id })
+      case 'back': return go({ kind: 'topic', topicId: state.lastTopic })
+      case 'open-session': return openSession(id)
+      case 'seed-session': {
+        const seed = state.data.project.seeds.find((x) => x.id === id)
+        const sid = 's' + nextId++
+        state.data.sessions.unshift({ id: sid, title: 'Explore: ' + seed.title.toLowerCase(), topic: 'seed:' + id, thread: null, task: 'Explore; no topic created.', time: 'now' })
+        state.data.messages[sid] = []
+        state.drafts[sid] = { origin: 'Seed · ' + seed.title, text: `Explore the seed “${seed.title}”. Keep it a seed; do not create a topic or thread.` }
+        return openSession(sid)
+      }
+      case 'promote': return toast('Promotion would create a topic record and document through the shared workspace service. This demo keeps the idea exploratory; promotion is not implemented.')
+      case 'palette': state.palette = { q: '', index: 0 }; return renderLayer()
+      case 'close-palette': state.palette = null; return renderLayer()
+      case 'outline': state.outline = !state.outline; return render()
+      case 'pin': state.pinned = !state.pinned; if (state.pinned) state.rail = true; return render()
+      case 'crumb-menu': return crumbMenu(el, el.dataset.level, id)
+      case 'card-menu': return cardMenu(el, el.dataset.kind, id)
+      case 'filter': state.filter = el.dataset.k; return render()
+      case 'scroll-stmt': return scrollToStmt(id)
+      case 'edit-objective': state.editor = { type: 'objective', match: 'opening', base: snapshot(id), topicId: id, value: topic(id).opening.scope }; render(); return focusSoon('#f-scope')
+      case 'cancel': state.editor = null; return render()
+      case 'apply': if (state.editor) { const c = state.editor.change; apply(c) } return
+      case 'conflict-keep': state.editor = null; state.external = null; toast('Kept the file’s version; your change was not applied.'); return render()
+      case 'conflict-mine': { const c = state.editor.change; if (c.region !== 'opening') return toast('Reopen the editor against the current note to prepare a fresh change.'); const value = c.lines.find((x) => x[0] === 'add' && x[1].startsWith('Scope: '))[1].slice(7); state.editor = null; state.external = null; return prepare(opObjective(topic(c.topicId), value)) }
+      case 'conflict-agent': { const c = state.editor.change; state.editor = null; return newTopicSession(c.topicId, { title: 'Reconcile edit', origin: c.file, text: 'Reconcile this proposed change against the current note; propose a new diff. ' + c.lines.map((x) => x[1]).join('\n'), task: 'Reconcile conflicting edits' }) }
+      case 'decide': { const th = threadOf(t, id); return prepare(opDecide(t, th, el.dataset.opt)) }
+      case 'prop-review': { const p = state.proposals.find((x) => String(x.id) === id); state.editor = { type: 'diff', change: p.change, propId: p.id }; render(); return focusSoon('[data-action="apply"]') }
+      case 'prop-decline': state.proposals = state.proposals.filter((x) => String(x.id) !== id); state.changes.unshift({ id: nextId++, at: '10:47', actor: 'You', topicId: t.id, summary: 'Declined an agent proposal (kept in the Session record)', undo: () => {}, isRevert: true }); return render()
+      case 'integrate': { const it = state.integration.find((x) => String(x.id) === id); const sess = openSessionsOn(it.topicId)[0]; if (sess) { state.drafts[sess.id] = { origin: 'Integration task', text: it.text + '. Apply placement edits within this task’s write scope and show consequential ones for review.' }; return openSession(sess.id) } return toast('Opens a Session with this integration task.') }
+      case 'integ-done': { const it = state.integration.find((x) => String(x.id) === id); it.done = true; return render() }
+      case 'revert': return revert(Number(id))
+      case 'toggle-dock': state.dockOpen = !state.dockOpen; if (!state.dockOpen && state.autoRail) { state.rail = false; state.autoRail = false } return render()
+      case 'dock-tab': state.dockTab = el.dataset.tab; return render()
+      case 'ack-stale': refreshContext(state.view.sessionId); return render()
+    }
+  })
+  document.addEventListener('keydown', (e) => {
+    if (e.target.matches('[role="tab"]') && ['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) {
+      e.preventDefault()
+      const tabs = [...document.querySelectorAll('.page-tabs [role="tab"]')]
+      const current = tabs.indexOf(e.target)
+      const index = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (current + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length
+      state.topicTab = tabs[index].dataset.tab
+      state.editor = null
+      render()
+      document.getElementById('tab-' + state.topicTab).focus()
+      return
+    }
+    if (state.palette && e.key === 'Tab') { e.preventDefault(); document.getElementById('pal-input').focus(); return }
+    if (e.target.closest && e.target.closest('.trow') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); return go({ kind: 'topic', topicId: e.target.closest('.trow').dataset.id }) }
+    const mod = e.ctrlKey || e.metaKey
+    if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); state.palette = state.palette ? null : { q: '', index: 0 }; return renderLayer() }
+    if (mod && e.shiftKey && e.key.toLowerCase() === 'o') { e.preventDefault(); if (state.view.kind !== 'session') { state.outline = !state.outline; render() } return }
+    if (mod && e.key === 'Enter' && state.editor && state.editor.type === 'diff') { e.preventDefault(); const c = state.editor.change; return apply(c) }
+    if (e.key === 'Escape') {
+      if (state.palette) { state.palette = null; renderLayer(); return focusSoon('[data-action="palette"]') }
+      if (state.menu) { const a = state.menu.anchor; state.menu = null; renderLayer(); if (a && document.body.contains(a)) a.focus(); return }
+      if (state.editor) { state.editor = null; return render() }
+      if (state.outline && !state.pinned) { state.outline = false; return render() }
+    }
+    if (state.palette && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault(); const n = state.palette.items.length; if (!n) return
+      state.palette.index = (state.palette.index + (e.key === 'ArrowDown' ? 1 : n - 1)) % n; renderLayer()
+      const sel = document.querySelector('.pal-item[aria-selected="true"]'); if (sel) sel.scrollIntoView({ block: 'nearest' }); return
+    }
+    if (state.palette && e.key === 'Enter') { e.preventDefault(); const it = state.palette.items[state.palette.index]; state.palette = null; renderLayer(); if (it) it.run(); return }
+    if (state.menu && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault(); const btns = Array.from(document.querySelectorAll('.menu button')); const i = btns.indexOf(document.activeElement)
+      const nx = btns[(i + (e.key === 'ArrowDown' ? 1 : btns.length - 1)) % btns.length]; if (nx) nx.focus()
+    }
+  })
+  document.addEventListener('input', (e) => { if (e.target.id === 'pal-input') { state.palette.q = e.target.value; state.palette.index = 0; renderLayer() } })
+  document.addEventListener('submit', (e) => {
+    e.preventDefault()
+    const form = e.target.dataset.form
+    const ed = state.editor
+    if (form === 'send') { return send() }
+    if (!ed) return
+    const t = topic(ed.topicId)
+    if (form === 'objective') { const v = document.getElementById('f-scope').value.trim(); if (!v) return; return prepare(opObjective(t, v)) }
+    if (form === 'correct') { const v = document.getElementById('f-correct').value.trim(); return prepare(opCorrect(t, stmtOf(t, ed.id), v)) }
+    if (form === 'decline') { const v = document.getElementById('f-reason').value.trim() || 'not recorded'; return prepare(opDecline(t, stmtOf(t, ed.id), ed.mode, v)) }
+    if (form === 'supersede') { const v = document.getElementById('f-route').value.trim(); const w = document.getElementById('f-reopen').value.trim() || 'not recorded'; return prepare(opSupersede(t, threadOf(t, ed.id), v, w)) }
+    if (form === 'invalidate') { const why = document.getElementById('f-why').value.trim(); const picked = Array.from(document.querySelectorAll('input[name="dep"]:checked')).map((x) => x.value); return prepare(opInvalidate(t, stmtOf(t, ed.id), why, picked)) }
+    if (form === 'record') { const v = document.getElementById('f-value').value.trim(); const th = threadOf(t, ed.id); const c = opRecord(t, th, v); c.region = 'answer-ptr'; return prepare(c) }
+  })
+  function send() {
+    const sid = state.view.sessionId
+    const box = document.getElementById('composer')
+    const text = box.value.trim()
+    if (!text) return
+    const draft = state.drafts[sid]
+    state.sent[sid] = state.sent[sid] || []
+    state.sent[sid].push({ who: 'user', text })
+    const s = state.data.sessions.find((x) => x.id === sid)
+    refreshContext(sid)
+    let reply = 'Noted. In the running application the model would answer here; this prototype scripts only the Challenge assumptions reply.'
+    if (draft && draft.op === 'challenge' && draft.stmt && !s.topic.startsWith('seed:')) {
+      const t = topic(s.topic), st = stmtOf(t, draft.stmt)
+      if (st) {
+        reply = `Scripted review example: “${st.title}” needs a model-specific applicability check. I proposed wording that keeps this uncertainty explicit. No derivation, literature check or calculation was performed.`
+        state.proposals.push(agentProposalFor(t, st))
+      }
+    }
+    state.sent[sid].push({ who: 'agent', text: reply })
+    delete state.drafts[sid]
+    state.dockTab = 'topic'
+    render()
+    const m = document.querySelector('.msgs'); if (m) m.scrollTop = m.scrollHeight
+  }
+
+  // Simulations from the header menu
+  const simHandler = (mi) => {
+    if (mi === 'sim:external') {
+      const t = topic('topo-ham')
+      const nextScope = 'External edit: analytic scope only; numerical work needs a separate decision.'
+      const c = opObjective(t, nextScope); c.actor = 'External writer (simulated)'
+      const pending = state.editor
+      apply(c)
+      if (pending) { state.editor = pending; render() }
+      toast('External edit applied to the simulated note. A pending preview now conflicts; a newly opened editor reads the new scope.')
+      return true
+    }
+    if (mi === 'sim:session') {
+      const t = topic('topo-ham'); const th = threadOf(t, 'freq')
+      if (th) { const c = opDisposition(t, th, 'waiting on analysis'); c.actor = 'Agent · Session “Basis check”'; c.consequential = true; apply(c) }
+      return true
+    }
+    if (mi === 'sim:agent') {
+      const t = topic('topo-ham'); state.proposals.push(agentProposalFor(t, stmtOf(t, 'static-reference'))); state.menu = null
+      go({ kind: 'topic', topicId: 'topo-ham' }); return true
+    }
+    return false
+  }
+  const origRun = runMenuItem
+  // Wrap to route simulation items first.
+  document.addEventListener('click', (e) => { const mi = e.target.closest('[data-mi^="sim:"]'); if (mi) { e.stopImmediatePropagation(); state.menu = null; renderLayer(); simHandler(mi.dataset.mi) } }, true)
+  void origRun
+
+  // ---------- Boot ----------
+  try { const saved = localStorage.getItem('aitp-proto-theme'); if (saved === 'light' || saved === 'dark') { state.theme = saved; document.documentElement.dataset.theme = saved } } catch (error) { /* storage unavailable: follow the system theme */ }
+  const hash = location.hash.replace('#', '')
+  if (hash === 'topic') state.view = { kind: 'topic', topicId: 'topo-ham' }
+  if (hash === 'session') { state.view = { kind: 'session', sessionId: 'zero', sessionTitle: 'Zero search' }; state.dockOpen = true; state.rail = true }
+  render()
+  if (!window.katex) window.addEventListener('load', () => { renderMath(document.getElementById('app')) })
+})()
+</script>
+
+</html>
