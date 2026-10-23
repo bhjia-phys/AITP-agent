@@ -28,6 +28,13 @@ owns contract, dependency and upgrade boundaries. Harness/Cordis is selected; th
 
 The P0–P5 groups describe capability acceptance. The [single next-slice statement](#next-implementation-slice) and the dependency cells below own the current development sequence; the earlier linear reader/desktop order is superseded as a planning dependency. This does not claim researcher acceptance of the product or settle the authoring policy. Controlled apply still depends on the selected policy and assessed review. The old [W0–W6 sequence](08-implementation-plan.md#3-waves-and-milestones) and M1 results remain Pi history, not Harness release gates.
 
+<a id="topic-redesign-review"></a>
+## Topic-centred redesign review
+
+The 2026-10-23 request authorizes critical assessment, design alternatives, an interactive prototype, README/design updates and a proposed implementation sequence. [16](16-topic-centred-redesign.md) owns that review package and its proposed phases; [prototype evidence](prototype/topic-workspace/README.md) owns the simulation’s tested behavior and limits. Codex resumes Claude’s interrupted design task in the isolated design worktree. UI-1 is preserved; its historical package checks and incomplete host typecheck remain distinct. The researcher has now authorized publishing this design/prototype/interface package to remote main. Its publication excludes the separate UI-1 implementation commits and does not implement production services or write real research notes.
+
+The researcher subsequently clarified the design target: immediately legible topics/subtopics, click-through details, tidy operation and convenient AI organization/read-write, with explicit freedom to go beyond the existing research-memory format. The latest clarification narrows this side to the frontend and reserved interfaces, because the backend is being developed separately. [16](16-topic-centred-redesign.md#decisions) defines topic/document/resource read models and serializable edit intents; the proposed TypeScript contract lives with the prototype. The frontend path is project overview → child detail → material → edit feedback using synthetic data. Backend storage, note mapping, persistence and real model integration are separate work; production API changes and real-note import remain outside this design task. Once selected, integrate the proposal into the existing owners 10–14 and this plan’s single implementation sequence.
+
 <a id="harness-migration"></a>
 ## Authorized Harness migration and GPT adaptation
 
