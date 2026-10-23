@@ -197,9 +197,9 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 <a id="q10"></a>
 ### Q10：模块化已经选定，具体研究服务与验收仍要落实
 
-**已确定：**模块化用于独立优化、替换和升级核心部分；应用底座现已选定 Harness/Cordis。原来的“是否引入 Cordis”不再是待选项。[10](docs/agent/10-project-workspace.md#harness-service-mapping)映射了服务、领域插件和客户端职责；方法规则继续归上游 AITP Skills。Skill 发现、科研蒸馏、主/子文档协同是不同责任，通用 Skill loader 不自动完成后两者。
+**已确定：**模块化用于独立优化、替换和升级核心部分；应用底座现已选定 Harness/Cordis。用户进一步明确要求：各项实现按职责设计相关插件，再通过应用配置组合使用，方便分别维护。新增能力应明确由现有插件扩展还是由新的完整能力插件负责，共享接口和数据各有一个归属，组合层负责接线。具体约定见 [插件实现与组合原则](docs/agent/10-project-workspace.md#plugin-owned-implementation)；这不是要求每个按钮、函数或科学概念各建一个插件。原来的“是否引入 Cordis”不再是待选项。[10](docs/agent/10-project-workspace.md#harness-service-mapping)映射了服务、领域插件和客户端职责；方法规则继续归上游 AITP Skills。Skill 发现、科研蒸馏、主/子文档协同是不同责任，通用 Skill loader 不自动完成后两者。
 
-用户要求结合具体情景细化插件职责。[场景—插件协作设计](docs/agent/10-project-workspace.md#scenario-plugin-map)连接课题主页、文献、知识、代码、Skill 库、蒸馏、协作规则和审阅，共用来源观察、工作记忆、上下文及文档修改服务。课题主页数据和领域视图归科研记录插件，工作台承载视图；知识等插件提供显式链接，由科研记录的有界受影响使用查询统一汇集。Skill 候选 provider 检索并包装相关条件，主模型判断适用性并写入工作项。该设计已细化；接口、可替换性和完整场景行为仍未实现验证。唯一责任分配表归 [14](docs/agent/14-implementation-blueprint.md#development-crosswalk)，适用性缺口见 [Q16](#q16)。
+用户要求结合具体情景细化插件职责。[场景—插件协作设计](docs/agent/10-project-workspace.md#scenario-plugin-map)连接课题主页、文献、知识、代码、Skill 库、蒸馏、协作规则和审阅，共用来源观察、工作记忆、上下文及文档修改服务。课题主页数据和领域视图归科研记录插件，工作台承载视图；知识等插件提供显式链接，由科研记录的有界受影响使用查询统一汇集。Skill 候选 provider 检索并包装相关条件，主模型判断适用性并写入工作项。已有前端插件与模拟适配接口支持这一路线；真实研究服务之间的接口、可替换性和完整场景行为仍需实现验证。唯一责任分配表归 [14](docs/agent/14-implementation-blueprint.md#development-crosswalk)，适用性缺口见 [Q16](#q16)。
 
 用户已要求 AITP 接入底层，并明确反对固定科研动作约束。[运行时接入设计](docs/agent/10-project-workspace.md#aitp-runtime-integration)改以记忆读取、相关性／重要性选择、上下文交付、压缩恢复和结果反馈为主。工具 guard 时序、文件工具不能覆盖全部写入等源码发现保留在集成证据，只有在具体任务明确要求相应硬限制时才需要据此选实现；它们不是当前记忆方案的前置条件。类型化事件内存提交与实际落盘仍须区分。此次是设计核查，尚非科研服务验收。
 

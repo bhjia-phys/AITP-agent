@@ -1,6 +1,6 @@
 # 10. Target architecture: a project-centred research IDE
 
-Living architecture, updated 2026-10-22. This is the canonical explanation of how the completed aitp-agent should work: its capabilities, component cooperation, data ownership and boundaries. The researcher selected the official DeepSeek Harness source as the application base, preserving the scientific design and authorizing the fork integration, naming and GPT adaptation. [14 Development plan](14-implementation-blueprint.md) owns the bounded implementation scope, progress and sequencing; [13 Research cases](13-research-journeys.md) owns case-by-case suitability and coverage. The retained Pi implementation under `agent/` and its [integration evidence](../../agent/notes/integration.md) are historical reference, not the active Harness runtime. Research workflows still require implementation and acceptance on the new host.
+Living architecture, updated 2026-10-23. This is the canonical explanation of how the completed aitp-agent should work: its capabilities, component cooperation, data ownership and boundaries. The researcher selected the official DeepSeek Harness source as the application base, preserving the scientific design and authorizing the fork integration, naming and GPT adaptation. [14 Development plan](14-implementation-blueprint.md) owns the bounded implementation scope, progress and sequencing; [13 Research cases](13-research-journeys.md) owns case-by-case suitability and coverage. The retained Pi implementation under `agent/` and its [integration evidence](../../agent/notes/integration.md) are historical reference, not the active Harness runtime. Research workflows still require implementation and acceptance on the new host.
 
 The product is a place to return to a scientific question, inspect what supports the current answer, and carry out the next authorized piece of work. A project opens on its research state. Papers, knowledge, notes and code have independently usable workspaces. A conversation is work on a selected object and can sit beside its material; it is never the prerequisite for finding that material.
 
@@ -15,7 +15,7 @@ Harness executes model/tool work. These internal parts do not each require a nav
 **Confirmed requirement, 2026-10-22:** the researcher requires modularity so core parts
 can be optimized and upgraded independently. UI-editable collaboration rules and selective
 information display are also requested capabilities. These requirements are settled;
-Harness/Cordis is now the selected plugin framework; exact research-service interfaces and each research implementation slice remain to be specified within the scope in 14.
+Harness/Cordis is the selected plugin framework. The researcher also requires feature implementations to have explicit plugin ownership and to be composed into the application, so their behavior can be maintained and upgraded separately. The [plugin implementation principle](#plugin-owned-implementation) governs that decomposition; each research implementation slice remains bounded by 14.
 
 The researcher’s three principles—composability under scientific conditions, structured knowledge and state that outlives Sessions—constrain this architecture. [16](16-topic-centred-redesign.md#principles) specifies their consequences and distinguishes executable capabilities, scientific objects, persistent artifacts and UI projections. The researcher permits going beyond the research.md format. The research client owns typed topic views, complete document references and linked resources behind a replaceable asynchronous adapter. Its [connection contract](../../packages/client/ui-aitp-research/README.md#backend-connection) binds a provider to one Harness Workspace; framework resources own read snapshots, while the shared view store owns local interaction state: navigation, drafts and unresolved edit attempts, without becoming the authoritative research store. Storage, existing-note mapping, permissions, persistence and actual model-context delivery belong to the backend being developed separately. The opt-in fixture exercises this boundary with synthetic data; it is not a second research backend or a migration.
 
@@ -537,7 +537,7 @@ well as controls. The [memory projection](11-research-memory.md#memory-user-view
 The researcher subsequently asked for durable functional areas, including literature,
 knowledge, Skills, distillation and replaceable UI, rather than only independent tasks.
 The workstreams in 14 organize development; product functions determine the plugin responsibilities below.
-The selected application base is DeepSeek Harness and its Cordis composition host. Shared research services, domain plugins and presentation/host adapters retain the responsibilities below. This is an authorized host change, not evidence that AITP's research plugins have been implemented.
+The selected application base is DeepSeek Harness and its Cordis composition host. Shared research services, domain plugins and presentation/host adapters retain the responsibilities below. The functional areas describe the target system; [14](14-implementation-blueprint.md#independent-development) distinguishes implemented contributions from the backend and domain capabilities still to build.
 
 ```mermaid
 flowchart TB
@@ -553,6 +553,23 @@ flowchart TB
 ```
 
 The imported Harness source is version `0.2.1-rc.2`; exact Git ancestry belongs in the repository and integration evidence. Its [architecture](../architecture.md) separates service definitions, providers and consumers, composes profiles/bundles and disposes registrations with plugin lifetimes. Its [typed UI slots](../subsystems/slots.md) let features contribute views without importing one another's components. Its Electron desktop carries the Web plugin system. Ordinary host plugins share a process: lifecycle management is not security isolation. Start with first-party plugins and supported profile composition; arbitrary hot replacement is not an AITP acceptance prerequisite.
+
+<a id="plugin-owned-implementation"></a>
+#### Plugin ownership and application assembly
+
+**Confirmed implementation principle:** design each coherent AITP capability as a Harness/Cordis plugin, or extend the existing plugin that owns that responsibility, then compose the required plugins into the product. Independent maintenance is the purpose: research records, source adapters, context/memory, literature, code, rules and their views should have identifiable owners and interfaces. A screen, button, helper function or scientific concept does not by itself justify another plugin. A capability may use cooperating service-definition, provider and client packages when their runtime or dependency boundaries differ.
+
+| Responsibility | Implementation and maintenance boundary |
+| --- | --- |
+| Feature behavior | Its owning plugin implements the capability and relevant tools/views, with its tests, documentation and registration lifecycle |
+| Shared definitions and state | One owner defines each cross-plugin contract and authoritative state; consumers use public services, events, resource protocols or APIs |
+| Presentation | Client plugins contribute through Harness slots and consume providers through contracts; a view does not import another plugin's private components or storage implementation |
+| Product assembly | Supported profiles, bundles and explicit overlays select plugins, providers and dependencies; composition code wires them without absorbing their business behavior |
+| Generic host support | Reuse upstream services; a missing host capability becomes a narrow general extension point, while AITP-specific behavior stays with its plugin |
+
+Each selected implementation names the plugin being added or extended, what it provides and consumes, who owns its data, and how the application activates it. Put those facts in its package README and the existing development scope rather than creating another registry. Dependency and interface changes update the affected providers, consumers and fixtures together. Test a plugin's behavior independently where useful, then verify the assembled user route. Unloading releases registrations and subscriptions; missing optional providers produce explicit unavailable states. Replacing a provider must not require rewriting readers or creating duplicate research state.
+
+The current frontend illustrates this arrangement: [research views](../../packages/client/ui-aitp-research/README.md), [Session research views](../../packages/client/ui-aitp-session/README.md), the [development provider](../../packages/client/ui-aitp-fixtures/README.md) and [branding/theme](../../packages/client/ui-brand-aitp/README.md) have separate package ownership. The AITP Web overlay composes them with existing Harness services; the fixture is enabled separately. The workspace adapter is the connection point for a real backend provider. These are AITP-agent additions using the upstream mechanism, not plugins already supplied by unmodified upstream Harness or independently published packages. Plugin boundaries do not require separate repositories, processes or public releases.
 
 The retained Pi tree pins `pi-ai` and `pi-durable` to 1.3.0 and uses [static runtime registration](../../agent/packages/runtime/src/registry.ts). It remains a reference for research semantics and earlier failures. Harness may use its own `llm-pi-ai` model adapter; that adapter does not import the retained `pi-durable` conversation state or restore the old execution loop.
 
