@@ -651,7 +651,7 @@ The checks apply to the changed frontend or integration slice, not to every scie
 5. **Layout:** both themes, long titles/equations and varied widths; actual 200 % zoom is distinct from a narrower viewport simulation.
 6. **Regression:** preserve Harness Workspace/Session behavior and supported UI-1 reading paths while replacing selected contributions.
 
-The existing repository-wide host typecheck remains unverified where memory limits prevented completion. Prototype browser checks and standalone interface type checks do not replace it. No new hash checks, real-note writes, persistence guarantees or scientific acceptance are established here.
+The historical UI-1 baseline did not complete the repository-wide Host typecheck because of memory limits. The later formal frontend slice passed both complete Host and Client programs, as recorded in the [application receipt](../../agent/notes/harness-integration.md#topic-workspace-client). Prototype browser checks and standalone interface type checks remain separate evidence. No new hash checks, real-note writes, persistence guarantees or scientific acceptance are established here.
 
 <a id="decisions"></a>
 ## 17. Agreed direction and connection choices
