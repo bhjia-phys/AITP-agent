@@ -1,0 +1,30 @@
+- region "Research":
+  - heading "Research" [level=1]
+  - text: workspace
+  - navigation "Research location":
+    - button "Back"
+    - button "Project overview"
+  - paragraph:
+    - strong: Demo workspace
+    - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
+  - paragraph: Read Oct 23, {{clock}} AM
+  - paragraph: Note
+  - 'heading "Operator Krylov dynamics: full account" [level=2]'
+  - paragraph: "Source location: demo/operator-krylov/research.md"
+  - article:
+    - heading "Operator Krylov dynamics" [level=1]
+    - blockquote:
+      - paragraph: Synthetic demonstration; not a real research record.
+    - heading "Question" [level=2]
+    - paragraph: What does operator spreading reveal on a matched spectral grid?
+    - heading "Scope" [level=2]
+    - paragraph: Keep the same spectral grid and compare only the explicitly matched finite systems.
+    - heading "Current understanding" [level=2]
+    - paragraph: The finite reference agrees with the independent evolution on the selected grid.
+    - paragraph: This demonstration does not establish a large-system chaos result.
+    - heading "Decisive gap" [level=2]
+    - paragraph: The small-system control does not cover the production grid.
+    - heading "Current work" [level=2]
+    - paragraph: Inspect the control report before increasing system size.
+    - heading "Argument and limits" [level=2]
+    - paragraph: A bounded reference may distinguish an implementation error from an unresolved scientific assumption. It does not establish the whole research question. The next observation must be assessed within the scope stated above.

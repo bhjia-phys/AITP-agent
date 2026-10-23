@@ -6,7 +6,10 @@
     "agent/",
     "aitp/",
     "docs/agent/",
-    "packages/client/ui-brand-aitp/README.md"
+    "packages/client/ui-brand-aitp/README.md",
+    "packages/client/ui-aitp-research/README.md",
+    "packages/client/ui-aitp-session/README.md",
+    "packages/client/ui-aitp-fixtures/README.md"
   ],
   "excluded": [
     ".agents/notes/AGENTS.md",

@@ -68,9 +68,12 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-resources` | no | Unified client resource model: protocol-registered providers turn URL addresses into live values, consumed through the useResource global standard hook |
 | `@deepseek-ai/dsh-client-shortcuts` | yes | Application keyboard command registry and physical-key routing |
 | `@deepseek-ai/dsh-client-ui-agent-preset` | no | Agent-preset surfaces: the default for later sessions, this session's seat, and the composition editor |
+| `@deepseek-ai/dsh-client-ui-aitp-fixtures` | no | Labelled synthetic providers for the AITP research views; development only, disabled by default |
+| `@deepseek-ai/dsh-client-ui-aitp-research` | no | AITP Research panel: topic homes and notes of a research Workspace, readable without a Session |
+| `@deepseek-ai/dsh-client-ui-aitp-session` | no | AITP Session views: task card, Session origin and the Sources & memory page |
 | `@deepseek-ai/dsh-client-ui-approval` | no | Approval composer takeover over the scoped Remote Event waterfall |
 | `@deepseek-ai/dsh-client-ui-attachment` | no | Dynamic attachment presentation plugin for conversation input, message-image, and trajectory image slots |
-| `@deepseek-ai/dsh-client-ui-brand-aitp` | no | aitp-agent sidebar identity for the Harness-derived research application |
+| `@deepseek-ai/dsh-client-ui-brand-aitp` | no | aitp-agent sidebar identity and presentation tokens for the Harness-derived research application |
 | `@deepseek-ai/dsh-client-ui-brand-official` | no | Official DeepSeek Harness brand occupants for the Web client's sidebar slots |
 | `@deepseek-ai/dsh-client-ui-chat` | no | Chat Conversation target, node definitions, renderers, and details surface |
 | `@deepseek-ai/dsh-client-ui-commands` | no | Client command surface: global directory cache, '/' source, three command UI kinds, popupSelect registry |

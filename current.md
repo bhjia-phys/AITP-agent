@@ -4,7 +4,7 @@
 
 **证据分界：** 本文引用 `agent/packages/` 的源码缺陷、[四个合成复现](agent/notes/review-2026-10-22.md)和[旧集成记录](agent/notes/integration.md)均针对保留的 Pi 实现，未在 Harness 上重跑。它们继续规定迁移后的反例与验收要求，不能直接称为 Harness 已复现缺陷，也不能因换底座而关闭。Harness 已有通用会话、工具、插件、Web 和桌面机制；这些不等于 AITP 的约定、必要前提、科研审阅和写回已经实现。默认 Harness 工具也不自动继承旧 AITP 只读 profile 的限制。
 
-**当前最重要的缺口，是 GPT 路线只有有限的真实运行证据，重要科研记忆也没有稳定接入实际模型上下文。** 读取、压缩恢复、结果反馈与主文档维护仍需连接。会话持久化、资料读取、搜索和选择卡已有基础；新的科研工作台和自适应研究循环仍主要是设计。用户要求修复 GPT 接入问题，并将实现的科研场景与 **Codex + AITP** 比较；完成登录、通过回放或接通模块，都不能直接证明科研判断改善。
+**当前最重要的缺口，是 GPT 路线只有有限的真实运行证据，重要科研记忆也没有稳定接入实际模型上下文。** 读取、压缩恢复、结果反馈与主文档维护仍需连接。会话持久化、资料读取、搜索和选择卡已有基础；科研工作台已有正式客户端和可选的异步模拟 provider；真实资料接入与自适应研究循环仍待实现。用户要求修复 GPT 接入问题，并将实现的科研场景与 **Codex + AITP** 比较；完成登录、通过回放或接通模块，都不能直接证明科研判断改善。
 
 本文供接手者共同质疑、开发和纠错。它集中记录问题、依据、后果和可区分的修正验证，不取代架构、开发规划或科研场景文档。下文的“漏洞”包括**设计未闭合、已查明的实现缺口、尚无验证证据**，并不表示每一项都是已触发的运行故障或安全漏洞。
 
@@ -32,7 +32,7 @@
 - 应用底座已选定 Harness/Cordis；通过其服务、事件和插件实现模块化，不额外运行旧 Pi 任务循环。应用开发流程不成为上游可移植科研 Skills 的前置条件；其 owner 仍在 `aitp/plugins/aitp/`。
 - 用户进一步明确：AITP 要接入底层，重点是优先向 AI 暴露科研中重要的上下文作为记忆，不采用固定科研动作约束。运行时负责选择、读取、交付、恢复和更新重要信息，AI 根据实际问题自主选择下一步；Skills 提供方法。明确的用户要求仍须遵守，现有宿主权限保留，但缺一项前提不自动封锁研究。具体设计归 [10](docs/agent/10-project-workspace.md#aitp-runtime-integration)，开发依赖归 [14](docs/agent/14-implementation-blueprint.md#runtime-integration-plan)。
 - 所有哈希相关检查保持禁用。后续精确文本比较等非哈希写入策略仍是待确定的方案，不能借“修漏洞”恢复已禁用的版本、冲突或批准摘要检查。
-- 用户已要求整理插件和任务、逐项实施并随实现维护文档，现授权把本轮研究后的规划与架构发布到公开仓库。**Claude 继续负责 UI 设计和客户端实现；Codex 负责底层实现、GPT、规划协调及对照测试。** 文件分工和唯一实施顺序由 [14](docs/agent/14-implementation-blueprint.md#next-implementation-slice)维护；规划发布不等于功能已实现，也不授权真实笔记迁移、科研写入或计算任务。
+- 用户已要求整理插件和任务、逐项实施并随实现维护文档。Claude 的 UI-1 是可复用的客户端基础；最新请求明确由 Codex 完成正式课题前端与异步模拟接口，后台科研记忆可以独立并行实现。文件分工和唯一实施顺序由 [14](docs/agent/14-implementation-blueprint.md#topic-redesign-review)维护；规划发布不等于功能已实现，也不授权真实笔记迁移、科研写入或计算任务。
 - 保留已有脏工作树、原始科研材料和历史证据。此次文档提交与推送按用户明确授权进行；本文和 Skill 不另行授予重置、清理、覆盖无关改动或发布私人研究资料的权限。
 
 ## 当前能确认到哪一步
@@ -184,7 +184,7 @@
 <a id="q09"></a>
 ### Q09：知识库、文献库和代码视图已有设计，但材料适配能力仍为空缺
 
-[12 的 Harness 映射](docs/agent/12-desktop-interface.md#harness-integration-map-and-missing-backend-information)已明确：右 dock 仅属于打开的会话且最多两个 pane；无会话浏览走全局面板，共用同一 reader，不能为打开资料伪造会话。Harness Workspaces 保持唯一项目列表，课题是其内部视图；会话外研究根读取、课题投影和 resource protocol 尚待实现。
+[12 的 Harness 映射](docs/agent/12-desktop-interface.md#harness-integration-map-and-missing-backend-information)已明确：右 dock 仅属于打开的会话且最多两个 pane；无会话浏览走全局面板，共用 reader，不能为打开资料伪造会话。Harness Workspaces 保持唯一项目列表，课题是其内部视图。[正式课题客户端](packages/client/ui-aitp-research/README.md)已接入异步适配器、框架 resource protocol 和同列课题树；可选 fixture 支持课题层级、材料阅读及内存修改反馈。真实研究根读取、持久化和模型上下文服务仍需由后台连接，浏览器里的成功修改不能替代这些能力。
 
 **性质：计划内的实现缺口，不应伪装为已完成能力。** [knowledge](agent/packages/core/src/knowledge/index.ts)、[works](agent/packages/core/src/works/index.ts)、[checkouts](agent/packages/core/src/checkouts/index.ts)等服务是占位；上下文中的相应分支不等于能取得真实知识、版本和代码资料。
 

@@ -398,9 +398,17 @@ export function checkExperimentalNameExceptions(manifests: readonly WorkspaceMan
   return errors
 }
 
+/** aitp-agent client packages: application identity, research views and their development fixture. */
+const FORK_CLIENT_PACKAGE_DIRECTORIES: ReadonlySet<string> = new Set([
+  'packages/client/ui-brand-aitp',
+  'packages/client/ui-aitp-research',
+  'packages/client/ui-aitp-session',
+  'packages/client/ui-aitp-fixtures',
+])
+
 function isReleaseMemberDirectory(dir: string): boolean {
-  // Fork-owned application identity is private and never published into the upstream npm scope.
-  if (dir === 'packages/client/ui-brand-aitp') return false
+  // Fork-owned aitp-agent client packages are private and never published into the upstream npm scope.
+  if (FORK_CLIENT_PACKAGE_DIRECTORIES.has(dir)) return false
   // The SSH carrier is distributed as executable archives, never as an npm application.
   if (dir === 'packages/ssh/ssh-helper-runtime') return false
   return standardReleaseMemberDirectory.test(dir) || isPublicExperimentalPackageDirectory(dir)

@@ -1,0 +1,15 @@
+- region "Research":
+  - heading "Research" [level=1]
+  - text: workspace
+  - navigation "Research location":
+    - button "Back"
+    - button "Project overview"
+  - paragraph:
+    - strong: Demo workspace
+    - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
+  - paragraph: Read Oct 23, {{clock}} AM
+  - paragraph: Paper
+  - heading "Long-range-chain literature reference" [level=2]
+  - paragraph: "Source location: The PDF provider has not been connected."
+  - paragraph: Content is not available in this reader
+  - paragraph: This fixture reserves a paper destination. It does not supply a PDF or claim to have read one.

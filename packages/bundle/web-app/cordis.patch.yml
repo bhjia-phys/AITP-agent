@@ -341,6 +341,22 @@
       name: '@deepseek-ai/dsh-client-ui-brand-aitp'
       disabled: true
 
+    # AITP research views, enabled by the AITP application overlay. Without a
+    # provider for their resource protocols they show an unconnected state.
+    - id: ui-aitp-research
+      name: '@deepseek-ai/dsh-client-ui-aitp-research'
+      disabled: true
+
+    - id: ui-aitp-session
+      name: '@deepseek-ai/dsh-client-ui-aitp-session'
+      disabled: true
+
+    # Synthetic providers for interface development only; enabled solely by the
+    # explicit fixture overlay in apps/cli/config, never by the AITP overlay.
+    - id: ui-aitp-fixtures
+      name: '@deepseek-ai/dsh-client-ui-aitp-fixtures'
+      disabled: true
+
     - id: ui-attachment
       name: '@deepseek-ai/dsh-client-ui-attachment'
 

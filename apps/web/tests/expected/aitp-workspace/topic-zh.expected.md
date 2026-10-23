@@ -1,0 +1,37 @@
+- region "研究":
+  - heading "研究" [level=1]
+  - text: workspace
+  - navigation "研究位置":
+    - button "返回"
+    - button "项目总览"
+  - paragraph:
+    - button "Long-range chains"
+  - paragraph:
+    - strong: 示例工作区
+    - text: · 合成示例数据。修改仅在本次预览中保留，不会改动你的科研文件。
+  - paragraph: 读取于 Oct 23, {{clock}} AM
+  - text: In progress
+  - heading "Operator Krylov dynamics" [level=2]
+  - paragraph: What does operator spreading reveal on a matched spectral grid?
+  - button "阅读完整论述"
+  - button "修改范围"
+  - button "更新当前认识"
+  - tablist "课题详情":
+    - tab "总览" [selected]
+    - tab "工作与选择"
+    - tab "论断与路线"
+    - tab "资料"
+    - tab "动态"
+  - tabpanel "总览":
+    - heading "当前认识" [level=3]
+    - paragraph: The finite reference agrees with the independent evolution on the selected grid.
+    - heading "适用范围与限制" [level=4]
+    - paragraph: This demonstration does not establish a large-system chaos result.
+    - heading "仍待解决" [level=3]
+    - paragraph: The small-system control does not cover the production grid.
+    - heading "下一步" [level=4]
+    - paragraph: Inspect the control report before increasing system size.
+    - heading "研究范围" [level=3]
+    - paragraph: Keep the same spectral grid and compare only the explicitly matched finite systems.
+    - heading "子课题" [level=3]
+    - paragraph: 尚未记录子课题。

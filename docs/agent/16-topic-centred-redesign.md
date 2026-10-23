@@ -1,6 +1,6 @@
 # 16. Topic-centred research environment: assessment and redesign proposal
 
-**Status: revised frontend/interface proposal, 2026-10-23.** The researcher requires a clear topic/subtopic overview, clickable detail and convenient operations for humans and AI, and permits improving beyond the existing research-memory format. The latest clarification is that the backend is still being developed: **this task should leave clear connection interfaces for that backend, not implement a competing backend or select its storage format.** The production integrations are not implemented; the linked prototype uses synthetic in-memory data. The researcher authorized publishing this design/prototype/interface package to main; real-note migration and production write services remain outside this task.
+**Status: design published through PR #11, 2026-10-23; formal client implementation authorized.** The researcher requires a clear topic/subtopic overview, clickable detail and convenient operations for humans and AI, and permits improving beyond the existing research-memory format. The backend is being developed separately. The [formal client and adapter](../../packages/client/ui-aitp-research/README.md) implement the frontend boundary with an opt-in asynchronous fixture; [14](14-implementation-blueprint.md#topic-redesign-review) owns its current validation and remaining integration. The standalone prototype remains a synthetic design reference. Real-note migration, backend storage and production write services remain outside this frontend task.
 
 This continues Claude's interrupted design task. [10](10-project-workspace.md), [11](11-research-memory.md), [12](12-desktop-interface.md) and [14](14-implementation-blueprint.md) retain the implemented baseline and selected scope; this proposal updates the target interface and records the work needed to connect it. The UI-1 commit `eb0debfb3c` on `claude/aitp-ui-1` remains the implementation reference. Its historical package tests, client typecheck and lint passed; the repository-wide host typecheck did not complete (killed for memory three times).
 
@@ -12,9 +12,9 @@ Evidence labels follow [10](10-project-workspace.md#design-package-and-evidence)
 
 - **Show topics and subtopics directly.** A project dashboard displays topic cards and immediate child links. A topic opens with its question, qualified answer and decisive gap, followed by clickable child cards. Work, claims, materials and activity have their own detail views.
 - **Keep the frontend independent of storage conventions.** UI-facing objects have topic identity, parent links, qualified state and document/material references. The backend resolves their owners and representation. The screen need not reproduce `research.md` headings or require a new database.
-- **Reserve a shared provider interface.** Reads, edit requests, acknowledgements, conflicts and change notifications pass through a replaceable adapter. The current demonstration is an explicit in-memory simulator; its controller is not yet wired to the proposed async port. The contract defines where a later backend adapter connects and keeps that integration separate from the page design.
+- **Use a shared provider interface.** Reads, edit requests, acknowledgements, conflicts and change notifications pass through a replaceable adapter. The formal client uses the application-owned contract and framework resources; its opt-in provider is an asynchronous in-memory fixture. The original HTML demonstration retains local scenario callbacks. A real backend provider connects at the same application boundary.
 - **Give every displayed value one owner.** Cards read child state from that child; the parent does not maintain a duplicate child summary. UI edits become requests to the provider. A production UI may claim “saved” only after the backend acknowledges its authoritative change.
-- **Use one navigation column.** Research shows the topic tree and Conversations shows Sessions in the same sidebar footprint. This contextual switch is a proposed host integration; existing panel entry, cards, breadcrumbs and temporary outline remain a compatible route while it is unavailable.
+- **Use one navigation column.** Research shows the topic tree and Conversations shows Sessions in the same sidebar footprint. The formal client contributes through the generic host `sidebar.context` slot; cards and breadcrumbs remain available in the main panel.
 - **Use one topic view in two placements.** The main column holds overview and detail tabs; the dock shows compact context beside a conversation. Agent actions open scoped drafts in that conversation, not a second chat.
 - **Preserve complete arguments and scientific limits.** A short overview leads to the full body, evidence and exact material. Work completion, source availability and scientific qualification are separate dimensions.
 - **Connect in stages.** Complete the frontend interaction with mock data and a concrete contract first, align the contract with the backend owner, then replace the mock with a real adapter and validate the same user path. Backend storage, migration and real writing are not parallel tasks here.
@@ -651,16 +651,16 @@ The checks apply to the changed frontend or integration slice, not to every scie
 5. **Layout:** both themes, long titles/equations and varied widths; actual 200 % zoom is distinct from a narrower viewport simulation.
 6. **Regression:** preserve Harness Workspace/Session behavior and supported UI-1 reading paths while replacing selected contributions.
 
-The existing repository-wide host typecheck remains unverified where memory limits prevented completion. Prototype browser checks and standalone interface type checks do not replace it. No new hash checks, real-note writes, persistence guarantees or scientific acceptance are established here.
+The historical UI-1 baseline did not complete the repository-wide Host typecheck because of memory limits. The later formal frontend slice passed both complete Host and Client programs, as recorded in the [application receipt](../../agent/notes/harness-integration.md#topic-workspace-client). Prototype browser checks and standalone interface type checks remain separate evidence. No new hash checks, real-note writes, persistence guarantees or scientific acceptance are established here.
 
 <a id="decisions"></a>
 ## 17. Agreed direction and connection choices
 
-The researcher has already established the goal and this task's boundary: a clear, convenient topic/subtopic interface, freedom from the existing memory format, and reserved interfaces for the developing backend. Do not ask for those choices again. Production integration and storage changes are outside this frontend prototype task. Publication of this design package is now authorized.
+The researcher has established the goal and boundary: a clear, convenient topic/subtopic interface, freedom from the existing memory format, and interfaces for the developing backend. The design package was merged through [PR #11](https://github.com/bhjia-phys/AITP-agent/pull/11), followed by authorization to complete the formal frontend and asynchronous mock adapter. Backend implementation can proceed independently. Storage changes, real-note migration and actual model-context delivery remain separate work.
 
 | | Choice | Current treatment |
 | --- | --- | --- |
-| D1 | Navigation | Dashboard, child drill-down and breadcrumbs; contextual Research / Conversations sidebar is a proposed host contribution |
+| D1 | Navigation | Dashboard, child drill-down and breadcrumbs; contextual Research / Conversations sidebar through the host `sidebar.context` slot |
 | D2 | Topic organization | Overview, Work & choices, Claims & routes, Materials and Activity; compact Topic view beside conversation |
 | D3 | Frontend/backend boundary | Concrete typed semantic contract; no selection of persistent files, tables or database |
 | D4 | Backend connection | Align IDs, revisions, capabilities, actual write scope and transport with the backend owner; no new approval request for a storage scheme this task does not choose |
@@ -669,7 +669,7 @@ The researcher has already established the goal and this task's boundary: a clea
 | D7 | Recovery/history | Backend supplies actual results and recovery state; frontend displays them without inventing atomicity or persistence |
 | D8 | Width | One persistent navigation column, rail/overlay as needed; preserve reading space |
 | D9 | Session origins | Reserve topic/object identity and observed revision; actual persistence and context delivery need backend integration |
-| D10 | Publication | Publish this design/prototype/interface package to main as authorized; keep separate UI-1 implementation commits out of this publication |
+| D10 | Publication | Design/prototype/interface package merged in PR #11; it excluded the separate UI-1 implementation. Formal client work has its own branch and validation |
 
 <a id="changes-on-approval"></a>
 ## 18. Existing owners and handoff

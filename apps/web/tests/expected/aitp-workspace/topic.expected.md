@@ -1,0 +1,37 @@
+- region "Research":
+  - heading "Research" [level=1]
+  - text: workspace
+  - navigation "Research location":
+    - button "Back"
+    - button "Project overview"
+  - paragraph:
+    - button "Long-range chains"
+  - paragraph:
+    - strong: Demo workspace
+    - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
+  - paragraph: Read Oct 23, {{clock}} AM
+  - text: In progress
+  - heading "Operator Krylov dynamics" [level=2]
+  - paragraph: What does operator spreading reveal on a matched spectral grid?
+  - button "Read full account"
+  - button "Edit scope"
+  - button "Update understanding"
+  - tablist "Topic details":
+    - tab "Overview" [selected]
+    - tab "Work & choices"
+    - tab "Claims & routes"
+    - tab "Materials"
+    - tab "Activity"
+  - tabpanel "Overview":
+    - heading "Current understanding" [level=3]
+    - paragraph: A bounded reference route is available for comparison.
+    - heading "Scope and limits" [level=4]
+    - paragraph: Synthetic state only; the larger research question remains open.
+    - heading "What remains open" [level=3]
+    - paragraph: The small-system control does not cover the production grid.
+    - heading "Next step" [level=4]
+    - paragraph: Inspect the control report before increasing system size.
+    - heading "Scope" [level=3]
+    - paragraph: Use a controlled reference before interpreting the broader research question.
+    - heading "Subtopics" [level=3]
+    - paragraph: No subtopics are recorded.

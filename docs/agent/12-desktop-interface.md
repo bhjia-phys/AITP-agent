@@ -13,11 +13,17 @@ Evidence labels used below:
 | **Existing Harness** | Inspected Harness client behavior or extension point in `packages/client/`; usable now, but not research-aware |
 | **Proposed AITP** | Interface behavior specified here; not implemented in the application |
 | **Synthetic demonstration** | Shown in a static prototype with invented data; establishes neither backend support nor usability |
-| **Functioning AITP feature** | Working application behavior with recorded evidence in [14](14-implementation-blueprint.md); none of the research views below has reached this state |
+| **Application with fixture** | Real Harness components and asynchronous interfaces using labelled synthetic data; no real-source or model-context acceptance |
+| **Functioning AITP feature** | Working application behavior with its data-provider scope and recorded evidence in [14](14-implementation-blueprint.md) |
 
 Two earlier isolated prototypes remain available. The [Harness-frame prototype](prototype/harness-frame/README.md) demonstrates this revision with seven deep-linkable walkthroughs and a browser check. The [earlier prototype](prototype/README.md) demonstrates the superseded shell and its selection-provenance checks; its interactions remain useful evidence for reader behavior, not for the frame.
 
-The [topic-centred redesign](16-topic-centred-redesign.md#navigation) now prioritizes project overview → topic → subtopic → material. Its [interactive prototype](prototype/topic-workspace/README.md) shows clickable child cards, one sidebar switching between Topics and Conversations, and Overview / Work & choices / Claims & routes / Materials / Activity sections. Existing UI-1 renders branches and materials mainly as text; it has no parent-child index or material target contract, so this requires new read contracts and host integration rather than a styling-only change. The prototype’s contextual sidebar is not an existing `sidebar.workspaces` child slot. UI-1 remains the stable implementation reference; the revised layout and data model are proposed, not connected production features.
+The [topic-centred redesign](16-topic-centred-redesign.md#navigation) prioritizes project overview → topic → subtopic → material. The [formal research client](../../packages/client/ui-aitp-research/README.md) implements that navigation with child-owned cards and Overview / Work & choices / Claims & routes / Materials / Activity tabs. Its adapter supplies hierarchy and material identity independently of note layout. The generic host `sidebar.context` slot supports the topic tree in the existing sidebar footprint; switching to Conversations restores the host browser. UI-1's note reader and Session views remain reusable. The [standalone prototype](prototype/topic-workspace/README.md) remains a design reference; application evidence is separate and owned by [14](14-implementation-blueprint.md#topic-redesign-review).
+
+<a id="ui-1-implementation-status"></a>
+### Client and backend boundary
+
+The client reads through framework resources and a workspace-bound asynchronous provider. Scope and answer edits prepare a serializable preview, then show the provider's acknowledgement, conflict or unknown outcome. An open draft retains its original revision; a later source update requires explicit re-preparation. The opt-in fixture stores only in-memory demonstration state and identifies it throughout the UI. Backend storage, source mapping, durable recovery and actual model-context delivery are separate responsibilities; opening a resource or a Session does not establish that the model received the material. The [connection reference](../../packages/client/ui-aitp-research/README.md#backend-connection) owns the implemented interface, including the relationship to the older UI-1 note protocols.
 
 ## Design commitments
 
@@ -68,7 +74,7 @@ The frame is the existing Harness three-column frame ([ui-layout](../../packages
 
 ### Workspaces, topics and Sessions: one project list
 
-Harness Workspaces (canonical directories) remain the only project list. A research workspace is the Workspace whose root contains the root `research.md`. Topics are not Workspaces: the Research panel lists topics derived from the root note and its links inside the current Workspace. When a researcher has also added a topic folder or code checkout as its own Workspace, Harness's Workspace Tree nests it, and AITP resolves the topic through the containing research root instead of creating a second entry.
+Harness Workspaces (canonical directories) remain the only project list. A workspace-bound provider supplies the research project and topic hierarchy; topics do not create additional Harness Workspaces. The formal frontend follows provider-supplied identities and parent/child relationships without requiring a `research.md` format. The earlier note projection remains a compatibility route: a backend may derive topics from a root note and its links. Resolving independently added topic directories to a containing research project belongs to that backend mapping and is not implemented by the fixture.
 
 Sessions remain grouped by Workspace in the Harness sidebar. A Session's AITP origin (topic and thread, paper passage, knowledge entry, code range or Global) is shown in three places: the row hover card, the origin chip in the Session header, and the topic home's **Sessions on this topic** list. Harness rows are not restyled. A row subtitle would need a new Harness seat and is deferred.
 

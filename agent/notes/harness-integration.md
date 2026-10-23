@@ -157,3 +157,35 @@ The command requires installed Playwright Chromium and its runtime libraries. Th
 Focused non-hash documentation checks passed: Markdown links (2025 files), wrap (2042), standing-document budgets, package README summary/model-experience/limitations, retained package-path references, source document references and tsconfig paths. Two focused document-scope suites passed 45 cases. The new slot/plugin/config catalog entries were added; slot and plugin-list freshness passed. Root instructions have a larger word budget to retain both fork onboarding and unchanged upstream engineering instructions. A graph-freshness check exhausted its roughly 2 GB Node heap; it produced no result or graph changes, and the owned residual process was stopped. Full upstream `doc-sync`, including hash/seal/reference checks, was not run under the retained no-hash instruction. No claim is made that every inherited upstream documentation/CI gate passes.
 
 The final combined `pnpm aitp-agent build` ran after the auth, launcher, browser-test and documentation-tooling changes: all nine artifact and aggregate-check steps passed in 60.70 seconds with one gate worker. That success supersedes earlier attempts for the branding/auth baseline only; the subsequent GPT slice has its own build/type evidence above.
+
+
+<a id="topic-workspace-client"></a>
+## Topic workspace client
+
+The 2026-10-23 frontend slice reuses UI-1 on `feat/topic-workspace-client`, based on main `9fee910a562f14e94c942c696bcefa65f030278e`, in an isolated worktree. The design package was already merged through PR #11; this implementation is a separate frontend slice, subsequently authorized for integration into main. It adds the formal Harness project/topic/material route, one contextual sidebar, a shared interaction store and an asynchronous workspace adapter. The [application contract and connection guide](../../packages/client/ui-aitp-research/README.md#backend-connection) own the backend boundary. The optional fixture is synthetic, per-Workspace and memory-only; it does not read or write real research notes or deliver context to a model.
+
+The application check is [aitp-workspace.e2e.ts](../../apps/web/tests/aitp-workspace.e2e.ts), using the shipped Harness scaffold with AITP web and fixture overlays in a temporary Workspace. It traverses three topic levels, reads full Markdown and mathematics, returns with navigation state, previews and applies scope/qualified-answer edits, and checks the refreshed cards and full account. It also checks explicit unavailable paper/code content, Chinese labels, light/dark palettes and containment at 1440, 1024, 720 and 390 px. Six accessibility snapshots replay successfully; twelve generated screenshots cover project, topic and material at wide/narrow widths in both palettes. Direct visual inspection covered the project, dark topic and narrow material views. This is application evidence, separate from the earlier HTML simulation.
+
+Targeted regressions cover asynchronous invalidation and retained reads, provider replacement, workspace isolation, cursor pagination, conflicts and unknown write outcomes. Pending operations enter the declared store before dispatch; late responses settle the same record after panel unmount. Transport failure during an unknown-result retry cannot replace its original operation ID or enable a competing edit. That recovery lasts for the loaded client; browser-reload recovery and durable operation reconciliation remain backend responsibilities.
+
+| Executed check | Result and limit |
+| --- | --- |
+| Artifact build after behavioral and theme fixes | All seven steps passed; native addon, Host/Desktop/Client bundles, package compilation and Web build. Initial resource-limited bundling failed; the final serial run with two Rayon threads passed |
+| Host and Client aggregate typing | Host passed in the aggregate invocation. That invocation found two improperly typed test mocks in the Client program; after correction the complete Client program passed separately with `tsc -p tsconfig.client.json`. No scoped substitute is counted |
+| Changed frontend, fixture, Session and sidebar tests | The combined run passed 180 cases and exposed one scrollbar-contract violation. Later all 136 theme cases in 19 files passed after correcting inherited borders/scrollbars, round-marker geometry and new focus-ring tokens. These runs overlap and must not be summed |
+| Assembled browser replay after the fixes | One complete scenario passed, six accessibility snapshots matched; synthetic application data, no real model request |
+| Type-aware lint | All 67 changed/new TypeScript source files passed; the subsequently corrected test mock passed its focused lint check |
+| Client copy and package boundaries | Locale ownership passed for 1104 Client UI sources; Client package policy, dependency policy and generated tsconfig paths passed |
+
+The complete four-worker GUI run finished with 10,866 passed, two skipped and two failed tests across 653 files. One failure was the new focus-ring color; it was corrected and the entire 136-case theme suite then passed. The other is the unchanged host file-manager resolver test. An isolated archive of baseline `9fee910a` reproduced 34 passes and the same failure: the test injects Linux and an empty display environment but leaves the real WSL kernel release visible to the native-path helper. An explicit ordinary-Linux release changes the helper result back to false. This is a pre-existing test-isolation defect; no all-green aggregate GUI result is claimed. Earlier single-worker execution overlapped source repairs and was stopped, so it is not reported as a completed run. Markdown links passed for 2031 files, prose wrapping for 2042 files, all seven budgeted documents stayed within their ceilings, and exported JSDoc and changed-file lint passed. No translation hashes were generated or checked.
+
+Reproduction commands, from the implementation worktree:
+
+```sh
+RAYON_NUM_THREADS=2 UV_THREADPOOL_SIZE=2 DSH_GATE_CONCURRENCY=1 NODE_OPTIONS=--max-old-space-size=2048 pnpm run build:artifacts
+pnpm exec tsc -p tsconfig.client.json --pretty false
+LD_LIBRARY_PATH=/tmp/aitp-chromium-libs-vmGTzS/root/usr/lib/x86_64-linux-gnu DSH_SNAPSHOT=replay pnpm exec vitest run --config vitest.web.config.ts apps/web/tests/aitp-workspace.e2e.ts --maxWorkers=1
+pnpm aitp-agent web --patch apps/cli/config/aitp-ui-fixtures.cordis.patch.yml
+```
+
+The library path is this host's extracted Chromium dependency directory, not a portable requirement. The preview command enables the synthetic provider explicitly; without it or a backend provider, Research reports the missing connection. Real storage, permissions, persistent coordinated writes, model-context delivery, native Windows behavior and researcher acceptance of a real research case are not established by this slice. Backend work can proceed independently against the adapter without adopting a particular note format.

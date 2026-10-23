@@ -1,0 +1,120 @@
+.browser {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  color: var(--dsw-alias-label-primary);
+}
+
+.switcher {
+  display: flex;
+  gap: 4px;
+  padding: 8px 10px;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.switcher > button {
+  flex: 1;
+  min-width: 0;
+}
+
+.currentMode {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.treeRegion {
+  /* Inherit SidebarRoot's elevated scrollbar pair and pointer-driven hiding. */
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 10px 20px;
+}
+
+.projectTitle {
+  margin: 0 6px 4px;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.fixture,
+.groupLabel {
+  margin: 4px 6px 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.topicList,
+.children {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.children {
+  margin-left: 10px;
+  padding-left: 6px;
+  border-left: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.topicButton {
+  display: block;
+  width: 100%;
+  margin: 2px 0;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--dsw-radius-md);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.topicButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.topicButton[aria-current='page'] {
+  background: var(--dsw-alias-interactive-bg-active);
+}
+
+.overview {
+  margin-block: 8px 12px;
+  font-weight: 500;
+}
+
+.topicTitle,
+.workLabel {
+  display: block;
+}
+
+.workLabel {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.notice {
+  margin: 10px 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
+
+.loading {
+  display: grid;
+  place-items: center;
+  min-height: 72px;
+}
+
+.rail {
+  display: flex;
+  justify-content: center;
+  padding-block: 8px;
+}

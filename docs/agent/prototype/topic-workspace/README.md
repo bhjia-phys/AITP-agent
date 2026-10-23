@@ -14,11 +14,11 @@ To inspect conflict handling, preview an objective edit, choose Simulate → Ext
 
 ## Interface for the separately developed backend
 
-The proposed [TypeScript contract](workspace-contract.ts) reserves asynchronous project/topic/resource reads, bounded context reads, change preview and application, and change notifications. Stable topic and resource IDs carry navigation; qualified answers and limits remain separate from work status. The backend chooses storage and how existing research memory maps into these views. The contract does not require a database, a new note format or migration.
+The [TypeScript contract reference](workspace-contract.ts) now points to the application-owned contract used by the [formal research client](../../../../packages/client/ui-aitp-research/README.md#backend-connection). It defines asynchronous project/topic/resource reads, bounded context reads, change preview and application, and change notifications. Stable topic and resource IDs carry navigation; qualified answers and limits remain separate from work status. The backend chooses storage and how existing research memory maps into these views. The contract does not require a database, a new note format or migration.
 
 Changes cross the proposed boundary as serializable intents and version preconditions, followed by a preview ID and an application receipt. A backend adapter must enforce identity, authorization, concurrency and retry semantics. The frontend must display loading, unavailable, stale and conflict states rather than assume a successful connection. Change events invalidate reads; they do not replace the authoritative response.
 
-This contract is a reviewable integration target, not an implemented production service. The current HTML scenario simulator still uses local mutation/undo callbacks internally and does not implement the asynchronous port. Those callbacks must never be sent over the future interface. Connecting its controller and the real backend adapter is separate work. Existing UI-1 resource protocols are unchanged.
+This HTML scenario simulator still uses local mutation/undo callbacks internally and does not implement the asynchronous port. The formal Harness client uses that port through the framework resource service and an opt-in asynchronous fixture adapter. Its application checks and backend boundary are owned by [14](../../14-implementation-blueprint.md#topic-redesign-review). Real storage and model-context services remain unimplemented here. Existing UI-1 note and Session resource protocols remain available separately.
 
 ## Browser evidence and limits
 
@@ -35,4 +35,4 @@ Known limits:
 - Pane resizing, PDF/code adapters, persistent project layouts, all proposed shortcuts and full assistive-technology testing remain unimplemented. The 720 px viewport exercises reflow similar to a narrower window; it is not certification of native 200% browser zoom.
 - Previewed writes and safe revert are modeled only within one browser visit. Reload is deliberately a reset, not a demonstration of “research state outlives Sessions”. That principle requires the production storage and recovery tests in 16.
 
-The separate UI-1 implementation branch is a comparison baseline; its historical package checks and incomplete repository-wide typecheck do not certify this prototype. Publication of this design/prototype/interface package to main is authorized; production integration remains separate as described in [16](../../16-topic-centred-redesign.md#decisions).
+The separate UI-1 implementation branch is a comparison baseline; its historical checks do not certify this prototype. This design/prototype/interface package was merged through [PR #11](https://github.com/bhjia-phys/AITP-agent/pull/11). Formal frontend development and backend connection are separate increments, as described in [16](../../16-topic-centred-redesign.md#decisions).
