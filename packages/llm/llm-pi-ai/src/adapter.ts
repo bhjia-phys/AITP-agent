@@ -44,9 +44,12 @@ import {
   LlmAdapter,
   LlmError,
   ReasoningEffortId,
+  isQuotaExceededError,
+  isContextWindowExceededError,
 } from '@deepseek-ai/dsh-llm'
 import type {
   GenerateOptions,
+  LlmFailure,
   ImageAttachmentAccess,
   LlmModelInfo,
   LlmProviderInfo,
@@ -72,6 +75,94 @@ const ANTHROPIC_TOOL_UPDATE_PLACEHOLDER: ToolSchema = {
   name: 'DeferredToolPlaceholder',
   description: 'Reserved placeholder that keeps deferred tool loading active; never call this tool.',
   parameters: { type: 'object', properties: {} },
+}
+
+/** Inspect bounded error details for routing; discard response bodies and messages. */
+async function codexHttpFailure(response: Response): Promise<LlmFailure> {
+  let detail = ''
+  const reader = response.clone().body?.getReader()
+  if (reader !== undefined) {
+    try {
+      const decoder = new TextDecoder()
+      let body = ''
+      let bytes = 0
+      while (true) {
+        const part = await reader.read()
+        if (part.done) break
+        bytes += part.value.byteLength
+        if (bytes > 16_384) break
+        body += decoder.decode(part.value, { stream: true })
+      }
+      if (bytes <= 16_384) {
+        const value: unknown = JSON.parse(body + decoder.decode())
+        if (typeof value === 'object' && value !== null && 'error' in value
+          && typeof value.error === 'object' && value.error !== null) {
+          const error = value.error as Record<string, unknown>
+          detail = [error.code, error.type, error.message].filter((item): item is string => typeof item === 'string')
+            .map(item => item.slice(0, 1024)).join(' ')
+        }
+      }
+    } catch {
+      // Malformed, oversized or interrupted error bodies retain their HTTP classification.
+    } finally {
+      // Awaiting cancellation of one cloned branch can wait for the other reader.
+      void reader.cancel().catch(() => {})
+      reader.releaseLock()
+    }
+  }
+  return codexFailure(detail, response.status,
+    codexRetryDelay(response.headers.get('retry-after'), response.headers.get('retry-after-ms')))
+}
+
+function codexRetryDelay(retry?: string | null, milliseconds?: string | null): number | undefined {
+  const delay = milliseconds != null && /^\d+(?:\.\d+)?$/.test(milliseconds)
+    ? Number(milliseconds)
+    : retry == null ? NaN : /^\d+(?:\.\d+)?$/.test(retry) ? Number(retry) * 1000 : Date.parse(retry) - Date.now()
+  return Number.isFinite(delay) && delay > 0 ? delay : undefined
+}
+
+/** Classify bounded provider details without retaining their original payload. */
+function codexFailure(detail: string, status?: number, delay?: number): LlmFailure {
+  let code: string
+  if (status === 401 || status === 403
+    || /\b(?:invalid_api_key|invalid_token|authentication_error|permission_error|permission_denied)\b/.test(detail)) code = 'AUTH'
+  else if (status === 402 || isQuotaExceededError(detail) || /\busage_not_included\b/.test(detail)) code = 'QUOTA'
+  else if (status === 429 || /\brate_limit_(?:exceeded|error)\b/.test(detail)) code = 'RATE_LIMIT'
+  else if (isContextWindowExceededError(detail)) code = 'CONTEXT_WINDOW_EXCEEDED'
+  else if (status === 400 || status === 413 || /\b(?:invalid_request_error|invalid_prompt)\b/.test(detail)) code = 'INVALID_REQUEST'
+  else if (status === 408) code = 'TIMEOUT'
+  else if ((status !== undefined && status >= 500) || /\b(?:server_error|api_error|overloaded_error)\b/.test(detail)) code = 'SERVER'
+  else code = 'PI_AI_ERROR'
+  return { code, message: `Codex ${status === undefined ? 'stream error' : `HTTP ${status}`} (${code})`,
+    ...status === undefined ? {} : { status },
+    ...delay === undefined ? {} : { providerRetryAfterMs: delay },
+  }
+}
+
+function recordOf(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : undefined
+}
+
+/** Responses error/response.failed and Responses WebSocket error envelopes only. */
+function codexEventFailure(value: unknown): LlmFailure | undefined {
+  const event = recordOf(value)
+  if (event?.type !== 'error' && event?.type !== 'response.failed') return undefined
+  const error = event.type === 'response.failed'
+    ? recordOf(recordOf(event.response)?.error)
+    : recordOf(event.error) ?? event
+  const detail = [error?.code, error?.type].filter((item): item is string => typeof item === 'string')
+    .map(item => item.slice(0, 128)).join(' ')
+  // These two SDK-owned recovery paths may retry before emitting any model output.
+  if (/\b(?:previous_response_not_found|websocket_connection_limit_reached)\b/.test(detail)) return undefined
+  const status = typeof event.status === 'number' && Number.isInteger(event.status)
+    && event.status >= 400 && event.status <= 599 ? event.status : undefined
+  const headers = recordOf(error?.headers)
+  const retry = headers?.['retry-after'] ?? headers?.['Retry-After']
+  const milliseconds = headers?.['retry-after-ms'] ?? headers?.['Retry-After-Ms']
+  return codexFailure(detail, status, codexRetryDelay(
+    typeof retry === 'string' ? retry.slice(0, 128) : undefined,
+    typeof milliseconds === 'string' ? milliseconds.slice(0, 128) : undefined,
+  ))
 }
 
 /** One resolution's frozen view: the profiles and the collection built from them. */
@@ -427,17 +518,31 @@ export class PiAiAdapter extends LlmAdapter {
           },
         }, onReplayDegrade)
       this.lifetime.signal.throwIfAborted()
+      let providerFailure: LlmFailure | undefined
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
         ...options.maxTokens === undefined ? {} : { maxTokens: options.maxTokens },
         ...options.sessionId === undefined ? {} : { sessionId: String(options.sessionId) },
         signal: watchdog.signal,
+        ...model.api === 'openai-codex-responses' ? {
+          fetch: async (...args: Parameters<typeof fetch>) => {
+            providerFailure = undefined
+            const response = await globalThis.fetch(...args)
+            if (!response.ok) providerFailure = await codexHttpFailure(response)
+            return response
+          },
+          onProviderStreamEvent: (event: unknown) => {
+            const failure = codexEventFailure(event)
+            if (failure !== undefined || recordOf(event)?.type === 'response.created') providerFailure = failure
+          },
+        } : {},
         // Profile headers are deployment-owned; attribution names are
         // Harness-owned and therefore win collisions.
         headers: requestHeaders(profile.headers),
       })
-      const iterator = toStreamChunks(events, model.contextWindow, upstream, model.id)[Symbol.asyncIterator]()
+      const iterator = toStreamChunks(events, model.contextWindow, upstream, model.id,
+        () => providerFailure)[Symbol.asyncIterator]()
       let exhausted = false
       try {
         while (true) {

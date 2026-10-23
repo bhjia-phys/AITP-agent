@@ -41,7 +41,126 @@ async function collect(events: AsyncIterable<AssistantMessageEvent>): Promise<{ 
 
 const context = normalizeContext({ messages: [{ role: 'user', content: 'hi', timestamp: 0 }] })
 
+type OpenAiApi = 'openai-completions' | 'openai-responses'
+
+/** Interleave separate tool calls at the provider wire, including escaped Unicode. */
+function openAiFrames(api: OpenAiApi, values: typeof args[], terminal: 'complete' | 'length' | 'missing'): string[] {
+  const json = values.map(value => JSON.stringify(value))
+  const pieces = json.map(value => value.match(/.{1,17}/gs) ?? [])
+  const items = values.map((_, index) => ({
+    type: 'function_call', call_id: `call_${index}`, id: `item_${index}`, name: 'write', arguments: '',
+  }))
+  const events = api === 'openai-responses'
+    ? [JSON.stringify({ type: 'response.created', response: { id: 'response_stress' } }),
+      ...items.map((item, output_index) => JSON.stringify({ type: 'response.output_item.added', output_index, item }))]
+    : [JSON.stringify({ choices: [{ index: 0, finish_reason: null, delta: {
+      role: 'assistant', tool_calls: items.map((item, index) => ({
+        index, id: item.call_id, type: 'function', function: { name: item.name, arguments: '' },
+      })),
+    } }] })]
+  for (let part = 0; part < Math.max(...pieces.map(value => value.length)); part++) {
+    for (let index = 0; index < pieces.length; index++) {
+      const delta = pieces[index]?.[part]
+      if (delta === undefined) continue
+      events.push(api === 'openai-responses'
+        ? JSON.stringify({ type: 'response.function_call_arguments.delta', output_index: index, delta })
+        : JSON.stringify({ choices: [{ index: 0, finish_reason: null, delta: {
+          tool_calls: [{ index, function: { arguments: delta } }],
+        } }] }))
+    }
+  }
+  if (terminal === 'missing') return events
+  if (api === 'openai-completions') {
+    events.push(JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: terminal === 'length' ? 'length' : 'tool_calls' }] }), '[DONE]')
+  } else {
+    for (let index = 0; index < items.length; index++) {
+      events.push(JSON.stringify({ type: 'response.output_item.done', output_index: index, item: { ...items[index], arguments: json[index] } }))
+    }
+    events.push(JSON.stringify({ type: terminal === 'length' ? 'response.incomplete' : 'response.completed', response: {
+      id: 'response_stress', status: terminal === 'length' ? 'incomplete' : 'completed', output: [],
+      ...(terminal === 'length' ? { incomplete_details: { reason: 'max_output_tokens' } } : {}),
+      usage: { input_tokens: 3, output_tokens: 1, total_tokens: 4 },
+    } }))
+  }
+  return events
+}
+
+function openAiStream(api: OpenAiApi, url: string, signal?: AbortSignal): AsyncIterable<AssistantMessageEvent> {
+  const options = { apiKey: 'test-key', ...(signal === undefined ? {} : { signal }) }
+  return api === 'openai-responses'
+    ? streamResponses(model(api, url), context, options)
+    : streamCompletions(model(api, url), context, options)
+}
+
 describe('streamed tool-call arguments (patched pi-ai)', () => {
+  describe.each<OpenAiApi>(['openai-completions', 'openai-responses'])('%s bounded stress and interruption', (api) => {
+    const largeValues = [0, 1].map(index => ({ file_path: `notes-${index}.md`, content: `${index}:物理\\\"\n`.repeat(8192) }))
+
+    it('keeps interleaved large arguments separate and unparsed until finalization', async () => {
+      const server = await mockServer([{ events: openAiFrames(api, largeValues, 'complete') }])
+      const assembler = new BlockAssembler()
+      let deltas = 0
+      async function* observed(): AsyncIterable<AssistantMessageEvent> {
+        for await (const event of openAiStream(api, server.url)) {
+          if (event.type === 'toolcall_delta' && event.delta.length > 0) {
+            deltas++
+            const block = event.partial.content[event.contentIndex]
+            expect(block?.type === 'toolCall' ? block.arguments : undefined).toEqual({})
+          }
+          yield event
+        }
+      }
+      for await (const chunk of toStreamChunks(observed())) assembler.push(chunk)
+      expect(deltas).toBeGreaterThan(8000)
+      expect(assembler.finish).toEqual({ kind: 'tool-calls' })
+      expect(assembler.blocks()).toEqual(largeValues.map((value, index) => ({
+        type: 'tool-call', id: api === 'openai-responses' ? `call_${index}|item_${index}` : `call_${index}`,
+        name: 'write', arguments: JSON.stringify(value),
+      })))
+      expect(server.requests).toHaveLength(1)
+    })
+
+    it('reports a truncated large argument stream as transport failure', async () => {
+      const events = openAiFrames(api, largeValues, 'missing')
+      const server = await mockServer([{ events: events.slice(0, Math.floor(events.length / 2)) }])
+      const assembler = new BlockAssembler()
+      for await (const chunk of toStreamChunks(openAiStream(api, server.url))) assembler.push(chunk)
+      expect(assembler.finish).toMatchObject({ kind: 'error', failure: { code: 'TRANSPORT' } })
+      expect(server.requests).toHaveLength(1)
+    })
+
+    it('drops tool calls at the token limit instead of accepting repaired arguments', async () => {
+      const server = await mockServer([{ events: openAiFrames(api, largeValues, 'length') }])
+      const assembler = new BlockAssembler()
+      for await (const chunk of toStreamChunks(openAiStream(api, server.url))) assembler.push(chunk)
+      expect(assembler.finish).toEqual({ kind: 'max-tokens' })
+      expect(assembler.blocks()).toEqual([])
+    })
+
+    it('aborts while arguments are incomplete and closes the response', async () => {
+      const controller = new AbortController()
+      const server = await mockServer([{ events: openAiFrames(api, largeValues, 'missing').slice(0, 100), holdOpen: true }])
+      const assembler = new BlockAssembler()
+      let sawDelta = false
+      try {
+        for await (const chunk of toStreamChunks(openAiStream(api, server.url, controller.signal), undefined, controller.signal)) {
+          assembler.push(chunk)
+          if (chunk.type === 'tool-call-delta' && chunk.argumentsDelta.length > 0 && !sawDelta) {
+            sawDelta = true
+            controller.abort()
+          }
+        }
+        await server.responseClosed
+        expect(sawDelta).toBe(true)
+        expect(assembler.finish).toMatchObject({ kind: 'aborted', failure: { code: 'ABORTED' } })
+        expect(server.requests).toHaveLength(1)
+        expect(server.closedResponses).toBe(1)
+      } finally {
+        controller.abort()
+      }
+    })
+  })
+
   it('preserves an empty Responses message after parallel tool calls with its replay metadata', async () => {
     const calls = [0, 1, 2].map(index => ({ type: 'function_call', call_id: `call_${index}`, id: `item_${index}`, name: 'read', arguments: '{}' }))
     const empty = { type: 'message', id: 'message_empty', role: 'assistant', content: [{ type: 'output_text', text: '', annotations: [] }] }

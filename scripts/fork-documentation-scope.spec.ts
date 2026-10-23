@@ -1,6 +1,7 @@
 /** Fork-owned documents stay outside upstream pairing and wrap enforcement without widening the exception. */
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { normalizeTranslationMarkdownLinks, translationLinkLocaleViolations } from './translation-links.ts'
 import {
   isManuallyMaintainedDocument,
   isTranslationPairingManifestExcluded,
@@ -11,6 +12,32 @@ import {
 const manifest = parseTranslationPairingManifest(readFileSync(new URL('./translation-pairing.manifest.json', import.meta.url), 'utf8'))
 
 describe('AITP documentation ownership', () => {
+  it.each(['README', 'packages/client/ui-brand-aitp/README'])('normalizes existing manually maintained %s siblings without requiring records', (stem) => {
+    const existing = new Set([`${stem}.md`, `${stem}.zh.md`])
+    const context = {
+      repoRoot: '/',
+      isTranslationPairSource: translationPairSourcePredicate(manifest),
+      repositoryFileExists: (file: string) => existing.has(file),
+    }
+    expect(context.isTranslationPairSource(`${stem}.md`)).toBe(false)
+    expect(existing.has(`${stem}.i18n.yaml`)).toBe(false)
+    const english = normalizeTranslationMarkdownLinks(`[Link](../${stem}.md)\n`, { ...context, sourcePath: 'docs/example.md' })
+    const chinese = normalizeTranslationMarkdownLinks(`[Link](../${stem}.zh.md)\n`, { ...context, sourcePath: 'docs/example.zh.md' })
+    expect(english).toBe(chinese)
+    expect(english).toContain(`dsh-translation-target:${stem}.md`)
+  })
+
+  it('does not invent a manual translation absent from the selected content plane', () => {
+    const context = {
+      repoRoot: '/', sourcePath: 'docs/example.zh.md',
+      isTranslationPairSource: translationPairSourcePredicate(manifest),
+      repositoryFileExists: (file: string) => file === 'docs/agent/only.md',
+    }
+    const text = '[Link](agent/only.md)\n'
+    expect(normalizeTranslationMarkdownLinks(text, context)).toBe(text)
+    expect(translationLinkLocaleViolations(text, context)).toEqual([])
+  })
+
   it.each([
     'README.md',
     'README.zh.md',

@@ -87,7 +87,9 @@ class OverflowRecoveryAdapter extends LlmAdapter {
       provider,
       id: model,
       name: model,
-      context: { contextWindow: 128 },
+      // This fixture injects a provider overflow independently of local estimates.
+      // Its summary instruction and seeded history must still fit the declared route.
+      context: { contextWindow: 8192 },
     })
   }
 

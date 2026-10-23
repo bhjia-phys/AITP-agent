@@ -107,14 +107,20 @@ export async function mockServer(script: {
       response.flushHeaders()
       let index = 0
       const writeNext = (): void => {
-        const event = behavior.events?.[index++]
-        if (event === undefined) {
-          if (!behavior.holdOpen) response.end()
-          return
+        // Large-argument fixtures contain thousands of deltas; synchronous
+        // delivery must not consume one JavaScript stack frame per event.
+        while (!response.destroyed) {
+          const event = behavior.events?.[index++]
+          if (event === undefined) {
+            if (!behavior.holdOpen) response.end()
+            return
+          }
+          response.write(typeof event === 'string' ? `data: ${event}\n\n` : `event: ${event.event}\ndata: ${event.data}\n\n`)
+          if (behavior.delayMs !== undefined) {
+            timer = setTimeout(writeNext, behavior.delayMs)
+            return
+          }
         }
-        response.write(typeof event === 'string' ? `data: ${event}\n\n` : `event: ${event.event}\ndata: ${event.data}\n\n`)
-        if (behavior.delayMs === undefined) writeNext()
-        else timer = setTimeout(writeNext, behavior.delayMs)
       }
       writeNext()
     })

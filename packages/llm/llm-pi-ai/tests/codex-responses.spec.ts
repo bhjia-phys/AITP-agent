@@ -86,22 +86,25 @@ it('replays opaque reasoning and parallel tool IDs after serializing the OAuth r
   expect(second.finish).toEqual({ kind: 'stop' })
   expect(server.paths).toEqual(['/codex/responses', '/codex/responses'])
   expect(server.headers[0]?.['chatgpt-account-id']).toBe('fixture-account')
-  expect(server.requests[1]).toMatchObject({ store: false, input: expect.arrayContaining([
-    expect.objectContaining({ type: 'reasoning', encrypted_content: 'opaque-reasoning' }),
-    ...[1, 2].flatMap(index => [
+  const expectedItems: unknown[] = [expect.objectContaining({ type: 'reasoning', encrypted_content: 'opaque-reasoning' })]
+  for (const index of [1, 2]) {
+    expectedItems.push(
       expect.objectContaining({ type: 'function_call', call_id: `call_${index}` }),
       expect.objectContaining({ type: 'function_call_output', call_id: `call_${index}`, output: 'fixture result' }),
-    ]),
-  ]) })
+    )
+  }
+  const expectedInput: unknown = expect.arrayContaining(expectedItems)
+  expect(server.requests[1]).toMatchObject({ store: false, input: expectedInput })
 })
 
-it.each([401, 429, 503])('returns HTTP %i without hidden HTTP retries', async (status) => {
-  const server = await mockServer([{ status, body: JSON.stringify({ error: { message: `HTTP ${status}` } }) }])
-  const ctx = await harness(server.url)
-  const result = await assemble(ctx, { ...route, messages: [prompt] })
-  expect(result.finish.kind).toBe('error')
-  expect(server.requests).toHaveLength(1)
-})
+it.each([[401, 'AUTH'], [429, 'RATE_LIMIT'], [503, 'SERVER']] as const)(
+  'returns HTTP %i as %s without hidden HTTP retries', async (status, code) => {
+    const server = await mockServer([{ status, body: JSON.stringify({ error: { message: 'No status in this text' } }) }])
+    const ctx = await harness(server.url)
+    const result = await assemble(ctx, { ...route, messages: [prompt] })
+    expect(result.finish).toMatchObject({ kind: 'error', failure: { code, status } })
+    expect(server.requests).toHaveLength(1)
+  })
 
 it('cancels a waiting Codex stream and closes its connection', async () => {
   const server = await mockServer([{ events: [], holdOpen: true }])
@@ -113,6 +116,35 @@ it('cancels a waiting Codex stream and closes its connection', async () => {
   await expect(result).resolves.toMatchObject({ finish: { kind: 'aborted', failure: { code: 'ABORTED' } } })
   await server.responseClosed
   expect(server.closedResponses).toBe(1)
+})
+
+it.each([
+  [400, { error: { message: 'maximum context length exceeded' } }, 'CONTEXT_WINDOW_EXCEEDED'],
+  [413, { error: { message: 'Too large' } }, 'INVALID_REQUEST'],
+  [408, { error: { message: 'Slow request' } }, 'TIMEOUT'],
+] as const)('preserves HTTP %i failure routing', async (status, body, code) => {
+  const server = await mockServer([{ status, body: JSON.stringify(body) }])
+  const ctx = await harness(server.url)
+  const result = await assemble(ctx, { ...route, messages: [prompt] })
+  expect(result.finish).toMatchObject({ kind: 'error', failure: { code, status } })
+})
+
+it('bounds metadata inspection and does not retain an oversized provider body', async () => {
+  const body = JSON.stringify({ error: { message: 'PRIVATE_BODY'.repeat(3000) } })
+  const server = await mockServer([{ status: 503, body }])
+  const ctx = await harness(server.url)
+  const result = await assemble(ctx, { ...route, messages: [prompt] })
+  expect(result.finish).toMatchObject({ kind: 'error', failure: { code: 'SERVER', status: 503 } })
+  expect(JSON.stringify(result)).not.toContain('PRIVATE_BODY')
+})
+
+it('keeps message-only overflow recovery for an otherwise unclassified HTTP response', async () => {
+  const server = await mockServer([{ status: 422, body: 'PRIVATE_BODY: maximum context length exceeded' }])
+  const ctx = await harness(server.url)
+  const result = await assemble(ctx, { ...route, messages: [prompt] })
+  expect(result.finish).toMatchObject({ kind: 'error',
+    failure: { code: 'CONTEXT_WINDOW_EXCEEDED', status: 422 } })
+  expect(JSON.stringify(result)).not.toContain('PRIVATE_BODY')
 })
 
 it('releases only its own cached Codex sessions when the plugin unloads', async () => {

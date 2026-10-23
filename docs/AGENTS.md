@@ -2,7 +2,7 @@
 
 This file defines document structure, Markdown tiers, writing rules, and `verify-doc-budgets` ceilings. Use [dsh-doc](../.agents/skills/dsh-doc/SKILL.md) for placement and validation, and [dsh-prose-standard](../.agents/skills/dsh-prose-standard/SKILL.md) for required coverage and editorial judgment; the [archived doc-tiers Agent Note](../.agents/notes/archived/process/2026-07-04-doc-tiers-and-budgets.md) records the historical rationale.
 
-AITP-owned `manual` scopes in [the manifest](../scripts/translation-pairing.manifest.json) follow [root policy](../AGENTS.md) instead of pairing and wrapping requirements below; preserve their existing records and owners.
+AITP-owned `manual` scopes in [the manifest](../scripts/translation-pairing.manifest.json) follow [root policy](../AGENTS.md) for pairing, wrapping, fixed README skeletons, editorial word bans and historical commit references; preserve their existing records and owners. Counterpart links remain language-aware, and code, API, metadata, link and build validation still apply.
 
 ## Document structure
 

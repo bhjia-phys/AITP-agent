@@ -30,8 +30,8 @@
   en: 376f83206858b601
   zh: 38bb6993609c96a6
 /deepseek-ai-dsh-llm-pi-ai/use-this-package/run-with-reasoning-and-wire-compatibility:
-  en: b58b917e7f250aee
-  zh: aff599081bac08c3
+  en: c712f358c57c1c10
+  zh: 993b54cfa6cc67ff
 /deepseek-ai-dsh-llm-pi-ai/use-this-package/change-configuration-at-runtime:
   en: 92f554e1718614ca
   zh: f17ed3ad3e5d28e2
@@ -39,8 +39,11 @@
   en: 6619e8cfe7555c73
   zh: b2f80c25acb81cf8
 /deepseek-ai-dsh-llm-pi-ai/use-this-package/failures-and-recovery:
-  en: 3c1edbc63de24a1a
-  zh: 01592718c3a2c79f
+  en: 3431018d8fb36b1b
+  zh: 16e5b6a1574375c4
+/deepseek-ai-dsh-llm-pi-ai/use-this-package/opt-in-codex-oauth-smoke:
+  en: 0f438b523ee2b885
+  zh: f605506011a951e2
 /deepseek-ai-dsh-llm-pi-ai/understand-the-implementation:
   en: 1598ac8a8bb9b6bf
   zh: fdd089c5ae7722cd
@@ -90,8 +93,8 @@
   en: b6bd570c0159ba08
   zh: 7d2d91eea6a8d830
 /deepseek-ai-dsh-llm-pi-ai/known-limitations-and-deferred-work:
-  en: ee870ac2ac87decc
-  zh: 9e66c5e7400c4bc6
+  en: 8cb1afa6ff1f5bca
+  zh: 45bd8d1e24030104
 /deepseek-ai-dsh-llm-pi-ai/known-limitations-and-deferred-work/dev-note:
   en: 3678dd0f6642c2a5
   zh: 75cbdd064cc64282

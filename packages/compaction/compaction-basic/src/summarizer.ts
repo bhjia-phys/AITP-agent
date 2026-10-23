@@ -11,6 +11,9 @@ import type {
   ContentBlock, FinishReason, GenerateOptions, Message, RequestMessage, TokenUsage, ToolSchema,
 } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
+import type { SessionSeq } from '@deepseek-ai/dsh-session'
+import { estimateToolsTokens } from '@deepseek-ai/dsh-token-meter/src/estimate.ts'
+import type { TokenMeasurement } from '@deepseek-ai/dsh-token-meter'
 
 interface SummaryConfig {
   readonly summarizationProvider: string
@@ -81,6 +84,21 @@ export interface SummarizationInput {
   readonly tools?: readonly ToolSchema[]
   /** The derived system head, when present, followed by the shadowed region in surface order. */
   readonly messages: readonly Message[]
+  /** Source nodes excluding the leading system head, used for route-priced admission. */
+  readonly sourceSeqs?: readonly SessionSeq[]
+  /** Nonempty system head prepended outside the selected source range, if present. */
+  readonly systemHeadSeq?: SessionSeq
+}
+
+/** A locally rejected summary can be retried over a smaller, balanced source span. */
+export class SummaryCapacityError extends Error {
+  constructor(
+    readonly sourceBudget: number,
+    readonly nodes: TokenMeasurement['nodes'],
+    target: string,
+  ) {
+    super(`compaction input exceeds ${target}'s context window (${sourceBudget} estimated tokens available for source history); select a smaller balanced history span, reduce fixed prompt/tool/output overhead, or explicitly choose a larger summarization model`)
+  }
 }
 
 /** Safe summary content plus the exact auxiliary call envelope recorded with it. */
@@ -110,12 +128,13 @@ export type SummaryResult = {
  * Run the default cache-reusing `ctx.llm.stream()` summarization call: replay
  * the conversation prefix, then append the compaction instruction as the final
  * user message so the provider's warm prefix cache is reused.
- * @param ctx - context providing the LLM service.
+ * @param ctx - context providing the LLM service and route-aware token meter.
  * @param config - resolved backend configuration.
  * @param input - replayed conversation prefix (system, tools, and leading messages) to condense.
  * @param agent - supplies routed-model history, fallback model, and session id.
  * @param signal - optional cancellation forwarded to the adapter.
  * @returns safe text-only summary blocks and the exact call envelope and output.
+ * @throws SummaryCapacityError before provider I/O when the declared window cannot admit the complete estimated request.
  */
 export async function summarizeWithLlm(
   ctx: Context,
@@ -159,6 +178,32 @@ export async function summarizeWithLlm(
     sessionId: agent.session.id,
     purpose: 'compaction',
     ...signal === undefined ? {} : { signal },
+  }
+  const info = await ctx.llm.resolveModelInfo(target.provider, target.model, signal)
+  if (info.context !== undefined) {
+    const meter = ctx.tokenMeter
+    const measured = meter.measure(agent.session, {
+      config: { provider: target.provider, model: target.model },
+      ...input.tools === undefined ? {} : { tools: [...input.tools] },
+    })
+    const selected = new Set(input.sourceSeqs)
+    const nodes = measured.nodes.filter(node => selected.has(node.seq))
+    const sourceTokens = input.sourceSeqs === undefined
+      ? input.messages.filter(message => message.role !== 'system')
+        .reduce((sum, message) => sum + meter.estimateMessage(message), 0)
+      : nodes.reduce((sum, node) => sum + node.tokens, 0)
+    const fixedMessages = input.sourceSeqs === undefined
+      ? input.messages.filter(message => message.role === 'system')
+      : input.systemHeadSeq === undefined ? [] : input.messages.slice(0, 1)
+    const fixedTokens = estimateToolsTokens({ config: options, ...input.tools === undefined ? {} : { tools: [...input.tools] } })
+      + fixedMessages
+        .reduce((sum, message) => sum + meter.estimateMessage(message), 0)
+      + meter.estimateMessage(messages[messages.length - 1] as Message)
+      + config.maxTokens
+    const sourceBudget = info.context.contextWindow - fixedTokens
+    if (sourceTokens > sourceBudget) {
+      throw new SummaryCapacityError(sourceBudget, nodes, `${target.provider}/${target.model}`)
+    }
   }
   for await (const chunk of ctx.llm.stream(options)) assembler.push(chunk)
   const error = finishError(assembler.finish)

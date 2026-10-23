@@ -5,8 +5,10 @@ import { lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { historicalSchemaRegion } from './historical-schema-region.ts'
+import { isManuallyMaintainedDocument, parseTranslationPairingManifest } from './translation-pairing.ts'
 
 const root = resolve(import.meta.dirname, '..')
+const documentationPolicy = parseTranslationPairingManifest(readFileSync(resolve(root, 'scripts/translation-pairing.manifest.json'), 'utf8'))
 const blockedTerm = 'prove' + 'nance'
 const excludedPrefixes = ['vendor/', '.agents/notes/archived/'] as const
 
@@ -20,6 +22,7 @@ export interface ConcreteTermViolation {
 
 function isExcluded(file: string): boolean {
   return excludedPrefixes.some(prefix => file.startsWith(prefix))
+    || isManuallyMaintainedDocument(file, documentationPolicy)
     // Release snapshots retain the identifiers present in their pinned source;
     // historical-format pairing records key sections by those identifiers' headings.
     || /^docs\/persistence-changes\/releases\/dsh-v\d+\.\d+\.\d+-(?:alpha|rc)\.\d+\.schema\.json$/u.test(file)
@@ -34,7 +37,8 @@ function containsBlockedTerm(value: string): boolean {
  * Find the blocked term in one maintained tracked file.
  * @param file - repository-relative tracked path.
  * @param source - text contents or symlink target.
- * @returns violations outside vendored sources, frozen Agent Notes, historical schemas and their checked generated regions.
+ * @returns violations outside manual AITP scopes, vendor, frozen notes,
+ *   historical schemas and their checked generated regions.
  */
 export function findConcreteTermViolations(file: string, source: string): ConcreteTermViolation[] {
   if (isExcluded(file)) return []

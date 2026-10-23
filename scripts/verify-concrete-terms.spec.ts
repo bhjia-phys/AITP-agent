@@ -7,6 +7,21 @@ import { findConcreteTermViolations, readTrackedSource } from './verify-concrete
 const blockedTerm = 'prove' + 'nance'
 
 describe('concrete terminology policy', () => {
+  it.each([
+    'README.md', 'README.zh.md', 'current.md', 'agent/notes/review.md',
+    'agent/packages/runtime/src/session.ts', 'docs/agent/10-project-workspace.md',
+    'docs/agent/prototype/index.html', 'packages/client/ui-brand-aitp/README.zh.md',
+  ])('preserves terminology in explicitly manual AITP scope %s', (file) => {
+    expect(findConcreteTermViolations(file, blockedTerm)).toEqual([])
+  })
+
+  it.each([
+    'docs/architecture.md', 'docs/agent-other/notes.md', 'agent-other/runtime.ts',
+    'packages/client/ui-brand-aitp/src/index.ts', 'packages/client/ui-sidebar/README.md',
+  ])('keeps active Harness terminology guarded in %s', (file) => {
+    expect(findConcreteTermViolations(file, blockedTerm)).toEqual([{ file, line: 1 }])
+  })
+
   it('rejects case variants in paths, prose, and identifiers', () => {
     expect(findConcreteTermViolations(`docs/${blockedTerm}-notes.md`, [
       'origin metadata',

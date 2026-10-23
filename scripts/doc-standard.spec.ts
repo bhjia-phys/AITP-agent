@@ -13,8 +13,10 @@ import { resolve, sep } from 'node:path'
 import { JSON_SCHEMA, load } from 'js-yaml'
 import { describe, expect, it } from 'vitest'
 import { readCurrentSessionFormatVersion } from './gen-session-format-catalog.ts'
+import { isManuallyMaintainedDocument, parseTranslationPairingManifest } from './translation-pairing.ts'
 
 const root = resolve(import.meta.dirname, '..')
+const translationManifest = parseTranslationPairingManifest(readFileSync(resolve(root, 'scripts/translation-pairing.manifest.json'), 'utf8'))
 const PACKAGE_README_GLOBS = [
   'packages/README.md',
   'packages/README.zh.md',
@@ -152,6 +154,7 @@ function packageReadmeMetadataErrors(file: string, metadata: Record<string, unkn
 }
 
 function packageReadmeStructureErrors(file: string, source: string): string[] {
+  if (isManuallyMaintainedDocument(file, translationManifest)) return []
   const chinese = file.endsWith('.zh.md')
   const required = chinese
     ? [[/^## 概述$/m, '概述'], [/^## 目录$/m, '目录'], [/^#{2,3} 开发备注$/m, '开发备注']] as const
@@ -398,11 +401,23 @@ describe('dsh-doc skill consolidation', () => {
     }
   })
 
-  it('keeps every package README on the summary, contents, and Dev Note skeleton', () => {
+  it('keeps non-manual package READMEs on the summary, contents, and Dev Note skeleton', () => {
     for (const file of packageReadmes().filter(file => file.split('/').length === 4)) {
       const source = readFileSync(resolve(root, file), 'utf8')
       expect(packageReadmeStructureErrors(file, source), file).toEqual([])
     }
+  })
+
+  it('exempts only the declared manual README family from its prose skeleton', () => {
+    const prose = '# AITP brand\n\nProduct identity.\n'
+    expect(packageReadmeStructureErrors('packages/client/ui-brand-aitp/README.md', prose)).toEqual([])
+    expect(packageReadmeStructureErrors('packages/client/ui-brand-aitp/README.zh.md', prose)).toEqual([])
+    expect(packageReadmeStructureErrors('packages/client/ui-brand-official/README.md', prose))
+      .toEqual(['missing Summary', 'missing Table of Contents', 'missing Dev Note'])
+    expect(packageReadmeStructureErrors('packages/client/ui-brand-aitp/other.md', prose))
+      .toEqual(['missing Summary', 'missing Table of Contents', 'missing Dev Note'])
+    expect(packageReadmeMetadataErrors('packages/client/ui-brand-aitp/README.md', {}))
+      .toEqual(['kind must be package-reference', 'description must be a non-empty string'])
   })
 
   it('rejects redundant fields and a kind that does not match the README position', () => {

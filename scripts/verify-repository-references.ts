@@ -5,8 +5,10 @@ import { lstatSync, readFileSync, readlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { canonicalReferenceText } from './verify-public-repository-links.ts'
+import { isManuallyMaintainedDocument, parseTranslationPairingManifest } from './translation-pairing.ts'
 
 const root = resolve(import.meta.dirname, '..')
+const documentationPolicy = parseTranslationPairingManifest(readFileSync(resolve(root, 'scripts/translation-pairing.manifest.json'), 'utf8'))
 const organization = ['deepseek', 'harness'].join('-')
 const organizationUrl = new RegExp(`\\bgithub\\.com/${organization}(?![a-z0-9-])`)
 // The independent kit repository owns the engine source and documentation.
@@ -31,12 +33,22 @@ function isMaintained(file: string): boolean {
   return !excludedPrefixes.some(prefix => file.startsWith(prefix))
 }
 
+/** Preserve AITP historical references and ignore decimal artifact sizes, not dependency pins. */
+function commitReferenceText(file: string, source: string): string {
+  if (isManuallyMaintainedDocument(file, documentationPolicy)) return ''
+  if (file === 'uv.lock' || file.endsWith('/uv.lock')) {
+    return source.replace(/((?:^|[,{])\s*size\s*=\s*)\d+(?=\s*(?:[,}]|$))/gm, '$1<size>')
+  }
+  return source
+}
+
 /**
  * Inspect a maintained source file against known commit identifiers.
  * @param file - Repository-relative path used in diagnostics and exclusions.
  * @param source - File text or a symlink's stored target.
  * @param commits - Lowercase, unambiguous full or abbreviated commit identifiers.
- * @returns One finding per line and reference kind; digests and other Git object types are accepted.
+ * @returns One finding per line and kind; manual AITP history and numeric lockfile sizes
+ *   are exempt only from commit matching. Organization checks remain active.
  */
 export function findRepositoryReferences(
   file: string,
@@ -49,7 +61,7 @@ export function findRepositoryReferences(
     if (organizationUrl.test(canonicalReferenceText(line).replace(kitRepositoryUrl, ''))) {
       references.push({ file, line: index + 1, kind: 'organization-url' })
     }
-    if ([...line.matchAll(commitCandidate)].some(match => commits.has(match[0].toLowerCase()))) {
+    if ([...commitReferenceText(file, line).matchAll(commitCandidate)].some(match => commits.has(match[0].toLowerCase()))) {
       references.push({ file, line: index + 1, kind: 'commit-hash' })
     }
   }
@@ -134,11 +146,12 @@ export function repositoryCommits(repoRoot: string, sources: Iterable<string>): 
 /**
  * Scan tracked and nonignored new files using only the local Git object database.
  * @param repoRoot - Working tree whose files and Git objects are inspected.
- * @returns Prohibited references outside vendor and frozen Agent Notes; absent shallow-history objects cannot match.
+ * @returns Prohibited references under the maintained-file and manual-history policies;
+ *   absent shallow-history objects cannot match.
  */
 export function scanRepositoryReferences(repoRoot: string): RepositoryReference[] {
   const sources = readMaintainedFiles(repoRoot)
-  const commits = repositoryCommits(repoRoot, sources.values())
+  const commits = repositoryCommits(repoRoot, [...sources].map(([file, source]) => commitReferenceText(file, source)))
   return [...sources].flatMap(([file, source]) => findRepositoryReferences(file, source, commits))
 }
 

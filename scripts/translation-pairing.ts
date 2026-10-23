@@ -221,13 +221,26 @@ export function isTranslationPairingManifestExcluded(
   return manifest.excluded.some(entry => (entry.endsWith('/') ? file.startsWith(entry) : file === entry))
 }
 
-/** Build the active bilingual-source predicate shared by every link consumer. */
+/**
+ * Build the pairing predicate shared by corpus checks and link consumers.
+ * Manual documents never require records. Link consumers can supply their
+ * content-plane lookup to recognize an already existing manual bilingual pair.
+ * @param manifest - Validated exclusions and manually maintained families.
+ * @returns A predicate; without a file lookup manual documents remain excluded.
+ */
 export function translationPairSourcePredicate(
   manifest: TranslationPairingManifest,
-): (sourcePath: string) => boolean {
-  return sourcePath => isTranslationScopeFile(sourcePath)
-    && !isTranslationPairingManifestExcluded(sourcePath, manifest)
-    && !isManuallyMaintainedDocument(sourcePath, manifest)
+): (sourcePath: string, repositoryFileExists?: (path: string) => boolean) => boolean {
+  return (sourcePath, repositoryFileExists) => {
+    if (isTranslationPairingManifestExcluded(sourcePath, manifest)) return false
+    if (isManuallyMaintainedDocument(sourcePath, manifest)) {
+      return repositoryFileExists !== undefined
+        && sourcePath.endsWith('.md') && !sourcePath.endsWith('.zh.md')
+        && repositoryFileExists(sourcePath)
+        && repositoryFileExists(sourcePath.replace(/\.md$/, '.zh.md'))
+    }
+    return isTranslationScopeFile(sourcePath)
+  }
 }
 
 /**

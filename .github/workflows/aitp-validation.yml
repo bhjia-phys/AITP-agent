@@ -1,0 +1,57 @@
+name: AITP validation
+
+on:
+  push:
+    branches: [main, fix/gpt-integration]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aitp-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+      DSH_GATE_CONCURRENCY: '1'
+      DSH_OXLINT_THREADS: '1'
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: pnpm/action-setup@v5.0.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build artifacts
+        run: pnpm run build:artifacts
+      # The ordinary aggregate runner overlaps both programs and pins Host to
+      # 4 GiB. These are the same full programs, sequentially, with a 6 GiB cap.
+      - name: Check full Host program
+        run: node --max-old-space-size=6144 node_modules/typescript/bin/tsc -p tsconfig.host.json
+      - name: Check full Client program
+        run: node --max-old-space-size=6144 node_modules/typescript/bin/tsc -p tsconfig.client.json
+      - name: Check documentation
+        run: pnpm run doc-sync
+      - name: Run keyless GPT reliability regressions
+        run: >-
+          pnpm exec vitest run --maxWorkers=1
+          apps/cli/tests/aitp-headless.spec.ts
+          apps/cli/tests/aitp-codex-websocket.spec.ts
+          apps/cli/tests/subagent-permissions.spec.ts
+          packages/compaction/compaction-basic/tests
+          packages/llm/llm-pi-ai/tests/adapter.spec.ts
+          packages/llm/llm-pi-ai/tests/codex-responses.spec.ts
+          packages/llm/llm-pi-ai/tests/codex-retry.spec.ts
+          packages/llm/llm-pi-ai/tests/tool-argument-streaming.spec.ts

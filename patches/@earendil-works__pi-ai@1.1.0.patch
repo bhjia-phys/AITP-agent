@@ -71,3 +71,47 @@ index 7da1c45de8a106a68411cf79bec75f553534a1c7..296d131b59b1cf75f2516c39e85bba72
                  break;
              }
              case "toolcall_end":
+diff --git a/dist/api/openai-codex-responses.js b/dist/api/openai-codex-responses.js
+--- a/dist/api/openai-codex-responses.js
++++ b/dist/api/openai-codex-responses.js
+@@ -785,6 +785,12 @@
+     if (entry.idleTimer) {
+         clearTimeout(entry.idleTimer);
+     }
++    // Disposal or a concurrent acquisition may have retired this exact entry.
++    // A late release must not create an orphan idle timer or retain its socket.
++    if (websocketSessionCache.get(sessionId)?.get(accountId) !== entry) {
++        closeWebSocketSilently(entry.socket);
++        return;
++    }
+     entry.idleTimer = setTimeout(() => {
+         if (entry.busy)
+             return;
+@@ -925,8 +931,17 @@
+         }
+     }
+     const socket = await connectWebSocket(url, headers, signal, connectTimeoutMs, env);
++    if (signal?.aborted) {
++        closeWebSocketSilently(socket);
++        throw new Error("Request was aborted");
++    }
+     const entry = { socket, busy: true, createdAt: Date.now() };
+     accountEntries = websocketSessionCache.get(sessionId);
++    // Another request can populate the empty cache while connect is pending.
++    // Keep its ownership and use this connection only for the current request.
++    if (accountEntries?.has(accountId)) {
++        return { socket, reused: false, release: () => closeWebSocketSilently(socket) };
++    }
+     if (!accountEntries) {
+         accountEntries = new Map();
+         websocketSessionCache.set(sessionId, accountEntries);
+@@ -1201,6 +1216,9 @@
+         }
+     }
+     try {
++        // Connect completion can race cancellation on every acquisition path.
++        if (options?.signal?.aborted)
++            throw new Error("Request was aborted");
+         socket.send(JSON.stringify({ type: "response.create", ...requestBody }));
+         await processResponsesStream(startWebSocketOutputOnFirstEvent(mapCodexEvents(parseWebSocket(socket, options?.signal, idleTimeoutMs), output, model, options?.onProviderStreamEvent), onStart), output, stream, model, {
+             serviceTier: options?.serviceTier,

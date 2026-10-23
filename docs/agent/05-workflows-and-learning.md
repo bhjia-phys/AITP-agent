@@ -123,13 +123,15 @@ keeps its narrow, stated scope.
 
 ## 7. Interfaces
 
+This retained design sketch is parameterized by the resource-reference type described in [09](09-contracts.md#2-references). It is not a shipped Harness API.
+
 ```ts
-type MethodUse = {
+type MethodUse<ResourceRef> = {
   skill: string; skillVersion: string; session: string; location: string;
   outcome: "followed" | "validated" | "corrected" | "contradicted" | "not-applicable" | "failed";
   note?: string; evidence: ResourceRef[]; at: string;
 };
-type DistillationProposal = {
+type DistillationProposal<ResourceRef> = {
   id: string; kind: "revise" | "new"; skill?: string; targetPath: string;
   home: "topic" | "family" | "aitp-branch"; changeSet: string;   // a previewed change set (09 §6)
   rationale: string; evidence: ResourceRef[]; status: "open" | "applied" | "declined";

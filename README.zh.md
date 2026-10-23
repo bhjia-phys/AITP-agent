@@ -63,7 +63,7 @@ pnpm aitp-agent web --no-open
 
 `auth list` 显示可用授权方式及是否保存凭据，不显示凭据值。`auth login openai-codex` 启动 provider 的交互式 ChatGPT 登录；按浏览器指引完成后，在 Web 中选择该 provider 可用的模型。API key 路线使用 `auth login openai`，在终端提示中输入凭据，不放进命令参数。实际登录、live GPT 请求和已运行的检查，以[集成证据](agent/notes/harness-integration.md)为准。
 
-AITP 当前为 ChatGPT 路线（`openai-codex`）默认选择 SSE 流式连接，以避开自动／WebSocket 模式下已经观察到的任务结束后无法退出问题。后续 provider 配置可以显式选择其他连接方式；自动模式的底层故障仍未解决。独立登录以及有限的读／改／运行任务已在 SSE 路线上通过，具体边界见 [GPT 执行证据](agent/notes/harness-integration.md#gpt-reliability-slice)。
+AITP 为 ChatGPT 路线（`openai-codex`）默认选择 SSE 流式连接，后续 provider 配置可显式选择其他连接方式。已观察到的 auto／WebSocket 退出卡住问题现已定位到并发连接的所有权缺陷并修复。独立登录及有限的读／改／运行任务已在 SSE、auto 和显式 WebSocket 路线上通过。这些是兼容性检查，不是科研质量评测，具体边界见 [GPT 执行证据](agent/notes/harness-integration.md#gpt-reliability-slice)。
 
 GPT API key 与 ChatGPT 订阅授权是不同路线；不会静默导入 Codex CLI 登录。凭据、会话、副本实验和真实科研资料都应留在发布树之外。
 

@@ -5,8 +5,9 @@
  */
 
 import { Context } from '@deepseek-ai/cordis'
+import { isDeepStrictEqual } from 'node:util'
 import z from '@deepseek-ai/schemastery'
-import { CompactionEngine, ManualCompactionError } from '@deepseek-ai/dsh-compaction'
+import { CompactionEngine, ManualCompactionError, toolPairingBalancedAfter } from '@deepseek-ai/dsh-compaction'
 import type { CompactionResult, CompactionTrigger } from '@deepseek-ai/dsh-compaction'
 import type { Session, SessionSeq } from '@deepseek-ai/dsh-session'
 import { CONTEXT_WINDOW_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
@@ -27,7 +28,7 @@ import {
   compactSurfaceRegion,
   selectCompactableRange,
 } from './region.ts'
-import { summarizeWithLlm } from './summarizer.ts'
+import { summarizeWithLlm, SummaryCapacityError } from './summarizer.ts'
 import type { SummarizationInput, SummaryResult } from './summarizer.ts'
 import type {
   BasicCompactionConfig,
@@ -132,7 +133,9 @@ export class BasicCompactionEngine extends CompactionEngine {
 
   private readonly warnedPressureConfigTargets = new Set<string>()
   private readonly overflowRetries = new WeakMap<Agent, number>()
-  private readonly overflowAgents = new WeakMap<Session, Agent>()
+  private readonly sessionAgents = new WeakMap<Session, Agent>()
+  private readonly failedAutomatic = new WeakMap<Session, unknown>()
+  private readonly startedAgents = new WeakSet<Agent>()
 
   constructor(ctx: Context, config: BasicCompactionConfig = {}) {
     super(ctx)
@@ -159,6 +162,13 @@ export class BasicCompactionEngine extends CompactionEngine {
       { agent, signal },
       next,
     ): Promise<PreStepDecision> => {
+      const firstStep = !this.startedAgents.has(agent)
+      this.sessionAgents.set(agent.session, agent)
+      const persisted = routedTarget(agent.session)
+      // A new loop instance may have been resumed with a different route. Its
+      // first request must establish that route before auxiliary work inherits it.
+      if (firstStep && persisted !== undefined
+        && (agent.options.provider !== persisted.provider || agent.options.model !== persisted.model)) return next()
       if (!signal.aborted) {
         try {
           const result = await this.compactIfNeeded(agent, 'pressure', signal)
@@ -182,8 +192,9 @@ export class BasicCompactionEngine extends CompactionEngine {
     // A successful response starts a fresh overflow-recovery sequence even
     // when tool calls continue the same turn into another request.
     ctx.on('session/event', (session, event) => {
+      const agent = this.sessionAgents.get(session)
+      if (event.type === 'request/header' && agent !== undefined) this.startedAgents.add(agent)
       if (event.type !== 'assistant/message') return
-      const agent = this.overflowAgents.get(session)
       if (agent !== undefined) this.overflowRetries.delete(agent)
     })
 
@@ -192,7 +203,7 @@ export class BasicCompactionEngine extends CompactionEngine {
       next,
     ) => {
       if (failure.code !== CONTEXT_WINDOW_EXCEEDED_CODE || signal.aborted) return next()
-      this.overflowAgents.set(agent.session, agent)
+      this.sessionAgents.set(agent.session, agent)
       const target = routedTarget(agent.session)
       if (target === undefined) return next()
       const policy = resolveTargetPolicy(this.config, target)
@@ -271,6 +282,31 @@ export class BasicCompactionEngine extends CompactionEngine {
     trigger: CompactionTrigger,
     signal: AbortSignal,
   ): Promise<CompactionResult | null> {
+    signal.throwIfAborted()
+    assertNoActiveCompaction(agent.session, 'automatic compaction')
+    const snapshot = () => ({
+      header: agent.session.requestHeader(),
+      nodes: [...agent.session.surface.nodes],
+      generation: agent.session.surface.contentGeneration,
+      trigger,
+    })
+    if (isDeepStrictEqual(this.failedAutomatic.get(agent.session), snapshot())) return null
+    try {
+      return await this.compactAutomatically(agent, trigger, signal)
+    } catch (error: unknown) {
+      if (!signal.aborted && !(error instanceof TargetPressureConfigError)) {
+        this.failedAutomatic.set(agent.session, snapshot())
+      }
+      throw error
+    }
+  }
+
+  /** The retry memo surrounds the complete automatic operation, including partial progress. */
+  private async compactAutomatically(
+    agent: Agent,
+    trigger: CompactionTrigger,
+    signal: AbortSignal,
+  ): Promise<CompactionResult | null> {
     const target = routedTarget(agent.session)
     if (target === undefined) return null
     const policy = resolveTargetPolicy(this.config, target)
@@ -298,7 +334,7 @@ export class BasicCompactionEngine extends CompactionEngine {
       }
       const range = selectCompactableRange(agent.session, measurement, 0)
       if (range === null) return null
-      return this.compactRegion(range.start, range.end, agent, signal)
+      return this.compactInBatches(range, agent, signal)
     }
 
     const info = await this.ctx.llm.resolveModelInfo(target.provider, target.model, signal)
@@ -335,7 +371,7 @@ export class BasicCompactionEngine extends CompactionEngine {
         /* v8 ignore next -- paired with the defensive post-success branch above. */
         break
       }
-      result = await this.compactRegion(range.start, range.end, agent, signal)
+      result = await this.compactInBatches(range, agent, signal)
       measurement = meter.measure(agent.session)
       if (measurement.totalTokens < spec.thresholdTokens) return result
     }
@@ -344,6 +380,70 @@ export class BasicCompactionEngine extends CompactionEngine {
       `compaction still above threshold after ${spec.compactionRetries + 1} compaction attempts `
       + `(${measurement.totalTokens} estimated tokens >= threshold ${spec.thresholdTokens})`,
     )
+  }
+
+  /**
+   * Reduce an oversized selection through whole tool-balanced prefixes. Each
+   * batch consumes at least one previously unprocessed source node, bounding
+   * paid calls by the original selection size. No provider/model substitution
+   * or source truncation is permitted.
+   */
+  private async compactInBatches(
+    range: { start: SessionSeq; end: SessionSeq },
+    agent: Agent,
+    signal: AbortSignal,
+    manual?: (selected: { start: SessionSeq; end: SessionSeq }) => Promise<CompactionResult>,
+  ): Promise<CompactionResult> {
+    const session = agent.session
+    const startIndex = session.surface.nodes.indexOf(range.start)
+    const original = new Set(session.surface.nodes.slice(
+      session.surface.nodes.indexOf(range.start), session.surface.nodes.indexOf(range.end) + 1,
+    ))
+    const target = conversationTarget(agent)
+    const retries = target === undefined ? this.config.compactionRetries : resolveTargetPolicy(this.config, target).compactionRetries
+    let calls = 0
+    let callLimit: number | undefined
+    let selected = range
+    for (;;) {
+      signal.throwIfAborted()
+      if (callLimit !== undefined && calls >= callLimit) {
+        const message = `compaction made insufficient progress within ${callLimit} window-sized summary calls; `
+          + 'retained checkpoints remain valid; use /compact to retry explicitly or reduce fixed prompt/tool/output overhead'
+        if (manual !== undefined) throw new ManualCompactionError('summary', message)
+        throw new Error(message)
+      }
+      let result: CompactionResult
+      try {
+        result = manual === undefined
+          ? await this.compactRegion(selected.start, selected.end, agent, signal)
+          : await manual(selected)
+      } catch (failure: unknown) {
+        const error = failure instanceof ManualCompactionError ? failure.cause : failure
+        if (!(error instanceof SummaryCapacityError)) throw failure
+        callLimit ??= Math.min(original.size,
+          Math.ceil(error.nodes.reduce((sum, node) => sum + node.tokens, 0) / Math.max(1, error.sourceBudget)) + retries + 1)
+        let tokens = 0
+        let end: SessionSeq | undefined
+        for (const node of error.nodes) {
+          tokens += node.tokens
+          if (tokens > error.sourceBudget) break
+          if (toolPairingBalancedAfter(session, node.seq)) end = node.seq
+        }
+        if (end === undefined || end === selected.end
+          || !error.nodes.slice(0, error.nodes.findIndex(node => node.seq === end) + 1)
+            .some(node => original.has(node.seq))) throw failure
+        selected = { start: selected.start, end }
+        continue
+      }
+      calls += 1
+      for (const seq of result.shadowedSeqs) original.delete(seq)
+      if (original.size === 0) return result
+      const end = range.end
+      const start = session.surface.nodes[startIndex]
+      // The transaction replaces its selected prefix with exactly one checkpoint.
+      if (start === undefined) throw new Error('compaction batch checkpoint is absent from the current history')
+      selected = { start, end }
+    }
   }
 
   /**
@@ -386,22 +486,24 @@ export class BasicCompactionEngine extends CompactionEngine {
     sourceCommandId?: CommandId,
   ): Promise<CompactionResult | null> {
     signal.throwIfAborted()
+    this.failedAutomatic.delete(agent.session)
     try {
       return agent.runMaintenance(async (agentSignal) => {
         const operationSignal = AbortSignal.any([agentSignal, signal])
         try {
           operationSignal.throwIfAborted()
+          assertNoActiveCompaction(agent.session, 'manual compaction')
           const range = selectCompactableRange(
             agent.session,
             this.ctx.tokenMeter.measure(agent.session),
             0,
           )
           if (range === null) return null
-          return await compactSurfaceRegion(
+          return await this.compactInBatches(range, agent, operationSignal, selected => compactSurfaceRegion(
             this.regionDependencies(),
             agent.session,
-            range.start,
-            range.end,
+            selected.start,
+            selected.end,
             agent,
             {
               owner: null,
@@ -412,7 +514,7 @@ export class BasicCompactionEngine extends CompactionEngine {
               },
             },
             operationSignal,
-          )
+          ))
         } catch (error: unknown) {
           if (agentSignal.aborted && operationSignal.reason === agentSignal.reason) {
             throw new ManualCompactionError(

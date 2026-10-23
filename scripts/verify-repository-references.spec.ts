@@ -72,6 +72,41 @@ describe('unique object-name prefix search', () => {
 })
 
 describe('maintained repository reference policy', () => {
+  it.each([
+    'README.md', 'README.zh.md', 'current.md', 'agent/notes/harness-integration.md',
+    'agent/packages/runtime/src/session.ts', 'docs/agent/10-project-workspace.md',
+    'packages/client/ui-brand-aitp/README.zh.md',
+  ])('preserves manual AITP commit evidence but still checks organization URLs in %s', (file) => {
+    const commit = 'a1b2c3d4'
+    expect(findRepositoryReferences(file, `${commit}\n${organizationUrl}`, new Set([commit])))
+      .toEqual([{ file, line: 2, kind: 'organization-url' }])
+  })
+
+  it.each([
+    'docs/architecture.md', 'docs/agent-other/current.md', 'agent-other/current.md',
+    'packages/client/ui-brand-aitp/src/index.ts', 'packages/client/ui-sidebar/README.md',
+  ])('keeps commit-reference checks outside named manual scopes: %s', (file) => {
+    expect(findRepositoryReferences(file, 'a1b2c3d4', new Set(['a1b2c3d4'])))
+      .toEqual([{ file, line: 1, kind: 'commit-hash' }])
+  })
+
+  it('ignores only numeric uv.lock size fields, preserving pin and organization checks', () => {
+    const file = 'python/sdk/uv.lock'
+    const numericCandidate = ['634', '4383'].join('')
+    const commits = new Set([numericCandidate])
+    expect(findRepositoryReferences(file, [
+      `{ url = "https://files.pythonhosted.org/fixture.whl", size = ${numericCandidate} },`,
+      `size = ${numericCandidate}`,
+      `source = { git = "https://example.invalid/repo?rev=${numericCandidate}" }`,
+      `url = "${organizationUrl}/fixture", size = ${numericCandidate}`,
+    ].join('\n'), commits)).toEqual([
+      { file, line: 3, kind: 'commit-hash' },
+      { file, line: 4, kind: 'organization-url' },
+    ])
+    expect(findRepositoryReferences('docs/sizes.md', `size = ${numericCandidate}`, commits))
+      .toEqual([{ file: 'docs/sizes.md', line: 1, kind: 'commit-hash' }])
+  })
+
   it('permits only the independent kit repository and its source URLs', () => {
     for (const suffix of ['', '.git', '/tree/main/packages/entry']) {
       expect(findRepositoryReferences('package.json', `${organizationUrl}/libreoffice-kit${suffix}`, new Set())).toEqual([])
@@ -116,12 +151,14 @@ describe('maintained repository reference policy', () => {
     remote.write('partial-clone/new.md', missing)
 
     expect(scanRepositoryReferences(clone)).toEqual([])
-    expect(execFileSync('git', ['cat-file', '--batch-check'], {
+    // Enumerate local objects: asking older Git directly for the missing
+    // object can itself fetch it despite GIT_NO_LAZY_FETCH.
+    const localObjects = execFileSync('git', ['cat-file', '--batch-all-objects', '--batch-check=%(objectname)'], {
       cwd: clone,
       encoding: 'utf8',
       env: { ...process.env, GIT_NO_LAZY_FETCH: '1' },
-      input: `${missing}\n`,
-    }).trim()).toBe(`${missing} missing`)
+    }).trim().split('\n')
+    expect(localObjects).not.toContain(missing)
   })
 
   it('accepts blobs, trees, unknown hex, long digests, and identifiers embedded in alphanumeric words', (test) => {

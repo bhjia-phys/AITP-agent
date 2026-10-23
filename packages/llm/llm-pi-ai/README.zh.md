@@ -106,7 +106,9 @@ profile 的 `models` 列表会替换而非扩展路由的已安装目录；每�
 
 对于自托管 Chat Completions 端点，`thinkingTokenBudgetField` 选择推理预算参数，`vllmPriority` 在服务端启用优先级调度时设置整数调度优先级。模板参数接受 `$var: thinking.budget`。`openai-responses` 网关可设置 `supportsMaxOutputTokens: false` 来省略 `max_output_tokens`；Azure 与 Codex 传输会忽略这个共享兼容字段。这些控制均需显式启用；目录拥有的 Anthropic effort 和回退能力不是可配置开关。
 
-插件卸载会中止本适配器仍在进行的请求，并关闭它使用的 Codex WebSocket 会话缓存。清理只指定本适配器使用过的非空会话 ID，不会请求关闭整个提供方的缓存。凭据解析在卸载后完成时，不能再发起模型请求。
+插件卸载会中止本适配器仍在进行的请求，并关闭它使用的 Codex WebSocket 会话缓存。清理只指定本适配器使用过的非空会话 ID，不会请求关闭整个提供方的缓存。凭据解析在卸载后完成时，不能再发起模型请求。固定版本的 SDK 补丁避免并发连接覆盖缓存所有权，在释放时关闭已失去归属的连接，并在通过新取得的连接发送请求前检查取消状态。
+
+Codex HTTP 失败以及结构化 `error`／`response.failed` 事件会将错误类别交给 Harness 现有重试策略，适用于 SSE 和 WebSocket。HTTP 响应与 WebSocket 错误信封提供状态码及有效 `Retry-After` 时予以保留。有界错误详情用于区分配额耗尽与暂时限流；未知事件代码保持未知，除非现有上下文溢出检测识别出终止消息。已识别的结构化错误类别优先，失败记录不保存原始正文、消息或请求／响应头。认证与配额错误停止普通重试，暂时的服务器／限流错误使用 provider 配置的重试次数；取消优先。SDK 仍负责缓存响应和连接上限的特殊恢复，适配器不添加重试循环，也不为流事件虚构 HTTP 状态码。
 
 ### 运行时更改配置
 
@@ -264,6 +266,8 @@ pi-ai 事件变成 harness 的推理、文本、工具调用、用量与 finish 
 - **提供方 HTTP 状态不可用**——pi-ai 错误事件不跨提供方暴露稳定 HTTP 状态。
 - **重试策略由提供方自有，而非 SDK 重试**——pi-ai SDK 重试保持禁用，因此持久 agent（智能体）步骤与 `llm/retry` 事件拥有每个可见尝试，直接 `ctx.llm.stream()` 调用仍是单次尝试。
 - **流式 JSON 工具调用参数避免逐 delta 重复解析**——安装的 pi-ai 带有 [`patches/@earendil-works__pi-ai@1.1.0.patch`](../../../patches/@earendil-works__pi-ai@1.1.0.patch)，它移除了每个流适配器中对整段累计参数 JSON 的逐 delta 重新解析（上游 [earendil-works/pi#9265](https://github.com/earendil-works/pi/issues/9265)）；未打补丁时，数 MB 的参数流会在事件循环上消耗 O(n²) CPU，并使进程内所有会话停滞。完成事件提供解析后的参数；Responses 可能在参数完成和输出项完成时分别解析。本适配器只读取 delta 字符串与最终参数。每次升级 pi-ai 时都要重新应用或撤销该补丁。
+
+[有界流式回归测试](tests/tool-argument-streaming.spec.ts) 在 Chat Completions 与 Responses 上交错传输两份各 114,727 字节的 UTF-8 参数，包含 Unicode 与转义字符，共 9,644 个小 delta，并覆盖截断、输出 token 上限和取消。它检查最终参数精确还原、延后解析、失败分类、丢弃达到 token 上限的调用，以及取消后响应关闭。这些检查只确立所测流式行为，不提供一般延迟保证，也不证明外部网关 500/503 错误的成因。
 
 <a id="dev-note"></a>
 ### 开发备注

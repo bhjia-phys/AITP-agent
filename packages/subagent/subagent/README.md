@@ -27,6 +27,8 @@ Use `dsh-subagent` to delegate work through named providers and collect managed 
 
 Each start accepts an optional `cwd`; relative paths resolve against the parent's current working directory, and omission captures that current directory. The child keeps its parent's origin metadata and permission roots. A child-owned directory value follows any inherited history, survives continuation and restart, and is independent of later parent changes.
 
+In-process children pin approval to `never` while retaining the inherited file policy. Repeating the effective `workspace-write` mode on `write` or `edit` is ordinary access and needs no justification; requesting a wider mode still fails without approval. The [keyless Loader regression](../../../apps/cli/tests/subagent-permissions.spec.ts) exercises the shipped spawn and fork tools, checks actual Markdown writes and edits, verifies denied widening leaves no file, and distinguishes forked history from a fresh spawn. It does not establish native Windows behavior or a live model's choice of arguments.
+
 This package is the contract every delegation setup shares. You enable it by mounting the service together with one or more provider backends and the model-facing delegation tool; from then on, an agent can delegate work and the service routes each request to the named provider.
 
 ### Enabling delegation

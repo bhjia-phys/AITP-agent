@@ -568,6 +568,8 @@ function buildSummarizationInput(
   return {
     ...header?.tools === undefined ? {} : { tools: header.tools },
     messages: system === null ? regionMessages : [system, ...regionMessages],
+    sourceSeqs: shadowedSeqs,
+    ...system === null || head === undefined ? {} : { systemHeadSeq: head.seq },
   }
 }
 

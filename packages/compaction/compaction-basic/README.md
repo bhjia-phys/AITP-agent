@@ -114,7 +114,11 @@ With `auto: true`, a serial `agent/pre-step` listener checks pressure before req
 
 Pressure policy resolves capacity from the adapter that owns the durable route. Missing capacity, output plus headroom exhausting the window, or a retained budget at least as large as the threshold makes the manual pressure path throw a target-specific configuration error. The automatic listener warns once for that exact target and skips proactive compaction until its configuration is corrected; provider-confirmed overflow recovery remains available.
 
-Automatic selection excludes a span containing only a prior compaction checkpoint. New history may be summarized together with that checkpoint; explicit manual region selection remains available. This avoids paying for the same checkpoint on successive steps or after restart. It does not establish that fixed prompt/tool overhead fits the target window, suppress every failed summary of unchanged raw history, or solve a switch to a smaller summarization model.
+Automatic selection excludes a checkpoint-only span; a checkpoint plus new history remains eligible. A failed automatic operation is not repeated for the same history, content generation, request envelope and trigger during this service lifetime. Changed history or routing permits another attempt; cancellation and invalid pressure configuration do not suppress recovery. `/compact` explicitly clears the suppression. A restored loop retains its logged route and pressure; if its initial `AgentOptions` selects another route, the first pre-step defers compaction until a request establishes that route, where canonical overflow recovery can use it.
+
+Before a default summary call, the selected adapter's declared window is checked against route-priced source nodes, the leading system prompt, tool declarations, the compaction instruction and reserved summary output. Oversized histories are processed as tool-balanced prefixes on that same provider/model, with one recorded checkpoint per successful call. No source text is truncated and no larger model is selected implicitly. An indivisible source or fixed overhead that cannot fit produces an actionable error before provider I/O. `compactRegion()` reports that error for its exact range; automatic compaction and `/compact` can split their selection.
+
+An oversized pass permits at most `ceil(original source tokens / admitted source budget) + compactionRetries + 1` successful summary calls, also bounded by its original source-node count. Each batch must consume original source history. Exhausting this allowance reports insufficient progress, retains every committed checkpoint, and suppresses another unchanged automatic attempt; explicit `/compact` starts another bounded pass. Its return value describes the final checkpoint, while the session log records all batches.
 
 ### Summarization mechanics
 
@@ -235,6 +239,8 @@ This is a separate model call: the replayed conversation prefix plus the fixed i
 The replayed system prompt, tools, and shadowed-region messages match the conversation's last routed request byte-for-byte, so the provider's warm prefix cache is reused up to the trailing instruction; only that instruction, and the summary output, is uncached. Routing the summarizer to a different provider/model, or compacting a non-head range, forgoes this reuse.
 
 ## Known Limitations and Deferred Work
+
+- Automatic-failure suppression is process-local and resets when the service reloads. Checkpoint-only exclusion survives replay. Window admission uses the existing token estimate and is unavailable when an adapter declares no capacity; a provider can still reject a request the estimate admits. A first route change supplied only by request middleware is known after that request is prepared, so provider-confirmed overflow recovery remains necessary.
 
 <a id="known-limitations-and-deferred-work"></a>
 

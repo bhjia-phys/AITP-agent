@@ -10,7 +10,7 @@
 
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { CONTEXT_WINDOW_EXCEEDED_CODE, EMPTY_RESPONSE_CODE, isContextWindowExceededError, isQuotaExceededError, LlmError, QUOTA_EXCEEDED_CODE } from '@deepseek-ai/dsh-llm'
-import type { FinishReason, StreamChunk, TokenUsage, ToolCallId } from '@deepseek-ai/dsh-llm'
+import type { FinishReason, LlmFailure, StreamChunk, TokenUsage, ToolCallId } from '@deepseek-ai/dsh-llm'
 import { isContextOverflow } from '@earendil-works/pi-ai/utils/overflow'
 import type { AssistantMessage, AssistantMessageEvent, Usage as PiUsage } from '@earendil-works/pi-ai'
 import { toPiReplayState } from './replay.ts'
@@ -136,6 +136,7 @@ export function mapStopReason(message: AssistantMessage, contextWindow?: number)
  * @param callerSignal - caller cancellation state; an aborted caller makes any
  *   in-band terminal error an aborted finish.
  * @param requestedModel - request model identity recorded for durable replay.
+ * @param providerFailure - request-local HTTP/event facts retained before SDK error flattening.
  * @returns the harness chunks, ending with `usage` then `finish`; throws
  *   `LlmError` (`STREAM_CLOSED`) if the source ends without a terminal event.
  */
@@ -144,6 +145,7 @@ export async function* toStreamChunks(
   contextWindow?: number,
   callerSignal?: AbortSignal,
   requestedModel?: string,
+  providerFailure?: () => LlmFailure | undefined,
 ): AsyncGenerator<StreamChunk> {
   // pi-ai contentIndex ↔ our block index map 1:1 (both count blocks from 0
   // in stream order), but we track ids per index for tool calls.
@@ -213,18 +215,31 @@ export async function* toStreamChunks(
           replayState: toPiReplayState(event.message, requestedModel),
         }
         return
-      case 'error':
+      case 'error': {
         // In-stream error delivery (pi-ai's style) → error finish chunk
         // (the harness's other sanctioned error path besides throwing).
         yield { type: 'usage', usage: mapUsage(event.error.usage) }
+        const failure = providerFailure?.()
+        let reason = mapStopReason(
+          callerSignal?.aborted ? { ...event.error, stopReason: 'aborted' } : event.error,
+          contextWindow,
+        )
+        if (!callerSignal?.aborted && failure !== undefined) {
+          // An unclassified provider envelope must not suppress existing
+          // overflow detection. Keep structured classifications authoritative
+          // and retain only the fallback category, never its raw error text.
+          const code = failure.code === 'PI_AI_ERROR' && reason.kind === 'error'
+            && reason.failure.code === CONTEXT_WINDOW_EXCEEDED_CODE
+            ? CONTEXT_WINDOW_EXCEEDED_CODE : failure.code
+          reason = { kind: 'error', failure: code === failure.code ? failure
+            : { ...failure, code, message: `Codex stream error (${code})` } }
+        }
         yield {
           type: 'finish',
-          reason: mapStopReason(
-            callerSignal?.aborted ? { ...event.error, stopReason: 'aborted' } : event.error,
-            contextWindow,
-          ),
+          reason,
         }
         return
+      }
       // no default: AssistantMessageEvent is pi-ai's closed union; a new
       // event type should fail compilation here via tsc's exhaustiveness
       // when one is added (switch covers all current variants).

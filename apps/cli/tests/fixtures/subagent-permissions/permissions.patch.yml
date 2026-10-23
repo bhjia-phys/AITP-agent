@@ -1,0 +1,33 @@
+# Only the model is scripted; shipped spawn/fork, filesystem, and permission
+# providers perform the child operations under the headless Loader profile.
+- id: headless-startup
+  disabled: true
+
+- id: headless-runner
+  disabled: true
+
+- id: agent-loop
+  config:
+    agents:
+      - id: permission-parent
+        provider: permission-fixture
+        model: permission-fixture
+        cwd: !!js process.cwd()
+
+- id: session-persistence-jsonl
+  config:
+    root: './.sessions'
+    compression: none
+
+- id: sandbox-policy
+  config:
+    mode: workspace-write
+    workspaceRoot: !!js process.cwd()
+
+- id: approval
+  config:
+    policy: never
+
+- insert:
+    - id: permission-fixture-model
+      name: './scripted-model.ts'

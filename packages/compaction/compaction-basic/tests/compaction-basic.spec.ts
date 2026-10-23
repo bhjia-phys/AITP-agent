@@ -27,6 +27,7 @@ import type {
 import SessionStore, { Session, SessionId, SessionSeq } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import TokenMeter from '@deepseek-ai/dsh-token-meter'
+import { estimateMessage, estimateToolsTokens } from '@deepseek-ai/dsh-token-meter/src/estimate.ts'
 import { agentEvents, type Agent, type RequestErrorAction } from '@deepseek-ai/dsh-agent'
 import ToolResultPruner from '@deepseek-ai/dsh-compaction-tool-result-pruner'
 
@@ -53,7 +54,7 @@ class ContextAdapter extends LlmAdapter {
     })
   }
 
-  override async * stream(): AsyncIterable<StreamChunk> {
+  override async * stream(_options: GenerateOptions): AsyncIterable<StreamChunk> {
     yield { type: 'finish', reason: { kind: 'stop' } }
   }
 }
@@ -777,6 +778,23 @@ describe('pressure measurement and retention', () => {
     expect(selectCompactableRange(session, measurement, 0)).not.toBeNull()
   })
 
+  it.each(['provider failure', 'nonshrinking'])('does not repay an unchanged automatic %s, while explicit recovery remains possible', async (failure) => {
+    const ctx = createContext()
+    const compact = service(compactConfig, ctx)
+    const session = conversation(4)
+    if (failure === 'provider failure') compact.error = new Error('provider unavailable')
+    else compact.summary = [{ type: 'text', text: 'large '.repeat(2000) }]
+    await expect(compactIfNeeded(compact, session)).rejects.toThrow()
+    expect(await compactIfNeeded(compact, session)).toBeNull()
+    expect(await compactIfNeeded(compact, session)).toBeNull()
+    expect(compact.calls).toHaveLength(1)
+    compact.error = undefined
+    compact.summary = [{ type: 'text', text: 'recovered checkpoint' }]
+    const range = selectCompactableRange(session, ctx.tokenMeter.measure(session), 180)!
+    await expect(compact.compactRegion(range.start, range.end, agent(session, MODEL), SIGNAL)).resolves.toBeDefined()
+    expect(compact.calls).toHaveLength(2)
+  })
+
   it('starts the range after a system head and keeps that node at surface position 0', async () => {
     const ctx = createContext()
     const compact = service(compactConfig, ctx)
@@ -1090,12 +1108,12 @@ describe('compaction region transaction', () => {
       header: { config: { provider: MODEL, model: MODEL }, tools },
       reason: 'resume',
     })
-    const nodes = session.surface.nodes
+    const nodes = [...session.surface.nodes]
     const prefix = session.deriveMessages().slice(0, 3)
     await compact.compactRegion(nodes[1]!, nodes[2]!, agent(session, MODEL), SIGNAL)
 
     const { input } = compact.calls[0]!
-    expect(input).toEqual({ messages: prefix, tools })
+    expect(input).toEqual({ messages: prefix, tools, sourceSeqs: [nodes[1], nodes[2]], systemHeadSeq: nodes[0] })
   })
 
   it('omits the summarizer system prompt for an empty system head or a system-less surface', async () => {
@@ -1403,6 +1421,107 @@ async function summarizerHarness(
 }
 
 describe('default one-shot summarizer', () => {
+  it('prices a selected in-history system message once after an empty system head', async () => {
+    const { compact, adapter } = await summarizerHarness([{ type: 'text', text: 'small summary' }], undefined, MODEL, {
+      auto: false, headroomTokens: 0, maxTokens: 64,
+    })
+    vi.spyOn(adapter, 'resolveModel').mockResolvedValue({ provider: MODEL, id: MODEL, name: MODEL, context: { contextWindow: 1000 } })
+    const session = Session.create(SessionId('empty-head-admission'))
+    session.append('turn/start', { turn: 1 })
+    session.append('system/message', { turn: 1, step: 1, message: createSystemMessage('') }, { surfaceOp: 'append' })
+    const selected = session.append('system/message', {
+      turn: 1, step: 1, message: createSystemMessage('S'.repeat(1600)),
+    }, { surfaceOp: 'append' }).seq
+    await expect(compact.compactRegion(selected, selected, agent(session, MODEL), SIGNAL)).resolves.toBeDefined()
+    expect(adapter.lastOptions?.messages).toHaveLength(2)
+  })
+
+  it('bounds paid calls when each window-sized checkpoint frees little history', async () => {
+    const ctx = createContext(3000)
+    let calls = 0
+    const framing = ctx.tokenMeter.estimateMessage(createUserMessage({ content: frameSummary([]), source: { kind: 'user' } }))
+    const adapter = new class extends ContextAdapter {
+      override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+        calls += 1
+        const source = options.messages.slice(0, -1).reduce((total, message) => total + estimateMessage(message as Message), 0)
+        const text = 'x'.repeat(Math.max(1, source - framing - 40) * 4)
+        yield { type: 'block-start', index: 0, blockType: 'text' }
+        yield { type: 'block-end', index: 0, block: { type: 'text', text } }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      }
+    }(3000)
+    ctx.llm.registerAdapter(['tiny-progress'], adapter)
+    const session = conversation(200, 'x')
+    session.append('request/header', { header: { config: { provider: 'tiny-progress', model: 'tiny-progress' } }, reason: 'change' })
+    const compact = new BasicCompactionEngine(ctx, {
+      auto: false, thresholdRatio: 0.8, headroomTokens: 0, retainTokens: 1, maxTokens: 1400, compactionRetries: 0,
+    })
+    await expect(compact.compactIfNeeded(agent(session), 'pressure', SIGNAL)).rejects.toThrow(/insufficient progress/)
+    expect(calls).toBeGreaterThan(1)
+    expect(calls).toBeLessThan(10)
+    const previous = calls
+    expect(await compact.compactIfNeeded(agent(session), 'pressure', SIGNAL)).toBeNull()
+    expect(calls).toBe(previous)
+    expect(session.snapshotEvents().filter(event => event.type === 'compaction/summary')).toHaveLength(calls)
+  })
+
+  it('rejects an indivisible oversized source before provider I/O and permits a later route change', async () => {
+    const ctx = createContext(1000)
+    const compact = new BasicCompactionEngine(ctx, { auto: false, headroomTokens: 0, maxTokens: 64, retainTokens: 1 })
+    const session = conversation(2, 'large source '.repeat(1000))
+    const stream = vi.spyOn(ctx.llm, 'stream')
+    await expect(compact.compactIfNeeded(agent(session), 'pressure', SIGNAL)).rejects.toThrow(/tokens available for source history/)
+    expect(stream).not.toHaveBeenCalled()
+    expect(await compact.compactIfNeeded(agent(session), 'pressure', SIGNAL)).toBeNull()
+    session.append('request/header', { header: { config: { provider: MODEL, model: 'new-model' } }, reason: 'change' })
+    await expect(compact.compactIfNeeded(agent(session), 'pressure', SIGNAL)).rejects.toThrow(/tokens available for source history/)
+    expect(stream).not.toHaveBeenCalled()
+    expect(session.snapshotEvents().filter(event => event.type === 'compaction/start')).toHaveLength(2)
+  })
+
+  it('does not split an oversized tool-call/result unit to admit a summary', async () => {
+    const ctx = createContext(1000)
+    const compact = new BasicCompactionEngine(ctx, { auto: false, headroomTokens: 0, maxTokens: 64, retainTokens: 1 })
+    const session = oversizedToolResult(6000)
+    session.append('user/message', createUserMessage({
+      content: [{ type: 'text', text: 'continue' }], source: { kind: 'user' },
+    }), { surfaceOp: 'append' })
+    const before = [...session.surface.nodes]
+    const stream = vi.spyOn(ctx.llm, 'stream')
+    await expect(compact.compactIfNeeded(agent(session), 'context-overflow', SIGNAL)).rejects.toThrow(/context window/)
+    expect(stream).not.toHaveBeenCalled()
+    expect(session.surface.nodes).toEqual(before)
+    expect(session.snapshotEvents().some(event => event.type === 'compaction/summary')).toBe(false)
+  })
+
+  it('compacts a large restored transcript in bounded calls on its selected smaller model', async () => {
+    const ctx = createContext(4000)
+    const requests: GenerateOptions[] = []
+    const adapter = new class extends ContextAdapter {
+      override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
+        requests.push(options)
+        const input = options.messages.reduce((total, message) => total + estimateMessage(message as Message), 0)
+          + estimateToolsTokens({ config: options, ...options.tools === undefined ? {} : { tools: options.tools } })
+        if (input + (options.maxTokens ?? 0) > 4000) throw new Error('summary exceeds selected model window')
+        yield { type: 'block-start', index: 0, blockType: 'text' }
+        yield { type: 'block-end', index: 0, block: { type: 'text', text: 'bounded checkpoint' } }
+        yield { type: 'finish', reason: { kind: 'stop' } }
+      }
+    }(4000)
+    ctx.llm.registerAdapter(['small'], adapter)
+    const original = conversation(12, 'source evidence '.repeat(160))
+    original.append('request/header', { header: { config: { provider: 'small', model: 'small' } }, reason: 'change' })
+    const session = Session.create(SessionId('restored-smaller-model'), original.snapshotEvents())
+    const compact = new BasicCompactionEngine(ctx, {
+      auto: false, thresholdRatio: 0.8, headroomTokens: 0, retainTokens: 100, maxTokens: 128, compactionRetries: 1,
+    })
+    await expect(compact.compactIfNeeded(agent(session, 'large'), 'pressure', SIGNAL)).resolves.not.toBeNull()
+    expect(requests.length).toBeGreaterThan(1)
+    expect(requests.length).toBeLessThan(24)
+    expect(requests.every(request => request.provider === 'small' && request.model === 'small')).toBe(true)
+    expect(ctx.tokenMeter.measure(session).totalTokens).toBeLessThan(3200)
+  })
+
   it.each([undefined, '', 'SYSTEM HEAD\n精确前缀\n'])('preserves the routed prefix through region summarization with system %j', async (system) => {
     const { adapter, compact } = await summarizerHarness([{ type: 'text', text: 'summary' }])
     const session = conversation(3, undefined, system)
@@ -1728,7 +1847,7 @@ describe('automatic listener and loader composition', () => {
       retainTokens: 180,
     })
     const pressured = conversation(4)
-    await preStep(ctx, agent(pressured, 'unconfigured-agent-fallback'))
+    await preStep(ctx, agent(pressured, MODEL))
     expect(pressured.snapshotEvents().some(event => event.type === 'compaction/summary')).toBe(true)
 
     const small = conversation(1)
