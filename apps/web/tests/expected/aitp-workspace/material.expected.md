@@ -1,0 +1,25 @@
+- region "Research":
+  - heading "Research" [level=1]
+  - text: workspace
+  - navigation "Research location":
+    - button "Back"
+    - button "Project overview"
+  - paragraph:
+    - strong: Demo workspace
+    - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
+  - paragraph: Read Oct 23, {{clock}} AM
+  - paragraph: Report
+  - heading "Small-system control report" [level=2]
+  - paragraph: "Source location: demo/operator-krylov/control-report.md"
+  - article:
+    - heading "Small-system control report" [level=1]
+    - paragraph: This is a synthetic control, not a completed physical calculation.
+    - heading "Observable" [level=2]
+    - paragraph:
+      - text: The observable is the operator Krylov complexity
+      - math: K ( t ) = ∑ n n ∣ φ n ( t ) ∣ 2
+      - text: .
+    - heading "Scope and limit" [level=2]
+    - paragraph: The finite reference checks construction and normalization only. It does not establish chaos or convergence of a production grid.
+    - heading "Next check" [level=2]
+    - paragraph: Compare independent evolution on the same spectral grid before extending the calculation.

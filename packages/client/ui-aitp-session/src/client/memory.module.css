@@ -1,0 +1,332 @@
+/* Session research memory: header action, task card and the Sources & memory page.
+   Provenance is carried by a rule style plus a text label, never by color alone:
+   solid accent = researcher words, dashed = provisional agent item,
+   plain = source, dotted = generated summary, warn = gap. */
+
+/* Header actions do not shrink as a band, so this entry stays compact on its own:
+   quiet origin text that truncates, then yields to the session title as the title
+   row narrows, and an icon trigger in the ink of the neighbouring Jobs trigger. */
+.originAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.origin {
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.memoryTrigger {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-sm);
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+
+.memoryTrigger:hover,
+.memoryTrigger:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+}
+
+@container (max-width: 720px) {
+  .origin {
+    display: none;
+  }
+}
+
+/* The task card joins the composer context stack (Todo, Goal, Queue) at the same width. */
+.dock {
+  box-sizing: border-box;
+  width: calc(
+    100% -
+    var(--dsh-composer-side-clearance) -
+    var(--dsh-composer-side-clearance) -
+    var(--dsh-composer-dock-inset) -
+    var(--dsh-composer-dock-inset) -
+    var(--dsh-composer-dock-inset) -
+    var(--dsh-composer-dock-inset)
+  );
+  margin: 0 auto;
+}
+
+.card {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--dsh-composer-card-max-width) - 4 * var(--dsh-composer-dock-inset));
+  margin: 0 auto;
+  padding: 6px 6px 6px 12px;
+  border: 0;
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-md);
+  box-shadow: var(--dsw-elevation-panel);
+}
+
+.card::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--dsw-specific-menu);
+  backdrop-filter: var(--dsw-menu-backdrop-filter);
+  content: '';
+  pointer-events: none;
+}
+
+.cardRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 24px;
+}
+
+.cardLabel {
+  flex: none;
+  font-size: 13px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.cardTask {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 24px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.cardFacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin: 2px 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.fixtureTag {
+  margin: 0 0 2px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-state-warn-label);
+}
+
+.factGap {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--dsw-alias-state-warn-label);
+}
+
+.cardDetail {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+  max-height: 30vh;
+  overflow: auto;
+  margin-top: 8px;
+  padding: 0 6px 6px 0;
+}
+
+.page {
+  padding: 18px 20px 40px;
+  color: var(--dsw-alias-label-primary);
+}
+
+.pageTitle {
+  margin: 0;
+  font-family: var(--aitp-font-reading, Georgia, serif);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 400;
+}
+
+.pageSummary {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.notice {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--dsw-alias-state-warn-primary);
+  border-radius: 0 var(--dsw-radius-xs) var(--dsw-radius-xs) 0;
+  background: var(--dsw-alias-state-warn-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.section {
+  margin-top: 24px;
+}
+
+.sectionHeading {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary);
+}
+
+.sectionNote {
+  font-weight: 400;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.items {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  padding: 1px 0 1px 12px;
+  border-left: 0.5px solid var(--dsw-alias-border-l2);
+}
+
+.itemResearcher {
+  border-left-color: var(--dsw-alias-brand-primary);
+}
+
+.itemAgent {
+  border-left-style: dashed;
+  border-left-color: var(--aitp-provenance-agent, var(--dsw-alias-label-secondary));
+}
+
+.itemSummary {
+  border-left-style: dotted;
+}
+
+.itemGap {
+  border-left-color: var(--dsw-alias-state-warn-primary);
+}
+
+.itemSuperseded {
+  opacity: 0.7;
+}
+
+.itemLabel {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The researcher's words are quotations: set in the reading face. */
+.quote {
+  margin: 2px 0 0;
+  font-family: var(--aitp-font-reading, Georgia, serif);
+  font-size: 15px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.text {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.textMuted {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere;
+}
+
+.sources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.source {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l1);
+}
+
+.sourceDot {
+  align-self: center;
+}
+
+.sourceLabel {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.sourceRange {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.sourceMeta {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dsw-alias-link);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.linkButton:hover,
+.linkButton:focus-visible {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.center {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+}
+
+/* A short window keeps the composer usable: the facts line yields first, and Details still opens everything. */
+@media (max-height: 520px) {
+  .cardFacts {
+    display: none;
+  }
+}

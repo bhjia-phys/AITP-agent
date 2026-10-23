@@ -22,6 +22,9 @@
     },
     {
       "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-theme/tsconfig.client.json"
     }
   ]
 }

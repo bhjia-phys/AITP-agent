@@ -50,7 +50,7 @@ cannot close the missing parts of a case.
 
 | Case | Retained evidence and research gap to requalify | Planned implementation reference |
 | --- | --- | --- |
-| [C01 Return to a project](#c01) | Pi read-only/recovery evidence retained; Harness topic and continuation route has synthetic design evidence only | Headless continuity; P1 / UI-1, W1 |
+| [C01 Return to a project](#c01) | Pi read-only/recovery evidence retained; Harness project/topic/material navigation uses an asynchronous fixture; real research continuity remains unconnected | Headless continuity; P1 / UI-1, W1 |
 | [C02 Idea to scoped question](#c02) | Discussion and choice-card foundation; idea lifecycle and approved branch creation unavailable | P1 context; P3–P4 authoring |
 | [C03 Discover and import literature](#c03) | Existing text can be searched; literature retrieval/import and edition adapter unavailable | P2b local library; separately approved retrieval |
 | [C04 Close reading across editions](#c04) | Note reading foundation; W2 page/edition states are synthetic; actual research PDF/edition route unavailable | UI-1 note selection; P2b / UI-2, W2 |
@@ -141,7 +141,7 @@ at a choice. Shared editors, source-backed project overview and the closed-threa
 outcome lifecycle remain [mock][prototype]/[specification][memory]. This is not a
 completed project-return journey.
 
-**Harness UI acceptance route — W1 / UI-1 (design only).** Open Research without creating a Session, follow verbatim topic and failed-route passages, then open the intended Session and inspect its task card and Sources & memory. The [W1 walkthrough](12-desktop-interface.md#scenario-walkthroughs) includes two compactions and a disconnected view; real recovery must preserve instructions, provisional items and last-observed labels. Headless continuity can be implemented and tested before this UI exists.
+**Harness UI acceptance route — W1 / UI-1.** The [research client](../../packages/client/ui-aitp-research/README.md) exercises project → nested topic → material → return through an asynchronous fixture, preserving each child's qualifications and displaying missing content explicitly. Completing this case still requires real providers: open Research without creating a Session, follow actual topic and failed-route passages, then open the intended Session and inspect its task card and Sources & memory. The [W1 walkthrough](12-desktop-interface.md#scenario-walkthroughs) includes two compactions and a disconnected view; real recovery must preserve instructions, provisional items and last-observed labels. Headless continuity and client implementation can proceed independently.
 
 **Acceptance and counterexample.** Return with no memorized path; locate the
 current owner and explain the limitation. Close a scratch thread, then open its old

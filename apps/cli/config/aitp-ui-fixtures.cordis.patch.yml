@@ -1,0 +1,6 @@
+# Development only: serve the labelled synthetic research workspace and demonstration
+# Session memory to the AITP views. Every value is marked as fixture data in the UI.
+# Never use this overlay with real research work. Apply after aitp-web:
+#   pnpm aitp-agent web --patch apps/cli/config/aitp-ui-fixtures.cordis.patch.yml
+- id: ui-aitp-fixtures
+  disabled: false

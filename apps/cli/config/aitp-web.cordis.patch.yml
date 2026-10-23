@@ -3,3 +3,8 @@
   disabled: true
 - id: ui-brand-aitp
   disabled: false
+# Research views; they read the AITP resource protocols and show an unconnected state without a provider.
+- id: ui-aitp-research
+  disabled: false
+- id: ui-aitp-session
+  disabled: false

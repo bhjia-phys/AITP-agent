@@ -1,0 +1,456 @@
+/**
+ * Application contract between the research client and replaceable workspace adapters.
+ * Adapters bind one Harness Workspace; storage and model request delivery remain backend-owned.
+ * The optional development provider uses fixture data and writes only to its own memory.
+ */
+import type { Branded } from '@deepseek-ai/dsh-brand'
+import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
+
+/** Stable topic identity that survives renames and changes of storage representation. */
+export type TopicId = Branded<'ResearchTopicId'>
+/** Stable material identity, independent of its current path or URI. */
+export type ResourceId = Branded<'ResearchResourceId'>
+/** Opaque equality token for an observed version; clients never order or interpret it. */
+export type Revision = Branded<'ResearchRevision'>
+/** Whether the supplied value came from the development fixture or a runtime provider. */
+export type DataOrigin = 'fixture' | 'runtime'
+
+/** A project, topic or material owner addressed by reads, changes and invalidations. */
+export type Target =
+  | { readonly kind: 'project'; readonly id: string }
+  | { readonly kind: 'topic'; readonly id: TopicId }
+  | { readonly kind: 'resource'; readonly id: ResourceId }
+
+/** An owner paired with the version observed or acknowledged by the provider. */
+export interface VersionedTarget {
+  readonly target: Target
+  readonly revision: Revision
+}
+
+/** Actor information in committed records is supplied by the authenticated backend. */
+export interface RecordedActor {
+  readonly id: string
+  readonly kind: 'researcher' | 'agent' | 'external'
+  readonly label: string
+}
+
+/** Recorded authorship and source references, separate from scientific verification. */
+export interface SourceAttribution {
+  readonly actor?: RecordedActor
+  readonly recordedAt?: string
+  readonly sourceResourceIds: readonly ResourceId[]
+  /** Attribution does not establish scientific verification. */
+  readonly explanation?: string
+}
+
+/** Metadata belongs to this observed value, including values retained after refresh failure. */
+export interface ReadEnvelope<T> {
+  readonly origin: DataOrigin
+  readonly revision: Revision
+  readonly observedAt: string
+  readonly value: T
+}
+
+/** Typed failure that distinguishes rejected requests, conflicts and unresolved or partial writes. */
+export type WorkspaceError =
+  | {
+    readonly code: 'not-connected' | 'not-found' | 'unsupported' | 'read-only'
+      | 'permission-denied' | 'invalid-request' | 'preview-expired'
+      | 'operation-reused' | 'cancelled' | 'unavailable'
+    readonly message: string
+    readonly retryable: boolean
+  }
+  | {
+    readonly code: 'revision-conflict'
+    readonly message: string
+    readonly current: readonly VersionedTarget[]
+  }
+  | {
+    /** A disconnected response must not be presented as a confirmed failed write. */
+    readonly code: 'outcome-unknown'
+    readonly message: string
+    readonly operationId: string
+  }
+  | {
+    /** An adapter without multi-target atomicity must expose partial application. */
+    readonly code: 'partial-apply'
+    readonly message: string
+    readonly operationId: string
+    readonly changed: readonly VersionedTarget[]
+    readonly remaining: readonly Target[]
+  }
+
+/** An adapter value or an expected domain failure; expected transport errors use the failure branch. */
+export type Result<T> =
+  | { readonly ok: true; readonly value: T }
+  | { readonly ok: false; readonly error: WorkspaceError }
+
+/** Cancellation control for one adapter read, independent of other readers. */
+export interface ReadOptions {
+  readonly signal?: AbortSignal
+}
+
+/** Project identity, research directions and attributed ideas shown above the topic hierarchy. */
+export interface Project {
+  readonly id: string
+  readonly title: string
+  readonly directions: readonly { readonly id: string; readonly title: string }[]
+  readonly seeds: readonly {
+    readonly id: string
+    readonly title: string
+    readonly summary: string
+    readonly attribution: SourceAttribution
+  }[]
+}
+
+/** The text and its limits travel together; this is not a global success badge. */
+export interface QualifiedAnswer {
+  readonly text: string
+  readonly qualification: string
+  readonly attribution: SourceAttribution
+}
+
+/** Operational disposition of research work; it does not assert scientific validity. */
+export type WorkState = 'active' | 'waiting-on-researcher' | 'waiting-on-run'
+  | 'waiting-on-analysis' | 'waiting-on-integration' | 'paused' | 'dormant'
+  | 'superseded' | 'concluded' | 'unknown'
+
+/** Provider-owned work status and optional next action for a topic card. */
+export interface WorkSummary {
+  readonly state: WorkState
+  readonly label: string
+  readonly nextAction?: string
+}
+
+/** A topic card projected from its own owner, with primary hierarchy and qualified current understanding. */
+export interface TopicSummary {
+  readonly id: TopicId
+  readonly title: string
+  readonly shortTitle?: string
+  readonly directionId?: string
+  /** One primary parent; cross-topic uses do not change ownership. */
+  readonly parentId: TopicId | null
+  readonly childIds: readonly TopicId[]
+  readonly currentAnswer: QualifiedAnswer | null
+  readonly gap: string | null
+  readonly work: WorkSummary
+  readonly resourceCount: number
+}
+
+/** An attributed work thread or pending choice with its recorded continuation and contributing topic. */
+export interface WorkItem {
+  readonly id: string
+  readonly title: string
+  readonly description: string
+  readonly state: WorkState
+  readonly continuation?: { readonly label: string; readonly text: string }
+  readonly options?: readonly { readonly id: string; readonly label: string }[]
+  readonly contributingTopicId?: TopicId
+  readonly attribution: SourceAttribution
+}
+
+/** A scientific statement retaining its conditions, source classification and scoped verification records. */
+export interface Statement {
+  readonly id: string
+  readonly kind: 'assumption' | 'hypothesis' | 'claim' | 'evidence' | 'question'
+  readonly title: string
+  readonly text: string
+  readonly qualification: string
+  /** A source classification is independent of whether its claim was checked. */
+  readonly origin: 'imported' | 'local' | 'unknown'
+  readonly assessment: 'unchecked' | 'checked' | 'disputed'
+  /** Checked/disputed summaries retain the actual check, its scope and evidence. */
+  readonly checks: readonly {
+    readonly kind: 'source-check' | 'derivation' | 'consistency' | 'numerical' | 'other'
+    readonly scope: string
+    readonly outcome: 'passed' | 'failed' | 'inconclusive'
+    readonly resourceIds: readonly ResourceId[]
+  }[]
+  /** Declining a route or finding no support is not a scientific refutation. */
+  readonly disposition?: 'retained' | 'unsupported' | 'declined' | 'invalidated'
+  readonly attribution: SourceAttribution
+}
+
+/** A target is a locator, not the identity of the resource or proof it was read. */
+export type ResourceTarget =
+  | { readonly kind: 'workspace-path'; readonly path: string; readonly anchor?: string }
+  | { readonly kind: 'uri'; readonly uri: string; readonly anchor?: string }
+  | { readonly kind: 'unavailable'; readonly reason: string }
+
+/** A navigable material reference whose stable identity is distinct from its current locator. */
+export interface ResourceReference {
+  readonly id: ResourceId
+  /** Null identifies a shared/global resource; topic references do not copy it. */
+  readonly ownerTopicId: TopicId | null
+  readonly title: string
+  readonly kind: 'note' | 'paper' | 'code' | 'report' | 'data' | 'other'
+  readonly target: ResourceTarget
+}
+
+/** A material reading with verbatim content or an explicit reason that content is unavailable. */
+export interface Resource extends ResourceReference {
+  readonly content:
+    | { readonly kind: 'markdown' | 'plain-text'; readonly text: string }
+    | { readonly kind: 'unavailable'; readonly reason: 'linked-only' | 'unsupported-format' | 'not-connected'; readonly detail: string }
+  readonly attribution: SourceAttribution
+}
+
+/** A topic detail projection linking its own work and statements to resources and the full account. */
+export interface Topic extends TopicSummary {
+  readonly question: string
+  readonly scope: string
+  readonly workItems: readonly WorkItem[]
+  readonly statements: readonly Statement[]
+  readonly resources: readonly ResourceReference[]
+  /** An optional full account is read with getResource; no research.md filename is required. */
+  readonly accountResourceId?: ResourceId
+}
+
+/** Parent selection and opaque pagination for browsing the topic hierarchy. */
+export interface TopicQuery {
+  /** Omitted: all topics. Null: roots only. ID: direct children only. */
+  readonly parentId?: TopicId | null
+  readonly cursor?: string
+  readonly limit?: number
+}
+
+/** Cursors preserve query and snapshot; invalidated cursors require a fresh first page. */
+export interface TopicPage {
+  readonly items: readonly ReadEnvelope<TopicSummary>[]
+  readonly nextCursor: string | null
+  readonly completeness: 'complete' | 'partial'
+  readonly incompleteReason?: string
+}
+
+/** Selection and size bounds for a context read; requesting material does not deliver it to a model. */
+export interface ContextQuery {
+  readonly topicId: TopicId
+  readonly include?: readonly ('ancestors' | 'children' | 'statements' | 'work' | 'resources')[]
+  /** Positive bounds; the adapter may impose a lower documented maximum. */
+  readonly maxItems?: number
+  readonly maxCharacters?: number
+}
+
+/** Bounded read material, not evidence that a model received or understood it. */
+export interface ContextRead {
+  readonly topicId: TopicId
+  readonly entries: readonly {
+    readonly source: VersionedTarget
+    readonly label: string
+    readonly text: string
+  }[]
+  readonly completeness: 'complete' | 'partial'
+  /** Omit whole qualified units when bounded; never silently remove their conditions. */
+  readonly omissions: readonly { readonly target: Target; readonly reason: string }[]
+}
+
+/** Serializable, focused operations. Unsupported operations return a typed error. */
+export type ChangeCommand =
+  | { readonly kind: 'update-scope'; readonly scope: string }
+  | { readonly kind: 'correct-statement'; readonly statementId: string; readonly text: string; readonly qualification: string }
+  | { readonly kind: 'record-answer'; readonly text: string; readonly qualification: string; readonly sourceResourceIds: readonly ResourceId[] }
+  | { readonly kind: 'set-thread-state'; readonly threadId: string; readonly state: WorkState }
+  | { readonly kind: 'choose-route'; readonly threadId: string; readonly optionId: string }
+  | { readonly kind: 'set-statement-disposition'; readonly statementId: string; readonly disposition: 'unsupported' | 'declined' | 'invalidated' }
+  | { readonly kind: 'revert-change'; readonly changeId: string }
+
+/** A serializable topic operation bound to the version the requester actually observed. */
+export interface ChangeIntent {
+  readonly topicId: TopicId
+  readonly expectedRevision: Revision
+  readonly command: ChangeCommand
+  readonly reason?: string
+  readonly originatingSessionId?: string
+}
+
+/** Provider-prepared edits and read bases awaiting application, with remaining integration work. */
+export interface ChangePreview {
+  readonly previewId: string
+  readonly summary: string
+  readonly expiresAt?: string
+  /** The backend binds the preview to its intent, authenticated actor and every read base. */
+  readonly bases: readonly VersionedTarget[]
+  readonly edits: readonly {
+    readonly target: Target
+    readonly label: string
+    readonly before: string | null
+    readonly after: string | null
+  }[]
+  readonly pendingIntegration: readonly string[]
+}
+
+/** A prepared preview and stable operation identity reused for identical application retries. */
+export interface ApplyRequest {
+  readonly previewId: string
+  /** Reuse for an identical retry; duplicate IDs with different requests must be rejected. */
+  readonly operationId: string
+}
+
+/** Acknowledgement that the advertised edit set committed, with resulting owner versions and actor. */
+export interface ApplyReceipt {
+  readonly operationId: string
+  readonly changeId: string
+  readonly committedAt: string
+  readonly actor: RecordedActor
+  readonly changed: readonly VersionedTarget[]
+  readonly eventId?: string
+}
+
+/** Session IDs refer to the existing host; this interface does not run a chat loop. */
+export type ActivityItem =
+  | {
+    readonly kind: 'change'
+    readonly changeId: string
+    readonly topicId: TopicId
+    readonly summary: string
+    readonly recordedAt: string
+    readonly actor: RecordedActor
+  }
+  | {
+    readonly kind: 'session'
+    readonly sessionId: string
+    readonly topicId: TopicId
+    readonly title: string
+    readonly task?: string
+    readonly lastActiveAt: string
+  }
+  | {
+    readonly kind: 'proposal'
+    readonly previewId: string
+    readonly topicId: TopicId
+    readonly summary: string
+    readonly recordedAt: string
+    readonly actor: RecordedActor
+  }
+
+/** One topic’s activity selection and opaque pagination bounds. */
+export interface ActivityQuery {
+  readonly topicId: TopicId
+  readonly cursor?: string
+  readonly limit?: number
+}
+
+/** Recorded activity with an explicit continuation and completeness boundary. */
+export interface ActivityPage {
+  readonly items: readonly ActivityItem[]
+  readonly nextCursor: string | null
+  readonly completeness: 'complete' | 'partial'
+  readonly incompleteReason?: string
+}
+
+/** Connection changes and read invalidations; events do not replace authoritative readings. */
+export type ResearchEvent =
+  | {
+    readonly kind: 'invalidate'
+    readonly eventId: string
+    readonly targets: readonly VersionedTarget[]
+  }
+  | {
+    /** Includes reconnects whose event history cannot cover the requested cursor. */
+    readonly kind: 'resync-required'
+    readonly reason: string
+  }
+  | {
+    readonly kind: 'connection'
+    readonly state: 'connected' | 'disconnected' | 'unsupported'
+    readonly message?: string
+  }
+
+/** Provider identity and advertised operations used to expose supported client controls. */
+export interface ResearchProvider {
+  readonly id: string
+  readonly origin: DataOrigin
+  readonly capabilities: {
+    readonly read: boolean
+    readonly readContext: boolean
+    readonly readActivity: boolean
+    readonly previewChanges: boolean
+    readonly applyChanges: boolean
+    readonly changeEvents: boolean
+    readonly commands: readonly ChangeCommand['kind'][]
+  }
+}
+
+/**
+ * Reads and mutations return typed failures, including unavailable/read-only
+ * capabilities. Adapters normalize expected transport failures into Result.
+ * UI loading/error/stale state is local; a failed refresh must retain its old
+ * observedAt and revision when displaying a retained value.
+ */
+export interface ResearchWorkspaceAdapter {
+  readonly workspaceId: WorkspaceId
+  readonly provider: ResearchProvider
+  /**
+   * Read the bound workspace's project overview.
+   * @param options - cancellation for this read.
+   * @returns the observed project or a typed failure.
+   */
+  getProject(options?: ReadOptions): Promise<Result<ReadEnvelope<Project>>>
+  /**
+   * Read a page of topic summaries from their current owners.
+   * @param query - parent selection, cursor and optional page-size bound.
+   * @param options - cancellation for this read.
+   * @returns an observed page with explicit completeness, or a typed failure.
+   */
+  listTopics(query: TopicQuery, options?: ReadOptions): Promise<Result<ReadEnvelope<TopicPage>>>
+  /**
+   * Read one topic by stable identity.
+   * @param topicId - topic to read within this workspace.
+   * @param options - cancellation for this read.
+   * @returns the observed topic or a typed failure.
+   */
+  getTopic(topicId: TopicId, options?: ReadOptions): Promise<Result<ReadEnvelope<Topic>>>
+  /**
+   * Read a material's current locator and available content.
+   * @param resourceId - stable material identity.
+   * @param options - cancellation for this read.
+   * @returns the observed resource, including explicit unavailable content, or a typed failure.
+   */
+  getResource(resourceId: ResourceId, options?: ReadOptions): Promise<Result<ReadEnvelope<Resource>>>
+  /**
+   * Read recorded changes, proposals and Session references for one topic.
+   * @param query - topic identity and pagination bounds.
+   * @param options - cancellation for this read.
+   * @returns an observed activity page or a typed failure.
+   */
+  getActivity(query: ActivityQuery, options?: ReadOptions): Promise<Result<ReadEnvelope<ActivityPage>>>
+  /**
+   * Assemble bounded reading material without claiming delivery to a model.
+   * @param query - topic, included material and size bounds.
+   * @param options - cancellation for this read.
+   * @returns attributed entries and omissions, or a typed failure.
+   */
+  readContext(query: ContextQuery, options?: ReadOptions): Promise<Result<ReadEnvelope<ContextRead>>>
+  /**
+   * Prepare a supported edit against the requester's observed version.
+   * @param intent - serializable operation and revision precondition.
+   * @returns an unapplied preview or a typed failure such as a conflict.
+   */
+  previewChange(intent: ChangeIntent): Promise<Result<ReadEnvelope<ChangePreview>>>
+  /**
+   * The server rechecks authorization and all preview bases before committing.
+   * Success means the whole advertised edit set committed; a known partial
+   * commit returns partial-apply. Idempotent retry and recovery require server
+   * implementation and are not established by this interface or the prototype.
+   * @param request - prepared preview and operation identity, reused for identical retries.
+   * @returns the application receipt or a typed rejected, unresolved or partial outcome.
+   */
+  applyChange(request: ApplyRequest): Promise<Result<ReadEnvelope<ApplyReceipt>>>
+  /**
+   * Events invalidate reads; they are not complete state replacements. Event
+   * IDs are opaque. Reconnect with an unsupported/expired cursor requests a
+   * full resync. The unsubscribe function removes this listener only.
+   * @param options - optional last observed event identity for reconnect recovery.
+   * @param listener - consumer of connection and invalidation events.
+   * @returns the disposer for this listener.
+   */
+  subscribeChanges(
+    options: { readonly afterEventId?: string },
+    listener: (event: ResearchEvent) => void,
+  ): () => void
+}
+
+/** A resource observation with the capabilities of the adapter that supplied it. */
+export interface WorkspaceRead<T> extends ReadEnvelope<T> {
+  readonly provider: ResearchProvider
+}

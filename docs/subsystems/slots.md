@@ -10,6 +10,8 @@ This page documents slot ownership, component inputs, extension APIs, and the sh
 
 The plugin catalog declares `plugins.add.actions`, a root-scoped list for `MenuItemButton` rows after installation in the Add plugin menu. Its owner supplies `onDismiss()` to close the menu before starting an action. The slot follows the owning Plugins page declaration lifetime.
 
+The sidebar declares root-scoped keyed `sidebar.context` for navigation belonging to the selected main panel. It dispatches that panel's `MainPanelId` with `SidebarSectionOwnerProps`; absent a matching entry, it renders `sidebar.workspaces` in the same position. The [sidebar package](../../packages/client/ui-sidebar/README.md#use-this-package) owns its geometry and default navigation behavior.
+
 ## Declaration and lifecycle
 
 `SlotMap` is the compile-time registry. A package declaration-merges the key, cardinality, scope, owner props, keyed props, and optional slot-level inject face. The runtime declaration is the matching `children` entry on the component that owns the render location.

@@ -120,6 +120,60 @@ async function mountPanels(runtime: SlotTestRuntime, locale: LocaleRuntime, beta
   return { alpha, beta }
 }
 
+function DefaultBrowser() {
+  return <p>Workspace conversations</p>
+}
+
+function ContextBrowser({ wide, expandSidebar }: PropsRuntime<'sidebar.context'>) {
+  return <button type="button" onClick={expandSidebar}>{wide ? 'Topic tree' : 'Expand topic tree'}</button>
+}
+
+describe('sidebar contextual browser', () => {
+  it('selects a late panel contribution and restores the ordinary browser outside its panel or after disposal', async () => {
+    const { runtime, locale, view } = await bench()
+    await mountPanels(runtime, locale)
+    await runtime.mount({
+      inject: ['slots'],
+      apply(ctx: Context) {
+        ctx.slots.inject('sidebar.workspaces', () => ctx.slots.register({ name: 'sidebar.workspaces' }, DefaultBrowser))
+      },
+    })
+    expect(await view.findByText('Workspace conversations')).toBeTruthy()
+    fireEvent.click(view.getByRole('button', { name: 'Alpha panel' }))
+    expect(view.getByText('Workspace conversations')).toBeTruthy()
+    const context = await runtime.mount({
+      inject: ['slots'],
+      apply(ctx: Context) {
+        ctx.slots.inject('sidebar.context', () => ctx.slots.register({ name: 'sidebar.context', key: ALPHA }, ContextBrowser))
+      },
+    })
+    expect(await view.findByRole('button', { name: 'Topic tree' })).toBeTruthy()
+    expect(view.queryByText('Workspace conversations')).toBeNull()
+    fireEvent.click(view.getByRole('button', { name: 'Beta panel' }))
+    expect(view.getByText('Workspace conversations')).toBeTruthy()
+    expect(view.queryByRole('button', { name: 'Topic tree' })).toBeNull()
+    fireEvent.click(view.getByRole('button', { name: 'Alpha panel' }))
+    expect(view.getByRole('button', { name: 'Topic tree' })).toBeTruthy()
+    await context.dispose()
+    expect(await view.findByText('Workspace conversations')).toBeTruthy()
+    expect(view.queryByRole('button', { name: 'Topic tree' })).toBeNull()
+  })
+
+  it('passes the collapsed column and expansion callback to the contextual browser', async () => {
+    const { runtime, locale, layout, view } = await bench(true)
+    await mountPanels(runtime, locale)
+    await runtime.mount({
+      inject: ['slots'],
+      apply(ctx: Context) {
+        ctx.slots.inject('sidebar.context', () => ctx.slots.register({ name: 'sidebar.context', key: ALPHA }, ContextBrowser))
+      },
+    })
+    fireEvent.click(view.getByRole('button', { name: 'Alpha panel' }))
+    fireEvent.click(await view.findByRole('button', { name: 'Expand topic tree' }))
+    expect(layout.toggleSidebar).toHaveBeenCalledOnce()
+  })
+})
+
 describe('sidebar global panels', () => {
   it('adds late registrations, removes each plugin contribution, and leaves no empty panel-list DOM', async () => {
     const { runtime, locale, view } = await bench()
