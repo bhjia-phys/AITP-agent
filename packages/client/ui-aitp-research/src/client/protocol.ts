@@ -57,7 +57,7 @@ export interface TopicSummary {
 
 /** A Workspace's research root and topics. */
 export interface TopicIndexView {
-  /** Value provenance. */
+  /** Origin of this observed value. */
   readonly origin: ResearchDataOrigin
   /** ISO-8601 time the provider read the sources. */
   readonly observedAt: string
@@ -127,7 +127,7 @@ export interface MaterialLink {
 
 /** A topic home assembled from its owning main note. */
 export interface TopicHomeView {
-  /** Value provenance. */
+  /** Origin of this observed value. */
   readonly origin: ResearchDataOrigin
   /** Topic identity. */
   readonly id: string
@@ -157,7 +157,7 @@ export interface TopicHomeView {
 
 /** One note as currently read. */
 export interface NoteView {
-  /** Value provenance. */
+  /** Origin of this observed value. */
   readonly origin: ResearchDataOrigin
   /** Workspace-relative path. */
   readonly path: string

@@ -1,4 +1,4 @@
-/** The Sources & memory dock page: what the task rests on, by provenance. */
+/** The Sources & memory dock page: what the task rests on, by source attribution. */
 import type { ReactNode } from 'react'
 import { IconContextInjectionOutlineRegular, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'

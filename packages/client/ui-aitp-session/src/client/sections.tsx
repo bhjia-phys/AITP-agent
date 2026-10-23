@@ -1,4 +1,4 @@
-/** Provenance-specific renderers shared by the task card and the Sources & memory page. */
+/** Source-attribution renderers shared by the task card and the Sources & memory page. */
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { StateDot, type StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'

@@ -193,7 +193,7 @@ describe('Sources & memory page', () => {
     expect(screen.getByText('Couldn’t read this Session’s research memory (aitp/stale).')).toBeDefined()
   })
 
-  it('separates every provenance and keeps sources’ availability distinct', () => {
+  it('separates source attribution categories and keeps sources’ availability distinct', () => {
     const openNote = page(live(MEMORY))
     expect(screen.getByText('Synthetic fixture data for interface development — not this Session’s record.')).toBeDefined()
     expect(screen.getByText('1 in context now · 2 condensed · 1 missing')).toBeDefined()

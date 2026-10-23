@@ -1,5 +1,5 @@
 /* Session research memory: header action, task card and the Sources & memory page.
-   Provenance is carried by a rule style plus a text label, never by color alone:
+   Source attribution is carried by a rule style plus a text label, never by color alone:
    solid accent = researcher words, dashed = provisional agent item,
    plain = source, dotted = generated summary, warn = gap. */
 
@@ -216,7 +216,7 @@
 
 .itemAgent {
   border-left-style: dashed;
-  border-left-color: var(--aitp-provenance-agent, var(--dsw-alias-label-secondary));
+  border-left-color: var(--aitp-agent-attribution, var(--dsw-alias-label-secondary));
 }
 
 .itemSummary {

@@ -4602,6 +4602,9 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-modules` | `loader` | [`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts) |
 | `@deepseek-ai/dsh-client-resources` | — | [`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-agent-preset` | — | [`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-fixtures` | — | [`packages/client/ui-aitp-fixtures/src/index.ts`](../packages/client/ui-aitp-fixtures/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-research` | — | [`packages/client/ui-aitp-research/src/index.ts`](../packages/client/ui-aitp-research/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-session` | — | [`packages/client/ui-aitp-session/src/index.ts`](../packages/client/ui-aitp-session/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-attachment` | — | [`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-brand-aitp` | — | [`packages/client/ui-brand-aitp/src/index.ts`](../packages/client/ui-brand-aitp/src/index.ts) |

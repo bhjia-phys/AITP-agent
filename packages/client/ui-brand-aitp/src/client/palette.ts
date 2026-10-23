@@ -31,5 +31,5 @@ export const AITP_PALETTE: ThemeTokenOverrides = {
   '--dsw-alias-label-secondary': { light: '#4b524d', dark: '#bcc5bf' },
   '--aitp-font-reading': { light: READING_FONT_STACK, dark: READING_FONT_STACK },
   /** Rule color of provisional agent items, distinct from the researcher accent. */
-  '--aitp-provenance-agent': { light: '#6a4f9a', dark: '#b9a8ec' },
+  '--aitp-agent-attribution': { light: '#6a4f9a', dark: '#b9a8ec' },
 }

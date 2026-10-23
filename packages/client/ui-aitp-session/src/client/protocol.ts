@@ -109,7 +109,7 @@ export interface SummaryItem {
 
 /** The research memory of one Session. */
 export interface SessionMemoryView {
-  /** Value provenance. */
+  /** Origin of this observed value. */
   readonly origin: MemoryDataOrigin
   /** The Session this memory belongs to. */
   readonly sessionId: SessionId
