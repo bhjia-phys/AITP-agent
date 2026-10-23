@@ -26,6 +26,7 @@
  * @module dsh-llm-pi-ai/adapter
  */
 
+import { closeOpenAICodexWebSocketSessions } from '@earendil-works/pi-ai/api/openai-codex-responses'
 import type {
   Api,
   AuthContext,
@@ -230,9 +231,18 @@ function requestHeaders(headers: Readonly<Record<string, string>> | undefined): 
  */
 export class PiAiAdapter extends LlmAdapter {
   private snapshot: PiAiSnapshot | undefined
+  private readonly codexSessions = new Set<string>()
+  private readonly lifetime = new AbortController()
 
   constructor(private readonly config: PiAiAdapterOptions) {
     super()
+  }
+
+  /** Abort requests and close this adapter's Codex transport caches on plugin unload. */
+  dispose(): void {
+    this.lifetime.abort('pi-ai adapter disposed')
+    for (const sessionId of this.codexSessions) closeOpenAICodexWebSocketSessions(sessionId)
+    this.codexSessions.clear()
   }
 
   override imageRequestTarget(provider: string, model: string, image: ImageAttachmentRef) {
@@ -367,6 +377,9 @@ export class PiAiAdapter extends LlmAdapter {
     // the one it started with and the next call picks up the new one.
     const profile = this.profileOf(snapshot, options.provider)
     const model = this.modelOf(snapshot, options.provider, options.model)
+    if (model.api === 'openai-codex-responses' && options.sessionId) {
+      this.codexSessions.add(String(options.sessionId))
+    }
     const updates = conversationUpdates(model)
     // pi-ai collapses Anthropic tool updates without an initially active declaration.
     const tools = options.tools ?? []
@@ -384,9 +397,9 @@ export class PiAiAdapter extends LlmAdapter {
     const apiKey = await this.config.resolveApiKey(options.provider, profile)
 
     const consumer = new AbortController()
-    const upstream = options.signal === undefined
-      ? consumer.signal
-      : AbortSignal.any([options.signal, consumer.signal])
+    const upstream = AbortSignal.any([
+      this.lifetime.signal, consumer.signal, ...options.signal === undefined ? [] : [options.signal],
+    ])
     const streamIdleTimeoutMs = profile.streamIdleTimeoutMs
     using watchdog = idleWatchdog(upstream, streamIdleTimeoutMs, 'LLM_STREAM_IDLE_TIMEOUT')
 
@@ -413,6 +426,7 @@ export class PiAiAdapter extends LlmAdapter {
             maxBytes: profile.requestImageMaxBytes,
           },
         }, onReplayDegrade)
+      this.lifetime.signal.throwIfAborted()
       const events = snapshot.models.streamSimple(model, context, {
         ...profileOptions(profile, reasoning, apiKey),
         ...options.temperature === undefined ? {} : { temperature: options.temperature },
@@ -423,7 +437,7 @@ export class PiAiAdapter extends LlmAdapter {
         // Harness-owned and therefore win collisions.
         headers: requestHeaders(profile.headers),
       })
-      const iterator = toStreamChunks(events, model.contextWindow, options.signal, model.id)[Symbol.asyncIterator]()
+      const iterator = toStreamChunks(events, model.contextWindow, upstream, model.id)[Symbol.asyncIterator]()
       let exhausted = false
       try {
         while (true) {
@@ -447,8 +461,8 @@ export class PiAiAdapter extends LlmAdapter {
       if (timeoutOf(watchdog.signal, 'LLM_STREAM_IDLE_TIMEOUT') !== undefined) {
         throw new LlmError(`pi-ai stream idle timeout after ${streamIdleTimeoutMs}ms`, 'TIMEOUT', { cause: error })
       }
-      if (options.signal?.aborted) {
-        throw new LlmError('pi-ai request aborted by caller', 'ABORTED', { cause: error })
+      if (options.signal?.aborted || this.lifetime.signal.aborted) {
+        throw new LlmError('pi-ai request aborted', 'ABORTED', { cause: error })
       }
       throw error
     } finally {

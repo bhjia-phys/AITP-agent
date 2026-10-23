@@ -74,6 +74,24 @@ beforeEach(() => {
 })
 
 describe('PiAiAdapter provider routing', () => {
+  it('does not dispatch after disposal while credentials are resolving', async () => {
+    const server = await mockServer([])
+    const credential = Promise.withResolvers<string>()
+    const resolving = Promise.withResolvers<undefined>()
+    const adapter = new PiAiAdapter({
+      profiles: () => resolveProfiles({ deepseek: { baseURL: server.url } }),
+      resolveApiKey: () => { resolving.resolve(undefined); return credential.promise },
+      auth: memoryAuth(),
+    })
+    const stream = adapter.stream({ provider: 'deepseek', model: 'deepseek-flash', messages: [] })[Symbol.asyncIterator]()
+    const first = stream.next()
+    await resolving.promise
+    adapter.dispose()
+    credential.resolve('test-key')
+    await expect(first).rejects.toMatchObject({ code: 'ABORTED' })
+    expect(server.requests).toHaveLength(0)
+  })
+
   it('resolves a catalog model dynamically and uses a private endpoint', async () => {
     const server = await mockServer([{ events: textEvents }])
     const ctx = await harness(server.url)

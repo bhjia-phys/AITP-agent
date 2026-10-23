@@ -17,7 +17,7 @@ describe('aitp-agent launcher', () => {
       DSH_BUNDLED_SKILL_DIR: join(root, 'aitp/plugins/aitp/skills'),
     })
     const override = { DSH_HOME: '/isolated trial', DSH_CLIENT_TITLE: 'Trial', DSH_BUNDLED_SKILL_DIR: '/skills' }
-    expect(aitpEnvironment(root, override)).toEqual(override)
+    expect(aitpEnvironment(root, override)).toEqual({ ...override, TSX_TSCONFIG_PATH: join(root, 'tsconfig.json') })
   })
 
   it('defaults to web and forwards app options through the public parser', () => {
@@ -41,6 +41,12 @@ describe('aitp-agent launcher', () => {
     })
     const command = ['plugin', '--profile', 'web', 'list']
     expect(aitpArguments(root, command)).toEqual(command)
+  })
+
+  it('resolves its source configuration independently of the research working directory', () => {
+    expect(aitpEnvironment('/app', {}, '/user').TSX_TSCONFIG_PATH).toBe('/app/tsconfig.json')
+    expect(aitpEnvironment('/app', { TSX_TSCONFIG_PATH: '/custom/tsconfig.json' }, '/user').TSX_TSCONFIG_PATH)
+      .toBe('/custom/tsconfig.json')
   })
 
   it('discovers the seven portable AITP Skills through the public filesystem provider', async () => {

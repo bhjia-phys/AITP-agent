@@ -758,6 +758,25 @@ describe('pressure measurement and retention', () => {
     expect(session.surface.nodes.length).toBeLessThan(8)
   })
 
+  it('does not automatically summarize only its previous checkpoint on repeated steps', async () => {
+    const ctx = createContext()
+    const compact = service(compactConfig, ctx)
+    const session = conversation(4)
+    await compactIfNeeded(compact, session)
+    const measurement = ctx.tokenMeter.measure(session)
+    const tailTokens = measurement.nodes.slice(1).reduce((sum, node) => sum + node.tokens, 0)
+    expect(selectCompactableRange(session, measurement, tailTokens)).toBeNull()
+    // A smaller target keeps pressure above threshold while the recent tail must stay.
+    const pressured = service({ auto: false, thresholdRatio: 0.5, retainTokens: tailTokens },
+      createContext(2 * (tailTokens + 1)))
+    for (let step = 0; step < 3; step += 1) {
+      expect(await compactIfNeeded(pressured, session)).toBeNull()
+    }
+    expect(pressured.calls).toHaveLength(0)
+    // A checkpoint plus newer history stays eligible when retention allows it.
+    expect(selectCompactableRange(session, measurement, 0)).not.toBeNull()
+  })
+
   it('starts the range after a system head and keeps that node at surface position 0', async () => {
     const ctx = createContext()
     const compact = service(compactConfig, ctx)

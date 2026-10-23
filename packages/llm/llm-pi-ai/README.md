@@ -106,6 +106,8 @@ Exact-model metadata lists `reasoning.efforts` from least to greatest selectable
 
 For self-hosted Chat Completions endpoints, `thinkingTokenBudgetField` selects the reasoning-budget parameter, and `vllmPriority` sets an integer scheduler priority when the server enables priority scheduling. Template arguments accept `$var: thinking.budget`. `openai-responses` gateways can set `supportsMaxOutputTokens: false` to omit `max_output_tokens`; Azure and Codex transports ignore this shared compatibility field. These controls are opt-in; catalog-owned Anthropic effort and fallback capabilities are not configurable switches.
 
+Plugin unload aborts this adapter’s outstanding requests and closes its cached Codex WebSocket sessions. Cleanup names only nonempty session IDs used by this adapter; it never requests provider-wide cache closure. Credential resolution that finishes after unload cannot start a new model request.
+
 ### Change configuration at runtime
 
 Each operation captures the current `providers` Config reference. New or changed provider profiles are validated before form persistence; unchanged catalog failures remain editable. Route-set or retry-policy changes update registration atomically, preserving previous routes if another adapter owns a requested route.
@@ -125,6 +127,10 @@ Changing `displayName`, `apiKeyEnv`, or `baseURL` without resolving the provider
 Model discovery resolves each route’s credential configuration. A missing required credential yields an empty catalog; other resolution errors propagate. Routes with native authentication or no required key retain their configured catalog. This check does not probe the inference endpoint.
 
 -----
+
+### Opt-in Codex OAuth smoke
+
+After `pnpm aitp-agent auth login openai-codex`, run `DSH_PI_AI_CODEX_CREDENTIALS="$HOME/.aitp-agent/.credentials.yaml" DSH_PI_AI_CODEX_MODEL=gpt-6.1-sol pnpm exec vitest run --config vitest.e2e.config.ts packages/llm/llm-pi-ai/tests/provider-apis.e2e.ts`. This explicit path enables the text and tool-roundtrip cases using the Harness credential service, including its normal refresh persistence. It never imports the Codex CLI store. API-key and OAuth cases are separate; an absent opt-in skips the OAuth cases and is not evidence of a live success. Use an account-entitled catalog model; the test does not silently substitute one.
 
 <a id="understand-the-implementation"></a>
 ## Understand the implementation

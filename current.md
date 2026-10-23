@@ -1,10 +1,10 @@
 # AITP-agent：当前设计漏洞与协作纠错入口
 
-最近核查：2026-10-22。用户已选择官方 DeepSeek Harness 作为应用底座，保留科研设计，授权建立 Harness 主开发分支、产品命名为 **aitp-agent** 并解决 GPT 适配。原公开仓库地址与 Pi 历史保留；当前代码入口是 `packages/` 和 `apps/`，`agent/` 是此前 Pi 实现和证据。上游科研协议仍由 `aitp/` 子模块连接。仓库关系见 [README](README.md)，当前授权和进度只由 [14](docs/agent/14-implementation-blueprint.md#harness-migration) 维护，新检查归 [Harness 集成证据](agent/notes/harness-integration.md)。
+最近核查：2026-10-23。用户已选择官方 DeepSeek Harness 作为应用底座，保留科研设计，授权建立 Harness 主开发分支、产品命名为 **aitp-agent** 并解决 GPT 适配。原公开仓库地址与 Pi 历史保留；当前代码入口是 `packages/` 和 `apps/`，`agent/` 是此前 Pi 实现和证据。上游科研协议仍由 `aitp/` 子模块连接。仓库关系见 [README](README.md)，当前授权和进度只由 [14](docs/agent/14-implementation-blueprint.md#harness-migration) 维护，新检查归 [Harness 集成证据](agent/notes/harness-integration.md)。
 
 **证据分界：** 本文引用 `agent/packages/` 的源码缺陷、[四个合成复现](agent/notes/review-2026-10-22.md)和[旧集成记录](agent/notes/integration.md)均针对保留的 Pi 实现，未在 Harness 上重跑。它们继续规定迁移后的反例与验收要求，不能直接称为 Harness 已复现缺陷，也不能因换底座而关闭。Harness 已有通用会话、工具、插件、Web 和桌面机制；这些不等于 AITP 的约定、必要前提、科研审阅和写回已经实现。默认 Harness 工具也不自动继承旧 AITP 只读 profile 的限制。
 
-**当前最重要的缺口，是 GPT 路线尚无真实运行验收，重要科研记忆也没有稳定接入实际模型上下文。** 读取、压缩恢复、结果反馈与主文档维护仍需连接。会话持久化、资料读取、搜索和选择卡已有基础；新的科研工作台和自适应研究循环仍主要是设计。用户要求修复 GPT 接入问题，并将实现的科研场景与 **Codex + AITP** 比较；完成登录、通过回放或接通模块，都不能直接证明科研判断改善。
+**当前最重要的缺口，是 GPT 路线只有有限的真实运行证据，重要科研记忆也没有稳定接入实际模型上下文。** 读取、压缩恢复、结果反馈与主文档维护仍需连接。会话持久化、资料读取、搜索和选择卡已有基础；新的科研工作台和自适应研究循环仍主要是设计。用户要求修复 GPT 接入问题，并将实现的科研场景与 **Codex + AITP** 比较；完成登录、通过回放或接通模块，都不能直接证明科研判断改善。
 
 本文供接手者共同质疑、开发和纠错。它集中记录问题、依据、后果和可区分的修正验证，不取代架构、开发规划或科研场景文档。下文的“漏洞”包括**设计未闭合、已查明的实现缺口、尚无验证证据**，并不表示每一项都是已触发的运行故障或安全漏洞。
 
@@ -32,7 +32,7 @@
 - 应用底座已选定 Harness/Cordis；通过其服务、事件和插件实现模块化，不额外运行旧 Pi 任务循环。应用开发流程不成为上游可移植科研 Skills 的前置条件；其 owner 仍在 `aitp/plugins/aitp/`。
 - 用户进一步明确：AITP 要接入底层，重点是优先向 AI 暴露科研中重要的上下文作为记忆，不采用固定科研动作约束。运行时负责选择、读取、交付、恢复和更新重要信息，AI 根据实际问题自主选择下一步；Skills 提供方法。明确的用户要求仍须遵守，现有宿主权限保留，但缺一项前提不自动封锁研究。具体设计归 [10](docs/agent/10-project-workspace.md#aitp-runtime-integration)，开发依赖归 [14](docs/agent/14-implementation-blueprint.md#runtime-integration-plan)。
 - 所有哈希相关检查保持禁用。后续精确文本比较等非哈希写入策略仍是待确定的方案，不能借“修漏洞”恢复已禁用的版本、冲突或批准摘要检查。
-- 用户已要求整理插件和任务、逐项实施并随实现维护文档，现授权把本轮研究后的规划与架构发布到公开仓库。**Claude 已交付 UI 设计与合成原型；Codex 负责客户端和底层逐步实现、GPT、规划协调及对照测试。** 文件分工和唯一实施顺序由 [14](docs/agent/14-implementation-blueprint.md#next-implementation-slice)维护；规划发布不等于功能已实现，也不授权真实笔记迁移、科研写入或计算任务。
+- 用户已要求整理插件和任务、逐项实施并随实现维护文档，现授权把本轮研究后的规划与架构发布到公开仓库。**Claude 继续负责 UI 设计和客户端实现；Codex 负责底层实现、GPT、规划协调及对照测试。** 文件分工和唯一实施顺序由 [14](docs/agent/14-implementation-blueprint.md#next-implementation-slice)维护；规划发布不等于功能已实现，也不授权真实笔记迁移、科研写入或计算任务。
 - 保留已有脏工作树、原始科研材料和历史证据。此次文档提交与推送按用户明确授权进行；本文和 Skill 不另行授予重置、清理、覆盖无关改动或发布私人研究资料的权限。
 
 ## 当前能确认到哪一步
@@ -256,11 +256,13 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 <a id="q15"></a>
 ### Q15：GPT 接入需要区分模型适配器、登录入口与实际运行证据
 
-**性质：登录消费者已实现，真实授权、长上下文与科研质量仍有验证缺口。** Harness 的模型与凭据服务提供 GPT API/OAuth 路线；新增终端认证插件接通其通用授权服务，已通过实际进程、合成凭据和 PTY 交互检查。独立审阅复现的隐藏密钥进入输入历史、启动器退出后遗留子进程两项缺陷已修复并有针对性回归。API-key 与 ChatGPT OAuth 仍需分别完成真实授权及 live 请求验证，本轮研究和文档修订没有运行 live GPT。
+**性质：登录及有限 OAuth 调用已验证，长上下文与科研质量仍有缺口。** Harness 的模型与凭据服务提供 GPT API/OAuth 路线；新增终端认证插件接通其通用授权服务，已通过实际进程、合成凭据和 PTY 交互检查。独立审阅复现的隐藏密钥进入输入历史、启动器退出后遗留子进程两项缺陷已修复并有针对性回归。2026-10-23 已独立完成 AITP 的 ChatGPT 浏览器登录，`openai-codex/gpt-6.1-sol` 的真实文本与工具往返测试通过；API-key、刷新、长上下文与科研对照仍未验证。
 
-**修正此前过宽的结论：**相同 sandbox 权限模式的重复请求回归，以及拒绝不缩短摘要的回归，只覆盖各自的窄行为，不能证明长会话 checkpoint 重复已解决。上游 #8733 的 GPT／第三方订阅路线报告、#7212 的非 GPT 重复摘要报告，以及 #9814 的切换模型窗口相关报告仍是外部报告或源码调查候选；尚未在本仓库复现，不能一起标成已修复，也不能全部称为 GPT 专属缺陷。具体原始来源、适用版本和待检查矩阵统一归 [14 的 GPT 工作包](docs/agent/14-implementation-blueprint.md#gpt-integration-readiness)。
+**当前连接策略及剩余故障：** 实际 headless 运行发现登录后凭据服务仍被默认配置禁用、从仓库外启动时无法解析 loader，均已修复。自动／WebSocket 模式多次完成回答却不能自然退出；适配器卸载清理与取消已加回归，但尚未彻底解决该现象。AITP 现在默认 ChatGPT 使用 SSE，同一临时矩阵读／改／运行任务在 36.5 秒内自然退出、结果正确且输入未变；用户可显式覆盖连接方式。这是兼容措施，不关闭 WebSocket 故障。产物构建、客户端类型与本次改动范围的类型检查通过；全量主机类型检查受内存耗尽阻挡，尚未推送本轮变更。
 
-修正和测试由 [Harness 集成证据](agent/notes/harness-integration.md)记录，阶段由 14 维护。[GPT 架构责任](docs/agent/10-project-workspace.md#gpt-integration)区分认证／协议转换／流式工具／重试取消故障、研究上下文交付问题和科学判断不足；研究 Skill 不替底层适配器掩盖错误。现有 API-key live case 不覆盖缺失的 `openai-codex` OAuth 路线证据。无法访问的凭据、模型、设置或平台明确报告，保留能进行的离线检查；跳过不算通过，连通性不等于科研场景验收。
+**已复现并修复的具体范围：**文件工具重复当前权限且缺少理由时被拒绝，以及自动压缩只选中上一份 checkpoint，两项都有修改前失败的测试；PowerShell 同权限请求也补齐了与 bash 一致的理由处理。仅摘要的区间现在跳过；这不解决所有原始历史反复失败、固定开销过大或大窗口切小窗口问题。上游 #8733、#7212 和 #9814 不能一起标为已解决。来源与剩余矩阵归 [14 的 GPT 工作包](docs/agent/14-implementation-blueprint.md#gpt-integration-readiness)，执行证据归 [当前修复记录](agent/notes/harness-integration.md#gpt-reliability-slice)。
+
+修正和测试由 [Harness 集成证据](agent/notes/harness-integration.md)记录，阶段由 14 维护。[GPT 架构责任](docs/agent/10-project-workspace.md#gpt-integration)区分认证／协议转换／流式工具／重试取消故障、研究上下文交付问题和科学判断不足；研究 Skill 不替底层适配器掩盖错误。新增 `openai-codex` 本地 SSE 回归与显式凭据路径的 live opt-in；模拟协议通过仍不等于真实 OAuth 请求已通过。无法访问的凭据、模型、设置或平台明确报告，保留能进行的离线检查；跳过不算通过，连通性不等于科研场景验收。
 
 <a id="q16"></a>
 ### Q16：发现 Skill 不等于知道怎样用于当前问题，部分借鉴与蒸馏反馈尚未接通
@@ -304,6 +306,6 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 ## 建议下一轮共同讨论的焦点
 
-实施顺序只看 [14 的下一实施步骤](docs/agent/14-implementation-blueprint.md#next-implementation-slice)，不在本文另选主文档／资料／UI 的先后。Claude 的 UI 设计已交接；Codex 的客户端实现与 GPT／底层工作按同一接口分工协调。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
+实施顺序只看 [14 的下一实施步骤](docs/agent/14-implementation-blueprint.md#next-implementation-slice)，不在本文另选主文档／资料／UI 的先后。Claude 继续负责 UI 设计和客户端实现；Codex 负责 GPT／底层能力与共享接口集成。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
 
 R-A、R-B、R-D 与压缩来源混同仍是 Pi 已复现缺陷，在新服务存在后须以相同反例重新核查。Q06/Q07 的写入与审阅策略必须在对应能力开放前明确；Q03/Q11/Q14 需要真实行为证据，Q15 的外部报告需要对应路线的复现与回归。设计文档补齐归属不关闭这些实现和验证缺口，后续状态随证据更新到原 owner。

@@ -1,10 +1,12 @@
 /** Credential references and endpoint choices for the real-provider smoke tests. */
 export interface ProviderCase {
-  provider: 'openai' | 'anthropic'
-  api: 'openai-responses' | 'anthropic-messages'
+  provider: 'openai' | 'anthropic' | 'openai-codex'
+  api: 'openai-responses' | 'anthropic-messages' | 'openai-codex-responses'
   model: string
   apiKeyEnv?: 'OPENAI_API_KEY' | 'AZURE_OPENAI_API_KEY' | 'ANTHROPIC_API_KEY'
   baseURL?: string
+  /** Explicit opt-in path to an AITP/Harness credential store; never imported from Codex. */
+  credentialsPath?: string
 }
 
 /**
@@ -14,7 +16,7 @@ export interface ProviderCase {
  */
 export function providerApiCases(env: Readonly<Record<string, string | undefined>>): ProviderCase[] {
   const openAIKey = env.OPENAI_API_KEY ? 'OPENAI_API_KEY' : env.AZURE_OPENAI_API_KEY ? 'AZURE_OPENAI_API_KEY' : undefined
-  return [
+  const cases: ProviderCase[] = [
     {
       provider: 'openai',
       api: 'openai-responses',
@@ -30,4 +32,12 @@ export function providerApiCases(env: Readonly<Record<string, string | undefined
       ...env.DSH_PI_AI_ANTHROPIC_BASE_URL ? { baseURL: env.DSH_PI_AI_ANTHROPIC_BASE_URL } : {},
     },
   ]
+  if (env.DSH_PI_AI_CODEX_CREDENTIALS) {
+    cases.push({
+      provider: 'openai-codex', api: 'openai-codex-responses',
+      model: env.DSH_PI_AI_CODEX_MODEL ?? 'gpt-6.1-sol',
+      credentialsPath: env.DSH_PI_AI_CODEX_CREDENTIALS,
+    })
+  }
+  return cases
 }

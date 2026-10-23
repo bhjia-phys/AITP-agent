@@ -839,6 +839,8 @@ and GPT readiness; the [Harness integration account](../../agent/notes/harness-i
 owns actual trial evidence. No separate benchmark platform or scientific score is
 required.
 
+The [GPT reliability slice](../../agent/notes/harness-integration.md#gpt-reliability-slice) supplies engineering prerequisites for C08 (tool execution) and C16 (continuation): same-mode filesystem/PowerShell handling, checkpoint-only suppression and Codex protocol replay. These tests use synthetic inputs. A live ChatGPT/SSE C08 engineering smoke read two Pauli-matrix fixture files, fixed an incorrect commutator, ran the check once and exited naturally; the recorded run recovered from one visible transport retry. Automatic/WebSocket full-task shutdown remains unreliable, and no physical claim follows from this finite matrix check. These results do not establish retention of physical assumptions, native Windows behavior or an AITP-agent versus Codex + AITP advantage; those comparisons remain unrun.
+
 ### Keep three kinds of evidence separate
 
 - **Engineering checks:** deterministic fixtures, recorded-request inspection and

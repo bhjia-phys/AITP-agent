@@ -1,4 +1,15 @@
-# Application identity only; scientific methods remain in the portable AITP Skills.
+# Application identity and local provider authentication; methods remain in portable AITP Skills.
 - id: system-prompt
   config:
     personaPrefix: 'You are aitp-agent, an AI research assistant built on DeepSeek Harness. For research work and substantive physics discussions, start with the available aitp-memory Skill; the portable AITP Skills own research methods and record-keeping guidance.'
+
+# Headless disables the local store upstream; AITP runs must reuse their own login.
+- id: credentials
+  disabled: false
+
+# Avoid the observed auto/WebSocket post-task hang; later user overlays can opt back in.
+- id: llm-pi-ai
+  config:
+    providers:
+      openai-codex:
+        transport: sse

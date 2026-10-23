@@ -106,6 +106,8 @@ profile 的 `models` 列表会替换而非扩展路由的已安装目录；每�
 
 对于自托管 Chat Completions 端点，`thinkingTokenBudgetField` 选择推理预算参数，`vllmPriority` 在服务端启用优先级调度时设置整数调度优先级。模板参数接受 `$var: thinking.budget`。`openai-responses` 网关可设置 `supportsMaxOutputTokens: false` 来省略 `max_output_tokens`；Azure 与 Codex 传输会忽略这个共享兼容字段。这些控制均需显式启用；目录拥有的 Anthropic effort 和回退能力不是可配置开关。
 
+插件卸载会中止本适配器仍在进行的请求，并关闭它使用的 Codex WebSocket 会话缓存。清理只指定本适配器使用过的非空会话 ID，不会请求关闭整个提供方的缓存。凭据解析在卸载后完成时，不能再发起模型请求。
+
 ### 运行时更改配置
 
 每次操作捕获当前 `providers` Config 引用。新增或修改的 provider 配置在表单持久化前验证；未更改的目录故障仍可编辑。路由集合或重试策略变化时原子更新注册；如果其他适配器已拥有所请求的路由，则保留先前路由。
@@ -125,6 +127,10 @@ Config 更新严格验证发生变化的 provider。初始加载将已存储的�
 模型发现会解析各路由的凭据配置。缺少必需凭据时返回空目录；其他解析错误继续抛出。使用原生认证或无需密钥的路由保留其配置的目录。此检查不会探测推理端点。
 
 -----
+
+### 可选的 Codex OAuth 冒烟测试
+
+完成 `pnpm aitp-agent auth login openai-codex` 后，运行 `DSH_PI_AI_CODEX_CREDENTIALS="$HOME/.aitp-agent/.credentials.yaml" DSH_PI_AI_CODEX_MODEL=gpt-6.1-sol pnpm exec vitest run --config vitest.e2e.config.ts packages/llm/llm-pi-ai/tests/provider-apis.e2e.ts`。显式提供路径才会启用文本与工具往返测试，凭据由 Harness 服务读取并按原有机制刷新保存；不会导入 Codex CLI 的登录。API-key 与 OAuth 分开验证，未启用而跳过不等于真实调用成功。选择账号可用的目录模型，测试不会静默替换模型。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现

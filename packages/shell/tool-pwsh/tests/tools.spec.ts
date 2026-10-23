@@ -11,6 +11,7 @@
  */
 
 import { provideWorkingDirectoryFixture } from '@deepseek-ai/dsh-agent-loop-testkit'
+import type {} from '@deepseek-ai/dsh-working-directory'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { mkdtempSync, rmSync } from 'node:fs'
@@ -688,6 +689,16 @@ describe('sandbox escalation through ctx.approval', () => {
     const result = await call(ctx, 'pwsh', { ...escalate, sandbox_permissions: mode }, sandboxAgent(mode))
     expect(result.isError).toBe(false)
     expect(bash.modes).toEqual([mode])
+  })
+
+  it.each([undefined, '', '   '])('accepts a repeated mode with reason %j', async (justification) => {
+    const { ctx, bash } = await setupSandboxed()
+    const result = await call(ctx, 'pwsh', {
+      command: 'Write-Output ok', description: 'use standing access',
+      sandbox_permissions: 'workspace-write', ...(justification === undefined ? {} : { justification }),
+    }, sandboxAgent('workspace-write'))
+    expect(result.isError).toBe(false)
+    expect(bash.modes).toEqual(['workspace-write'])
   })
 
   it('fails closed when approval cannot be routed', async () => {

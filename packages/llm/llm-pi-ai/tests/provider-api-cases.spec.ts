@@ -22,6 +22,17 @@ describe('real-provider smoke credentials', () => {
     }
   })
 
+  it('enables Codex only with an explicit Harness credential-store path', () => {
+    expect(providerApiCases({ DSH_HOME: '/private/home' })).toHaveLength(2)
+    expect(providerApiCases({
+      DSH_PI_AI_CODEX_CREDENTIALS: '/private/aitp/.credentials.yaml',
+      DSH_PI_AI_CODEX_MODEL: 'selected-model',
+    }).at(-1)).toEqual({
+      provider: 'openai-codex', api: 'openai-codex-responses', model: 'selected-model',
+      credentialsPath: '/private/aitp/.credentials.yaml',
+    })
+  })
+
   it('retains provider-specific model and endpoint overrides', () => {
     expect(providerApiCases({
       ANTHROPIC_API_KEY: 'fixture-anthropic-secret',

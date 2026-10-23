@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { afterEach, describe, expect, it } from 'vitest'
+import LocalCredentialProvider from '@deepseek-ai/dsh-credentials-local'
 import { Context } from '@deepseek-ai/cordis'
 import { AttachmentId, AttachmentStore, ImageVariantId } from '@deepseek-ai/dsh-attachment'
 import type {
@@ -24,6 +25,8 @@ const contexts: Context[] = []
 async function harness(image?: StoredImageAttachment): Promise<Context> {
   const ctx = new Context()
   contexts.push(ctx)
+  const credentialsPath = providerCases.find(profile => profile.credentialsPath !== undefined)?.credentialsPath
+  if (credentialsPath !== undefined) await ctx.plugin(LocalCredentialProvider, { path: credentialsPath, watch: false })
   await ctx.plugin(LlmRuntime)
   await ctx.plugin(LlmPiAi, {
     providers: Object.fromEntries(providerCases.map(profile => [profile.provider, {
@@ -136,7 +139,7 @@ const lookupTool: ToolSchema = {
 }
 
 for (const profile of providerCases) {
-  describe.skipIf(profile.apiKeyEnv === undefined)(
+  describe.skipIf(profile.apiKeyEnv === undefined && profile.credentialsPath === undefined)(
     `llm-pi-ai ${profile.provider} e2e (${profile.api})`,
     () => {
       it('streams text with usage and native replay metadata', async () => {

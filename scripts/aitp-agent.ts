@@ -14,6 +14,7 @@ import { join, resolve } from 'node:path'
 export function aitpEnvironment(root: string, environment: NodeJS.ProcessEnv, home = homedir()): NodeJS.ProcessEnv {
   return {
     ...environment,
+    TSX_TSCONFIG_PATH: environment.TSX_TSCONFIG_PATH ?? join(root, 'tsconfig.json'),
     DSH_HOME: environment.DSH_HOME ?? join(home, '.aitp-agent'),
     DSH_CLIENT_TITLE: environment.DSH_CLIENT_TITLE ?? 'aitp-agent',
     DSH_BUNDLED_SKILL_DIR: environment.DSH_BUNDLED_SKILL_DIR ?? join(root, 'aitp/plugins/aitp/skills'),
@@ -55,7 +56,7 @@ if (import.meta.main) {
     throw new Error('aitp-agent: the AITP Skills directory is missing. Run git submodule update --init aitp, or set DSH_BUNDLED_SKILL_DIR to an existing Skills directory.')
   }
   const entry = build ? 'scripts/build.ts' : 'apps/cli/src/bin.ts'
-  const child = spawn(process.execPath, ['--import', 'tsx/esm', join(root, entry),
+  const child = spawn(process.execPath, ['--import', import.meta.resolve('tsx/esm'), join(root, entry),
     ...(build ? args.slice(1) : aitpArguments(root, args))], {
     // The wrapper owns delivery: a terminal group signal must not reach dsh twice.
     detached: process.platform !== 'win32', stdio: 'inherit', env: environment,

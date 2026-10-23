@@ -57,10 +57,10 @@ if (process.argv[1]?.endsWith('/apps/cli/src/bin.ts')) {
   }
 }
 `)
-    const child = spawn(process.execPath, ['--import', 'tsx/esm', join(root, 'scripts/aitp-agent.ts'),
+    const child = spawn(process.execPath, ['--import', import.meta.resolve('tsx/esm'), join(root, 'scripts/aitp-agent.ts'),
       'auth', '--patch', join(root, 'apps/cli/tests/fixtures/aitp-auth-test.cordis.patch.yml'),
       'login', 'aitp-auth-test'], {
-      cwd: root, detached: true, stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: home, detached: true, stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, DSH_HOME: home, DEEPSEEK_API_KEY: '', OPENAI_API_KEY: '',
         NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${pathToFileURL(probe).href}` },
     })

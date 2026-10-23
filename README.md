@@ -66,6 +66,8 @@ The launcher delegates to normal Harness profiles and applies AITP configuration
 
 `auth list` reports available methods and whether credentials are stored; it does not display credential values. `auth login openai-codex` starts the provider's normal interactive ChatGPT login. Complete its browser instructions, then select an available model from that provider in the Web application. The API-key route uses `auth login openai`; credentials are entered at the terminal prompt, not as command-line arguments. Authentication and account entitlement remain required for a real model request.
 
+AITP currently selects SSE streaming for the ChatGPT route (`openai-codex`) to avoid an observed post-task hang in automatic/WebSocket mode. A later provider override can select another transport; the underlying automatic-mode failure remains open. Fresh login and a bounded read/edit/run trial passed on SSE; see the [GPT evidence and remaining checks](agent/notes/harness-integration.md#gpt-reliability-slice).
+
 GPT API-key access and ChatGPT subscription sign-in are separate provider routes. The latter needs its own supported authorization flow; a Codex CLI login is not silently imported. Keep credentials, sessions, scratch experiments and actual research outside the published tree.
 
 ## Upstream and license
