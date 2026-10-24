@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 /**
- * Research panel model: navigation history with return points, locator and
- * time labels, Session drafts, resource addresses, and reading-region arrival
- * (top and landing focus on enter, scroll and control focus on return, waiting
- * for content that is still loading).
+ * Research panel model: navigation history with return points, disclosure
+ * choices, locator and time labels, Session drafts, resource addresses, and
+ * reading-region arrival (top and landing focus on enter, scroll and control
+ * focus on return, waiting for and re-applying over content that is still
+ * loading or replaced, until the reader acts).
  */
 import { afterEach, describe, expect, it } from 'vitest'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
@@ -14,26 +15,27 @@ import { draftPrompt, locatorLabel, observedLabel } from '../src/client/format.t
 import { en } from '../src/client/locales.ts'
 import { noteAddress, parseNoteAddress, topicAddress, topicsAddress } from '../src/client/protocol.ts'
 import type { ResourceId, TopicId } from '../src/client/workspace-contract.ts'
-import { createResearchPanelStore, workspaceLocation } from '../src/client/store.ts'
+import { createResearchPanelStore, disclosureKey, workspaceLocation } from '../src/client/store.ts'
 
 const t = makeTranslate(en) as TranslateNS<'aitp.research'>
 const ws = (id: string): WorkspaceId => id as WorkspaceId
 const stay = { scrollTop: 0, focusIndex: null }
+const MAP = { kind: 'map', focusId: null } as const
 
 afterEach(() => { document.body.replaceChildren() })
 
 describe('research panel store', () => {
   it('records the return point of each location left and arrives at the top', () => {
     const store = createResearchPanelStore().create()
-    expect(store.getSnapshot()).toMatchObject({ location: { kind: 'project' }, back: [], arrival: { kind: 'none' }, visit: 0 })
+    expect(store.getSnapshot()).toMatchObject({ location: MAP, back: [], arrival: { kind: 'none' }, visit: 0 })
     store.actions.open(ws('w1'), { kind: 'resource', topicId: 'a' as TopicId, resourceId: 'a-note' as ResourceId }, { scrollTop: 120, focusIndex: 3 })
     expect(store.getSnapshot()).toMatchObject({
       location: { kind: 'resource', resourceId: 'a-note' },
-      back: [{ location: { kind: 'project' }, returnTo: { scrollTop: 120, focusIndex: 3 } }],
+      back: [{ location: MAP, returnTo: { scrollTop: 120, focusIndex: 3 } }],
       arrival: { kind: 'enter', focus: true },
       visit: 1,
     })
-    store.actions.open(ws('w1'), { kind: 'topic', topicId: 'b' as TopicId, tab: 'overview' }, stay)
+    store.actions.open(ws('w1'), { kind: 'topic', topicId: 'b' as TopicId }, stay)
     expect(store.getSnapshot().arrival).toEqual({ kind: 'enter', focus: false })
   })
 
@@ -43,42 +45,61 @@ describe('research panel store', () => {
     expect(store.getSnapshot().visit).toBe(0)
     store.actions.open(ws('w1'), { kind: 'resource', topicId: null, resourceId: 'root-note' as ResourceId }, { scrollTop: 40, focusIndex: 1 })
     store.actions.goBack(ws('w1'))
+    store.actions.goBack(ws('w1'))
     expect(store.getSnapshot()).toMatchObject({
-      location: { kind: 'project' }, back: [], arrival: { kind: 'return', scrollTop: 40, focusIndex: 1 }, visit: 2,
+      location: MAP, back: [], arrival: { kind: 'return', scrollTop: 40, focusIndex: 1 }, visit: 2,
     })
   })
 
   it('keeps the latest fifty locations for Back', () => {
     const store = createResearchPanelStore().create()
-    for (let index = 0; index < 60; index += 1) store.actions.open(ws('w1'), { kind: 'topic', topicId: `t${index}` as TopicId, tab: 'overview' }, stay)
+    for (let index = 0; index < 60; index += 1) store.actions.open(ws('w1'), { kind: 'topic', topicId: `t${index}` as TopicId }, stay)
     const { back } = store.getSnapshot()
     expect(back).toHaveLength(50)
-    expect(back[0]?.location).toEqual({ kind: 'topic', topicId: 't9', tab: 'overview' })
+    expect(back[0]?.location).toEqual({ kind: 'topic', topicId: 't9' })
   })
 
   it('starts a chosen Workspace afresh and ignores choosing the same one', () => {
     const store = createResearchPanelStore().create()
-    store.actions.open(ws('w1'), { kind: 'topic', topicId: 'a' as TopicId, tab: 'overview' }, stay)
+    store.actions.open(ws('w1'), { kind: 'topic', topicId: 'a' as TopicId }, stay)
     store.actions.selectWorkspace(ws('w2'))
-    expect(store.getSnapshot()).toMatchObject({ workspaceId: 'w2', location: { kind: 'project' }, back: [], arrival: { kind: 'enter', focus: false }, visit: 2 })
+    expect(store.getSnapshot()).toMatchObject({ workspaceId: 'w2', location: MAP, back: [], arrival: { kind: 'enter', focus: false }, visit: 2 })
     store.actions.selectWorkspace(ws('w2'))
     expect(store.getSnapshot().visit).toBe(2)
   })
 
   it('pins navigation to its Workspace and never reuses its topic in a fallback Workspace', () => {
     const store = createResearchPanelStore().create()
-    const topic = { kind: 'topic' as const, topicId: 'only-in-w1' as TopicId, tab: 'materials' as const }
+    const topic = { kind: 'topic' as const, topicId: 'only-in-w1' as TopicId }
     store.actions.open(ws('w1'), topic, stay)
     expect(store.getSnapshot().workspaceId).toBe('w1')
     expect(workspaceLocation(store.getSnapshot(), ws('w1'))).toEqual(topic)
-    expect(workspaceLocation(store.getSnapshot(), ws('w2'))).toEqual({ kind: 'project' })
-    store.actions.setTab(ws('w2'), 'overview')
+    expect(workspaceLocation(store.getSnapshot(), ws('w2'))).toEqual(MAP)
     store.actions.goBack(ws('w2'))
     expect(workspaceLocation(store.getSnapshot(), ws('w1'))).toEqual(topic)
-    store.actions.open(ws('w2'), { kind: 'topic', topicId: 'only-in-w2' as TopicId, tab: 'overview' }, stay)
-    expect(store.getSnapshot()).toMatchObject({ workspaceId: 'w2', back: [{ location: { kind: 'project' } }] })
+    store.actions.open(ws('w2'), { kind: 'topic', topicId: 'only-in-w2' as TopicId }, stay)
+    expect(store.getSnapshot()).toMatchObject({ workspaceId: 'w2', back: [{ location: MAP }] })
     store.actions.goBack(ws('w2'))
-    expect(store.getSnapshot()).toMatchObject({ workspaceId: 'w2', location: { kind: 'project' }, back: [] })
+    expect(store.getSnapshot()).toMatchObject({ workspaceId: 'w2', location: MAP, back: [] })
+  })
+
+  it('treats a map focus as a location that Back returns to', () => {
+    const store = createResearchPanelStore().create()
+    store.actions.open(ws('w1'), { kind: 'map', focusId: 'a' as TopicId }, { scrollTop: 0, focusIndex: 4 })
+    store.actions.open(ws('w1'), { kind: 'topic', topicId: 'a' as TopicId }, stay)
+    store.actions.goBack(ws('w1'))
+    expect(store.getSnapshot().location).toEqual({ kind: 'map', focusId: 'a' })
+  })
+
+  it('keeps each disclosure choice by Workspace, region and topic', () => {
+    const store = createResearchPanelStore().create()
+    const section = disclosureKey(ws('w1'), 'section', 'a', 'materials')
+    expect(section).toBe('["w1","section","a","materials"]')
+    expect(disclosureKey(ws('w2'), 'map', 'a')).not.toBe(disclosureKey(ws('w1'), 'map', 'a'))
+    store.actions.setDisclosed(section, false)
+    store.actions.setDisclosed(disclosureKey(ws('w1'), 'map', 'a'), true)
+    store.actions.selectWorkspace(ws('w2'))
+    expect(store.getSnapshot().disclosure).toEqual({ [section]: false, '["w1","map","a"]': true })
   })
 })
 
@@ -185,5 +206,40 @@ describe('reading-region arrival', () => {
     abandoned.innerHTML = PAGE
     await new Promise((resolve) => { setTimeout(resolve, 0) })
     expect(document.activeElement?.textContent).toBe('One')
+  })
+
+  it('re-applies over replaced content until the reader acts', async () => {
+    const tick = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0) })
+    const reading = region(PAGE)
+    settleArrival(reading, { kind: 'return', scrollTop: 40, focusIndex: 2 })
+    const first = document.activeElement
+    expect(first?.textContent).toBe('Three')
+    reading.append(document.createElement('p'))
+    await tick()
+    expect(document.activeElement).toBe(first)
+    reading.innerHTML = PAGE
+    await tick()
+    expect(document.activeElement).not.toBe(first)
+    expect(document.activeElement?.textContent).toBe('Three')
+    reading.dispatchEvent(new Event('pointerdown'))
+    reading.innerHTML = PAGE
+    await tick()
+    expect(document.activeElement).toBe(document.body)
+  })
+
+  it('refocuses a replaced landing on entry only when entry takes focus', async () => {
+    const tick = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0) })
+    const quiet = region(PAGE)
+    settleArrival(quiet, { kind: 'enter', focus: false })
+    quiet.innerHTML = PAGE
+    await tick()
+    expect(document.activeElement).toBe(document.body)
+    const entered = region(PAGE)
+    const stop = settleArrival(entered, { kind: 'enter', focus: true })
+    entered.innerHTML = PAGE
+    await tick()
+    expect(document.activeElement?.textContent).toBe('Title')
+    expect(entered.contains(document.activeElement)).toBe(true)
+    stop()
   })
 })

@@ -258,12 +258,23 @@ function renderHelp(pages: readonly HelpPage[], chinese: boolean): string {
   return lines.join('\n')
 }
 
-/** Regenerate both CLI reference pages, or check their bytes with --check. @returns Nothing. */
-export async function main(): Promise<void> {
-  const check = process.argv.includes('--check')
-  const pages = await collectHelp()
+/**
+ * Render both CLI references and, by default, their pairing record.
+ * @param pages - Help pages collected from the launcher and shipped profiles.
+ * @param options - Omit the record without computing its hashes when requested.
+ * @returns Exact generated content keyed by repository-relative output path.
+ */
+export function computeCliHelpOutputs(
+  pages: readonly HelpPage[],
+  options: { withoutPairingRecord?: boolean } = {},
+): ReadonlyMap<string, string> {
   const source = renderHelp(pages, false)
   const zh = renderHelp(pages, true)
+  const outputs = new Map([
+    [paths.source, source],
+    [paths.zh, zh],
+  ])
+  if (options.withoutPairingRecord) return outputs
   const written = new Set([paths.source, paths.zh])
   const context = {
     repoRoot: root,
@@ -275,11 +286,15 @@ export async function main(): Promise<void> {
     repositoryFileExists: (path: string) => written.has(path)
       || existsSync(resolve(root, path)) && statSync(resolve(root, path)).isFile(),
   }
-  const outputs = new Map([
-    [paths.source, source],
-    [paths.zh, zh],
-    [paths.meta, renderTranslationPairingRecord(paths, computeTranslationPairingRecord(paths, source, zh, context))],
-  ])
+  outputs.set(paths.meta, renderTranslationPairingRecord(paths, computeTranslationPairingRecord(paths, source, zh, context)))
+  return outputs
+}
+
+/** Regenerate both CLI references; --check verifies bytes and --without-pairing-record omits hashes. @returns Nothing. */
+export async function main(): Promise<void> {
+  const check = process.argv.includes('--check')
+  const pages = await collectHelp()
+  const outputs = computeCliHelpOutputs(pages, { withoutPairingRecord: process.argv.includes('--without-pairing-record') })
   const changed: string[] = []
   for (const [path, content] of outputs) {
     const destination = resolve(root, path)

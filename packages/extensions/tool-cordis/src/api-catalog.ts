@@ -1968,6 +1968,95 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'researchMemory',
+    summary: 'One source adapter per explicitly configured research root.',
+    description: 'One source adapter per explicitly configured research root.',
+    methods: [
+      {
+        signature: '@Remote({ name: \'provider\', resources: { workspace: addressedWorkspace } }) async provider(request: { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<ResearchProvider>',
+        description: 'Read provider capabilities for one explicitly configured root.',
+        parameters: [{ name: 'request', description: 'addressed Workspace; its root must be explicitly configured.' }, { name: 'signal', description: 'cancels this caller while shared source refresh remains owned by the service.' }],
+        returns: 'actual read/write and live-watcher capabilities, with any observation warning.',
+      },
+      {
+        signature: '@Remote({ name: \'getProject\', resources: { workspace: addressedWorkspace } }) async getProject(request: { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<Result<ReadEnvelope<Project>>>',
+        description: 'Read the research overview.',
+        parameters: [{ name: 'request', description: 'Workspace whose root account is read.' }, { name: 'signal', description: 'caller cancellation for source reads.' }],
+        returns: 'a fresh project observation or a typed source failure.',
+      },
+      {
+        signature: '@Remote({ name: \'listTopics\', resources: { workspace: addressedWorkspace } }) async listTopics(request: { workspaceId: WorkspaceId; query: TopicQuery }, signal: AbortSignal): Promise<Result<ReadEnvelope<TopicPage>>>',
+        description: 'Read a bounded page of authored topic relationships.',
+        parameters: [{ name: 'request', description: 'Workspace and parent/cursor selection.' }, { name: 'signal', description: 'caller cancellation for discovery and reads.' }],
+        returns: 'a bounded topic page with explicit incompleteness or a source failure.',
+      },
+      {
+        signature: '@Remote({ name: \'getTopic\', resources: { workspace: addressedWorkspace } }) async getTopic(request: { workspaceId: WorkspaceId; topicId: TopicId }, signal: AbortSignal): Promise<Result<ReadEnvelope<Topic>>>',
+        description: 'Read one topic from its source.',
+        parameters: [{ name: 'request', description: 'Workspace and provider-owned topic identity.' }, { name: 'signal', description: 'caller cancellation for this read.' }],
+        returns: 'the current topic account or an explicit unavailable result.',
+      },
+      {
+        signature: '@Remote({ name: \'getResource\', resources: { workspace: addressedWorkspace } }) async getResource(request: { workspaceId: WorkspaceId; resourceId: ResourceId }, signal: AbortSignal): Promise<Result<ReadEnvelope<Resource>>>',
+        description: 'Read one material, retaining explicit unavailable content.',
+        parameters: [{ name: 'request', description: 'Workspace and material identity.' }, { name: 'signal', description: 'caller cancellation for this read.' }],
+        returns: 'source content or its typed missing/unsupported state.',
+      },
+      {
+        signature: '@Remote({ name: \'readContext\', resources: { workspace: addressedWorkspace } }) async readContext(request: { workspaceId: WorkspaceId; query: ContextQuery }, signal: AbortSignal): Promise<Result<ReadEnvelope<ContextRead>>>',
+        description: 'Prepare bounded source material; this is not a model-delivery receipt.',
+        parameters: [{ name: 'request', description: 'Workspace, topic and requested context bounds.' }, { name: 'signal', description: 'caller cancellation for source preparation.' }],
+        returns: 'complete qualified source units and omissions, or a typed read failure.',
+      },
+      {
+        signature: '@Remote({ name: \'getSessionMemory\', resources: { session: addressedResearchSession } }) async getSessionMemory(request: { sessionId: SessionId }, signal: AbortSignal): Promise<Result<SessionMemoryView | null>>',
+        description: 'Read original inputs, provisional items and recorded context at one immutable Session cut.',
+        parameters: [{ name: 'request', description: 'existing Session identity; reading never creates an Agent or a conversation.' }, { name: 'signal', description: 'cancels observation and configured-root authorization.' }],
+        returns: 'bounded memory, null for an ordinary unbound Session, or an explicit unavailable result.',
+        throws: ['when the caller is not the owner or the recorded root is outside configured access.'],
+      },
+      {
+        signature: '@Remote({ name: \'refresh\', resources: { workspace: addressedWorkspace } }) async refresh(request: { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<void>',
+        description: 'Explicitly rescan a root after external edits or a reconnect.',
+        parameters: [{ name: 'request', description: 'Workspace to invalidate and rebuild.' }, { name: 'signal', description: 'cancels this caller without cancelling another reader.' }],
+        throws: ['if the root is unavailable or the shared rebuild fails.'],
+      },
+      {
+        signature: '@Remote({ name: \'follow\', mode: \'stream\', resources: { workspace: addressedWorkspace } }) async *follow(request: { workspaceId: WorkspaceId }, signal: AbortSignal): AsyncIterable<ResearchEvent>',
+        description: 'Every connection begins with a fresh-read request; notifications carry no scientific content.',
+        parameters: [{ name: 'request', description: 'Workspace whose observations are followed.' }, { name: 'signal', description: 'ends the stream and immediately detaches observation listeners.' }],
+        returns: 'coalesced invalidations; source values must be reread after each one.',
+      },
+      {
+        signature: '@Remote({ name: \'getActivity\', resources: { workspace: addressedWorkspace } }) async getActivity(request: { workspaceId: WorkspaceId; query: ActivityQuery }, signal: AbortSignal): Promise<Result<ReadEnvelope<ActivityPage>>>',
+        description: 'Unsupported history stays explicit until its durable producer is connected.',
+        parameters: [{ name: 'request', description: 'Workspace and activity selection, validated without inventing history.' }, { name: 'signal', description: 'cancels before activity admission.' }],
+        returns: 'unsupported; this adapter does not supply an activity feed.',
+      },
+      {
+        signature: '@Remote({ name: \'previewChange\', resources: { workspace: addressedWorkspace } }) async previewChange(request: { workspaceId: WorkspaceId; intent: ChangeIntent }): Promise<Result<ReadEnvelope<ChangePreview>>>',
+        description: 'Prepare a source change; unsupported writing never advertises a successful preview.',
+        parameters: [{ name: 'request', description: 'Workspace and proposed UI field change.' }],
+        returns: 'a retained scratch preview or typed refusal; no scientific source is changed.',
+        throws: ['when the caller is not the owner or root access is unavailable.'],
+      },
+      {
+        signature: '@Remote({ name: \'applyChange\', resources: { workspace: addressedWorkspace } }) async applyChange(request: { workspaceId: WorkspaceId; request: ApplyRequest }): Promise<Result<ReadEnvelope<ApplyReceipt>>>',
+        description: 'Apply only through the configured writer.',
+        parameters: [{ name: 'request', description: 'Workspace, preview and durable retry identity.' }],
+        returns: 'historical publication and separate current observations, or partial/unknown/refused outcome.',
+        throws: ['when the caller is not the owner or root access is unavailable.'],
+      },
+      {
+        signature: '@Remote({ name: \'ask\', resources: { workspace: addressedWorkspace } }) async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>',
+        description: 'Submit a human-authored question with its selected topic/material origin.',
+        parameters: [{ name: 'request', description: 'exact submitted words and the displayed origin.' }, { name: 'signal', description: 'cancels before admission; admitted messages remain in their Session.' }],
+        returns: 'the created normal Session identity or an unresolved-origin/service failure.',
+        throws: ['when the caller is not the owner or the created Session cannot be reached.'],
+      },
+    ],
+  },
+  {
     key: 'sandbox',
     summary: 'Abstract process-sandbox service.',
     description: 'Abstract process-sandbox service. confine must return enforcing argv or fail closed at wrap or runner-execution time; silent unconfined passthrough is forbidden. Functional probes arbitrate multi-runner chains and may be skipped for a sole candidate, whose own refusal remains the fail-closed end.',
@@ -4698,6 +4787,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface AccountWallet {\n    readonly currency: \'CNY\' | \'USD\';\n    readonly balance: string;\n}',
   },
   {
+    name: 'ActivityItem',
+    declaration: 'export type ActivityItem = {\n    readonly kind: \'change\';\n    readonly changeId: string;\n    readonly topicId: TopicId;\n    readonly summary: string;\n    readonly recordedAt: string;\n    readonly actor: RecordedActor;\n} | {\n    readonly kind: \'session\';\n    readonly sessionId: string;\n    readonly topicId: TopicId;\n    readonly title: string;\n    readonly task?: string;\n    readonly lastActiveAt: string;\n} | {\n    readonly kind: \'proposal\';\n    readonly previewId: string;\n    readonly topicId: TopicId;\n    readonly summary: string;\n    readonly recordedAt: string;\n    readonly actor: RecordedActor;\n};',
+  },
+  {
+    name: 'ActivityPage',
+    declaration: 'export interface ActivityPage {\n    readonly items: readonly ActivityItem[];\n    readonly nextCursor: string | null;\n    readonly completeness: \'complete\' | \'partial\';\n    readonly incompleteReason?: string;\n}',
+  },
+  {
+    name: 'ActivityQuery',
+    declaration: 'export interface ActivityQuery {\n    readonly topicId: TopicId;\n    readonly cursor?: string;\n    readonly limit?: number;\n}',
+  },
+  {
     name: 'AdapterRegistrationHandle',
     declaration: 'export interface AdapterRegistrationHandle {\n    (): void;\n    replace(providers: string[]): void;\n}',
   },
@@ -4724,6 +4825,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AgentHandle',
     declaration: 'export interface AgentHandle {\n    agent: Agent;\n    dispose(): Promise<void>;\n}',
+  },
+  {
+    name: 'AgentItem',
+    declaration: 'export interface AgentItem {\n    readonly id: string;\n    readonly kind: \'gap\' | \'result\' | \'next-step\' | \'failed-route\' | \'method-use\' | \'pending-integration\';\n    readonly text: string;\n    readonly condition?: string;\n    readonly turn: number;\n    readonly status: \'active\' | \'superseded\';\n}',
   },
   {
     name: 'AgentOptions',
@@ -4792,6 +4897,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ApiSessionAgentResult',
     declaration: 'export type ApiSessionAgentResult = {\n    readonly agent: Agent;\n} | {\n    readonly error: ApiSessionAgentError;\n};',
+  },
+  {
+    name: 'ApplyReceipt',
+    declaration: 'export interface ApplyReceipt {\n    readonly operationId: string;\n    readonly changeId: string;\n    readonly committedAt: string;\n    readonly actor: RecordedActor;\n    readonly changed: readonly VersionedTarget[];\n    readonly sourceObservations?: readonly {\n        readonly target: Target;\n        readonly state: \'matches-applied\' | \'different\' | \'unavailable\';\n        readonly revision?: Revision;\n    }[];\n    readonly eventId?: string;\n}',
+  },
+  {
+    name: 'ApplyRequest',
+    declaration: 'export interface ApplyRequest {\n    readonly previewId: string;\n    readonly operationId: string;\n}',
   },
   {
     name: 'ApprovalOutcome',
@@ -4990,6 +5103,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ButtonProps {\n    readonly label: string;\n    readonly hotkey?: string | undefined;\n    readonly disabled?: boolean | undefined;\n    readonly onPress?: (() => unknown) | undefined;\n}',
   },
   {
+    name: 'ChangeCommand',
+    declaration: 'export type ChangeCommand = {\n    readonly kind: \'update-scope\';\n    readonly scope: string;\n} | {\n    readonly kind: \'correct-statement\';\n    readonly statementId: string;\n    readonly text: string;\n    readonly qualification: string;\n} | {\n    readonly kind: \'record-answer\';\n    readonly text: string;\n    readonly qualification: string;\n    readonly sourceResourceIds: readonly ResourceId[];\n} | {\n    readonly kind: \'set-thread-state\';\n    readonly threadId: string;\n    readonly state: WorkState;\n} | {\n    readonly kind: \'choose-route\';\n    readonly threadId: string;\n    readonly optionId: string;\n} | {\n    readonly kind: \'set-statement-disposition\';\n    readonly statementId: string;\n    readonly disposition: \'unsupported\' | \'declined\' | \'invalidated\';\n} | {\n    readonly kind: \'revert-change\';\n    readonly changeId: string;\n};',
+  },
+  {
+    name: 'ChangeIntent',
+    declaration: 'export interface ChangeIntent {\n    readonly topicId: TopicId;\n    readonly expectedRevision: Revision;\n    readonly command: ChangeCommand;\n    readonly reason?: string;\n    readonly originatingSessionId?: string;\n}',
+  },
+  {
+    name: 'ChangePreview',
+    declaration: 'export interface ChangePreview {\n    readonly previewId: string;\n    readonly summary: string;\n    readonly expiresAt?: string;\n    readonly bases: readonly VersionedTarget[];\n    readonly edits: readonly {\n        readonly target: Target;\n        readonly label: string;\n        readonly before: string | null;\n        readonly after: string | null;\n    }[];\n    readonly pendingIntegration: readonly string[];\n}',
+  },
+  {
     name: 'ChangeResult',
     declaration: 'export interface ChangeResult {\n    changed: boolean;\n    application: \'applied\' | \'restart-required\' | \'overridden\' | \'failed\' | \'cancelled\';\n    restartReason?: RestartReason;\n    stage: \'install\' | \'enable\' | \'remove\';\n    target: string;\n    enabled?: boolean;\n    error?: ManagementError;\n    warnings?: string[];\n    packageResult?: PackageResult;\n    bundle?: string;\n    version?: string;\n    pendingBuilds?: string[];\n    approvedBuilds?: string[];\n    registries?: Registry[];\n    failedAt?: \'registry\' | \'spec-host\';\n}',
   },
@@ -5162,6 +5287,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ContentBlockType = keyof ContentBlockMap;',
   },
   {
+    name: 'ContextQuery',
+    declaration: 'export interface ContextQuery {\n    readonly topicId: TopicId;\n    readonly include?: readonly (\'ancestors\' | \'children\' | \'statements\' | \'work\' | \'resources\')[];\n    readonly maxItems?: number;\n    readonly maxCharacters?: number;\n}',
+  },
+  {
+    name: 'ContextRead',
+    declaration: 'export interface ContextRead {\n    readonly topicId: TopicId;\n    readonly entries: readonly {\n        readonly source: VersionedTarget;\n        readonly label: string;\n        readonly text: string;\n    }[];\n    readonly completeness: \'complete\' | \'partial\';\n    readonly omissions: readonly {\n        readonly target: Target;\n        readonly reason: string;\n    }[];\n}',
+  },
+  {
     name: 'ContinuableCreateRequest',
     declaration: 'export interface ContinuableCreateRequest {\n    readonly cwd: string;\n    readonly sessionId: SessionId;\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n}',
   },
@@ -5312,6 +5445,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DailyScheduleRecord',
     declaration: 'export interface DailyScheduleRecord {\n    readonly id: ScheduleId;\n    readonly kind: \'daily\';\n    readonly title: string;\n    readonly prompt: string;\n    readonly time: string;\n    readonly timeZone: string;\n    readonly scheduledAt: string;\n}',
+  },
+  {
+    name: 'DataOrigin',
+    declaration: 'export type DataOrigin = \'fixture\' | \'runtime\';',
   },
   {
     name: 'DeepSeekLlmApiExtensionMap',
@@ -5564,6 +5701,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'FsWriteOutcome',
     declaration: 'export interface FsWriteOutcome {\n    operation: \'create\' | \'update\';\n    version: FsVersion;\n    before: string | null;\n    after: string;\n}',
+  },
+  {
+    name: 'GapItem',
+    declaration: 'export interface GapItem {\n    readonly id: string;\n    readonly text: string;\n    readonly requirement: Requirement;\n    readonly effect?: string;\n}',
   },
   {
     name: 'GenerateOptions',
@@ -6122,6 +6263,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type McpResourceRequest = {\n    method: \'resources/list\' | \'resources/templates/list\';\n    cursor?: string;\n} | {\n    method: \'resources/read\';\n    uri: string;\n};',
   },
   {
+    name: 'MemoryDataOrigin',
+    declaration: 'export type MemoryDataOrigin = \'runtime\' | \'fixture\';',
+  },
+  {
     name: 'Message',
     declaration: 'export type Message = MessageRoleMap[keyof MessageRoleMap];',
   },
@@ -6522,6 +6667,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ProfileReconciliation {\n    warnings: string[];\n    pending: PendingModule[];\n    restartReason?: \'module-comparison\' | \'package-moved\';\n}',
   },
   {
+    name: 'Project',
+    declaration: 'export interface Project {\n    readonly id: string;\n    readonly title: string;\n    readonly summary?: string;\n    readonly accountResourceId?: ResourceId;\n    readonly directions: readonly {\n        readonly id: string;\n        readonly title: string;\n    }[];\n    readonly seeds: readonly {\n        readonly id: string;\n        readonly title: string;\n        readonly summary: string;\n        readonly attribution: SourceAttribution;\n    }[];\n}',
+  },
+  {
     name: 'ProjectionChangeListener',
     declaration: 'export type ProjectionChangeListener = (session: Session, key: Extract<keyof SessionProjectionMap, string>, value: unknown, seq: SessionSeq) => void;',
   },
@@ -6638,6 +6787,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type QueueAction = {\n    readonly kind: \'edit\';\n    readonly content: readonly TextBlock[];\n} | {\n    readonly kind: \'remove\';\n} | {\n    readonly kind: \'steer\';\n};',
   },
   {
+    name: 'ReadEnvelope',
+    declaration: 'export interface ReadEnvelope<T> {\n    readonly origin: DataOrigin;\n    readonly revision: Revision;\n    readonly observedAt: string;\n    readonly value: T;\n}',
+  },
+  {
     name: 'ReadFileLine',
     declaration: 'export interface ReadFileLine {\n    number: number;\n    text: string;\n}',
   },
@@ -6656,6 +6809,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ReasoningEffortId',
     declaration: 'export type ReasoningEffortId = Branded<\'ReasoningEffortId\'>;',
+  },
+  {
+    name: 'RecordedActor',
+    declaration: 'export interface RecordedActor {\n    readonly id: string;\n    readonly kind: \'researcher\' | \'agent\' | \'external\';\n    readonly label: string;\n}',
   },
   {
     name: 'RecurringScheduleRecord',
@@ -6790,6 +6947,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RequestUserInput {\n    readonly role: \'user\';\n    readonly content: UserMessage[\'content\'];\n    readonly id?: never;\n    readonly source?: never;\n}',
   },
   {
+    name: 'Requirement',
+    declaration: 'export type Requirement = \'researcher\' | \'owner\' | \'agent\' | \'optional\';',
+  },
+  {
+    name: 'ResearchContextSnapshot',
+    declaration: 'export interface ResearchContextSnapshot {\n    readonly id: string;\n    readonly turn: number;\n    readonly text: string;\n    readonly state: \'current\' | \'condensed\' | \'projected\' | \'superseded\';\n}',
+  },
+  {
+    name: 'ResearcherItem',
+    declaration: 'export interface ResearcherItem {\n    readonly id: string;\n    readonly kind: \'task\' | \'input\' | \'instruction\' | \'choice\' | \'answer\';\n    readonly text: string;\n    readonly question?: string;\n    readonly turn: number;\n}',
+  },
+  {
+    name: 'ResearchEvent',
+    declaration: 'export type ResearchEvent = {\n    readonly kind: \'invalidate\';\n    readonly eventId: string;\n    readonly targets: readonly VersionedTarget[];\n} | {\n    readonly kind: \'resync-required\';\n    readonly reason: string;\n} | {\n    readonly kind: \'connection\';\n    readonly state: \'connected\' | \'disconnected\' | \'unsupported\';\n    readonly message?: string;\n};',
+  },
+  {
+    name: 'ResearchProvider',
+    declaration: 'export interface ResearchProvider {\n    readonly id: string;\n    readonly origin: DataOrigin;\n    readonly notice?: string;\n    readonly capabilities: {\n        readonly read: boolean;\n        readonly readContext: boolean;\n        readonly readActivity: boolean;\n        readonly previewChanges: boolean;\n        readonly applyChanges: boolean;\n        readonly changeEvents: boolean;\n        readonly commands: readonly ChangeCommand[\'kind\'][];\n    };\n}',
+  },
+  {
+    name: 'ResearchQuestion',
+    declaration: 'export interface ResearchQuestion {\n    readonly workspaceId: WorkspaceId;\n    readonly topicId?: TopicId;\n    readonly resourceId?: ResourceId;\n    readonly anchor?: string;\n    readonly selectedText?: string;\n    readonly selectedTextFormat?: \'source\' | \'rendered\';\n    readonly selectedRange?: ResearchSourceRange;\n    readonly question: string;\n}',
+  },
+  {
+    name: 'ResearchSourceRange',
+    declaration: 'export interface ResearchSourceRange {\n    readonly start: number;\n    readonly end: number;\n    readonly text: string;\n}',
+  },
+  {
     name: 'ResolvedAlwaysRetryPolicy',
     declaration: 'export interface ResolvedAlwaysRetryPolicy extends ResolvedRetryBackoff {\n    readonly mode: \'always\';\n}',
   },
@@ -6814,6 +6999,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ResolvedSubagentStartRequest extends SubagentStartRequest {\n    readonly cwd: string;\n}',
   },
   {
+    name: 'Resource',
+    declaration: 'export interface Resource extends ResourceReference {\n    readonly content: {\n        readonly kind: \'markdown\' | \'plain-text\';\n        readonly text: string;\n    } | {\n        readonly kind: \'unavailable\';\n        readonly reason: \'linked-only\' | \'unsupported-format\' | \'not-connected\';\n        readonly detail: string;\n    };\n    readonly attribution: SourceAttribution;\n}',
+  },
+  {
+    name: 'ResourceId',
+    declaration: 'export type ResourceId = Branded<\'ResearchResourceId\'>;',
+  },
+  {
+    name: 'ResourceReference',
+    declaration: 'export interface ResourceReference {\n    readonly id: ResourceId;\n    readonly ownerTopicId: TopicId | null;\n    readonly title: string;\n    readonly kind: \'note\' | \'paper\' | \'code\' | \'report\' | \'data\' | \'other\';\n    readonly target: ResourceTarget;\n}',
+  },
+  {
+    name: 'ResourceTarget',
+    declaration: 'export type ResourceTarget = {\n    readonly kind: \'workspace-path\';\n    readonly path: string;\n    readonly anchor?: string;\n} | {\n    readonly kind: \'uri\';\n    readonly uri: string;\n    readonly anchor?: string;\n} | {\n    readonly kind: \'unavailable\';\n    readonly reason: string;\n};',
+  },
+  {
     name: 'RestartReason',
     declaration: 'export type RestartReason = \'no-hmr\' | \'package-moved\' | \'host-module\' | \'unmanaged-plugin\' | \'module-comparison\';',
   },
@@ -6822,12 +7023,24 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RestoredSessionOptions {\n    readonly seed: SessionEvent[];\n    readonly meta: SessionHeader;\n    readonly inheritedEventCount: SessionLogOffset;\n    readonly eventState: SessionSeedEventState;\n}',
   },
   {
+    name: 'Result',
+    declaration: 'export type Result<T> = {\n    readonly ok: true;\n    readonly value: T;\n} | {\n    readonly ok: false;\n    readonly error: WorkspaceError;\n};',
+  },
+  {
     name: 'ResumeAgentOptions',
     declaration: 'export interface ResumeAgentOptions {\n    readonly resumeSessionId: SessionId;\n    readonly parentAgent?: Agent;\n    readonly agentOptions?: AgentOptions;\n    readonly signal?: AbortSignal;\n    readonly setup?: AgentSetup;\n}',
   },
   {
+    name: 'Revision',
+    declaration: 'export type Revision = Branded<\'ResearchRevision\'>;',
+  },
+  {
     name: 'RpcId',
     declaration: 'export type RpcId = Branded<\'rpc-id\'>;',
+  },
+  {
+    name: 'RuleItem',
+    declaration: 'export interface RuleItem {\n    readonly id: string;\n    readonly text: string;\n    readonly source: string;\n    readonly adoption: {\n        readonly kind: \'used\';\n        readonly turn: number;\n    } | {\n        readonly kind: \'saved-not-used\';\n    } | {\n        readonly kind: \'condensed\';\n        readonly loadedTurn: number;\n    };\n}',
   },
   {
     name: 'RunnerFailureRule',
@@ -7262,6 +7475,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SessionLogSnapshot {\n    session: SessionHeader;\n    inheritedEventCount: SessionLogOffset;\n    events: SessionEvent[];\n}',
   },
   {
+    name: 'SessionMemoryCoverage',
+    declaration: 'export interface SessionMemoryCoverage {\n    readonly omittedItems: number;\n    readonly contextRecorded: boolean;\n    readonly sourceDelivery: \'context-only\';\n}',
+  },
+  {
+    name: 'SessionMemoryView',
+    declaration: 'export interface SessionMemoryView {\n    readonly origin: MemoryDataOrigin;\n    readonly sessionId: SessionId;\n    readonly sessionOrigin?: SessionOrigin;\n    readonly researcher: readonly ResearcherItem[];\n    readonly agent: readonly AgentItem[];\n    readonly gaps: readonly GapItem[];\n    readonly sources: readonly SourceItem[];\n    readonly rules: readonly RuleItem[];\n    readonly summaries: readonly SummaryItem[];\n    readonly contextSnapshots?: readonly ResearchContextSnapshot[];\n    readonly coverage?: SessionMemoryCoverage;\n}',
+  },
+  {
     name: 'SessionMessage',
     declaration: 'export interface SessionMessage {\n    role: \'user\' | \'assistant\';\n    text: string;\n    toolUses: ToolUseSummary[];\n}',
   },
@@ -7288,6 +7509,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionOpenWorkspacePathValue',
     declaration: 'export interface SessionOpenWorkspacePathValue {\n    readonly opened: true;\n}',
+  },
+  {
+    name: 'SessionOrigin',
+    declaration: 'export type SessionOrigin = {\n    readonly kind: \'topic\';\n    readonly topic: string;\n    readonly thread?: string;\n    readonly notePath: string;\n} | {\n    readonly kind: \'source\';\n    readonly label: string;\n    readonly notePath?: string;\n} | {\n    readonly kind: \'global\';\n};',
   },
   {
     name: 'SessionPage',
@@ -7702,6 +7927,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SkillViewOptions extends SkillLookupOptions {\n    readonly scope?: ScopeKey | undefined;\n}',
   },
   {
+    name: 'SourceAttribution',
+    declaration: 'export interface SourceAttribution {\n    readonly actor?: RecordedActor;\n    readonly recordedAt?: string;\n    readonly sourceResourceIds: readonly ResourceId[];\n    readonly explanation?: string;\n}',
+  },
+  {
+    name: 'SourceItem',
+    declaration: 'export interface SourceItem {\n    readonly id: string;\n    readonly label: string;\n    readonly range?: string;\n    readonly address?: string;\n    readonly reason: \'selected\' | \'owner\' | \'agent-read\' | \'linked\';\n    readonly requirement: Requirement;\n    readonly state: {\n        readonly kind: \'located\';\n    } | {\n        readonly kind: \'attached\';\n    } | {\n        readonly kind: \'available\';\n        readonly sentTurn: number;\n    } | {\n        readonly kind: \'condensed\';\n        readonly sentTurn: number;\n        readonly rereadTurn?: number;\n    } | {\n        readonly kind: \'missing\';\n        readonly reason: string;\n    } | {\n        readonly kind: \'pointer\';\n    } | {\n        readonly kind: \'unknown\';\n    };\n}',
+  },
+  {
     name: 'SpawnTeammateRequest',
     declaration: 'export interface SpawnTeammateRequest {\n    readonly name: string;\n    readonly description: string;\n    readonly prompt: ContentBlock[];\n    readonly context: \'fresh\' | \'fork\';\n    readonly provider: string;\n    readonly signal: AbortSignal;\n}',
   },
@@ -7800,6 +8033,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SshStreamEndpoint',
     declaration: 'export type SshStreamEndpoint = z.infer<typeof streamEndpointSchema>;',
+  },
+  {
+    name: 'Statement',
+    declaration: 'export interface Statement {\n    readonly id: string;\n    readonly kind: \'assumption\' | \'hypothesis\' | \'claim\' | \'evidence\' | \'question\';\n    readonly title: string;\n    readonly text: string;\n    readonly qualification: string;\n    readonly origin: \'imported\' | \'local\' | \'unknown\';\n    readonly assessment: \'unchecked\' | \'checked\' | \'disputed\';\n    readonly checks: readonly {\n        readonly kind: \'source-check\' | \'derivation\' | \'consistency\' | \'numerical\' | \'other\';\n        readonly scope: string;\n        readonly outcome: \'passed\' | \'failed\' | \'inconclusive\';\n        readonly resourceIds: readonly ResourceId[];\n    }[];\n    readonly disposition?: \'retained\' | \'unsupported\' | \'declined\' | \'invalidated\';\n    readonly attribution: SourceAttribution;\n}',
   },
   {
     name: 'StorageBackend',
@@ -7978,6 +8215,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SubprocessTerminalSpawnSpec {\n    argv: readonly string[];\n    cwd: string;\n    env?: Record<string, string> | undefined;\n    rows: number;\n    cols: number;\n    terminalType: string;\n    shellActivity?: boolean | undefined;\n    graceMs: number;\n    signal?: AbortSignal | undefined;\n}',
   },
   {
+    name: 'SummaryItem',
+    declaration: 'export interface SummaryItem {\n    readonly id: string;\n    readonly turn: number;\n    readonly covers: readonly [\n        first: number,\n        last: number\n    ];\n}',
+  },
+  {
     name: 'SurfaceEvent',
     declaration: 'export type SurfaceEvent = SessionEvent<SurfaceEventType>;',
   },
@@ -8020,6 +8261,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'TableValueOf',
     declaration: 'export type TableValueOf<S extends DomainSpec, N extends keyof S[\'tables\']> = S[\'tables\'][N] extends DomainTableSpec<string, infer V> ? V : never;',
+  },
+  {
+    name: 'Target',
+    declaration: 'export type Target = {\n    readonly kind: \'project\';\n    readonly id: string;\n} | {\n    readonly kind: \'topic\';\n    readonly id: TopicId;\n} | {\n    readonly kind: \'resource\';\n    readonly id: ResourceId;\n};',
   },
   {
     name: 'TeamId',
@@ -8338,6 +8583,22 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ToolUseSummary {\n    tool_use_id: string;\n    tool: string;\n    input: Record<string, unknown>;\n}',
   },
   {
+    name: 'Topic',
+    declaration: 'export interface Topic extends TopicSummary {\n    readonly question: string;\n    readonly scope: string;\n    readonly workItems: readonly WorkItem[];\n    readonly statements: readonly Statement[];\n    readonly resources: readonly ResourceReference[];\n    readonly accountResourceId?: ResourceId;\n}',
+  },
+  {
+    name: 'TopicId',
+    declaration: 'export type TopicId = Branded<\'ResearchTopicId\'>;',
+  },
+  {
+    name: 'TopicPage',
+    declaration: 'export interface TopicPage {\n    readonly items: readonly ReadEnvelope<TopicSummary>[];\n    readonly nextCursor: string | null;\n    readonly completeness: \'complete\' | \'partial\';\n    readonly incompleteReason?: string;\n}',
+  },
+  {
+    name: 'TopicQuery',
+    declaration: 'export interface TopicQuery {\n    readonly parentId?: TopicId | null;\n    readonly cursor?: string;\n    readonly limit?: number;\n}',
+  },
+  {
     name: 'Transcript',
     declaration: 'export interface Transcript {\n    readonly text: string;\n    readonly audioSeconds: number;\n    readonly inferenceSeconds: number;\n}',
   },
@@ -8554,6 +8815,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface VerifiedWebhookDelivery<K extends string = string> {\n    readonly kind: K;\n    readonly source: WebhookSourceId;\n    readonly deliveryId: WebhookDeliveryId;\n    readonly event: WebhookEventOf<K>;\n    readonly receivedAt: number;\n}',
   },
   {
+    name: 'VersionedTarget',
+    declaration: 'export interface VersionedTarget {\n    readonly target: Target;\n    readonly revision: Revision;\n}',
+  },
+  {
     name: 'WebBootBatch',
     declaration: 'export interface WebBootBatch {\n    phase: WebBootBatchPhase;\n    url: string;\n    rev: string;\n    entries: string[];\n}',
   },
@@ -8730,6 +8995,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type WorkflowStopReason = \'completed\' | \'cancelled\' | \'error\';',
   },
   {
+    name: 'WorkItem',
+    declaration: 'export interface WorkItem {\n    readonly id: string;\n    readonly title: string;\n    readonly description: string;\n    readonly state: WorkState;\n    readonly continuation?: {\n        readonly label: string;\n        readonly text: string;\n    };\n    readonly options?: readonly {\n        readonly id: string;\n        readonly label: string;\n    }[];\n    readonly contributingTopicId?: TopicId;\n    readonly attribution: SourceAttribution;\n}',
+  },
+  {
     name: 'Workspace',
     declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
   },
@@ -8788,6 +9057,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceDirectoryListing',
     declaration: 'export interface WorkspaceDirectoryListing {\n    readonly path: string;\n    readonly entries: readonly WorkspaceDirectoryEntry[];\n    readonly truncated: boolean;\n}',
+  },
+  {
+    name: 'WorkspaceError',
+    declaration: 'export type WorkspaceError = {\n    readonly code: \'not-connected\' | \'not-found\' | \'unsupported\' | \'read-only\' | \'permission-denied\' | \'invalid-request\' | \'preview-expired\' | \'operation-reused\' | \'cancelled\' | \'unavailable\';\n    readonly message: string;\n    readonly retryable: boolean;\n} | {\n    readonly code: \'revision-conflict\';\n    readonly message: string;\n    readonly current: readonly VersionedTarget[];\n} | {\n    readonly code: \'outcome-unknown\';\n    readonly message: string;\n    readonly operationId: string;\n} | {\n    readonly code: \'partial-apply\';\n    readonly message: string;\n    readonly operationId: string;\n    readonly changed: readonly VersionedTarget[];\n    readonly remaining: readonly Target[];\n};',
   },
   {
     name: 'WorkspaceFileBytes',
@@ -8868,6 +9141,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceView',
     declaration: 'export interface WorkspaceView {\n    readonly workspaceId: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly sessionIds: readonly SessionId[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+  },
+  {
+    name: 'WorkState',
+    declaration: 'export type WorkState = \'active\' | \'waiting-on-researcher\' | \'waiting-on-run\' | \'waiting-on-analysis\' | \'waiting-on-integration\' | \'paused\' | \'dormant\' | \'superseded\' | \'concluded\' | \'unknown\';',
   },
 ]
 

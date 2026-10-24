@@ -1,5 +1,6 @@
 /** Session-independent research workspace over the asynchronous adapter resources. */
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import clsx from 'clsx'
 import { Button, IconChevronDownOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -11,10 +12,15 @@ import { returnPoint, settleArrival } from './arrival.ts'
 import { workspaceLocation, type createResearchPanelStore, type ResearchLocation, type ResearchArrival } from './store.ts'
 import { Empty } from './states.tsx'
 import type { ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview, ReadEnvelope, Result } from './workspace-contract.ts'
-import { WorkspaceMaterial, WorkspaceProject } from './WorkspaceViews.tsx'
+import { ResearchMap } from './ResearchMap.tsx'
+import { ResearchTrail } from './ResearchTrail.tsx'
+import { WorkspaceMaterial } from './WorkspaceViews.tsx'
 import { WorkspaceTopic } from './WorkspaceTopic.tsx'
+import { WorkspaceQuestion } from './WorkspaceQuestion.tsx'
 import type {} from './locales.ts'
 import css from './research.module.css'
+import type { ResearchQuestion } from './workspace-contract.ts'
+import page from './workspace.module.css'
 
 /** Narrow application callbacks bound by the panel registration. */
 export interface ResearchPanelFace {
@@ -22,6 +28,8 @@ export interface ResearchPanelFace {
   openSession: (sessionId: SessionId) => void
   /** Prepare a normal Harness conversation; this does not send a model request. */
   startDraft: (workspaceId: WorkspaceId, prompt: string) => void
+  /** Send only the question the person submits, with its displayed origin. */
+  askQuestion?: (question: ResearchQuestion) => Promise<Result<{ readonly sessionId: SessionId }>>
   /** Prepare a serializable edit against the observed revision. */
   previewChange: (workspaceId: WorkspaceId, intent: ChangeIntent) => Promise<Result<ReadEnvelope<ChangePreview>>>
   /** Apply one previously prepared change, preserving the operation ID on retry. */
@@ -92,17 +100,17 @@ function WorkspaceReading(props: ResearchPanelProps & { workspaceId: WorkspaceId
   const navigate = (next: ResearchLocation): void => { props.actions.open(props.workspaceId, next, returnPoint(reading.current)) }
   return (
     <div className={css.reading} ref={reading}>
-      <div className={css.workspacePage}>
-        <nav className={css.breadcrumb} aria-label={props.t('workspace.breadcrumb')}>
-          {canGoBack && <Button variant="ghost" size="sm" onClick={() => { props.actions.goBack(props.workspaceId) }}>{props.t('reader.back')}</Button>}
-          {location.kind !== 'project' && <button type="button" className={css.linkButton} onClick={() => { navigate({ kind: 'project' }) }}>{props.t('workspace.overview')}</button>}
-        </nav>
-        {location.kind === 'project'
-          ? <WorkspaceProject {...props} navigate={navigate} />
+      <div className={clsx(page.page, location.kind !== 'map' && page.readingPage)}>
+        <ResearchTrail {...props} location={location} canGoBack={canGoBack} navigate={navigate} />
+        {location.kind === 'map'
+          ? <ResearchMap {...props} focusId={location.focusId} navigate={navigate} />
           : location.kind === 'topic'
-            ? <WorkspaceTopic key={location.topicId} {...props} topicId={location.topicId} tab={location.tab} navigate={navigate} />
+            ? <WorkspaceTopic key={location.topicId} {...props} topicId={location.topicId} navigate={navigate} />
             : <WorkspaceMaterial key={location.resourceId} {...props}
               resourceId={location.resourceId} topicId={location.topicId} navigate={navigate} />}
+        {props.askQuestion !== undefined && <WorkspaceQuestion key={visit} t={props.t}
+          workspaceId={props.workspaceId} location={location} reading={reading}
+          ask={props.askQuestion} openSession={props.openSession} />}
       </div>
     </div>
   )

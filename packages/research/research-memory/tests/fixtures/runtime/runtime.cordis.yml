@@ -1,0 +1,20 @@
+- name: llm
+- name: sessions
+- name: projections
+- name: query
+- name: persistence
+  config:
+    root: './.sessions'
+    compression: none
+- name: prompt
+- name: tools
+- name: agents
+- name: loop
+  config:
+    agents: []
+- name: meter
+- name: compaction
+  config:
+    auto: false
+- name: mock
+- name: runtime

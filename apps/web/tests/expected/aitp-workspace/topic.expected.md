@@ -3,35 +3,64 @@
   - text: workspace
   - navigation "Research location":
     - button "Back"
-    - button "Project overview"
-  - paragraph:
-    - button "Long-range chains"
+    - list:
+      - listitem:
+        - button "Research map"
+      - listitem: Many-body dynamics
+      - listitem:
+        - button "Quantum chaos"
+      - listitem:
+        - button "Long-range chains"
+      - listitem:
+        - button "Operator Krylov dynamics"
+      - listitem: Small-system control (N ≤ 12)
   - paragraph:
     - strong: Demo workspace
     - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
-  - paragraph: Read Oct 23, {{clock}} AM
-  - text: In progress
-  - heading "Operator Krylov dynamics" [level=2]
-  - paragraph: What does operator spreading reveal on a matched spectral grid?
+  - paragraph: Concluded Control
+  - heading "Small-system control (N ≤ 12)" [level=2]
+  - paragraph: Does the implementation reproduce a case with a known answer?
+  - paragraph: Scope
+  - paragraph:
+    - text: Free-fermion limit,
+    - math: N ≤ 12
+    - text: .
+  - paragraph:
+    - strong: "Role in Operator Krylov dynamics:"
+    - text: Separates implementation errors from physical behaviour before larger sizes are interpreted.
   - button "Read full account"
+  - button "Show on map"
   - button "Edit scope"
   - button "Update understanding"
-  - tablist "Topic details":
-    - tab "Overview" [selected]
-    - tab "Work & choices"
-    - tab "Claims & routes"
-    - tab "Materials"
-    - tab "Activity"
-  - tabpanel "Overview":
+  - region "Current understanding":
     - heading "Current understanding" [level=3]
-    - paragraph: A bounded reference route is available for comparison.
-    - heading "Scope and limits" [level=4]
-    - paragraph: Synthetic state only; the larger research question remains open.
-    - heading "What remains open" [level=3]
-    - paragraph: The small-system control does not cover the production grid.
-    - heading "Next step" [level=4]
-    - paragraph: Inspect the control report before increasing system size.
-    - heading "Scope" [level=3]
-    - paragraph: Use a controlled reference before interpreting the broader research question.
-    - heading "Subtopics" [level=3]
-    - paragraph: No subtopics are recorded.
+    - paragraph: The control reproduces the analytic free-fermion growth rate within 0.5 %.
+    - paragraph: Conditions and limits
+    - paragraph: This validates the implementation only; it says nothing about interacting chains at larger sizes.
+  - heading "What remains open" [level=3]
+  - paragraph: No gap recorded
+  - heading "Materials 2" [level=3]:
+    - button "Materials 2" [expanded]
+  - list:
+    - listitem:
+      - 'button "Note Small-system control (N ≤ 12): full account demo/krylov-control/research.md"':
+        - text: Note
+        - strong: "Small-system control (N ≤ 12): full account"
+        - text: demo/krylov-control/research.md
+    - listitem:
+      - button "Report Small-system control report demo/operator-krylov/control-report.md":
+        - text: Report
+        - strong: Small-system control report
+        - text: demo/operator-krylov/control-report.md
+  - heading "Claims & routes 0" [level=3]:
+    - button "Claims & routes 0"
+  - heading "Work & choices 0" [level=3]:
+    - button "Work & choices 0"
+  - heading "Activity" [level=3]:
+    - button "Activity"
+  - paragraph: Read Oct 23, {{clock}} AM
+  - text: Ask about this research
+  - textbox "Ask about this research":
+    - /placeholder: What is still unclear, or what should we investigate next?
+  - paragraph: Continue with the research context from this page.
+  - button "Ask in a new conversation" [disabled]

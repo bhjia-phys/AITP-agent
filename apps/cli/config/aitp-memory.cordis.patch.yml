@@ -1,0 +1,18 @@
+# Explicit scratch-root configuration. Apply to the AITP web profile.
+# AITP_RESEARCH_ROOT is required; no real root is selected automatically.
+- id: research-memory
+  disabled: false
+  config:
+    roots: !!js >-
+      (() => {
+        const path = process.env.AITP_RESEARCH_ROOT;
+        if (!path) throw new Error('AITP_RESEARCH_ROOT must name an explicit research root');
+        const writable = process.env.AITP_RESEARCH_WRITE === '1';
+        const stateDirectory = process.env.AITP_RESEARCH_STATE;
+        if (writable && !stateDirectory) throw new Error('AITP_RESEARCH_STATE is required for scratch writing');
+        return [{ path, writable, ...(stateDirectory ? { stateDirectory } : {}) }];
+      })()
+- id: ui-aitp-backend
+  disabled: false
+- id: ui-aitp-fixtures
+  disabled: true

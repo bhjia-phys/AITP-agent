@@ -207,6 +207,8 @@ Official documentation checked on 2026-10-23 supplies limited reference patterns
 
 ### 5.2 Recommendation: visible topic structure and direct drill-down
 
+**Revised 2026-10-23.** The implemented client keeps one sidebar footprint and direct drill-down but replaces the dashboard of answer cards with the [research map](12-desktop-interface.md#research-map): overview nodes carry no answers, and a focused topic's summary shows its answer with its conditions. 12 owns the current interaction model; the list below records the original proposal.
+
 - **Project dashboard:** display topics grouped by direction when helpful. Each topic card has a qualified answer or decisive gap, work disposition and direct links to its children. Waiting choices are visible without browsing chat history. Counts describe work or materials, never a percentage of scientific completion.
 - **Topic page:** show question, current answer and gap, followed by direct child cards. A card opens that child's full page. The same layout works for a subtopic at any depth; breadcrumbs provide an obvious return to its parent.
 - **One sidebar footprint:** a Research / Conversations switch selects the topic tree or the host Session list. Research navigation is visible in research work; conversations remain directly accessible. This is the recommended shell integration and the synthetic prototype demonstrates it. The production host currently offers `sidebar.workspaces` as one slot, not a per-Workspace child-tree slot; this switch requires an explicit host contribution, not an assumption that a plugin can already replace that interior.
@@ -303,6 +305,8 @@ Opening Zeros shows its own overview, work, claims and materials with a breadcru
 The topic view reads one topic and its immediate children from the workspace service. It works for a topic or subtopic without assuming a Markdown chapter order. The main column provides overview and detail tabs; the compact dock shows the same authoritative fields with fewer controls.
 
 ### 7.1 Overview and detail tabs
+
+**Revised 2026-10-23.** The topic page uses sections in reading order instead of these tabs, and child cards are replaced by branch rows with recorded roles and the map's branch focus; [12](12-desktop-interface.md#research-map) owns the current page. The table records the original proposal.
 
 | View | Content | Default visibility |
 | --- | --- | --- |

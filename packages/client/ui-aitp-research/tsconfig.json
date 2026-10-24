@@ -58,6 +58,9 @@
     },
     {
       "path": "../ui-workspace"
+    },
+    {
+      "path": "../../research/research-memory"
     }
   ]
 }

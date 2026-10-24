@@ -3,35 +3,63 @@
   - text: workspace
   - navigation "研究位置":
     - button "返回"
-    - button "项目总览"
-  - paragraph:
-    - button "Long-range chains"
+    - list:
+      - listitem:
+        - button "研究地图"
+      - listitem: Many-body dynamics
+      - listitem:
+        - button "Quantum chaos"
+      - listitem:
+        - button "Long-range chains"
+      - listitem: Operator Krylov dynamics
   - paragraph:
     - strong: 示例工作区
     - text: · 合成示例数据。修改仅在本次预览中保留，不会改动你的科研文件。
-  - paragraph: 读取于 Oct 23, {{clock}} AM
-  - text: In progress
+  - paragraph: In progress
   - heading "Operator Krylov dynamics" [level=2]
   - paragraph: What does operator spreading reveal on a matched spectral grid?
+  - paragraph: 研究范围
+  - paragraph: Keep the same spectral grid and compare only the explicitly matched finite systems.
+  - paragraph:
+    - strong: 在“Long-range chains”中的作用：
+    - text: Tests whether operator spreading separates the interaction regimes on one matched grid.
   - button "阅读完整论述"
+  - button "在地图中查看"
   - button "修改范围"
   - button "更新当前认识"
-  - tablist "课题详情":
-    - tab "总览" [selected]
-    - tab "工作与选择"
-    - tab "论断与路线"
-    - tab "资料"
-    - tab "动态"
-  - tabpanel "总览":
+  - region "当前认识":
     - heading "当前认识" [level=3]
     - paragraph: The finite reference agrees with the independent evolution on the selected grid.
-    - heading "适用范围与限制" [level=4]
+    - paragraph: 条件与限制
     - paragraph: This demonstration does not establish a large-system chaos result.
-    - heading "仍待解决" [level=3]
-    - paragraph: The small-system control does not cover the production grid.
-    - heading "下一步" [level=4]
-    - paragraph: Inspect the control report before increasing system size.
-    - heading "研究范围" [level=3]
-    - paragraph: Keep the same spectral grid and compare only the explicitly matched finite systems.
-    - heading "子课题" [level=3]
-    - paragraph: 尚未记录子课题。
+  - heading "仍待解决" [level=3]
+  - paragraph: The small-system control does not cover the production grid.
+  - heading "下一步" [level=3]
+  - paragraph: Read the control report before increasing the system size.
+  - heading "分支 2" [level=3]:
+    - button "分支 2" [expanded]
+  - list:
+    - listitem:
+      - button "Extracting Lanczos coefficients on a shared spectral grid without loss of orthogonality In progress 前提 The Krylov comparison is meaningful only after the coefficients are extracted on the same grid."
+    - listitem:
+      - button "Small-system control (N ≤ 12) Concluded 对照 Separates implementation errors from physical behaviour before larger sizes are interpreted."
+  - heading "材料 1" [level=3]:
+    - button "材料 1" [expanded]
+  - list:
+    - listitem:
+      - 'button "笔记 Operator Krylov dynamics: full account demo/operator-krylov/research.md"':
+        - text: 笔记
+        - strong: "Operator Krylov dynamics: full account"
+        - text: demo/operator-krylov/research.md
+  - heading "论断与路线 1" [level=3]:
+    - button "论断与路线 1"
+  - heading "工作与选择 1" [level=3]:
+    - button "工作与选择 1"
+  - heading "动态" [level=3]:
+    - button "动态"
+  - paragraph: 读取于 Oct 23, {{clock}} AM
+  - text: 围绕这里的研究提问
+  - textbox "围绕这里的研究提问":
+    - /placeholder: 哪里还不清楚，或者下一步想研究什么？
+  - paragraph: 结合当前页面的研究背景继续讨论
+  - button "在新对话中提问" [disabled]

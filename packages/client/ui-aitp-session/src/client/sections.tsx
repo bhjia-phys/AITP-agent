@@ -45,6 +45,7 @@ export function AgentItems({ t, items }: { t: T; items: readonly AgentItem[] }):
               ...(item.status === 'superseded' ? [t('agent.superseded')] : [])].join(' · ')}
           </p>
           <p className={css.text}>{item.text}</p>
+          {item.condition !== undefined && <p className={css.textMuted}>{`${t('agent.condition')}: ${item.condition}`}</p>}
         </li>
       ))}
     </ul>
@@ -87,11 +88,12 @@ export function sourceStateText(t: T, state: SourceItem['state']): string {
       : t('source.condensed.reread', { turn: state.sentTurn, reread: state.rereadTurn })
     case 'missing': return t('source.missing', { reason: state.reason })
     case 'pointer': return t('source.pointer')
+    case 'unknown': return t('source.unknown')
   }
 }
 
 const SOURCE_DOT: Readonly<Record<SourceItem['state']['kind'], StateDotState>> = {
-  located: 'idle', attached: 'idle', available: 'done', condensed: 'warning', missing: 'error', pointer: 'idle',
+  located: 'idle', attached: 'idle', available: 'done', condensed: 'warning', missing: 'error', pointer: 'idle', unknown: 'warning',
 }
 
 /**

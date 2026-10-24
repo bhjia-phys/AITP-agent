@@ -3,13 +3,26 @@
   - text: workspace
   - navigation "Research location":
     - button "Back"
-    - button "Project overview"
+    - list:
+      - listitem:
+        - button "Research map"
+      - listitem: Many-body dynamics
+      - listitem:
+        - button "Quantum chaos"
+      - listitem:
+        - button "Long-range chains"
+      - listitem: Long-range-chain literature reference
   - paragraph:
     - strong: Demo workspace
     - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
-  - paragraph: Read Oct 23, {{clock}} AM
   - paragraph: Paper
   - heading "Long-range-chain literature reference" [level=2]
   - paragraph: "Source location: The PDF provider has not been connected."
   - paragraph: Content is not available in this reader
   - paragraph: This fixture reserves a paper destination. It does not supply a PDF or claim to have read one.
+  - paragraph: Read Oct 23, {{clock}} AM
+  - text: Ask about this research
+  - textbox "Ask about this research":
+    - /placeholder: What is still unclear, or what should we investigate next?
+  - paragraph: Continue with the research context from this page.
+  - button "Ask in a new conversation" [disabled]

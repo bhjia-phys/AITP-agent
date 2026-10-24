@@ -18,6 +18,8 @@ export interface WorkspaceEditState {
   uncertain: boolean
   failure: WorkspaceError | null
   acknowledged: DataOrigin | null
+  /** Historical application can remain confirmed while its current source changes or disappears. */
+  sourceObservations?: ApplyReceipt['sourceObservations']
   hidden: boolean
 }
 
@@ -129,6 +131,7 @@ export const workspaceEditActions = {
       edit.uncertain = false
       edit.failure = null
       edit.acknowledged = result.value.origin
+      edit.sourceObservations = result.value.value.sourceObservations ?? []
     } else {
       edit.failure = result.error
       edit.uncertain = edit.uncertain || result.error.code === 'outcome-unknown' || result.error.code === 'partial-apply'

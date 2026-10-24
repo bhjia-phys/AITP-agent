@@ -4,7 +4,7 @@
 
 **证据分界：** 本文引用 `agent/packages/` 的源码缺陷、[四个合成复现](agent/notes/review-2026-10-22.md)和[旧集成记录](agent/notes/integration.md)均针对保留的 Pi 实现，未在 Harness 上重跑。它们继续规定迁移后的反例与验收要求，不能直接称为 Harness 已复现缺陷，也不能因换底座而关闭。Harness 已有通用会话、工具、插件、Web 和桌面机制；这些不等于 AITP 的约定、必要前提、科研审阅和写回已经实现。默认 Harness 工具也不自动继承旧 AITP 只读 profile 的限制。
 
-**当前最重要的缺口，是 GPT 路线只有有限的真实运行证据，重要科研记忆也没有稳定接入实际模型上下文。** 读取、压缩恢复、结果反馈与主文档维护仍需连接。会话持久化、资料读取、搜索和选择卡已有基础；科研工作台已有正式客户端和可选的异步模拟 provider；真实资料接入与自适应研究循环仍待实现。用户要求修复 GPT 接入问题，并将实现的科研场景与 **Codex + AITP** 比较；完成登录、通过回放或接通模块，都不能直接证明科研判断改善。
+**当前最重要的缺口，是 GPT 路线只有有限的真实运行证据，科研记忆的真实使用效果仍需验证。** 当前插件实现了限定范围的读取、实际上下文、压缩重启恢复和 scratch 写回；跨复杂真实项目的科学判断及完整主文档维护仍需验证。会话持久化、资料读取、搜索和选择卡已有基础；科研工作台已有正式客户端和可选的异步模拟 provider；Markdown 资料适配已有实现，更多资料类型及科学判断验证仍待推进。用户要求修复 GPT 接入问题，并将实现的科研场景与 **Codex + AITP** 比较；完成登录、通过回放或接通模块，都不能直接证明科研判断改善。
 
 本文供接手者共同质疑、开发和纠错。它集中记录问题、依据、后果和可区分的修正验证，不取代架构、开发规划或科研场景文档。下文的“漏洞”包括**设计未闭合、已查明的实现缺口、尚无验证证据**，并不表示每一项都是已触发的运行故障或安全漏洞。
 
@@ -31,7 +31,7 @@
 - 科学记录仍由普通文件拥有；任务、投递、提案和操作状态由运行时拥有；索引可重建。支持跨宿主继续科研，不要求另造一套科学结论数据库。
 - 应用底座已选定 Harness/Cordis；通过其服务、事件和插件实现模块化，不额外运行旧 Pi 任务循环。应用开发流程不成为上游可移植科研 Skills 的前置条件；其 owner 仍在 `aitp/plugins/aitp/`。
 - 用户进一步明确：AITP 要接入底层，重点是优先向 AI 暴露科研中重要的上下文作为记忆，不采用固定科研动作约束。运行时负责选择、读取、交付、恢复和更新重要信息，AI 根据实际问题自主选择下一步；Skills 提供方法。明确的用户要求仍须遵守，现有宿主权限保留，但缺一项前提不自动封锁研究。具体设计归 [10](docs/agent/10-project-workspace.md#aitp-runtime-integration)，开发依赖归 [14](docs/agent/14-implementation-blueprint.md#runtime-integration-plan)。
-- 所有哈希相关检查保持禁用。后续精确文本比较等非哈希写入策略仍是待确定的方案，不能借“修漏洞”恢复已禁用的版本、冲突或批准摘要检查。
+- 所有哈希相关检查保持禁用。本版 scratch 写入按具体原文定位唯一段落；不以内容摘要授权，也不恢复已禁用的版本或批准摘要检查。更广泛的科学审阅依赖和真实笔记协作策略仍需另定。
 - 用户已要求整理插件和任务、逐项实施并随实现维护文档。Claude 的 UI-1 是可复用的客户端基础；最新请求明确由 Codex 完成正式课题前端与异步模拟接口，后台科研记忆可以独立并行实现。文件分工和唯一实施顺序由 [14](docs/agent/14-implementation-blueprint.md#topic-redesign-review)维护；规划发布不等于功能已实现，也不授权真实笔记迁移、科研写入或计算任务。
 - 保留已有脏工作树、原始科研材料和历史证据。此次文档提交与推送按用户明确授权进行；本文和 Skill 不另行授予重置、清理、覆盖无关改动或发布私人研究资料的权限。
 
@@ -95,16 +95,18 @@
 - 自动上下文的四个触发器都是英文正则：重写、理论/推导/学习、跨主题、以往尝试。研究者常用的中文短指令只能靠会话 mode 带出知识索引；中文的重写请求不会进入整篇论证路径。现行组合中 knowledge 服务仍是占位，知识索引实际上从未被自动投递。
 - 除压缩外没有任何调用方触发 `context.refresh`。会话中源文改变后，下一次输入投递新摘录，旧摘录仍留在上下文，没有“前提已变”的提示。
 
-**设计已补齐，运行时待实现：** 将可恢复的缺失、越界和过大读取结果作为带原因的 omission，保持宿主路径权限，不让一个资料源失效摧毁整个会话。预算优先保留生效指令和当前推断所需材料；覆盖和可用性以观察为单位，来源包括自动交付和模型读取。压缩后根据实际可见历史重建可用性，不能把旧投递或指针当作仍在上下文中的原文。按读取结果和源文比较更新观察，不依赖英文关键词或哈希。实现与验收范围只在 14 维护，这些描述没有关闭 R-A/R-B/R-D。
+**当前 Harness 覆盖：** [B2/B3](docs/agent/14-implementation-blueprint.md#memory-backend-work)已实现有界来源读取、带原因的 omission、原始输入与模型工作项的区分，以及压缩重启后的来源重读和实际请求交付。选定材料、已交付观察和当前文本不再只靠旧 manifest 的 placed 标签表示。工程测试覆盖缺失来源、预算与恢复；它们不证明自动识别了全部科学前提，也没有修复保留的 Pi 程序。R-A/R-B/R-D 的历史复现继续保留，新的边界和反例随对应实现核查，不依赖英文关键词或哈希。
+
+**2026-10-23 复现与修复：** 先前选区失效时，resolver 的 missing 原因被 `contextFor` 丢弃，一般来源仍可读而 `omissions` 为空。现已将 missing／ambiguous 原因随一般可读来源交付，并覆盖根笔记选区；实际 AgentLoop 请求回归检查诊断原文，不将文件可读当作选区恢复。真实笔记副本另暴露目录链接可使整组读取失败，现只规范化作者链接的末尾斜杠，逐项报告目录、缺失文件及越界符号链接，保持资源 ID 和文件边界校验。历史失败和回归归[执行证据](agent/notes/harness-integration.md#research-memory-backend)。科学依赖是否充分仍需模型和研究者判断。
 
 **验收反例：**同一实质重写用不同语言表达；预算只删掉决定性条件；压缩仅保留结论；随后转向不依赖该条件的子问题。受影响判断应降为部分覆盖，独立工作仍能继续。不得把指针算作阅读，也不得把 ready 解释成物理正确。另加：选定材料移走后会话仍能回答并显示缺失；预算紧张时显式选择优先于自动背景；压缩后 manifest 不再把已移出上下文的观察报告为可用。设计归 11，P1 契约和验证归 14。
 
 <a id="q03"></a>
 ### Q03：自适应行动选择还停留在设计判断，缺少可检验的行为契约
 
-**性质：工作态归属已有设计，生产、恢复与科研行为仍未实现验证。** [行动选择表和循环](docs/agent/10-project-workspace.md#research-control)说明了查知识、读原文、推导、比较代码、实现和规划的使用条件；它尚未成为已执行过的科研机制。旧 Pi 的[科研工具入口](agent/packages/runtime/src/tools/research/index.ts)也仍不可用，不能据此推断 Harness 通用工具不可用。
+**性质：工作态生产与恢复已有工程实现，自适应科研行为仍需验证。** [行动选择表和循环](docs/agent/10-project-workspace.md#research-control)说明了查知识、读原文、推导、比较代码、实现和规划的使用条件；已交付记忆不能证明模型会选择合适的科研动作。旧 Pi 的[科研工具入口](agent/packages/runtime/src/tools/research/index.ts)也仍不可用，不能据此推断 Harness 通用工具不可用。
 
-[11 的显式工作项](docs/agent/11-research-memory.md#working-memory-items)已明确由 task/working-memory 服务拥有：当前缺口、简短结果与局限、失败路线及重启条件、方法采用范围、建议下一步、待整合成果。模型通过非阻塞工具增补、修订或退役自己的暂定项；用户原话、完整选择答复和实际来源观察各保留归属。它保存可检查的工作说明，不采集私有推理轨迹，也不要求每次工具调用产生决策卡或规划文件。实际生产工具、重放投影和请求交付仍未接通。
+[11 的显式工作项](docs/agent/11-research-memory.md#working-memory-items)已明确由 task/working-memory 服务拥有：当前缺口、简短结果与局限、失败路线及重启条件、方法采用范围、建议下一步、待整合成果。模型通过非阻塞工具增补、修订或退役自己的暂定项；用户原话、完整选择答复和实际来源观察各保留归属。它保存可检查的工作说明，不采集私有推理轨迹，也不要求每次工具调用产生决策卡或规划文件。当前 `research_working_update`、已有 Session 记录的重放投影和实际请求交付已接通，检查范围归 [B2/B3](docs/agent/14-implementation-blueprint.md#memory-backend-work)；专门的 Skill 采用和科学行为评估仍待完成。
 
 可从原任务中的缺口、选定动作、预期能区分的结果和实际结果开始，复用已有任务/事件记录。科学理由允许多条合理路线；记忆交付／恢复检查和科学行为评估分别判定。动作表是选择提示，不是执行白名单。
 
@@ -134,6 +136,10 @@
 
 新 UI 将资源放在全局面板阅读区或会话 dock tab，比较两个来源时使用单个 comparison tab。每个区域／tab 保留自己的 resource、locator 和阅读位置；Sources & memory 必须显示实际交付和当前可用状态。新原型展示这些状态，不能替代引用、会话外读取和观察投影的运行证据。
 
+**2026-10-23 复现与修复：** 浏览器可见的 `B holds only under A` 曾无法匹配原文 `**B** holds only under **A**`。现以 Markdown 解析后的文本建立可检查的唯一原文 UTF-16 区间，提交时由服务端确认并固定该区间；重复文字保持 ambiguous，原文改变后保持 missing，不猜测重定位。普通文字、强调、链接标签和代码已有回归；不能证明对应关系的数学排版、跨来源或特殊渲染选区明确不可附加。实际 Chromium 又发现输入框聚焦会先清空原生选区，现于当前阅读范围内提前捕获，并在清除或切换范围后失效。[执行证据](agent/notes/harness-integration.md#research-memory-backend)保留初次浏览器失败及最终验收结果。
+
+**当前 Harness 覆盖：** 任务卡和 Sources & memory 已通过真实 `aitp-session` 资源读取现有 Session 接受事件、原始输入和具名请求快照；打开来源另读当前文件，不替换历史快照。浏览器验证覆盖最初为空随后提交科研输入的订阅竞态。逐文件链接的交付状态仍保持未知，不从上下文正文推断规则已采用；规则／Skill 和更广泛笔记投影仍未接通。证据归[原有记录](agent/notes/harness-integration.md#research-memory-backend)。
+
 **性质：实现缺口与契约演进风险。** 10 已提出 Global origin、host/root 地址和“当时实际交付的片段”。当前 [SessionMeta](agent/packages/protocol/src/sessions.ts)仍要求 location，[服务端](agent/packages/server/src/app.ts)要求识别出的科研位置。新提案不能直接作为已有 API 调用。
 
 [Markdown 渲染](agent/apps/workbench/src/Markdown.tsx)仍使用 `skipHtml`，显式 HTML anchor 不会按设计呈现；全局 DOM ID 查找和跨文件打开也未实现完整的 pane/locator 语义。历史回答中的引用、当前文件、同名章节和两个分屏可能因此不能准确对应。过去的同页修复不证明这些问题都已解决。
@@ -143,19 +149,25 @@
 **验收反例：**同文件双视图、跨文件显式 anchor、重复标题、移动后找不到目标、来源在交付后改变，以及没有项目的知识讨论。旧会话仍应可读，不自动继承旧任务的执行权限。目标归 [P1 契约](docs/agent/10-project-workspace.md#p1-contract-decisions-origins-authority-and-citations)。
 
 <a id="q06"></a>
-### Q06：正确写回既缺执行链，也有无法被“保存成功”证明的语义问题
+### Q06：scratch 写回已有执行链，科学整合仍不能由“保存成功”证明
 
-[16 的重设计提案](docs/agent/16-topic-centred-redesign.md#synchronization)提出并发、持久确认、部分或未知结果、恢复及上下文失效的后台接入约束，不指定存储或准备日志算法。提交后断线不等于未保存，前端须保留操作标识以便后台复核；撤销也不能覆盖后来的工作。研究者随后明确允许超越现有科研记忆格式，要求课题与子课题直观可见、点击看细节，并方便 AI 整理读写。随后进一步明确：本侧做好界面并保留接口，后台由另一侧继续实现。新版提案因此明确课题层级、文档和资源的数据视图及可序列化读写契约，不规定持久化格式或迁移笔记；原型加入课题卡片、子课题下钻、资料入口与分区页签。现有 UI 的子课题和资料主要是文字，缺少层级/资源目标契约，不能只靠样式调整落地。[原型](docs/agent/prototype/topic-workspace/README.md)仍只验证合成交互，不能关闭真实读写与恢复缺口。
+**后台实现，2026-10-23：** 用户在定位和任务拆分后明确要求 rebase main 并实施。分支已基于 `768bc6783e`，新增 [科研记忆服务](packages/research/research-memory/README.md)和[浏览器适配插件](packages/client/ui-aitp-backend/README.md)，沿用 AITP 的 `research.md` 范围与选择性写回语义。源文件、已有 Session 原话/工作项和可重建索引各有归属；模型可判断不写、暂存或准备精确修改。实际请求、压缩重启、隔离副本写入和界面来源传递已有工程测试，证据及完整边界由 [14 的 B1–B6](docs/agent/14-implementation-blueprint.md#memory-backend-work)维护。专门 Skill 机制后置，真实笔记写入、科研质量改善和发布不在本轮完成声明内。
 
-**性质：实现缺口、待选写入策略和科学保真风险。** [DocumentService](agent/packages/core/src/documents/index.ts)尚未实现。[写回规则](docs/agent/11-research-memory.md#memory-writeback)已经规定归属和传播，但“提案已保存”“任务已结束”“close_report 已发出”都不等于科学记录实际更新。
+人的提问、修正和完整选择答复保存在已有会话记录并关联课题；对后续研究有持续意义的决定、未解问题、失败原因和结果才整合进科学正文。AI 决定是否值得写、写到哪里、哪些使用段受影响，后台保证定位、应用结果和恢复事实可检查。只改子方向下一步不改父笔记；结论或限制变化才检查父级实际使用段。范围不明不能按最近目录猜归属，决定理由没有记录不能补写成用户动机。原型修订号与上游文件保护不能自动视为已选定的科研并发策略，本版 scratch writer 采用精确唯一段落定位和协作式单写者；不声称抵御任意外部编辑或跨文件事务。
+
+[16 的重设计提案](docs/agent/16-topic-centred-redesign.md#synchronization)提出并发、持久确认、部分或未知结果、恢复及上下文失效的后台接入约束，不指定存储或准备日志算法。提交后断线不等于未保存，前端须保留操作标识以便后台复核；撤销也不能覆盖后来的工作。研究者随后明确允许超越现有科研记忆格式，要求课题与子课题直观可见、点击看细节，并方便 AI 整理读写。随后进一步明确：本侧做好界面并保留接口，后台由另一侧继续实现。新版提案因此明确课题层级、文档和资源的数据视图及可序列化读写契约，不规定持久化格式或迁移笔记；原型加入课题卡片、子课题下钻、资料入口与分区页签。当前研究地图、课题下钻和材料入口已消费共享身份与异步接口，真实 Markdown 后台已接通限定 scratch 写回和刷新。[原型](docs/agent/prototype/topic-workspace/README.md)仍只验证合成交互，不能关闭真实读写与恢复缺口。
+
+**性质：后续真实笔记及审阅整合策略、科学保真风险。** 旧 Pi 基线的 [DocumentService](agent/packages/core/src/documents/index.ts)仍是未实现的历史接口；当前 Harness 路线由上述科研记忆插件承接。[写回规则](docs/agent/11-research-memory.md#memory-writeback)已经规定归属和传播，但“提案已保存”“任务已结束”“close_report 已发出”都不等于科学记录实际更新。
 
 实现必须保留完整受影响论证、条件、有效失败和未完成部分；结论改变时检查 opening 和真正依赖它的段落，不能只追加新结论。无持久变化或只读任务不写。中途保存不应强制结束任务，停止条件也不应丢掉刚得到的重要结果。
 
-任务层目前也没有“待整合成果”的状态：ActiveTask 和 [close_report](agent/packages/protocol/src/cards.ts) 不记录待写回的提案、no-change 结论或已知未检查的使用处。跨宿主继续（Q08）因此看不到它们，换任务后也会随对话一起被压缩。审阅还需拿到提案对应的约定修订（Q01），才能检查改动是否越出约定范围。
+旧 Pi 的 ActiveTask 和 [close_report](agent/packages/protocol/src/cards.ts) 不记录待写回提案或已知未检查的使用处。当前 Harness 插件已从已有工具记录恢复提案、no-change 和 remainingUses，保留原始准备理由及结果；它不自动认定科学整合完成。更广泛的跨宿主携带（Q08）及独立审阅对应科学约定（Q01）仍需后续接入。
 
 私有格式试验的后续核对提示了一个更窄的风险：部分输出把输入中已给出的依赖关系进一步写成研究者选择的明确理由，必须区分已给事实与动机推断；不能把它概括成凭空编造依赖，也不能据此认定指南是原因。私人试验材料未纳入本仓库，这里不宣称公开独立复现。可公开复用的反例是“只给出决定、不提供研究者动机，检查写回是否将推断当成明确理由”。决定字段必须允许“未记录”；推断的理由应标明推断，审阅检查其出处。
 
-并发方面，精确文本和声明依赖比较仍是 P3 的提议，不是已经确认的保护。外部编辑者保持可写时，检查与应用之间仍可能有竞争，多文件更改也不能承诺外部原子可见。应先选定可接受的非哈希策略、遇到歧义的停止条件及部分写入恢复方式。
+并发方面，B5 已实现 scratch 的唯一原文段落定位、串行应用、读回及部分/未知结果恢复；不恢复哈希或版本批准检查。科学审阅对依赖段变化的失效处理和真实笔记协作仍需后续设计。外部编辑者保持可写时，检查与应用之间仍可能有竞争，多文件修改也不承诺外部原子可见。
+
+**2026-10-23 复现与修复：** 答案正文含嵌套 `### Limitations` 时，修改正文而保留独立条件输入曾产生新旧条件及重复标题；原复现仅检查预览，未应用源文件。现比较正文与独立字段各自的变化：只有一方变化时采用该方，两方一致只保留一次，两方各自改成不同内容或结构含糊时拒绝预览。回归同时检查实际应用读回、原有标题／分隔符及无关正文保留。[执行证据](agent/notes/harness-integration.md#research-memory-backend)保留原失败与修复，不能据此推断模型编辑判断已获科研验收。
 
 **验收反例：**副本中存在外部编辑、改动范围之外的关键前提变化、中途只成功写入一个文件、过时 opening 和一个未检查的使用处。需展示提案、实际应用、读回和剩余限制。先在 scratch 验证，真实路径只按后续明确范围进入；不能用 reset/restore 覆盖别人的工作。
 
@@ -184,7 +196,7 @@
 <a id="q09"></a>
 ### Q09：知识库、文献库和代码视图已有设计，但材料适配能力仍为空缺
 
-[12 的 Harness 映射](docs/agent/12-desktop-interface.md#harness-integration-map-and-missing-backend-information)已明确：右 dock 仅属于打开的会话且最多两个 pane；无会话浏览走全局面板，共用 reader，不能为打开资料伪造会话。Harness Workspaces 保持唯一项目列表，课题是其内部视图。[正式课题客户端](packages/client/ui-aitp-research/README.md)已接入异步适配器、框架 resource protocol 和同列课题树；可选 fixture 支持课题层级、材料阅读及内存修改反馈。真实研究根读取、持久化和模型上下文服务仍需由后台连接，浏览器里的成功修改不能替代这些能力。
+[12 的 Harness 映射](docs/agent/12-desktop-interface.md#harness-integration-map-and-missing-backend-information)已明确：右 dock 仅属于打开的会话且最多两个 pane；无会话浏览走全局面板，共用 reader，不能为打开资料伪造会话。Harness Workspaces 保持唯一项目列表，课题是其内部视图。[正式课题客户端](packages/client/ui-aitp-research/README.md)已接入异步适配器、框架 resource protocol 和同列课题树，并以[研究地图](docs/agent/12-desktop-interface.md#research-map)组织：总览按方向列出课题，聚焦某个课题时显示其分支和带条件的当前认识，课题页与材料页通过位置路径和返回保持连续；结构只取自记录的方向、父课题和作用说明。可选 fixture 支持多层课题、分页与部分读取、材料阅读及内存修改反馈。可选后台已连接配置根的 Markdown 读取、scratch 写回及模型上下文；地图、带来源的提问和保存刷新已通过真实浏览器联调；模型请求用确定性替身检查来源和交付内容，不据此声称科研判断已验证。浏览器成功、后台工程测试与真实科研验收仍分别表述。
 
 **性质：计划内的实现缺口，不应伪装为已完成能力。** [knowledge](agent/packages/core/src/knowledge/index.ts)、[works](agent/packages/core/src/works/index.ts)、[checkouts](agent/packages/core/src/checkouts/index.ts)等服务是占位；上下文中的相应分支不等于能取得真实知识、版本和代码资料。
 
@@ -201,13 +213,13 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 用户要求结合具体情景细化插件职责。[场景—插件协作设计](docs/agent/10-project-workspace.md#scenario-plugin-map)连接课题主页、文献、知识、代码、Skill 库、蒸馏、协作规则和审阅，共用来源观察、工作记忆、上下文及文档修改服务。课题主页数据和领域视图归科研记录插件，工作台承载视图；知识等插件提供显式链接，由科研记录的有界受影响使用查询统一汇集。Skill 候选 provider 检索并包装相关条件，主模型判断适用性并写入工作项。该设计已细化；接口、可替换性和完整场景行为仍未实现验证。唯一责任分配表归 [14](docs/agent/14-implementation-blueprint.md#development-crosswalk)，适用性缺口见 [Q16](#q16)。
 
-用户已要求 AITP 接入底层，并明确反对固定科研动作约束。[运行时接入设计](docs/agent/10-project-workspace.md#aitp-runtime-integration)改以记忆读取、相关性／重要性选择、上下文交付、压缩恢复和结果反馈为主。工具 guard 时序、文件工具不能覆盖全部写入等源码发现保留在集成证据，只有在具体任务明确要求相应硬限制时才需要据此选实现；它们不是当前记忆方案的前置条件。类型化事件内存提交与实际落盘仍须区分。此次是设计核查，尚非科研服务验收。
+用户已要求 AITP 接入底层，并明确反对固定科研动作约束。[运行时接入设计](docs/agent/10-project-workspace.md#aitp-runtime-integration)改以记忆读取、相关性／重要性选择、上下文交付、压缩恢复和结果反馈为主。工具 guard 时序、文件工具不能覆盖全部写入等源码发现保留在集成证据，只有在具体任务明确要求相应硬限制时才需要据此选实现；它们不是当前记忆方案的前置条件。类型化事件内存提交与实际落盘仍须区分。首个 Markdown 服务已实现有界记忆交付与恢复；工程验收不等于科学适用性验收。
 
 **顺序与宿主协调：**旧 P2a→P2b→P2c→P2d→P3 把产品交付顺序误当成技术依赖，当前由 [14 的唯一步骤定义](docs/agent/14-implementation-blueprint.md#next-implementation-slice)取代，本文不另列“先做”的版本。无界面工作记忆与 Markdown 提案／审阅不等待完整阅读器或原生桌面；具体依赖仍须真实接通。已有 goal、goal-round driver、plan mode、todo、workspace grouping 和压缩摘要的复用／扩展边界已加入 10；配置没有因文档修改而改变。目标轮次会重发目标但也要求使用当前持久状态，因此“覆盖后来限制”仍是待检验假设，不能沿用 Pi 复现作为 Harness 结论。
 
-此前提出的 Codex/Claude Code 副本预演与现在要求的 [aitp-agent 对 Codex + AITP 对照](docs/agent/13-research-journeys.md#comparative-evaluation)都可暴露决定归属、caveat 和前提变化问题，但不能互相替代：前者不证明 Harness 已有恢复／写回机制，后者需匹配材料、方法来源、任务和可观察配置，并保留无法匹配的限制。受控 apply 仍需写入策略、真实审阅／评估及恢复证据；真实研究路径另按已明确范围进入。
+此前提出的 Codex/Claude Code 副本预演与现在要求的 [aitp-agent 对 Codex + AITP 对照](docs/agent/13-research-journeys.md#comparative-evaluation)都可暴露决定归属、caveat 和前提变化问题，但不能互相替代：前者不证明 Harness 已有恢复／写回机制，后者需匹配材料、方法来源、任务和可观察配置，并保留无法匹配的限制。scratch apply 的协作式单写者策略与恢复已有实现；独立审阅／评估仍待接入，真实研究路径另按明确范围进入。
 
-**迁移后的实现缺口：**Harness 提供服务依赖、生命周期、模型工具、子任务和 UI 插槽；科研服务尚未据此完成。旧 Pi 的静态 `compose`/`registerRuntime` 和 [MethodIndex](agent/packages/core/src/methods/index.ts)、[MethodUseService](agent/packages/runtime/src/methods/index.ts)占位只解释旧基线，不是新宿主能力清单。具体接口须声明数据 owner、依赖、兼容/升级方式、未就绪行为和旧任务处理；插件消失不能放开原本受限的动作。共享进程插件不等于安全隔离。
+**迁移后的实现边界：**Harness 提供服务依赖、生命周期、模型工具、子任务和 UI 插槽；首个 Markdown 科研记忆服务已接通，更多领域 provider、独立审阅和规则采用仍缺实现。旧 Pi 的静态 `compose`/`registerRuntime` 和 [MethodIndex](agent/packages/core/src/methods/index.ts)、[MethodUseService](agent/packages/runtime/src/methods/index.ts)占位只解释旧基线，不是新宿主能力清单。具体接口须声明数据 owner、依赖、兼容/升级方式、未就绪行为和旧任务处理；插件消失不能放开原本受限的动作。共享进程插件不等于安全隔离。
 
 **验收方向：**在接通的科研场景中替换上下文 provider，笔记和文献消费者继续工作；恢复任务时原始约定、来源与实际可用材料仍可检查。覆盖缺少可选插件、工具重名、来源与指令混同、运行中服务失效，以及 UI 修改无需迁移科研记录。旧 `agent/streams.json` 不分配新树的文件责任；实施前确定具体 Harness provider/consumer 路径与单一集成人。当前授权的迁移/GPT 工作及后续科研范围只在 14 维护。
 
@@ -220,7 +232,7 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 **验收方向：**同一材料只改变一个前提或委托，观察行动和结论是否相应改变；记录漏掉的条件、无效步骤、用户纠偏及维护成本。比较普通助手时尽量匹配模型、资料、权限与预算，并说明无法匹配之处。不要先建设庞大评估平台，也不要从一次成功试点推导普遍科学能力。
 
-用户已明确要求 **aitp-agent 与 Codex + AITP** 按实现功能对应的科研场景进行比较。[13 的对照设计](docs/agent/13-research-journeys.md#comparative-evaluation)维护材料、对照条件、观察结果和不可比较项。先区分工程回放、真实模型行为与研究者使用体验；模型／推理设置、工具能力、Skill 版本或权限无法匹配时，不把差异都归因于宿主。GUI 操作、跨宿主恢复、长期科研收益和无独立答案的开放物理问题可能只能部分测试或暂不能评判，应直接告知研究者缺少什么证据。当前没有运行这组对照，也没有相对优势结论。
+用户已明确要求 **aitp-agent 与 Codex + AITP** 按实现功能对应的科研场景进行比较。[13 的对照设计](docs/agent/13-research-journeys.md#comparative-evaluation)维护材料、对照条件、观察结果和不可比较项。先区分工程回放、真实模型行为与研究者使用体验；模型／推理设置、工具能力、Skill 版本或权限无法匹配时，不把差异都归因于宿主。GUI 操作、跨宿主恢复、长期科研收益和无独立答案的开放物理问题可能只能部分测试或暂不能评判，应直接告知研究者缺少什么证据。已完成的 C08/C16 有限 live pairs 及设置限制见 [执行记录](agent/notes/harness-integration.md#gpt-live-acceptance)；新后台的科学质量对照和更广场景仍未完成，也没有相对优势结论。
 
 真实界面还需验证长公式、同名资源、200% 缩放、缺失材料、键盘操作与恢复后的定位。原型的通过、程序能启动和研究者能顺利完成任务是不同证据。
 
@@ -296,6 +308,8 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 本次仅为迁入 `main` 限定真实 DeepSeek E2E：本 fork 自动 push／PR 不调用 live API，需手动 dispatch 并显式开启仓库变量；没有运行模型或把跳过标成验证通过。新的 [AITP validation](.github/workflows/aitp-validation.yml) 已在临时分支[实际运行通过](https://github.com/bhjia-phys/AITP-agent/actions/runs/39954328920)：使用普通 hosted Ubuntu，构建后串行执行完整主机／客户端类型检查、文档门禁及无凭据 GPT 回归。独立审阅后又补齐完整 Git 历史、事件对应的修改前基准和六个文档检查器测试文件；每个待合入提交仍须通过 CI。发布检查还发现旧的文档门禁把 AITP 手工维护范围误当成上游模板，导致历史来源、旧 Pi 字段与双语 README 链接被误报；本次按既有 owner 修正范围，代码、类型、行为与链接检查继续适用。其余上游专属自动化仍需适配。[14 的规范与就绪情况](docs/agent/14-implementation-blueprint.md#development-readiness)维护后续工作：无凭据 push CI 已有成功证据，继续处理上游专属配置、验证 PR 路径，再配置可满足的必需检查与审阅策略。当前没有声称流程已被远程强制落实，也没有据此关闭 GPT／科研对照缺口。
 
+2026-10-23 本次实现发布继续修正运行入口：继承的 enterprise-runner 矩阵仅在上游仓库运行，AITP hosted 工作流增加科研记忆、四组 UI 回归及两条 Chromium 路径，保留完整 Host／Client 类型检查和无凭据 GPT 检查。普通 `doc-sync`／`test:docs` 入口保留非 hash 门禁，排除六项摘要检查；CLI／配置目录仍核对双语正文，惰性跳过 pairing record。旧 archive baseline 因仅服务已禁用的 hash 校验而移除。此次实时核查 `main` 仍无保护，已有 protection ruleset 为 disabled；没有擅自启用强制策略。上述变更的本地及实际 PR 结果见[现有工程记录](agent/notes/harness-integration.md#research-memory-backend)；远程合并仍须核实后才报告完成。
+
 ## 后续开发怎样维护本文
 
 **开发、设计或架构修改改变了上述事实、问题、接口、适用场景或验收证据时，必须在同一工作变更中更新 `current.md`，再交接或宣称完成。** 这是研究者明确要求的仓库维护规则，不能等到下一次“整理文档”才补。
@@ -312,6 +326,6 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 ## 建议下一轮共同讨论的焦点
 
-实施顺序只看 [14 的下一实施步骤](docs/agent/14-implementation-blueprint.md#next-implementation-slice)，不在本文另选主文档／资料／UI 的先后。Claude 继续负责 UI 设计和客户端实现；Codex 负责 GPT／底层能力与共享接口集成。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
+实施顺序只看 [14 的下一实施步骤](docs/agent/14-implementation-blueprint.md#next-implementation-slice)，不在本文另选主文档／资料／UI 的先后。Claude 的研究地图已由 Codex 与后台整合；后续客户端、GPT／底层能力与共享接口工作按 14 的实际文件分工推进。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
 
-R-A、R-B、R-D 与压缩来源混同仍是 Pi 已复现缺陷，在新服务存在后须以相同反例重新核查。Q06/Q07 的写入与审阅策略必须在对应能力开放前明确；Q03/Q11/Q14 需要真实行为证据，Q15 的外部报告需要对应路线的复现与回归。设计文档补齐归属不关闭这些实现和验证缺口，后续状态随证据更新到原 owner。
+R-A、R-B、R-D 与压缩来源混同仍是 Pi 已复现缺陷；新后台已有对应缺失、预算和恢复工程检查，不能据此称旧程序已修复或所有变体已覆盖。Q06 的 scratch 写回策略已限定，Q07 的独立审阅和真实笔记策略仍待实现；Q03/Q11/Q14 需要真实行为证据，Q15 的外部报告需要对应路线的复现与回归。设计文档补齐归属不关闭这些实现和验证缺口，后续状态随证据更新到原 owner。

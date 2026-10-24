@@ -63,10 +63,12 @@
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-typert-protocol": "workspace:*",
     "@deepseek-ai/dsh-util-crypto": "workspace:*",
+    "@deepseek-ai/dsh-workspace": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "clsx": "^2.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "@deepseek-ai/dsh-research-memory": "workspace:*"
   },
   "files": [
     "locale/*.json",

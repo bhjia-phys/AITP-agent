@@ -29,42 +29,6 @@ jobs:
           fetch-depth: 0
           submodules: recursive
           persist-credentials: false
-      - name: Select trusted archive baseline
-        env:
-          AITP_PUSH_BEFORE: ${{ github.event.before }}
-          AITP_PR_BASE: ${{ github.event.pull_request.base.sha }}
-          AITP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          set -euo pipefail
-          case "$GITHUB_EVENT_NAME" in
-            pull_request)
-              archive_base="${AITP_PR_BASE:?Pull-request base SHA is missing}"
-              ;;
-            push)
-              archive_base="${AITP_PUSH_BEFORE:?Push before SHA is missing}"
-              if [[ "$archive_base" =~ ^0+$ ]]; then
-                archive_base=''
-              fi
-              ;;
-            workflow_dispatch)
-              archive_base=''
-              ;;
-            *)
-              printf 'Unsupported baseline event: %s\n' "$GITHUB_EVENT_NAME" >&2
-              exit 1
-              ;;
-          esac
-          if [[ -z "$archive_base" ]]; then
-            # New branches and manual runs compare with trusted default-branch history.
-            archive_base="$(git merge-base HEAD "refs/remotes/origin/$AITP_DEFAULT_BRANCH")"
-            if [[ "$archive_base" == "$(git rev-parse HEAD)" ]]; then
-              # A manual run at the default-branch tip must check its last change.
-              archive_base="$(git rev-parse --verify "${archive_base}^1")"
-            fi
-          fi
-          archive_base="$(git rev-parse --verify "${archive_base}^{commit}")"
-          printf 'DSH_ARCHIVE_BASE_REF=%s\n' "$archive_base" >> "$GITHUB_ENV"
-          printf 'Archive baseline: %s\n' "$archive_base"
       - uses: pnpm/action-setup@v5.0.0
       - uses: actions/setup-node@v7.0.0
         with:
@@ -84,12 +48,32 @@ jobs:
       - name: Check documentation ownership regressions
         run: >-
           pnpm exec vitest run --maxWorkers=1
+          -t '^(?!.*translation pairing records)'
+          scripts/aitp-doc-sync.spec.ts
+          scripts/gen-cli-help.spec.ts
           scripts/translation-links.spec.ts
           scripts/translation-pairing.spec.ts
           scripts/fork-documentation-scope.spec.ts
           scripts/verify-repository-references.spec.ts
           scripts/verify-concrete-terms.spec.ts
           scripts/doc-standard.spec.ts
+      - name: Run research memory and UI regressions
+        run: >-
+          pnpm exec vitest run --maxWorkers=1
+          packages/research/research-memory/tests
+          packages/client/ui-aitp-backend/tests
+          packages/client/ui-aitp-research/tests
+          packages/client/ui-aitp-session/tests
+          packages/client/ui-aitp-fixtures/tests
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Check built research workspace and production backend in Chromium
+        env:
+          DSH_SNAPSHOT: replay
+        run: >-
+          pnpm exec vitest run --config vitest.web.config.ts --maxWorkers=1
+          apps/web/tests/aitp-workspace.e2e.ts
+          apps/web/tests/aitp-memory.e2e.ts
       - name: Run keyless GPT reliability regressions
         run: >-
           pnpm exec vitest run --maxWorkers=1

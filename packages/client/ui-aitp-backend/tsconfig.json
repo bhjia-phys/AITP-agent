@@ -1,0 +1,57 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../api/gateway/tsconfig.client.json"
+    },
+    {
+      "path": "../../test-support/client-runtime"
+    },
+    {
+      "path": "../ui-aitp-research"
+    },
+    {
+      "path": "../../research/research-memory"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../workspace/workspace"
+    },
+    {
+      "path": "../locale/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-slots"
+    },
+    {
+      "path": "../../test-support/remote-mock"
+    },
+    {
+      "path": "../connection/tsconfig.client.json"
+    },
+    {
+      "path": "../ui-aitp-session"
+    },
+    {
+      "path": "../resources"
+    },
+    {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
+    {
+      "path": "../../core/session"
+    }
+  ]
+}
