@@ -66,7 +66,7 @@ jobs:
           packages/client/ui-aitp-session/tests
           packages/client/ui-aitp-fixtures/tests
       - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install --with-deps chromium
       - name: Check built research workspace and production backend in Chromium
         env:
           DSH_SNAPSHOT: replay

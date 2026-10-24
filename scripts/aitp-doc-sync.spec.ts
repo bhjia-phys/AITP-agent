@@ -126,7 +126,7 @@ describe('AITP CI routing', () => {
     for (const owner of ['backend', 'research', 'session', 'fixtures']) {
       expect(memory).toContain(`packages/client/ui-aitp-${owner}/tests`)
     }
-    expect(commands).toContain('pnpm exec playwright install --with-deps chromium')
+    expect(commands).toContain('pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install --with-deps chromium')
     const browser = commands.find(command => command.includes('--config vitest.web.config.ts'))
     expect(browser).toContain('apps/web/tests/aitp-memory.e2e.ts')
     expect(browser).toContain('apps/web/tests/aitp-workspace.e2e.ts')
