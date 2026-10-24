@@ -238,6 +238,8 @@ implementation of a dependency; product acceptance still requires connecting rea
 Keep P0–P5 as user-visible capability/acceptance groups while using the workstreams below
 to organize development. Use Harness service/provider/consumer packages and client contributions as the implementation homes; no new repository or process is required per line. Implement the selected sequence incrementally; the table does not activate every future capability at once.
 
+Follow the confirmed [plugin ownership and assembly principle](10-project-workspace.md#plugin-owned-implementation) for every selected slice. Before implementation, identify the existing plugin to extend or the coherent capability needing a new plugin, its provided/consumed interfaces, data owner and composition entry. Keep these details with the package README and task/PR scope. Assign feature logic to the plugin and wiring to the profile/bundle; shared definitions and composition retain one integrator. Independent plugin checks and a real assembled-route check establish different things. This requirement governs maintainable implementation; it does not activate all proposed plugins or prescribe the agent's scientific actions.
+
 ### Small shared preparation
 
 The integrator and affected owners first agree the needed slice of five interfaces, using
