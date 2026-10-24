@@ -866,6 +866,34 @@ it('retains the question and shows a failed submission without opening a convers
   expect(face.openSession).not.toHaveBeenCalled()
 })
 
+it('captures a Tab gesture before focus can overtake the queued selection change', () => {
+  const added = vi.spyOn(document, 'addEventListener')
+  const removed = vi.spyOn(document, 'removeEventListener')
+  try {
+    const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>()
+    const { leavePanel } = panel(resources(), { askQuestion })
+    openChild()
+    fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+    const input = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Ask about this research' })
+    const selection = document.getSelection()!
+    const range = document.createRange()
+    range.selectNodeContents(screen.getByText('The full argument keeps assumption A.'))
+    selection.removeAllRanges()
+    selection.addRange(range)
+    // The browser has not delivered selectionchange when Tab starts its default focus move.
+    fireEvent.keyDown(document, { key: 'Tab' })
+    selection.removeAllRanges()
+    act(() => { input.focus() })
+    expect(screen.getByText('Selected passage')).toBeDefined()
+    expect(screen.getByRole('blockquote').textContent).toBe('The full argument keeps assumption A.')
+    const listener = added.mock.calls.filter(([type, , options]) => type === 'keydown' && options === true).at(-1)?.[1]
+    expect(listener).toBeDefined()
+    leavePanel()
+    expect(removed).toHaveBeenCalledWith('keydown', listener, true)
+    expect(askQuestion).not.toHaveBeenCalled()
+  } finally { added.mockRestore(); removed.mockRestore() }
+})
+
 it('retains a source gesture across native focus, clears stale candidates and releases the browser listener', () => {
   const added = vi.spyOn(document, 'addEventListener')
   const removed = vi.spyOn(document, 'removeEventListener')

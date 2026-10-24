@@ -41,8 +41,16 @@ export function WorkspaceQuestion({ t, workspaceId, location, reading, ask, open
   // Cache only this reading pane's browser gesture; attaching still requires entering the composer.
   useEffect(() => {
     const document = reading.current?.ownerDocument
+    const rememberBeforeTab = (event: KeyboardEvent): void => {
+      if (event.key === 'Tab') rememberSelection()
+    }
     document?.addEventListener('selectionchange', rememberSelection)
-    return () => { document?.removeEventListener('selectionchange', rememberSelection) }
+    // Tab can move focus before the browser delivers its queued selectionchange.
+    document?.addEventListener('keydown', rememberBeforeTab, true)
+    return () => {
+      document?.removeEventListener('selectionchange', rememberSelection)
+      document?.removeEventListener('keydown', rememberBeforeTab, true)
+    }
   }, [reading, rememberSelection])
   const id = useId()
   const topicId = location.kind === 'map' ? location.focusId : location.topicId

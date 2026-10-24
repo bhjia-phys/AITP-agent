@@ -136,7 +136,7 @@
 
 新 UI 将资源放在全局面板阅读区或会话 dock tab，比较两个来源时使用单个 comparison tab。每个区域／tab 保留自己的 resource、locator 和阅读位置；Sources & memory 必须显示实际交付和当前可用状态。新原型展示这些状态，不能替代引用、会话外读取和观察投影的运行证据。
 
-**2026-10-23 复现与修复：** 浏览器可见的 `B holds only under A` 曾无法匹配原文 `**B** holds only under **A**`。现以 Markdown 解析后的文本建立可检查的唯一原文 UTF-16 区间，提交时由服务端确认并固定该区间；重复文字保持 ambiguous，原文改变后保持 missing，不猜测重定位。普通文字、强调、链接标签和代码已有回归；不能证明对应关系的数学排版、跨来源或特殊渲染选区明确不可附加。实际 Chromium 又发现输入框聚焦会先清空原生选区，现于当前阅读范围内提前捕获，并在清除或切换范围后失效。[执行证据](agent/notes/harness-integration.md#research-memory-backend)保留初次浏览器失败及最终验收结果。
+**2026-10-23 复现与修复：** 浏览器可见的 `B holds only under A` 曾无法匹配原文 `**B** holds only under **A**`。现以 Markdown 解析后的文本建立可检查的唯一原文 UTF-16 区间，提交时由服务端确认并固定该区间；重复文字保持 ambiguous，原文改变后保持 missing，不猜测重定位。普通文字、强调、链接标签和代码已有回归；不能证明对应关系的数学排版、跨来源或特殊渲染选区明确不可附加。实际 Chromium 又发现输入框聚焦会先清空原生选区，现于当前阅读范围内提前捕获，并在清除或切换范围后失效。远程 Chromium 随后复现立即 Tab 时异步 `selectionchange` 尚未到达，现于 Tab 默认焦点动作前同步捕获；新确定性回归可令旧实现失败，原真实浏览器用例在修复后通过。[执行证据](agent/notes/harness-integration.md#research-memory-backend)保留初次浏览器失败及最终验收结果。
 
 **当前 Harness 覆盖：** 任务卡和 Sources & memory 已通过真实 `aitp-session` 资源读取现有 Session 接受事件、原始输入和具名请求快照；打开来源另读当前文件，不替换历史快照。浏览器验证覆盖最初为空随后提交科研输入的订阅竞态。逐文件链接的交付状态仍保持未知，不从上下文正文推断规则已采用；规则／Skill 和更广泛笔记投影仍未接通。证据归[原有记录](agent/notes/harness-integration.md#research-memory-backend)。
 
@@ -308,7 +308,7 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 本次仅为迁入 `main` 限定真实 DeepSeek E2E：本 fork 自动 push／PR 不调用 live API，需手动 dispatch 并显式开启仓库变量；没有运行模型或把跳过标成验证通过。新的 [AITP validation](.github/workflows/aitp-validation.yml) 已在临时分支[实际运行通过](https://github.com/bhjia-phys/AITP-agent/actions/runs/39954328920)：使用普通 hosted Ubuntu，构建后串行执行完整主机／客户端类型检查、文档门禁及无凭据 GPT 回归。独立审阅后又补齐完整 Git 历史、事件对应的修改前基准和六个文档检查器测试文件；每个待合入提交仍须通过 CI。发布检查还发现旧的文档门禁把 AITP 手工维护范围误当成上游模板，导致历史来源、旧 Pi 字段与双语 README 链接被误报；本次按既有 owner 修正范围，代码、类型、行为与链接检查继续适用。其余上游专属自动化仍需适配。[14 的规范与就绪情况](docs/agent/14-implementation-blueprint.md#development-readiness)维护后续工作：无凭据 push CI 已有成功证据，继续处理上游专属配置、验证 PR 路径，再配置可满足的必需检查与审阅策略。当前没有声称流程已被远程强制落实，也没有据此关闭 GPT／科研对照缺口。
 
-2026-10-23 本次实现发布继续修正运行入口：继承的 enterprise-runner 矩阵仅在上游仓库运行，AITP hosted 工作流增加科研记忆、四组 UI 回归及两条 Chromium 路径，保留完整 Host／Client 类型检查和无凭据 GPT 检查。普通 `doc-sync`／`test:docs` 入口保留非 hash 门禁，排除六项摘要检查；CLI／配置目录仍核对双语正文，惰性跳过 pairing record。旧 archive baseline 因仅服务已禁用的 hash 校验而移除。此次实时核查 `main` 仍无保护，已有 protection ruleset 为 disabled；没有擅自启用强制策略。[PR 14](https://github.com/bhjia-phys/AITP-agent/pull/14) 首轮已通过构建、完整双端类型检查、37 项文档门禁、246 项文档回归和 266 项记忆／UI 回归；Chromium 安装命令因未从声明依赖的 Web 包执行而失败，已修正并等待复跑，未把跳过的浏览器／GPT 阶段算通过。另已保留 npm 排练获取未发布私有包、实验性 VFS 预览引用 main 原有源码路径的失败；源码仓库 Harness 的成功不能代表这些发布载荷可用。详细结果见[现有工程记录](agent/notes/harness-integration.md#research-memory-backend)；远程合并仍须核实后才报告完成。
+2026-10-23 本次实现发布继续修正运行入口：继承的 enterprise-runner 矩阵仅在上游仓库运行，AITP hosted 工作流增加科研记忆、四组 UI 回归及两条 Chromium 路径，保留完整 Host／Client 类型检查和无凭据 GPT 检查。普通 `doc-sync`／`test:docs` 入口保留非 hash 门禁，排除六项摘要检查；CLI／配置目录仍核对双语正文，惰性跳过 pairing record。旧 archive baseline 因仅服务已禁用的 hash 校验而移除。此次实时核查 `main` 仍无保护，已有 protection ruleset 为 disabled；没有擅自启用强制策略。[PR 14](https://github.com/bhjia-phys/AITP-agent/pull/14) 首轮已通过构建、完整双端类型检查、37 项文档门禁、246 项文档回归和 266 项记忆／UI 回归；首轮 Chromium 安装命令归属错误已修正；第二轮又在实际浏览器复现立即 Tab 焦点切换丢失选区，已有能令旧代码失败的确定性回归和同步捕获修复。后续整轮结果由该 PR 和工程记录保留，未把失败后跳过的阶段算通过。另已保留 npm 排练获取未发布私有包、实验性 VFS 预览引用 main 原有源码路径的失败；后者改用现成公共入口后，原打包命令已通过，部署仍未验证。源码仓库 Harness 的成功不能代表 npm 发布载荷可用。详细结果见[现有工程记录](agent/notes/harness-integration.md#research-memory-backend)；远程合并仍须核实后才报告完成。
 
 ## 后续开发怎样维护本文
 

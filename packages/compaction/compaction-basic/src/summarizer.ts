@@ -12,7 +12,7 @@ import type {
 } from '@deepseek-ai/dsh-llm'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { SessionSeq } from '@deepseek-ai/dsh-session'
-import { estimateToolsTokens } from '@deepseek-ai/dsh-token-meter/src/estimate.ts'
+import { estimateToolsTokens } from '@deepseek-ai/dsh-token-meter/estimate'
 import type { TokenMeasurement } from '@deepseek-ai/dsh-token-meter'
 
 interface SummaryConfig {
