@@ -36,9 +36,11 @@ AITP_RESEARCH_ROOT=/absolute/path/to/scratch-research \
 | `maxOperationBytes` | 2097152 | Complete UTF-8 runtime operation receipt |
 | `maxResultCharacters` | 12000 | Complete model write-tool result bound |
 
-Root, topic and branch accounts retain their authored meaning. Explicit Markdown relationships establish parents and material owners; directories alone do not. Shared materials, duplicate anchors, missing passages and ambiguous ownership require a narrower origin. The parser recognizes existing headings and leaves unfamiliar scientific text available without inventing answers or choices. Path-derived IDs survive restart; external renames are unresolved. Observation tokens describe reads and are not hash-based file protection.
+Root, topic and branch accounts retain their authored meaning. Explicit Markdown relationships establish parents and material owners; directories alone do not. Shared materials, duplicate anchors, missing passages and ambiguous ownership require a narrower origin. The parser recognizes existing headings and leaves unfamiliar scientific text available without inventing answers or choices. Path-derived IDs survive restart; external renames are unresolved. Observation tokens describe reads and are not hash-based file protection. Unavailable configured roots are isolated; access still requires a successful canonical match for the requested root.
 
 Context reads select recognized question and current-answer sections as core account units, alongside the opening and binding conditions; a budget omission remains explicit. If source watching is unavailable, every read rescans, while an unchanged discovery snapshot keeps its pagination identity.
+
+Runtime cancellation reaches source-observation waits and fresh reads. Cancelling one caller detaches that wait without cancelling the service-owned shared scan; native file reads check cancellation between bounded reads.
 
 Questions retain the submitted words and selected origin. Browsing does not create a Session. An owner submission from the UI creates a normal Harness conversation; subsequent ordinary messages inherit its current scope. The runtime recovers original input, full question/options/answer records, provisional working items, source limitations and pertinent parent uses. Large contexts omit complete units with an explicit omission notice; `research_read_context` retrieves originals by reference. These rules prioritize relevant material but do not establish scientific correctness or comprehension.
 

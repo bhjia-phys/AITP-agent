@@ -146,7 +146,7 @@ export class ResearchMemory extends TypertRemoteService {
       }
       await Promise.allSettled(refreshing)
     }, 'research-memory: streams and source observations')
-    installRuntime(ctx, this.config, origin => this.contextFor(origin), createSessionRecovery(ctx, this.config))
+    installRuntime(ctx, this.config, (origin, signal) => this.contextFor(origin, signal), createSessionRecovery(ctx, this.config))
     installWriteTools(ctx, {
       maxResultCharacters: this.config.maxResultCharacters,
       resolveTarget: async (origin) => {
@@ -169,6 +169,13 @@ export class ResearchMemory extends TypertRemoteService {
     this.notifications.emit(root)
   }
 
+  /** Unavailable configured paths grant no access and do not disable other canonical matches. */
+  private async configuredRoots(root: string, signal?: AbortSignal): Promise<ResolvedConfig['roots']> {
+    const resolved = await Promise.allSettled(this.config.roots.map(async item => ({ ...item, path: await realpath(item.path) })))
+    signal?.throwIfAborted()
+    return resolved.flatMap(item => item.status === 'fulfilled' && item.value.path === root ? [item.value] : [])
+  }
+
   private async reader(workspaceId: WorkspaceId, signal?: AbortSignal, refresh = false): Promise<MarkdownWorkspace> {
     const lifetime = signal === undefined ? this.lifetime.signal : AbortSignal.any([signal, this.lifetime.signal])
     lifetime.throwIfAborted()
@@ -177,9 +184,8 @@ export class ResearchMemory extends TypertRemoteService {
     if (path === undefined) throw new RemoteError('research/workspace-missing', 'The Workspace is unavailable.', {})
     const root = await realpath(path)
     lifetime.throwIfAborted()
-    const allowed = await Promise.all(this.config.roots.map(async item => ({ ...item, path: await realpath(item.path) })))
-    lifetime.throwIfAborted()
-    if (!allowed.some(item => item.path === root)) throw new RemoteError('research/root-not-configured', 'This research root has not been configured for access.', {})
+    const allowed = await this.configuredRoots(root, lifetime)
+    if (allowed.length === 0) throw new RemoteError('research/root-not-configured', 'This research root has not been configured for access.', {})
     let observed = this.readers.get(root)
     if (observed === undefined) {
       observed = {
@@ -229,9 +235,7 @@ export class ResearchMemory extends TypertRemoteService {
 
   private async writer(workspaceId: WorkspaceId): Promise<ResearchChanges | undefined> {
     const reader = await this.reader(workspaceId)
-    const configured = this.config.roots.find(item => item.path === reader.root)
-      ?? (await Promise.all(this.config.roots.map(async item => ({ ...item, path: await realpath(item.path) }))))
-        .find(item => item.path === reader.root)
+    const configured = (await this.configuredRoots(reader.root))[0]
     if (configured?.stateDirectory === undefined) return undefined
     let changes = this.changes.get(reader.root)
     if (changes === undefined) {
@@ -252,9 +256,9 @@ export class ResearchMemory extends TypertRemoteService {
   async provider(request: { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<ResearchProvider> {
     signal.throwIfAborted()
     const reader = await this.reader(request.workspaceId, signal)
-    const configured = await Promise.all(this.config.roots.map(async item => ({ ...item, path: await realpath(item.path) })))
+    const configured = await this.configuredRoots(reader.root, signal)
     const writable = principalOf(this.ctx.invocation) === undefined
-      && configured.some(item => item.path === reader.root && item.writable && item.stateDirectory !== undefined)
+      && configured.some(item => item.writable && item.stateDirectory !== undefined)
     const observed = this.readers.get(reader.root)
     return { id: 'aitp-markdown', origin: 'runtime',
       ...(observed?.watchFailure === undefined ? {} : { notice: observed.watchFailure }), capabilities: {
@@ -496,10 +500,11 @@ export class ResearchMemory extends TypertRemoteService {
     if (principalOf(this.ctx.invocation) !== undefined) throw new RemoteError('research/owner-required', 'Research source writes, conversations and memory views are available to the workspace owner.', {})
   }
 
-  private async contextFor(origin: ResearchOrigin): Promise<ResearchContextRead> {
-    const reader = await this.reader(origin.workspaceId as WorkspaceId)
+  private async contextFor(origin: ResearchOrigin, signal?: AbortSignal): Promise<ResearchContextRead> {
+    const reader = await this.reader(origin.workspaceId as WorkspaceId, signal)
+    const options = signal === undefined ? undefined : { signal }
     if (origin.topicId === undefined && (origin.resourceId === undefined || origin.resourceId === resourceIdForPath('research.md'))) {
-      const root = await reader.readSource(resourceIdForPath('research.md'))
+      const root = await reader.readSource(resourceIdForPath('research.md'), options)
       if (!root.ok) return { entries: [], omissions: [root.error.message] }
       const omissions: string[] = []
       if (origin.anchor !== undefined || origin.selectedText !== undefined) {
@@ -508,7 +513,7 @@ export class ResearchMemory extends TypertRemoteService {
           ...(origin.selectedTextFormat === undefined ? {} : { selectedTextFormat: origin.selectedTextFormat }),
           ...(origin.selectedRange === undefined ? {} : { selectedRange: origin.selectedRange }),
           ...(origin.selectedText === undefined ? {} : { selectedText: origin.selectedText }), question: '',
-        })
+        }, options)
         if (!selected.ok) omissions.push(selected.error.message)
         else if (selected.value.selectedPassage === undefined) omissions.push(selected.value.reason ?? 'The original root selection could not be resolved.')
       }
@@ -521,7 +526,7 @@ export class ResearchMemory extends TypertRemoteService {
       ...(origin.selectedTextFormat === undefined ? {} : { selectedTextFormat: origin.selectedTextFormat }),
       ...(origin.selectedRange === undefined ? {} : { selectedRange: origin.selectedRange }),
       ...(origin.selectedText === undefined ? {} : { selectedText: origin.selectedText }), question: '',
-    })
+    }, options)
     const omissions = !resolved.ok ? [resolved.error.message] : resolved.value.status === 'resolved' ? []
       : [resolved.value.reason ?? `The original research selection is ${resolved.value.status}.`]
     // The explicit topic can still supply general evidence when its original selection is no longer valid.
@@ -529,7 +534,7 @@ export class ResearchMemory extends TypertRemoteService {
     if (topicId === undefined) return { entries: [], omissions: [
       ...omissions, 'No single topic has been selected; resolve the question origin before assuming an owner.',
     ] }
-    const read = await reader.readContext({ topicId, include: ['ancestors', 'work', 'resources'], maxCharacters: this.config.maxContextCharacters })
+    const read = await reader.readContext({ topicId, include: ['ancestors', 'work', 'resources'], maxCharacters: this.config.maxContextCharacters }, options)
     if (!read.ok) return { entries: [], omissions: [...omissions, read.error.message] }
     return {
       entries: [

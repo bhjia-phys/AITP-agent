@@ -10,7 +10,7 @@ The [research-memory plugin](../../packages/research/research-memory/README.md) 
 | Prepared edits and application outcomes | Scratch writer runtime directory outside the source tree | Durable operation ID, observed per-file outcome and separate current-source observation |
 | Browser data | Existing Harness resources | Generated Remote transport and invalidation followed by fresh reads |
 
-The root `research.md` is the project account. Explicit links determine topic parents and material ownership; directory proximity alone does not. Shared materials retain multiple possible owners. A question carries its workspace, topic, material and optional selected passage; unresolved ownership stays visible instead of choosing a nearby topic.
+The root `research.md` is the project account. Explicit links determine topic parents and material ownership; directory proximity alone does not. Shared materials retain multiple possible owners. An unavailable configured root does not disable another successfully authorized root. A question carries its workspace, topic, material and optional selected passage; unresolved ownership stays visible instead of choosing a nearby topic.
 
 Context reads select recognized question and current-answer sections as core account units, with explicit complete-unit budget omissions. A failed filesystem watcher triggers fresh discovery on reads; unchanged discovery retains its pagination identity, while changed sources or explicit refresh invalidate old cursors.
 

@@ -170,7 +170,7 @@ export function materialLocator(resource: Pick<ResourceReference, 'target'>): st
 
 /**
  * Materials of one topic, each opening its reader.
- * @param props - view callbacks, the owning topic and its references.
+ * @param props - view callbacks, the current topic and its material references.
  * @returns the material rows, or the explicit absence of materials.
  */
 export function MaterialLinks(props: Pick<WorkspaceViewProps, 't' | 'navigate'> & {
@@ -180,7 +180,7 @@ export function MaterialLinks(props: Pick<WorkspaceViewProps, 't' | 'navigate'> 
 }): ReactNode {
   if (props.resources.length === 0) return <p className={css.note}>{props.t('workspace.noMaterials')}</p>
   return <ul className={css.materials}>{props.resources.map(resource => <li key={resource.id}>
-    <button type="button" className={css.materialLink} onClick={() => { props.navigate({ kind: 'resource', resourceId: resource.id, topicId: props.topicId }) }}>
+    <button type="button" className={css.materialLink} onClick={() => { props.navigate({ kind: 'resource', resourceId: resource.id, topicId: resource.ownerTopicId ?? props.topicId }) }}>
       <span className={css.materialKind}>{props.t(`workspace.material.${resource.kind}`)}</span><strong>{resource.title}</strong>
       {props.showLocator && <span className={css.materialPath}>{materialLocator(resource)}</span>}
     </button>

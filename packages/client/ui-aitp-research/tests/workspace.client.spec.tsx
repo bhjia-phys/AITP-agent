@@ -744,6 +744,53 @@ describe('workspace edit feedback', () => {
   })
 })
 
+it.each(['map summary', 'topic page'] as const)('asks from the recorded child account owner when opened from its parent %s, then returns to the parent', async (from) => {
+  const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>(async () => ({ ok: true, value: { sessionId: 'child-account-question' as SessionId } }))
+  const values = resources()
+  const parent = { ...root, resources: [child.resources[0]!] }
+  values[workspaceTopicsAddress(WS, { parentId: null })] = live(read(page(parent)))
+  values[workspaceTopicAddress(WS, ROOT)] = live(read(parent))
+  const { store, face } = panel(values, { askQuestion })
+  fireEvent.click(screen.getByRole('button', { name: /^Main question/ }))
+  if (from === 'topic page') fireEvent.click(screen.getByRole('button', { name: 'Open topic' }))
+  fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+  expect(screen.getByRole('heading', { name: 'Full control' })).toBeDefined()
+  const input = screen.getByRole('textbox', { name: 'Ask about this research' })
+  fireEvent.focus(input)
+  fireEvent.change(input, { target: { value: 'What does this account establish?' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Ask in a new conversation' }))
+  await waitFor(() => { expect(face.openSession).toHaveBeenCalledWith('child-account-question') })
+  expect(askQuestion).toHaveBeenCalledExactlyOnceWith({ workspaceId: WS, topicId: CHILD, resourceId: NOTE,
+    question: 'What does this account establish?' })
+  expect(store.getSnapshot().location).toEqual({ kind: 'resource', topicId: CHILD, resourceId: NOTE })
+  expect(within(trail()).getByRole('button', { name: 'Controlled limit' })).toBeDefined()
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  expect(store.getSnapshot().location).toEqual(from === 'topic page' ? { kind: 'topic', topicId: ROOT } : { kind: 'map', focusId: ROOT })
+  expect(screen.getByRole('heading', { name: 'Main question', level: 2 })).toBeDefined()
+})
+
+it('keeps the selected topic when asking about a shared material, then returns to its topic page', async () => {
+  const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>(async () => ({ ok: true, value: { sessionId: 'shared-material-question' as SessionId } }))
+  const values = resources()
+  const shared = { ...note, ownerTopicId: null }
+  values[workspaceTopicAddress(WS, CHILD)] = live(read({ ...child, resources: [shared] }))
+  values[workspaceResourceAddress(WS, NOTE)] = live(read(shared))
+  const { store, face } = panel(values, { askQuestion })
+  openChild()
+  fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+  const input = screen.getByRole('textbox', { name: 'Ask about this research' })
+  fireEvent.focus(input)
+  fireEvent.change(input, { target: { value: 'How does this shared evidence constrain this topic?' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Ask in a new conversation' }))
+  await waitFor(() => { expect(face.openSession).toHaveBeenCalledWith('shared-material-question') })
+  expect(askQuestion).toHaveBeenCalledExactlyOnceWith({ workspaceId: WS, topicId: CHILD, resourceId: NOTE,
+    question: 'How does this shared evidence constrain this topic?' })
+  expect(store.getSnapshot().location).toEqual({ kind: 'resource', topicId: CHILD, resourceId: NOTE })
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  expect(store.getSnapshot().location).toEqual({ kind: 'topic', topicId: CHILD })
+  expect(screen.getByRole('heading', { name: 'Controlled limit', level: 2 })).toBeDefined()
+})
+
 it('submits a human question with its material and topic only after explicit submission', async () => {
   const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>(async () => ({ ok: true, value: { sessionId: 'new-research-session' as never } }))
   const { face } = panel(resources(), { askQuestion })
