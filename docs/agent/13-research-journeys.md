@@ -50,7 +50,7 @@ cannot close the missing parts of a case.
 
 | Case | Retained evidence and research gap to requalify | Planned implementation reference |
 | --- | --- | --- |
-| [C01 Return to a project](#c01) | Markdown map/topic/material navigation, scoped request delivery and scratch recovery tested in Harness; open selection/omission defects and human research-continuity assessment remain | Headless continuity; B1–B6; P1 / UI-1, W1 |
+| [C01 Return to a project](#c01) | Markdown map/topic/material navigation, scoped request delivery and scratch recovery tested in Harness; reproduced selection/omission defects are repaired, while human research-continuity assessment and the planned paired scientific comparison remain | Headless continuity; B1–B6; P1 / UI-1, W1 |
 | [C02 Idea to scoped question](#c02) | Discussion and choice-card foundation; idea lifecycle and approved branch creation unavailable | P1 context; P3–P4 authoring |
 | [C03 Discover and import literature](#c03) | Existing text can be searched; literature retrieval/import and edition adapter unavailable | P2b local library; separately approved retrieval |
 | [C04 Close reading across editions](#c04) | Note reading foundation; W2 page/edition states are synthetic; actual research PDF/edition route unavailable | UI-1 note selection; P2b / UI-2, W2 |
