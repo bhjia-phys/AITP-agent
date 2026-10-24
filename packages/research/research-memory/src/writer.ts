@@ -126,7 +126,7 @@ function isOperation(value: unknown): value is WriteOperation {
 
 /**
  * Prepare and apply explicit source edits on a configured local scratch root.
- * Calls sharing this instance serialize per owner. External editors must cooperate;
+ * Calls sharing this instance serialize source application. External editors must cooperate;
  * no hash/version gate or global filesystem transaction is provided.
  */
 export class ScratchWriter {
@@ -210,7 +210,7 @@ export class ScratchWriter {
         if (this.config.writableRoot === null) {
           throw new WriteFailure('read-only', 'Source application is disabled; the prepared operation remains available.')
         }
-        return await this.locked(operation.files.map(file => `source:${resolve(roots.sourceRoot, file.relativePath)}`), async () => {
+        return await this.locked(['source:publication'], async () => {
           for (const [index, before] of operation.files.entries()) {
             let current = before
             let sourceAttempted = false
