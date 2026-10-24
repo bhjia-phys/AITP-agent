@@ -114,10 +114,10 @@ export class MarkdownWorkspace {
   /**
    * Rebuild derived discovery and explicit relationships without modifying source documents.
    * Concurrent callers share the existing rebuild and its initiating cancellation lifetime.
-   * @param options - optional cancellation used when this call starts a new rebuild.
+   * @param options - cancellation and whether unchanged fresh discovery can retain its cursor identity.
    * @returns discovered counts and omission issues, or a typed failure when rebuilding cannot complete.
    */
-  async rebuild(options?: ReadOptions): Promise<Result<MarkdownIndexStatus>> {
+  async rebuild(options?: ReadOptions & { readonly preserveUnchangedRevision?: boolean }): Promise<Result<MarkdownIndexStatus>> {
     if (this.rebuilding) return this.rebuilding
     this.rebuilding = this.attempt(async () => {
       const scan = await this.files.scan(options?.signal)
@@ -168,9 +168,16 @@ export class MarkdownWorkspace {
           next = [...(parents.get(next) ?? [])][0]
         }
       }
+      const completeness = scan.partial || issues.length ? 'partial' : 'complete'
+      const previous = this.index
+      const unchanged = options?.preserveUnchangedRevision && previous !== undefined
+        && previous.paths.size === paths.size && [...paths].every(path => previous.paths.has(path))
+        && previous.notes.size === notes.size
+        && [...notes].every(([path, note]) => previous.notes.get(path)?.source.text === note.source.text)
+        && previous.status.completeness === completeness && JSON.stringify(previous.status.issues) === JSON.stringify(issues)
       const status: MarkdownIndexStatus = {
-        revision: this.revision(), observedAt: new Date().toISOString(), files: paths.size, topics: topicPaths.size,
-        completeness: scan.partial || issues.length ? 'partial' : 'complete', issues,
+        revision: unchanged ? previous.status.revision : this.revision(),
+        observedAt: new Date().toISOString(), files: paths.size, topics: topicPaths.size, completeness, issues,
       }
       this.index = {
         paths, notes, topicPaths, status,
@@ -329,9 +336,10 @@ export class MarkdownWorkspace {
         const relevant = parsed.sections.filter((section) => {
           const links = parsed.links.filter(link => link.section === section.title)
           const directoryListing = links.length > 1 && links.every(link => link.role === 'child')
+          const questionOrAnswer = /^(question|research question|current answer|current conclusion|问题|研究问题|当前答案|当前结论)$/i
           const binding = /^(scope|assumptions?|limitations?|open questions?|decisions?|failed (?:routes|attempts)|retained alternatives)$/i
           const bindingChinese = /^(范围|研究范围|假设|局限|限制|未解决问题|缺口|决定|决策|失败路线|保留的路线)$/
-          return binding.test(section.title) || bindingChinese.test(section.title)
+          return questionOrAnswer.test(section.title) || binding.test(section.title) || bindingChinese.test(section.title)
             || (candidate !== path && !directoryListing && links.some(link => link.path === path))
         })
         const accountUnits = [...new Set([parsed.opening, ...relevant.map(section => section.text), ...(include.has('work') && work ? [work.text] : []), ...(include.has('statements') ? parsed.sections.filter(section => section !== work).map(section => section.text) : [])])].filter(Boolean)

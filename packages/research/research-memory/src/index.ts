@@ -34,6 +34,7 @@ const addressedResearchSession = (request: { sessionId: SessionId }): SessionId 
 interface SourceObservation {
   reader: MarkdownWorkspace
   dirty: boolean
+  forceNewRevision: boolean
   refreshing: Promise<void> | undefined
   watcher: FSWatcher | undefined
   watchFailure: string | undefined
@@ -184,7 +185,7 @@ export class ResearchMemory extends TypertRemoteService {
       observed = {
         reader: new MarkdownWorkspace({ root, maxFiles: this.config.maxFiles,
           maxFileBytes: this.config.maxFileBytes, maxContextCharacters: this.config.maxContextCharacters }),
-        dirty: true, refreshing: undefined, watcher: undefined, watchFailure: undefined,
+        dirty: true, forceNewRevision: false, refreshing: undefined, watcher: undefined, watchFailure: undefined,
       }
       this.readers.set(root, observed)
       const owner = observed
@@ -199,6 +200,7 @@ export class ResearchMemory extends TypertRemoteService {
         owner.watcher.on('error', failed)
       } catch (error: unknown) { failed(error) }
     }
+    if (refresh) observed.forceNewRevision = true
     if (refresh || observed.watcher === undefined) observed.dirty = true
     if (observed.refreshing === undefined && observed.dirty) {
       const owner = observed
@@ -206,11 +208,15 @@ export class ResearchMemory extends TypertRemoteService {
         while (owner.dirty) {
           this.lifetime.signal.throwIfAborted()
           owner.dirty = false
+          const forceNewRevision = owner.forceNewRevision
+          owner.forceNewRevision = false
           try {
-            const result = await owner.reader.rebuild({ signal: this.lifetime.signal })
+            const result = await owner.reader.rebuild({ signal: this.lifetime.signal,
+              preserveUnchangedRevision: owner.watcher === undefined && !forceNewRevision })
             if (!result.ok) throw new RemoteError('research/refresh-failed', result.error.message, {})
           } catch (error: unknown) {
             owner.dirty = true
+            owner.forceNewRevision ||= forceNewRevision
             throw error
           }
         }

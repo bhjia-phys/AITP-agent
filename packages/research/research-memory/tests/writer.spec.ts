@@ -42,6 +42,12 @@ function publishedSources(): number {
   return vi.mocked(rename).mock.calls.filter(([, destination]) => String(destination).startsWith(root)).length
 }
 
+function deferred() {
+  let resolve!: () => void
+  const promise = new Promise<void>((settled) => { resolve = settled })
+  return { promise, resolve }
+}
+
 beforeEach(async () => {
   vi.mocked(rename).mockReset().mockImplementation(actualFs.rename)
   temporary = await mkdtemp(join(tmpdir(), 'aitp-writer-'))
@@ -135,6 +141,85 @@ describe('scratch source writing', () => {
     const outcomes = await Promise.all([writer.apply(first.operationId), writer.apply(second.operationId)])
     expect(outcomes.map(result => unwrap(result).state).sort()).toEqual(['applied', 'not-applied'])
     expect(publishedSources()).toBe(1)
+  })
+
+  it.each(['resource:%63hild%2Fresearch.md', 'resource:child%2fresearch.md'])(
+    'serializes disjoint edits when the same target has the alias %s', async (alias) => {
+      const first = unwrap(await writer.prepare(proposal()))
+      const otherEdit = { ...edit('child/research.md', '假设 X 尚未成立。', '假设 X 仍未成立；不能重复该路线。'), resourceId: alias as ResourceId }
+      const second = unwrap(await writer.prepare(proposal([otherEdit])))
+      expect(second.files[0]?.relativePath).toBe(first.files[0]?.relativePath)
+      const publishing = deferred()
+      const release = deferred()
+      const bothQueued = deferred()
+      let held = false
+      let requested = 0
+      let active = 0
+      let overlapping = false
+      vi.mocked(rename).mockImplementation(async (from, to) => {
+        if (String(to) === join(root, 'child/research.md') && !held) {
+          held = true
+          publishing.resolve()
+          await release.promise
+        }
+        await actualFs.rename(from, to)
+      })
+      // Observe the actual lock boundary without changing its queue or the real file operations.
+      writer = new Proxy(writer, {
+        get(target, key, receiver) {
+          if (key !== 'locked') {
+            const member: unknown = Reflect.get(target, key, receiver)
+            return member
+          }
+          return <T>(keys: readonly string[], action: () => Promise<T>): Promise<T> => {
+            if (!keys.some(key => key.startsWith('source:'))) return target['locked'](keys, action)
+            const result = target['locked'](keys, async () => {
+              overlapping ||= active > 0
+              active++
+              try { return await action() }
+              finally { active-- }
+            })
+            if (++requested === 2) bothQueued.resolve()
+            return result
+          }
+        },
+      })
+      const firstApplying = writer.apply(first.operationId)
+      let secondApplying: ReturnType<ScratchWriter['apply']> | undefined
+      try {
+        await Promise.race([publishing.promise, firstApplying.then(() => {
+          throw new Error('The first edit ended before its publication barrier.')
+        })])
+        secondApplying = writer.apply(second.operationId)
+        await Promise.race([bothQueued.promise, secondApplying.then(() => {
+          throw new Error('The second edit ended before requesting its source lock.')
+        })])
+        expect(overlapping).toBe(false)
+      } finally {
+        release.resolve()
+        await Promise.allSettled(secondApplying === undefined ? [firstApplying] : [firstApplying, secondApplying])
+      }
+      if (secondApplying === undefined) throw new Error('The second edit was not submitted.')
+      const outcomes = await Promise.all([firstApplying, secondApplying])
+      expect(outcomes.map(result => unwrap(result).state)).toEqual(['applied', 'applied'])
+      expect(await readFile(join(root, 'child/research.md'), 'utf8')).toBe(
+        initial.replace('答案尚未确认。', '在条件 A 下得到结果 B。').replace(otherEdit.originalText, otherEdit.replacementText),
+      )
+      expect(publishedSources()).toBe(2)
+    },
+  )
+
+  it('deduplicates source locks when one proposal uses aliases for a single target', async () => {
+    const otherEdit = { ...edit('child/research.md', '假设 X 尚未成立。', '假设 X 仍未成立；不能重复该路线。'),
+      resourceId: 'resource:%63hild%2Fresearch.md' as ResourceId }
+    const prepared = unwrap(await writer.prepare(proposal([edit(), otherEdit])))
+    const applied = unwrap(await writer.apply(prepared.operationId))
+    expect(applied.state).toBe('applied')
+    expect(await readFile(join(root, 'child/research.md'), 'utf8')).toBe(
+      initial.replace('答案尚未确认。', '在条件 A 下得到结果 B。').replace(otherEdit.originalText, otherEdit.replacementText),
+    )
+    expect(unwrap(await writer.apply(prepared.operationId)).state).toBe('applied')
+    expect(publishedSources()).toBe(2)
   })
 
   it('durably binds a UI retry identity to one preview and rejects reuse for another', async () => {

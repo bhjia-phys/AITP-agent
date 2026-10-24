@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
-import { createUserMessage, LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, LlmAdapter, ToolCallId, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -22,15 +22,22 @@ const signal = (): AbortSignal => new AbortController().signal
 
 class Capture extends LlmAdapter {
   requests: GenerateOptions[] = []
+  constructor(private readonly readContextFirst = false) { super() }
   override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
     this.requests.push(options)
+    if (this.readContextFirst && this.requests.length === 1) {
+      yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+      yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId('read-owning-topic'), name: 'research_read_context', arguments: '{}' } }
+      yield { type: 'finish', reason: { kind: 'tool-calls' } }
+      return
+    }
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'block-end', index: 0, block: { type: 'text', text: 'Bounded answer.' } }
     yield { type: 'finish', reason: { kind: 'stop' } }
   }
 }
 
-async function fixture() {
+async function fixture(readContextFirst = false) {
   const path = await mkdtemp(join(tmpdir(), 'research-service-'))
   disposers.push(() => rm(path, { recursive: true, force: true }))
   await mkdir(join(path, 'a'))
@@ -43,7 +50,7 @@ async function fixture() {
   disposers.push(() => ctx.fiber.dispose())
   await mountAgentLoopTestDependencies(ctx)
   const loop = await ctx.plugin(AgentLoop, { agents: [] })
-  const model = new Capture()
+  const model = new Capture(readContextFirst)
   ctx.llm.registerAdapter(['capture'], model)
   // Isolate admission from generic SessionController creation; all later loop and context work is production code.
   const create = vi.fn(async () => {
@@ -71,6 +78,28 @@ it('rejects unresolved and ambiguous locations before creating a Session, and se
   expect(sent).toContain('不要把这个条件忽略。为什么？')
   expect(sent).not.toContain('A different question.')
   expect(await service.provider({ workspaceId }, signal())).toMatchObject({ capabilities: { applyChanges: false } })
+})
+
+it('delivers the owning question and answer from a material in both the request and explicit context tool', async () => {
+  const { service, ctx, path, model } = await fixture(true)
+  const question = 'Does the selected control answer the owning finite-size question?'
+  const answer = 'It supports a conditional bound only under A.'
+  await writeFile(join(path, 'a/research.md'), `# Alpha\nAn orientation, not the actual question or answer.\n## Question\n${question}\n## Current answer\n${answer}\n## Scope\nFinite N only.\n## Materials\n[Shared](../shared.md)\n`)
+  await service.refresh({ workspaceId }, signal())
+  const result = await service.ask({ workspaceId, topicId: topicIdForPath('a/research.md'), resourceId: resourceIdForPath('shared.md'),
+    selectedText: 'The unresolved condition.', question: 'Explain this material in its research context.' }, signal())
+  if (!result.ok) throw new Error(result.error.message)
+  await ctx.agents.get(result.value.sessionId)!.whenIdle()
+  expect(model.requests).toHaveLength(2)
+  const actualContext = JSON.stringify(model.requests[0]?.messages.filter(message => message.role === 'user' && message.source?.kind === 'runtime-context'))
+  const toolResult = JSON.stringify(model.requests[1]?.messages.find(message => message.role === 'tool' && message.toolCallId === 'read-owning-topic'))
+  for (const delivered of [actualContext, toolResult]) {
+    expect(delivered).toContain(question)
+    expect(delivered).toContain(answer)
+    expect(delivered).toContain('Finite N only.')
+    expect(delivered).toContain('The unresolved condition.')
+    expect(delivered).not.toContain('A different question.')
+  }
 })
 
 it('supports project-root questions, cancels before admission, and names its workspace on every remote operation', async () => {

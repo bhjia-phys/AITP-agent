@@ -9,7 +9,7 @@ import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import ResearchMemory from '../src/index.ts'
-import { MarkdownWorkspace } from '../src/markdown.ts'
+import { MarkdownWorkspace, topicIdForPath } from '../src/markdown.ts'
 import type { Result, ReadEnvelope, TopicPage } from '../src/types.ts'
 
 const watchMock = vi.hoisted(() => vi.fn())
@@ -104,6 +104,58 @@ describe('source refresh ownership', () => {
     expect(peak).toBe(1)
   })
 
+  it('retains an explicit refresh joining a held watchless scan and consumes its new-identity intent once', async () => {
+    watchMock.mockImplementation(() => { throw new Error('watch capacity exhausted') })
+    const { service, add, list } = await fixture()
+    await add('Alpha')
+    await add('Beta')
+    const first = await service.listTopics({ workspaceId, query: { limit: 1 } }, signal())
+    if (!first.ok || first.value.value.nextCursor === null) throw new Error('The first page has no continuation')
+    const cursor = first.value.value.nextCursor
+    const captured = deferred()
+    const release = deferred()
+    const joined = deferred()
+    const explicitSignal = signal()
+    const combine = AbortSignal.any.bind(AbortSignal)
+    vi.spyOn(AbortSignal, 'any').mockImplementation((signals) => {
+      const combined = combine(signals)
+      if (signals.includes(explicitSignal)) {
+        const add = combined.addEventListener.bind(combined)
+        vi.spyOn(combined, 'addEventListener').mockImplementation((type, listener, options) => {
+          add(type, listener, options)
+          if (type === 'abort') joined.resolve()
+        })
+      }
+      return combined
+    })
+    // oxlint-disable-next-line typescript/unbound-method -- Forward the actual instance through call(this).
+    const original = MarkdownWorkspace.prototype.rebuild
+    let calls = 0
+    vi.spyOn(MarkdownWorkspace.prototype, 'rebuild').mockImplementation(async function (this: MarkdownWorkspace, options) {
+      const held = ++calls === 1
+      const result = await original.call(this, options)
+      if (held) { captured.resolve(); await release.promise }
+      return result
+    })
+    const fallback = list()
+    await captured.promise
+    const explicit = service.refresh({ workspaceId }, explicitSignal)
+    try {
+      await joined.promise
+      expect(calls).toBe(1)
+    } finally {
+      release.resolve()
+      await Promise.all([fallback, explicit])
+    }
+    expect(calls).toBe(2)
+    expect(await service.listTopics({ workspaceId, query: { limit: 1, cursor } }, signal()))
+      .toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+    const current = await service.listTopics({ workspaceId, query: { limit: 1 } }, signal())
+    if (!current.ok || current.value.value.nextCursor === null) throw new Error('The refreshed page has no continuation')
+    expect(titles(await service.listTopics({ workspaceId, query: { limit: 1, cursor: current.value.value.nextCursor } }, signal())))
+      .toEqual(['Beta'])
+  })
+
   it('rescans a second notification received after an in-flight scan captured its files', async () => {
     const { list, add } = await fixture()
     await list()
@@ -146,6 +198,33 @@ describe('source refresh ownership', () => {
     const pending = stream.next()
     stop.abort()
     expect((await pending).done).toBe(true)
+  })
+
+  it.each(['setup', 'carrier'] as const)('continues topic pages after %s watcher failure while rescanning changed sources', async (failure) => {
+    if (failure === 'setup') watchMock.mockImplementation(() => { throw new Error('watch capacity exhausted') })
+    const { path, service, add } = await fixture()
+    await add('Alpha')
+    await add('Beta')
+    if (failure === 'carrier') {
+      await service.provider({ workspaceId }, signal())
+      watchers[0]!.emit('error', new Error('watch carrier failed'))
+    }
+    const first = await service.listTopics({ workspaceId, query: { limit: 1 } }, signal())
+    if (!first.ok || first.value.value.nextCursor === null) throw new Error('The first topic page has no continuation')
+    const cursor = first.value.value.nextCursor
+    expect(titles(first)).toEqual(['Alpha'])
+    expect(titles(await service.listTopics({ workspaceId, query: { limit: 1, cursor } }, signal()))).toEqual(['Beta'])
+    await add('Gamma')
+    expect(await service.listTopics({ workspaceId, query: { limit: 1, cursor } }, signal()))
+      .toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+    expect(titles(await service.listTopics({ workspaceId, query: {} }, signal()))).toEqual(['Alpha', 'Beta', 'Gamma'])
+    const latest = await service.listTopics({ workspaceId, query: { limit: 1 } }, signal())
+    if (!latest.ok || latest.value.value.nextCursor === null) throw new Error('The fresh topic page has no continuation')
+    await writeFile(join(path, 'Beta/research.md'), '# Corrected Beta\nThe changed current question.\n')
+    expect(await service.listTopics({ workspaceId, query: { limit: 1, cursor: latest.value.value.nextCursor } }, signal()))
+      .toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+    const current = await service.getTopic({ workspaceId, topicId: topicIdForPath('Beta/research.md') }, signal())
+    expect(current).toMatchObject({ ok: true, value: { value: { title: 'Corrected Beta', question: 'The changed current question.' } } })
   })
 
   it('withdraws failed watcher capability without closing the readable connection', async () => {

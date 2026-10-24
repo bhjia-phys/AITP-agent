@@ -210,7 +210,7 @@ export class ScratchWriter {
         if (this.config.writableRoot === null) {
           throw new WriteFailure('read-only', 'Source application is disabled; the prepared operation remains available.')
         }
-        return await this.locked(operation.files.map(file => `source:${file.resourceId}`), async () => {
+        return await this.locked(operation.files.map(file => `source:${resolve(roots.sourceRoot, file.relativePath)}`), async () => {
           for (const [index, before] of operation.files.entries()) {
             let current = before
             let sourceAttempted = false

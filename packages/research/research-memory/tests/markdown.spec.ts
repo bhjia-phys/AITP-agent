@@ -185,6 +185,27 @@ describe('MarkdownWorkspace current observations and bounds', () => {
     expect(text).not.toContain('Question B.')
   })
 
+  it.each([
+    ['Question', 'Current answer'], ['Research question', 'Current conclusion'],
+    ['问题', '当前答案'], ['研究问题', '当前结论'],
+  ])('keeps the authored %s and %s beside scoped material context', async (questionHeading, answerHeading) => {
+    const question = 'Can this finite control settle the owning question?'
+    const answer = 'Only under A; the general question remains unresolved.'
+    const { workspace } = await fixture({
+      'research.md': '# Project\nAn orientation.\n',
+      'child/research.md': `# Child\nAn orientation, not the actual question or answer.\n## ${questionHeading}\n${question}\n## ${answerHeading}\n${answer}\n## Scope\nFinite N only.\n## Materials\n[Report](../report.md)\n## Unrelated ideas\nDo not automatically include this speculative branch.\n`,
+      'report.md': '# Report\nThe selected finite control.\n',
+    })
+    const read = value(await workspace.readContext({ topicId: topicIdForPath('child/research.md'), include: ['ancestors', 'work', 'resources'] })).value
+    const delivered = read.entries.map(entry => entry.text).join('\n')
+    expect(delivered).toContain(question)
+    expect(delivered).toContain(answer)
+    expect(delivered).toContain('Finite N only.')
+    expect(delivered).toContain('The selected finite control.')
+    expect(delivered).not.toContain('Do not automatically include this speculative branch.')
+    expect(read.completeness).toBe('complete')
+  })
+
   it('applies context limits to the serialized envelope and omits whole source units', async () => {
     const condition = '条件不可截断。'.repeat(300)
     const { workspace } = await fixture({ 'topic/research.md': `# Topic\n${condition}\n` })

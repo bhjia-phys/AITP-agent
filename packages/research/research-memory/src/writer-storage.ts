@@ -61,7 +61,7 @@ export async function publishText(path: string, text: string, mode: number): Pro
  * Read a bounded regular file without following a final symlink.
  * @param path File in a previously checked directory.
  * @param maxBytes Complete UTF-8 byte bound.
- * @returns Raw text for the caller's durable-format validation.
+ * @returns Raw text, including any BOM, for the caller's durable-format validation.
  * @throws If the file is unsafe, exceeds the bound, contains invalid UTF-8 or cannot be read.
  */
 export async function readBoundedText(path: string, maxBytes: number): Promise<string> {
@@ -81,7 +81,7 @@ export async function readBoundedText(path: string, maxBytes: number): Promise<s
       if (total > maxBytes) throw new Error('The source exceeds its configured byte bound.')
       chunks.push(chunk.subarray(0, bytesRead))
     }
-    return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks, total))
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(Buffer.concat(chunks, total))
   } finally {
     await file.close()
   }
