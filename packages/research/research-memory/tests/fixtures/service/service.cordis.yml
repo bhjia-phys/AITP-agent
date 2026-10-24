@@ -1,0 +1,27 @@
+- name: cordis:llm
+- name: cordis:sessions
+- name: cordis:projections
+- name: cordis:persistence
+  config:
+    root: './.sessions'
+    compression: none
+- name: cordis:query
+- name: cordis:prompt
+- name: cordis:tools
+- name: cordis:agents
+- name: cordis:loop
+  config:
+    agents: []
+- name: cordis:typert
+- name: cordis:policy
+  config:
+    mode: workspace-write
+    workspaceRoot: !!js process.cwd() + '/notes'
+- name: cordis:mock
+- name: cordis:research
+  config:
+    roots:
+      - id: service-scratch
+        path: !!js process.cwd() + '/notes'
+        writable: true
+        stateDirectory: !!js process.cwd() + '/.operations'

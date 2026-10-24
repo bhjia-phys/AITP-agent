@@ -3,11 +3,20 @@
   - text: workspace
   - navigation "Research location":
     - button "Back"
-    - button "Project overview"
+    - list:
+      - listitem:
+        - button "Research map"
+      - listitem: Many-body dynamics
+      - listitem:
+        - button "Quantum chaos"
+      - listitem:
+        - button "Long-range chains"
+      - listitem:
+        - button "Operator Krylov dynamics"
+      - listitem: "Operator Krylov dynamics: full account"
   - paragraph:
     - strong: Demo workspace
     - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
-  - paragraph: Read Oct 23, {{clock}} AM
   - paragraph: Note
   - 'heading "Operator Krylov dynamics: full account" [level=2]'
   - paragraph: "Source location: demo/operator-krylov/research.md"
@@ -19,12 +28,24 @@
     - paragraph: What does operator spreading reveal on a matched spectral grid?
     - heading "Scope" [level=2]
     - paragraph: Keep the same spectral grid and compare only the explicitly matched finite systems.
+    - heading "Role in the parent topic" [level=2]
+    - paragraph: Tests whether operator spreading separates the interaction regimes on one matched grid.
     - heading "Current understanding" [level=2]
     - paragraph: The finite reference agrees with the independent evolution on the selected grid.
     - paragraph: This demonstration does not establish a large-system chaos result.
     - heading "Decisive gap" [level=2]
     - paragraph: The small-system control does not cover the production grid.
     - heading "Current work" [level=2]
-    - paragraph: Inspect the control report before increasing system size.
+    - paragraph: Read the control report before increasing the system size.
     - heading "Argument and limits" [level=2]
-    - paragraph: A bounded reference may distinguish an implementation error from an unresolved scientific assumption. It does not establish the whole research question. The next observation must be assessed within the scope stated above.
+    - paragraph: A bounded reference may distinguish an implementation error from an unresolved scientific assumption. It does not establish the whole research question.
+    - paragraph: Each observation recorded here is assessed only within the scope above. Where a branch reports a result, this account cites it with that branch's own conditions; a result does not become more general by being cited here.
+    - heading "Evidence" [level=2]
+    - list:
+      - listitem: "Operator Krylov dynamics: full account"
+  - paragraph: Read Oct 23, {{clock}} AM
+  - text: Ask about this research
+  - textbox "Ask about this research":
+    - /placeholder: What is still unclear, or what should we investigate next?
+  - paragraph: Continue with the research context from this page.
+  - button "Ask in a new conversation" [disabled]

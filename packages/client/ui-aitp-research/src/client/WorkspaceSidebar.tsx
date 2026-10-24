@@ -1,13 +1,15 @@
 /** Topic navigation occupying the host sidebar while Research is selected. */
 import { useState, type ReactNode } from 'react'
 import clsx from 'clsx'
-import { Button, IconGlobeOutlineRegular, StateDot, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  Button, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconGlobeOutlineRegular, StateDot, Tooltip,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { TopicId, TopicPage, TopicSummary } from './workspace-contract.ts'
 import { workspaceProjectAddress, workspaceTopicsAddress } from './workspace-resources.ts'
-import type { createResearchPanelStore } from './store.ts'
+import { disclosureKey, type createResearchPanelStore } from './store.ts'
 import type {} from './sidebar-locales.ts'
 import css from './workspace-sidebar.module.css'
 
@@ -69,13 +71,19 @@ function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId
   const project = useResource<'aitp-workspace-project'>(workspaceProjectAddress(workspaceId))
   const topics = useResource<'aitp-workspace-topics'>(workspaceTopicsAddress(workspaceId))
   const location = useStore(state => state.workspaceId === workspaceId ? state.location : null)
-  const selectedTopicId = location === null || location.kind === 'project' ? null : location.topicId
+  const disclosure = useStore(state => state.disclosure)
+  const selectedTopicId = location === null ? null : location.kind === 'map' ? location.focusId : location.topicId
+  const atOverview = location === null || (location.kind === 'map' && location.focusId === null)
   const [attempt, setAttempt] = useState(0)
   const current = topics.value
   const disconnected = topics.status === 'none'
     || (topics.failure?.code === 'aitp/workspace' && topics.failure.details.code === 'not-connected')
   const openTopic = (topicId: TopicId): void => {
-    actions.open(workspaceId, { kind: 'topic', topicId, tab: 'overview' }, { scrollTop: 0, focusIndex: null })
+    actions.open(workspaceId, { kind: 'topic', topicId }, { scrollTop: 0, focusIndex: null })
+  }
+  const outline: Outline = {
+    isOpen: (topicId, onPath) => disclosure[disclosureKey(workspaceId, 'outline', topicId)] ?? onPath,
+    toggle: (topicId, open) => { actions.setDisclosed(disclosureKey(workspaceId, 'outline', topicId), !open) },
   }
   const retry = (): void => {
     setAttempt(value => value + 1)
@@ -88,8 +96,8 @@ function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId
       <button
         type="button"
         className={clsx(css.topicButton, css.overview)}
-        aria-current={location === null || location.kind === 'project' ? 'page' : undefined}
-        onClick={() => { actions.open(workspaceId, { kind: 'project' }, { scrollTop: 0, focusIndex: null }) }}
+        aria-current={atOverview ? 'page' : undefined}
+        onClick={() => { actions.open(workspaceId, { kind: 'map', focusId: null }, { scrollTop: 0, focusIndex: null }) }}
       >{t('overview')}</button>
       {current === undefined
         ? (
@@ -100,17 +108,27 @@ function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId
         )
         : (
           <TopicPages key={JSON.stringify([current.revision, current.value.nextCursor, attempt])}
-            t={t} useResource={useResource} workspaceId={workspaceId} selectedTopicId={selectedTopicId} onSelect={openTopic}
+            t={t} useResource={useResource} workspaceId={workspaceId} selectedTopicId={selectedTopicId}
+            onSelect={openTopic} outline={outline}
             onRetry={retry} page={current.value} previous={[]} partial={false} stale={topics.status === 'failed'} />
         )}
     </div>
   )
 }
 
+/** Outline branches open along the current path unless the reader chose otherwise. */
+interface Outline {
+  /** @param topicId - outline node. @param onPath - whether the node leads to the current topic. @returns whether its branches show. */
+  isOpen: (topicId: TopicId, onPath: boolean) => boolean
+  /** @param topicId - outline node. @param open - its current state, which the toggle inverts. */
+  toggle: (topicId: TopicId, open: boolean) => void
+}
+
 type TopicPageProps = Pick<WorkspaceSidebarProps, 't' | 'useResource'> & {
   workspaceId: WorkspaceId
   selectedTopicId: TopicId | null
   onSelect: (topicId: TopicId) => void
+  outline: Outline
   onRetry: () => void
   previous: readonly TopicSummary[]
   partial: boolean
@@ -149,56 +167,66 @@ function TopicContinuation(props: TopicPageProps & { cursor: string }): ReactNod
 }
 
 function TopicTreeRows(props: TopicPageProps): ReactNode {
-  const { t, previous: rows, selectedTopicId, onSelect } = props
+  const { t, previous: rows } = props
   const byId = new Map(rows.map(topic => [topic.id, topic]))
+  const path = new Set<TopicId>()
+  for (let id = props.selectedTopicId; id !== null && !path.has(id);) {
+    path.add(id)
+    id = byId.get(id)?.parentId ?? null
+  }
+  const branch = { t, byId, path, selectedTopicId: props.selectedTopicId, onSelect: props.onSelect, outline: props.outline }
   const roots = rows.filter(topic => topic.parentId === null)
   const unplaced = rows.filter(topic => topic.parentId !== null && !byId.has(topic.parentId))
   return <>
     {props.stale && <p className={css.notice} role="status">{t('stale')}</p>}
     {rows.length === 0 && <p className={css.notice}>{t('empty')}</p>}
     <ul className={css.topicList}>
-      {roots.map(topic => (
-        <TopicBranch key={topic.id} topic={topic} byId={byId} selectedTopicId={selectedTopicId} onSelect={onSelect} />
-      ))}
+      {roots.map(topic => <TopicBranch key={topic.id} {...branch} topic={topic} />)}
     </ul>
     {unplaced.length > 0 && <section>
       <p className={css.groupLabel}>{t('otherTopics')}</p>
       <ul className={css.topicList}>
-        {unplaced.map(topic => (
-          <TopicBranch key={topic.id} topic={topic} byId={byId} selectedTopicId={selectedTopicId} onSelect={onSelect} />
-        ))}
+        {unplaced.map(topic => <TopicBranch key={topic.id} {...branch} topic={topic} />)}
       </ul>
     </section>}
     {props.partial && <p className={css.notice}>{t('partial')}</p>}
   </>
 }
 
-function TopicBranch({ topic, byId, selectedTopicId, onSelect }: {
-  topic: TopicSummary
+type BranchProps = Pick<TopicPageProps, 't' | 'selectedTopicId' | 'onSelect' | 'outline'> & {
   byId: ReadonlyMap<TopicId, TopicSummary>
-  selectedTopicId: TopicId | null
-  onSelect: (topicId: TopicId) => void
-}): ReactNode {
+  /** The selected topic and its loaded ancestors. */
+  path: ReadonlySet<TopicId>
+}
+
+function TopicBranch(props: BranchProps & { topic: TopicSummary }): ReactNode {
+  const { topic, byId, outline, t } = props
   const children = topic.childIds.flatMap((id) => {
     const child = byId.get(id)
     return child === undefined ? [] : [child]
   })
+  const title = topic.shortTitle ?? topic.title
+  const open = children.length > 0 && outline.isOpen(topic.id, props.path.has(topic.id) && topic.id !== props.selectedTopicId)
   return (
     <li>
-      <button
-        type="button"
-        className={css.topicButton}
-        aria-current={topic.id === selectedTopicId ? 'page' : undefined}
-        onClick={() => { onSelect(topic.id) }}
-      >
-        <span className={css.topicTitle}>{topic.shortTitle ?? topic.title}</span>{' '}
-        <span className={css.workLabel}>{topic.work.label}</span>
-      </button>
-      {children.length > 0 && (
+      <div className={css.row}>
+        {children.length > 0
+          ? <button type="button" className={css.toggle} aria-expanded={open}
+            aria-label={t(open ? 'hideBranches' : 'showBranches', { title })} onClick={() => { outline.toggle(topic.id, open) }}>
+            {open ? <IconChevronDownOutlineRegular size={14} /> : <IconChevronRightOutlineRegular size={14} />}
+          </button>
+          : <span className={css.toggleSpace} />}
+        <button
+          type="button"
+          className={css.topicButton}
+          aria-current={topic.id === props.selectedTopicId ? 'page' : undefined}
+          title={topic.title}
+          onClick={() => { props.onSelect(topic.id) }}
+        >{title}</button>
+      </div>
+      {open && (
         <ul className={css.children}>
-          {children.map(child => (
-            <TopicBranch key={child.id} topic={child} byId={byId} selectedTopicId={selectedTopicId} onSelect={onSelect} />
-          ))}
+          {children.map(child => <TopicBranch key={child.id} {...props} topic={child} />)}
         </ul>
       )}
     </li>

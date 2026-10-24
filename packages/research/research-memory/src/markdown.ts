@@ -1,0 +1,508 @@
+import { randomUUID } from 'node:crypto'
+import { posix, resolve } from 'node:path'
+import { fromMarkdown } from 'mdast-util-from-markdown'
+import type {
+  ContextQuery, ContextRead, Project, ReadEnvelope, ReadOptions, Resource, ResourceId,
+  ResearchSourceRange, ResourceReference, Result, Revision, Topic, TopicId, TopicPage, TopicQuery, TopicSummary,
+} from './types.ts'
+import { MarkdownFiles, pathForResourceId, pathForTopicId, resourceIdForPath, sourceFailure, SourceError, topicIdForPath } from './markdown-files.ts'
+import type { ScanIssue } from './markdown-files.ts'
+import { namedSection, parseMarkdown } from './markdown-model.ts'
+import type { ParsedMarkdown } from './markdown-model.ts'
+import { renderedSelectionRanges } from './markdown-selection.ts'
+
+export { pathForResourceId, resourceIdForPath, topicIdForPath } from './markdown-files.ts'
+
+/** Authorized root and positive bounds for discovery entries, complete file bytes and serialized context characters. */
+export interface MarkdownWorkspaceConfig {
+  readonly root: string
+  readonly maxFiles: number
+  readonly maxFileBytes: number
+  readonly maxContextCharacters: number
+}
+
+/** A complete fresh source observation; its revision is an opaque read token, not a content hash or edit precondition. */
+export interface MarkdownSource {
+  readonly resourceId: ResourceId
+  readonly relativePath: string
+  readonly text: string
+  readonly revision: Revision
+  readonly observedAt: string
+}
+
+/** Rebuild observation and discovered counts; issues make incompleteness visible without changing source documents. */
+export interface MarkdownIndexStatus {
+  readonly revision: Revision
+  readonly observedAt: string
+  readonly files: number
+  readonly topics: number
+  readonly completeness: 'complete' | 'partial'
+  readonly issues: readonly ScanIssue[]
+}
+
+/** Original user question and optional displayed origin; supplying text does not establish ownership or a decision. */
+export interface OriginQuery {
+  readonly topicId?: TopicId
+  readonly resourceId?: ResourceId
+  readonly anchor?: string
+  readonly selectedText?: string
+  readonly selectedTextFormat?: 'source' | 'rendered'
+  readonly selectedRange?: ResearchSourceRange
+  readonly question: string
+}
+
+/** Located source and candidate ownership; missing or ambiguous origins remain explicit instead of choosing a topic. */
+export interface ResolvedOrigin {
+  readonly status: 'resolved' | 'ambiguous' | 'missing'
+  readonly question: string
+  readonly topicId?: TopicId
+  readonly candidateTopicIds: readonly TopicId[]
+  readonly resourceId?: ResourceId
+  readonly anchor?: string
+  readonly selectedText?: string
+  readonly selectedTextFormat?: 'source' | 'rendered'
+  /** Exact raw interval for a uniquely located quote; retained independently of its rendered spelling. */
+  readonly selectedRange?: ResearchSourceRange
+  readonly selectedPassage?: string
+  readonly source?: MarkdownSource
+  readonly reason?: string
+}
+
+interface Note { readonly source: MarkdownSource; readonly parsed: ParsedMarkdown }
+interface Index {
+  readonly paths: ReadonlySet<string>
+  readonly topicPaths: ReadonlySet<string>
+  readonly notes: ReadonlyMap<string, Note>
+  readonly parents: ReadonlyMap<string, readonly string[]>
+  readonly users: ReadonlyMap<string, readonly string[]>
+  readonly status: MarkdownIndexStatus
+}
+
+/** Reads ordinary notes inside one configured root. Derived views never edit their sources. */
+export class MarkdownWorkspace {
+  /** Absolute configured root; each filesystem operation separately resolves real paths and checks containment. */
+  readonly root: string
+  private readonly files: MarkdownFiles
+  private readonly instanceId = randomUUID()
+  private sequence = 0
+  private index: Index | undefined
+  private rebuilding: Promise<Result<MarkdownIndexStatus>> | undefined
+  private readonly parsedSources = new Map<string, { readonly text: string; readonly parsed: ParsedMarkdown }>()
+
+  constructor(private readonly config: MarkdownWorkspaceConfig) {
+    for (const bound of [config.maxFiles, config.maxFileBytes, config.maxContextCharacters]) {
+      if (!Number.isSafeInteger(bound) || bound < 1) throw new SourceError('invalid-request', 'Research source limits must be positive safe integers.')
+    }
+    this.root = resolve(config.root)
+    this.files = new MarkdownFiles(this.root, config.maxFiles, config.maxFileBytes)
+  }
+
+  /**
+   * Read current bytes without delivering model context or consulting cached source contents.
+   * @param resourceId - path-derived identity of a source inside the configured root.
+   * @param options - optional read cancellation; no signal means the caller supplies no cancellation lifetime.
+   * @returns a complete text observation, or a typed cancellation, identity, access or source-size failure.
+   */
+  async readSource(resourceId: ResourceId, options?: ReadOptions): Promise<Result<MarkdownSource>> {
+    return this.attempt(async () => {
+      const relativePath = pathForResourceId(resourceId)
+      const text = await this.files.read(relativePath, options?.signal)
+      return { resourceId, relativePath, text, revision: this.revision(), observedAt: new Date().toISOString() }
+    }, options)
+  }
+
+  /**
+   * Rebuild derived discovery and explicit relationships without modifying source documents.
+   * Concurrent callers share the existing rebuild and its initiating cancellation lifetime.
+   * @param options - cancellation and whether unchanged fresh discovery can retain its cursor identity.
+   * @returns discovered counts and omission issues, or a typed failure when rebuilding cannot complete.
+   */
+  async rebuild(options?: ReadOptions & { readonly preserveUnchangedRevision?: boolean }): Promise<Result<MarkdownIndexStatus>> {
+    if (this.rebuilding) return this.rebuilding
+    this.rebuilding = this.attempt(async () => {
+      const scan = await this.files.scan(options?.signal)
+      const paths = new Set(scan.paths)
+      const notes = new Map<string, Note>()
+      const topicPaths = new Set(scan.paths.filter(path => posix.basename(path).toLowerCase() === 'research.md' && path !== 'research.md'))
+      const pending = scan.paths.filter(path => /^(research|readme)\.md$/i.test(posix.basename(path)))
+      const issues = [...scan.issues]
+      for (const path of pending) {
+        if (notes.has(path)) continue
+        const source = await this.readSource(resourceIdForPath(path), options)
+        if (!source.ok) { issues.push({ path, reason: source.error.message }); continue }
+        const parsed = this.parse(source.value)
+        notes.set(path, { source: source.value, parsed })
+        for (const link of parsed.links) {
+          if ((link.role === 'child' || link.role === 'parent') && /\.md$/i.test(link.path) && paths.has(link.path) && link.path !== 'research.md') {
+            topicPaths.add(link.path)
+            if (!pending.includes(link.path)) pending.push(link.path)
+          }
+        }
+      }
+      const parents = new Map<string, Set<string>>()
+      const users = new Map<string, Set<string>>()
+      const add = (map: Map<string, Set<string>>, target: string, owner: string): void => {
+        const values = map.get(target) ?? new Set<string>()
+        values.add(owner)
+        map.set(target, values)
+      }
+      for (const [path, note] of notes) {
+        const siblingOwner = posix.join(posix.dirname(path), 'research.md')
+        const owner = topicPaths.has(path) ? path
+          : /^readme\.md$/i.test(posix.basename(path)) && topicPaths.has(siblingOwner) ? siblingOwner : undefined
+        for (const link of note.parsed.links) {
+          if (owner) add(users, link.path, owner)
+          if (owner && topicPaths.has(link.path) && link.path !== owner) {
+            if (link.role === 'child') add(parents, link.path, owner)
+            if (link.role === 'parent') add(parents, owner, link.path)
+          }
+        }
+      }
+      for (const [child, candidates] of parents) {
+        if (candidates.size > 1) issues.push({ path: child, reason: 'Several explicit parent relationships exist; no primary parent was chosen.' })
+        const seen = new Set([child])
+        let next = [...candidates][0]
+        while (next !== undefined && parents.get(next)?.size === 1) {
+          if (seen.has(next)) { candidates.clear(); issues.push({ path: child, reason: 'Explicit parent relationships form a cycle; the parent remains unresolved.' }); break }
+          seen.add(next)
+          next = [...(parents.get(next) ?? [])][0]
+        }
+      }
+      const completeness = scan.partial || issues.length ? 'partial' : 'complete'
+      const previous = this.index
+      const unchanged = options?.preserveUnchangedRevision && previous !== undefined
+        && previous.paths.size === paths.size && [...paths].every(path => previous.paths.has(path))
+        && previous.notes.size === notes.size
+        && [...notes].every(([path, note]) => previous.notes.get(path)?.source.text === note.source.text)
+        && previous.status.completeness === completeness && JSON.stringify(previous.status.issues) === JSON.stringify(issues)
+      const status: MarkdownIndexStatus = {
+        revision: unchanged ? previous.status.revision : this.revision(),
+        observedAt: new Date().toISOString(), files: paths.size, topics: topicPaths.size, completeness, issues,
+      }
+      this.index = {
+        paths, notes, topicPaths, status,
+        parents: new Map([...parents].map(([path, values]) => [path, [...values]])),
+        users: new Map([...users].map(([path, values]) => [path, [...values]])),
+      }
+      return status
+    }, options)
+    try { return await this.rebuilding }
+    finally { this.rebuilding = undefined }
+  }
+
+  /**
+   * Rebuild discovery after any active rebuild finishes, so refresh cannot reuse a pre-change snapshot.
+   * @param resourceId - optional source to validate by reading before starting the fresh rebuild.
+   * @returns new index status, or the validation/rebuild failure; this method supplies no cancellation signal.
+   */
+  async refresh(resourceId?: ResourceId): Promise<Result<MarkdownIndexStatus>> {
+    if (resourceId !== undefined) {
+      const read = await this.readSource(resourceId)
+      if (!read.ok) return read
+    }
+    if (this.rebuilding) await this.rebuilding
+    return this.rebuild()
+  }
+
+  /**
+   * Read the authored project title and opening after discovery; empty roots do not acquire a new note.
+   * @param options - optional cancellation for discovery and the fresh root-account read.
+   * @returns a runtime project envelope, with a directory-name fallback and no inferred scientific directions, or a typed failure.
+   */
+  async getProject(options?: ReadOptions): Promise<Result<ReadEnvelope<Project>>> {
+    return this.attempt(async () => {
+      const index = await this.ensure(options)
+      const root = index.paths.has('research.md') ? await this.mustRead('research.md', options) : undefined
+      const authored = root === undefined ? undefined : this.parse(root)
+      return this.envelope({
+        id: 'project', title: authored?.title ?? posix.basename(this.root),
+        ...(authored?.opening ? { summary: authored.opening } : {}),
+        ...(root === undefined ? {} : { accountResourceId: root.resourceId }),
+        directions: [], seeds: [],
+      }, root)
+    }, options)
+  }
+
+  /**
+   * Read a bounded topic page with fresh account text and relationships from the discovered index.
+   * @param query - parent scope, page limit and optional cursor belonging to this index snapshot and scope.
+   * @param options - optional cancellation for discovery and each selected account read.
+   * @returns observed topic summaries and discovery completeness, or a failure for stale cursors, invalid bounds or unreadable accounts.
+   */
+  async listTopics(query: TopicQuery, options?: ReadOptions): Promise<Result<ReadEnvelope<TopicPage>>> {
+    return this.attempt(async () => {
+      const index = await this.ensure(options)
+      const limit = query.limit ?? this.config.maxFiles
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > this.config.maxFiles) throw new SourceError('invalid-request', 'Topic page limit is outside the configured discovery bound.')
+      const scope = query.parentId === undefined ? 'all' : query.parentId === null ? 'roots' : query.parentId
+      let offset = 0
+      if (query.cursor !== undefined) {
+        const expectedPrefix = `${index.status.revision}:${encodeURIComponent(scope)}:`
+        if (!query.cursor.startsWith(expectedPrefix) || !/^\d+$/.test(query.cursor.slice(expectedPrefix.length))) throw new SourceError('invalid-request', 'The topic cursor is stale or belongs to another query; restart from the first page.')
+        offset = Number(query.cursor.slice(expectedPrefix.length))
+      }
+      const paths = [...index.topicPaths].filter((path) => {
+        const parent = this.primaryParent(index, path)
+        return query.parentId === undefined || (parent === undefined ? null : topicIdForPath(parent)) === query.parentId
+      }).sort()
+      if (!Number.isSafeInteger(offset) || offset > paths.length) throw new SourceError('invalid-request', 'The topic cursor is outside this snapshot.')
+      const items: ReadEnvelope<TopicSummary>[] = []
+      for (const path of paths.slice(offset, offset + limit)) {
+        const source = await this.mustRead(path, options)
+        items.push(this.envelope(this.topic(index, path, source), source))
+      }
+      return this.envelope({ items, nextCursor: offset + limit < paths.length ? `${index.status.revision}:${encodeURIComponent(scope)}:${offset + limit}` : null, completeness: index.status.completeness, ...(index.status.completeness === 'partial' ? { incompleteReason: index.status.issues.map(issue => `${issue.path}: ${issue.reason}`).join('\n') } : {}) })
+    }, options)
+  }
+
+  /**
+   * Read the current account; file nesting never supplies a scientific parent.
+   * @param topicId - identity of an account already recognized by discovery.
+   * @param options - optional cancellation for discovery and the fresh account read.
+   * @returns an attributed topic projection preserving unrecognized account text, or a typed identity/access failure.
+   */
+  async getTopic(topicId: TopicId, options?: ReadOptions): Promise<Result<ReadEnvelope<Topic>>> {
+    return this.attempt(async () => {
+      const index = await this.ensure(options)
+      const path = pathForTopicId(topicId)
+      if (!index.topicPaths.has(path)) throw new SourceError('not-found', 'The topic is outside the discovered scope. Refresh to discover new topics.')
+      const source = await this.mustRead(path, options)
+      return this.envelope(this.topic(index, path, source), source)
+    }, options)
+  }
+
+  /**
+   * Read current text for supported text formats; other materials remain navigable references.
+   * @param resourceId - identity present in discovered files or authored material links.
+   * @param options - optional cancellation for discovery and the fresh supported-format read.
+   * @returns an attributed material envelope with complete text or explicit unsupported-format content, or a typed read failure.
+   */
+  async getResource(resourceId: ResourceId, options?: ReadOptions): Promise<Result<ReadEnvelope<Resource>>> {
+    return this.attempt(async () => {
+      const index = await this.ensure(options)
+      const path = pathForResourceId(resourceId)
+      if (!index.paths.has(path) && !index.users.has(path)) throw new SourceError('not-found', 'The resource is outside the discovered scope. Refresh to discover new resources.')
+      const reference = this.reference(index, path)
+      if (!/\.(?:md|txt|tex|py|ts|tsx|js|json|yaml|yml|csv|log|sh|cpp|cc|h|hpp|f90)$/i.test(path)) {
+        return this.envelope({ ...reference, content: { kind: 'unavailable', reason: 'unsupported-format', detail: 'This reader currently opens Markdown and text sources only.' }, attribution: { sourceResourceIds: [resourceId] } })
+      }
+      const source = await this.mustRead(path, options)
+      return this.envelope({ ...reference, content: { kind: /\.md$/i.test(path) ? 'markdown' : 'plain-text', text: source.text }, attribution: { sourceResourceIds: [resourceId] } }, source)
+    }, options)
+  }
+
+  /**
+   * Read coherent source units with omissions; the character bound includes the serialized JSON envelope.
+   * @param query - discovered topic, requested related-source classes and optional tighter character/item bounds.
+   * @param options - optional cancellation for discovery and fresh selected-source reads.
+   * @returns bounded attributed context with complete units and explicit omissions;
+   * invalid scope or an unusably small budget yields a typed failure.
+   */
+  async readContext(query: ContextQuery, options?: ReadOptions): Promise<Result<ReadEnvelope<ContextRead>>> {
+    return this.attempt(async () => {
+      const index = await this.ensure(options)
+      const path = pathForTopicId(query.topicId)
+      if (!index.topicPaths.has(path)) throw new SourceError('not-found', 'The context topic is not discovered.')
+      const maxCharacters = Math.min(query.maxCharacters ?? this.config.maxContextCharacters, this.config.maxContextCharacters)
+      const maxItems = query.maxItems ?? this.config.maxFiles
+      if (!Number.isSafeInteger(maxCharacters) || maxCharacters < 1 || !Number.isSafeInteger(maxItems) || maxItems < 1) throw new SourceError('invalid-request', 'Context bounds must be positive safe integers.')
+      const include = new Set(query.include ?? ['ancestors', 'work'])
+      const selected = [path]
+      if (include.has('ancestors')) {
+        let parent = this.primaryParent(index, path)
+        const seen = new Set(selected)
+        while (parent && !seen.has(parent)) { selected.push(parent); seen.add(parent); parent = this.primaryParent(index, parent) }
+        if (index.paths.has('research.md')) selected.push('research.md')
+      }
+      if (include.has('children')) selected.push(...[...index.topicPaths].filter(candidate => this.primaryParent(index, candidate) === path))
+      if (include.has('resources')) selected.push(...(index.notes.get(path)?.parsed.links.map(link => link.path) ?? []))
+      const entries: ContextRead['entries'][number][] = []
+      const omissions: ContextRead['omissions'][number][] = []
+      if (index.status.completeness === 'partial') {
+        omissions.push({ target: { kind: 'topic', id: query.topicId }, reason: 'Discovery is partial; sources or relationships outside the observed index may remain.' })
+      }
+      const response = this.envelope<ContextRead>({ topicId: query.topicId, entries, completeness: 'complete', omissions })
+      for (const candidate of new Set(selected)) {
+        const id = resourceIdForPath(candidate)
+        if (entries.length >= maxItems) {
+          omissions.push({ target: { kind: 'resource', id }, reason: 'This source was not read because the context item limit was reached.' })
+          continue
+        }
+        const source = await this.readSource(id, options)
+        if (!source.ok) { omissions.push({ target: { kind: 'resource', id }, reason: source.error.message }); continue }
+        const parsed = this.parse(source.value)
+        const isAccount = index.topicPaths.has(candidate) || candidate === 'research.md'
+        const work = namedSection(parsed, /^(current work|当前工作|进行中的工作)$/i)
+        const relevant = parsed.sections.filter((section) => {
+          const links = parsed.links.filter(link => link.section === section.title)
+          const directoryListing = links.length > 1 && links.every(link => link.role === 'child')
+          const questionOrAnswer = /^(question|research question|current answer|current conclusion|问题|研究问题|当前答案|当前结论)$/i
+          const binding = /^(scope|assumptions?|limitations?|open questions?|decisions?|failed (?:routes|attempts)|retained alternatives)$/i
+          const bindingChinese = /^(范围|研究范围|假设|局限|限制|未解决问题|缺口|决定|决策|失败路线|保留的路线)$/
+          return questionOrAnswer.test(section.title) || binding.test(section.title) || bindingChinese.test(section.title)
+            || (candidate !== path && !directoryListing && links.some(link => link.path === path))
+        })
+        const accountUnits = [...new Set([parsed.opening, ...relevant.map(section => section.text), ...(include.has('work') && work ? [work.text] : []), ...(include.has('statements') ? parsed.sections.filter(section => section !== work).map(section => section.text) : [])])].filter(Boolean)
+        const units = isAccount && accountUnits.length ? accountUnits : [source.value.text]
+        for (const unit of units) {
+          const entry = { source: { target: { kind: 'resource' as const, id }, revision: source.value.revision }, label: `${parsed.title} — ${candidate}`, text: unit }
+          entries.push(entry)
+          if (entries.length > maxItems || JSON.stringify(response).length > maxCharacters) {
+            entries.pop()
+            omissions.push({ target: { kind: 'resource', id }, reason: 'A complete source unit was omitted by the context item or character budget.' })
+          }
+        }
+      }
+      const value: ContextRead = { topicId: query.topicId, entries, completeness: omissions.length || index.status.completeness === 'partial' ? 'partial' : 'complete', omissions }
+      let bounded: ReadEnvelope<ContextRead> = { ...response, value }
+      if (JSON.stringify(bounded).length > maxCharacters) {
+        let omittedCount = omissions.length
+        const combined = [{ target: { kind: 'topic' as const, id: query.topicId }, reason: `${omittedCount} source entries could not be included; request fewer sources or a larger context budget.` }]
+        bounded = { ...response, value: { ...value, completeness: 'partial', omissions: combined } }
+        while (entries.length && JSON.stringify(bounded).length > maxCharacters) {
+          entries.pop()
+          omittedCount++
+          combined[0] = { target: { kind: 'topic', id: query.topicId }, reason: `${omittedCount} source entries could not be included; request fewer sources or a larger context budget.` }
+        }
+      }
+      if (JSON.stringify(bounded).length > maxCharacters) throw new SourceError('invalid-request', 'The context budget cannot hold even the source and omission metadata.')
+      return bounded
+    }, options)
+  }
+
+  /**
+   * Resolve an explicit topic or selected material; shared resources require a scoped origin.
+   * @param query - original question and displayed topic/material, with optional anchor and exact selected text.
+   * @param options - optional cancellation for discovery and the fresh selected-source read.
+   * @returns a resolved, ambiguous or missing origin with original question text retained, or a typed identity/access failure.
+   */
+  async resolveOrigin(query: OriginQuery, options?: ReadOptions): Promise<Result<ResolvedOrigin>> {
+    return this.attempt(async () => {
+      const index = await this.ensure(options)
+      const path = query.resourceId !== undefined ? pathForResourceId(query.resourceId)
+        : query.topicId !== undefined ? pathForTopicId(query.topicId) : undefined
+      const explicit = query.topicId !== undefined ? pathForTopicId(query.topicId) : undefined
+      if (explicit !== undefined && !index.topicPaths.has(explicit)) return { ...query, status: 'missing', candidateTopicIds: [], reason: 'The requested topic was not discovered.' }
+      const candidates = path === undefined ? [] : index.topicPaths.has(path) ? [path] : [...(index.users.get(path) ?? [])]
+      if (explicit !== undefined && path !== explicit && !candidates.includes(explicit)) return { ...query, status: 'ambiguous', candidateTopicIds: candidates.map(topicIdForPath), reason: 'The selected material has no recorded relationship to the requested topic.' }
+      const chosen = explicit ?? (candidates.length === 1 ? candidates[0] : undefined)
+      if (path === undefined) return { ...query, status: 'missing', candidateTopicIds: [], reason: 'No topic or source was selected; the question remains a global discussion.' }
+      const source = await this.mustRead(path, options)
+      let selectedPassage = source.text
+      let scope = { start: 0, end: source.text.length }
+      if (query.anchor !== undefined) {
+        const matches = this.parse(source).anchors.get(query.anchor) ?? []
+        const match = matches[0]
+        if (matches.length !== 1 || match === undefined) return { ...query, source, status: matches.length ? 'ambiguous' : 'missing', candidateTopicIds: candidates.map(topicIdForPath), reason: matches.length ? 'The source contains several matching anchors or headings.' : 'The selected anchor is absent from the current source.' }
+        selectedPassage = match.text
+        scope = { start: match.start, end: match.end }
+      }
+      let selectedRange: ResearchSourceRange | undefined
+      const unresolved = (status: 'missing' | 'ambiguous', reason: string): ResolvedOrigin => ({ ...query, source, status, candidateTopicIds: candidates.map(topicIdForPath), reason })
+      if (query.selectedRange !== undefined && query.selectedText === undefined) return unresolved('missing', 'A pinned source range requires its original selected text.')
+      if (query.selectedText !== undefined) {
+        const quote = query.selectedText
+        const pinned = query.selectedRange
+        if (pinned !== undefined && (!Number.isSafeInteger(pinned.start) || !Number.isSafeInteger(pinned.end)
+          || pinned.start < scope.start || pinned.end > scope.end || pinned.end <= pinned.start
+          || source.text.slice(pinned.start, pinned.end) !== pinned.text)) {
+          return unresolved('missing', 'The pinned selected source range changed; reopen the source and select it again.')
+        }
+        const matches: ResearchSourceRange[] = []
+        if (quote !== '' && query.selectedTextFormat === 'rendered') {
+          matches.push(...renderedSelectionRanges(source.text, quote, scope))
+        } else if (quote !== '') {
+          for (let offset = source.text.indexOf(quote, scope.start); offset !== -1 && offset + quote.length <= scope.end;
+            offset = source.text.indexOf(quote, offset + 1)) {
+            matches.push({ start: offset, end: offset + quote.length, text: quote })
+          }
+        }
+        const applicable = pinned === undefined ? matches
+          : matches.filter(match => match.start === pinned.start && match.end === pinned.end)
+        if (applicable.length === 0) return unresolved('missing', query.selectedTextFormat === 'rendered'
+          ? 'The rendered selection cannot be located in the current source range. Select a supported prose or code passage, or reopen the source.'
+          : 'The selected text is not present in the current source range.')
+        if (applicable.length > 1) return unresolved('ambiguous', 'The selected text occurs more than once in the source range; select a longer passage or a narrower anchor.')
+        selectedRange = applicable[0]
+      }
+      return { ...query, resourceId: source.resourceId, source, selectedPassage, ...(selectedRange === undefined ? {} : { selectedRange }), ...(chosen !== undefined ? { topicId: topicIdForPath(chosen) } : {}), status: chosen !== undefined ? 'resolved' : candidates.length ? 'ambiguous' : 'missing', candidateTopicIds: candidates.map(topicIdForPath), ...(chosen === undefined ? { reason: candidates.length ? 'This material is used by several topics; select the intended question.' : 'No owning research question was found in the discovered links.' } : {}) }
+    }, options)
+  }
+
+  private topic(index: Index, path: string, source: MarkdownSource): Topic {
+    const parsed = this.parse(source)
+    const parent = this.primaryParent(index, path)
+    const answer = namedSection(parsed, /^(current answer|current conclusion|当前答案|当前结论)$/i)
+    const gap = namedSection(parsed, /^(limitations?|open questions?|局限|未解决问题|缺口)$/i)
+    const work = namedSection(parsed, /^(current work|当前工作|进行中的工作)$/i)
+    const scope = namedSection(parsed, /^(scope|范围|研究范围)$/i)
+    const question = namedSection(parsed, /^(question|research question|问题|研究问题)$/i)
+    const questionHeading = question === undefined ? undefined : fromMarkdown(question.text).children[0]
+    const questionBody = questionHeading?.type === 'heading'
+      ? question?.text.slice(questionHeading.position?.end.offset ?? 0).trim() : undefined
+    const resources = [...new Set([path, ...parsed.links.map(link => link.path)])].map(resource => this.reference(index, resource))
+    return {
+      id: topicIdForPath(path), title: parsed.title, parentId: parent ? topicIdForPath(parent) : null,
+      childIds: [...index.topicPaths].filter(child => this.primaryParent(index, child) === path).map(topicIdForPath),
+      currentAnswer: answer ? { text: answer.text, qualification: gap?.text ?? 'The source does not separately state qualifications; inspect the complete account.', attribution: { sourceResourceIds: [source.resourceId] } } : null,
+      gap: gap?.text ?? null, work: { state: 'unknown', label: '' }, resourceCount: resources.length,
+      question: questionBody || parsed.opening || source.text,
+      scope: scope?.text ?? 'Scope is not separately stated; inspect the full source account.',
+      workItems: work ? [{ id: `${topicIdForPath(path)}#${work.anchor}`, title: work.title, description: work.text, state: 'unknown', attribution: { sourceResourceIds: [source.resourceId] } }] : [],
+      statements: [], resources, accountResourceId: source.resourceId,
+    }
+  }
+
+  private reference(index: Index, path: string): ResourceReference {
+    const owners = index.topicPaths.has(path) ? [path] : index.users.get(path) ?? []
+    const owner = owners[0]
+    return { id: resourceIdForPath(path), ownerTopicId: owners.length === 1 && owner !== undefined ? topicIdForPath(owner) : null, title: index.notes.get(path)?.parsed.title ?? posix.basename(path), kind: /\.md$/i.test(path) ? 'note' : /\.pdf$/i.test(path) ? 'paper' : 'other', target: { kind: 'workspace-path', path } }
+  }
+
+  private primaryParent(index: Index, path: string): string | undefined {
+    const candidates = index.parents.get(path)
+    return candidates?.length === 1 ? candidates[0] : undefined
+  }
+
+  private parse(source: MarkdownSource): ParsedMarkdown {
+    const previous = this.parsedSources.get(source.relativePath)
+    // Fresh bytes were read first. Equality only reuses parsing, never authorizes an edit.
+    if (previous?.text === source.text) return previous.parsed
+    const parsed = parseMarkdown(source.relativePath, source.text)
+    const firstKey = this.parsedSources.keys().next().value
+    if (this.parsedSources.size >= this.config.maxFiles && firstKey !== undefined) this.parsedSources.delete(firstKey)
+    this.parsedSources.set(source.relativePath, { text: source.text, parsed })
+    return parsed
+  }
+
+  private async ensure(options?: ReadOptions): Promise<Index> {
+    if (!this.index) {
+      const result = await this.rebuild(options)
+      if (!result.ok) throw new SourceError('unavailable', result.error.message)
+    }
+    if (!this.index) throw new SourceError('unavailable', 'Source discovery did not publish an index.')
+    return this.index
+  }
+
+  private async mustRead(path: string, options?: ReadOptions): Promise<MarkdownSource> {
+    const result = await this.readSource(resourceIdForPath(path), options)
+    if (!result.ok) throw new SourceError(result.error.code === 'not-found' || result.error.code === 'permission-denied' || result.error.code === 'invalid-request' || result.error.code === 'cancelled' ? result.error.code : 'unavailable', result.error.message)
+    return result.value
+  }
+
+  private revision(): Revision { return `${this.instanceId}:${++this.sequence}` as Revision }
+  private envelope<T>(value: T, observed?: Pick<MarkdownSource, 'revision' | 'observedAt'>): ReadEnvelope<T> {
+    return { origin: 'runtime', revision: observed?.revision ?? this.revision(), observedAt: observed?.observedAt ?? new Date().toISOString(), value }
+  }
+
+  private async attempt<T>(operation: () => Promise<T>, options?: ReadOptions): Promise<Result<T>> {
+    try {
+      if (options?.signal?.aborted) throw new SourceError('cancelled', 'The source read was cancelled.')
+      const value = await operation()
+      if (options?.signal?.aborted) throw new SourceError('cancelled', 'The source read was cancelled.')
+      return { ok: true, value }
+    } catch (error) {
+      return { ok: false, error: options?.signal?.aborted ? { code: 'cancelled', message: 'The source read was cancelled.', retryable: false } : sourceFailure(error) }
+    }
+  }
+}

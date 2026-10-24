@@ -36,6 +36,7 @@ export type * from './workspace-contract.ts'
 export type { TopicSummary as WorkspaceTopicSummary } from './workspace-contract.ts'
 export type { WorkspaceAdapterFactory, ResearchWorkspaceRegistry } from './workspace-service.ts'
 export type { WorkspaceSidebarFace, WorkspaceSidebarProps } from './WorkspaceSidebar.tsx'
+export type {} from './workspace-resources.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -75,6 +76,7 @@ export function apply(ctx: ClientContext): void {
   const face: ResearchPanelFace = {
     openSession: (sessionId) => { ctx.uiWorkspace.openSession(sessionId) },
     startDraft: (workspaceId, prompt) => { ctx.uiWorkspace.startSession(workspaceId, { prompt }) },
+    askQuestion: question => workspaces.ask(question),
     previewChange: (workspaceId, intent) => workspaces.previewChange(workspaceId, intent),
     applyChange: (workspaceId, request) => workspaces.applyChange(workspaceId, request),
     retry: (workspaceId) => { workspaces.retry(workspaceId) },

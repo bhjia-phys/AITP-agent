@@ -19,7 +19,7 @@ The plugin contributes three Session views, all fed by the `aitp-session` resour
 
 Provenance is shown by both label and rule style: researcher items use a solid accent rule and the reading face, agent items a dashed rule labelled provisional, summaries a dotted rule, and gaps the warning color. Source availability keeps found, attached, in context now, condensed, missing and link-only distinct, and each source states why it is present. Opening a note source uses the `aitp-note` dock tab from the Research views package.
 
-Without a provider the header action and task card render nothing, so Harness is unchanged, and an open page says research memory is not connected. A failed first read shows its code in place; a later failure keeps the last value beside a notice. Fixture values are labelled.
+With no provider or no research origin, the header action and task card render nothing, so Harness is unchanged, and an open page says research memory is not connected. A failed first read shows its code in place; a later failure keeps the last value beside a notice. Fixture values are labelled.
 
 ## Further Exploration
 
@@ -38,6 +38,7 @@ None; this package does not assemble model requests.
 
 ## Known Limitations and Deferred Work
 
-- The shipped composition has no `aitp-session` provider, so these views stay absent until the research runtime projects Session memory; the development fixture is the only provider.
+- The optional real `ui-aitp-backend` provider projects existing Session events and registered message projections, including cold persisted Sessions. Exact request-context snapshots stay separate from current source files; a source link alone has unknown availability. Empty or ordinary Sessions publish explicit null values, and bounded output reports omissions. No rule adoption is inferred from prose.
+- The underlying history API is not paginated and can load a complete cold Session before projected output is bounded.
 - The views are read-only: adopting, editing or retiring a rule, answering a gap and correcting an agent note have no actions yet.
 - How the task card and the Goal bar coexist when a Session has both is an open design decision recorded in the interface design.

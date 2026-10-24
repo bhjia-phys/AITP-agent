@@ -4,7 +4,7 @@ This document owns the AITP-agent interface: its frame, navigation, views, inter
 
 **Design handoff:** Claude completed this UI design and its synthetic prototype. Codex owns incremental client and backend implementation and integration tests under [14's development crosswalk](14-implementation-blueprint.md#development-crosswalk). No research view is implemented or accepted merely by this handoff.
 
-**Revision 2026-10-22.** The interface is rebound to the selected DeepSeek Harness Web/Electron client. The earlier standalone shell (activity rail, explorer, editor groups, inspector, activity panel and status bar) is superseded: Harness already supplies the left sidebar, the main column, the per-Session right dock, the conversation, approvals, questions, compaction markers and permission controls, and AITP contributes research views to those places instead of replacing them. The scientific requirements of the earlier design are kept.
+**Frame revision 2026-10-22; implementation status updated 2026-10-23.** The interface is rebound to the selected DeepSeek Harness Web/Electron client. The earlier standalone shell (activity rail, explorer, editor groups, inspector, activity panel and status bar) is superseded: Harness already supplies the left sidebar, the main column, the per-Session right dock, the conversation, approvals, questions, compaction markers and permission controls, and AITP contributes research views to those places instead of replacing them. The scientific requirements of the earlier design are kept.
 
 Evidence labels used below:
 
@@ -18,12 +18,12 @@ Evidence labels used below:
 
 Two earlier isolated prototypes remain available. The [Harness-frame prototype](prototype/harness-frame/README.md) demonstrates this revision with seven deep-linkable walkthroughs and a browser check. The [earlier prototype](prototype/README.md) demonstrates the superseded shell and its selection-provenance checks; its interactions remain useful evidence for reader behavior, not for the frame.
 
-The [topic-centred redesign](16-topic-centred-redesign.md#navigation) prioritizes project overview → topic → subtopic → material. The [formal research client](../../packages/client/ui-aitp-research/README.md) implements that navigation with child-owned cards and Overview / Work & choices / Claims & routes / Materials / Activity tabs. Its adapter supplies hierarchy and material identity independently of note layout. The generic host `sidebar.context` slot supports the topic tree in the existing sidebar footprint; switching to Conversations restores the host browser. UI-1's note reader and Session views remain reusable. The [standalone prototype](prototype/topic-workspace/README.md) remains a design reference; application evidence is separate and owned by [14](14-implementation-blueprint.md#topic-redesign-review).
+The [topic-centred redesign](16-topic-centred-redesign.md#navigation) prioritizes project overview → topic → subtopic → material. The [formal research client](../../packages/client/ui-aitp-research/README.md) implements that navigation as the [research map](#research-map): an overview of directions and topics, a branch focus, topic pages and a material reader. Its adapter supplies hierarchy and material identity independently of note layout. The generic host `sidebar.context` slot supports the topic tree in the existing sidebar footprint; switching to Conversations restores the host browser. UI-1's note reader and Session views remain reusable. The [standalone prototype](prototype/topic-workspace/README.md) remains a design reference; application evidence is separate and owned by [14](14-implementation-blueprint.md#topic-redesign-review).
 
 <a id="ui-1-implementation-status"></a>
 ### Client and backend boundary
 
-The client reads through framework resources and a workspace-bound asynchronous provider. Scope and answer edits prepare a serializable preview, then show the provider's acknowledgement, conflict or unknown outcome. An open draft retains its original revision; a later source update requires explicit re-preparation. The opt-in fixture stores only in-memory demonstration state and identifies it throughout the UI. Backend storage, source mapping, durable recovery and actual model-context delivery are separate responsibilities; opening a resource or a Session does not establish that the model received the material. The [connection reference](../../packages/client/ui-aitp-research/README.md#backend-connection) owns the implemented interface, including the relationship to the older UI-1 note protocols.
+The client reads through framework resources and a workspace-bound asynchronous provider. Scope and answer edits prepare a serializable preview, then show the provider's acknowledgement, conflict or unknown outcome. An open draft retains its original revision; a later source update requires explicit re-preparation. The opt-in fixture stores only in-memory demonstration state and identifies it throughout the UI. The optional Markdown backend now supplies source mapping, scratch operation recovery and actual model-context delivery; these remain backend responsibilities. Opening a resource or a Session alone does not establish delivery. [B1–B6](14-implementation-blueprint.md#memory-backend-work) records the tested paths and open defects. The [connection reference](../../packages/client/ui-aitp-research/README.md#backend-connection) owns the implemented interface, including the relationship to the older UI-1 note protocols.
 
 ## Design commitments
 
@@ -138,7 +138,38 @@ The kinds and their lifecycle are defined by [11's working items](11-research-me
 
 Empty regions are absent rather than shown empty. Routine reads group into one row (“Read 3 passages”) that expands to exact sources. A decisive caveat stays beside its conclusion; a critical omission is never mixed into optional background. Presentation follows explicit task and source states, not a model choosing which inconvenient facts to hide. Hiding a panel changes no storage, source text, model context or permission.
 
+<a id="research-map"></a>
+## Research map, topic pages and materials
+
+**Revision 2026-10-23; application with fixture.** The [formal research client](../../packages/client/ui-aitp-research/README.md) organizes the workspace views as a focus map. It replaces the earlier client's project grid of answer cards and its five-tab topic view. Those views placed each topic's answer, qualification, gap, next step and child links on every overview card, divided topic detail among tabs, and showed the hierarchy only in the sidebar, with directions as labels unconnected to topics.
+
+| Model considered | Strength | Limit for this workspace |
+| --- | --- | --- |
+| Free node-and-edge canvas | Shows the whole programme at once | Becomes unreadable beyond a few dozen topics, handles long titles and keyboard use poorly, and drawn edges suggest relations the records do not state |
+| Column browser | Exposes depth directly | Spends the reading width on columns; mathematics and long qualifications need that width |
+| Indented outline as the main view | Compact and familiar | The sidebar already provides it; it shows structure but no qualified state |
+| **Focus map (selected)** | Draws direction → topic → branch structure around one focus at a time, with the summary one step from the page | One more step from the overview to a topic page; the page and the map have distinct purposes |
+
+The map has four levels, each with one purpose:
+
+1. **Overview — orientation.** The project title and its recorded summary, then one lane per research direction with its top-level topics on a drawn spine, a lane for topics without a direction, and the ideas to explore. A node shows its title, work state, recorded relation and branch count; its branches open in place on request. No answer, gap or next step appears at this level.
+2. **Branch focus — exploration.** Selecting a node centres the map on that topic: its question and recorded role in the parent; a summary with the current answer and its conditions together, what remains open, the next step and the topic's materials; its branches on the spine below it; and the other topics at the same level. Selecting a branch moves the focus down, a trail step moves it up, and Open topic proceeds to the page.
+3. **Topic page — reading.** One column leads with the question, scope, current answer with its conditions, what remains open and the next step. Branches with their recorded roles, materials, claims and routes, work and choices, and activity follow in sections. Branches and materials start open, work and choices open when a choice waits for the researcher, and the rest start closed and read nothing until opened. Editing keeps its preview/apply, capability, draft and unknown-outcome behavior.
+4. **Material — the full document.** A reading column with the material's kind and source location and its complete content, or the actual unavailable state.
+
+**Disclosure.** A shorter display never removes a qualification: wherever an answer appears, its conditions appear directly beneath it under “Conditions and limits”, and no answer is truncated to a headline. Work state uses a dot family (active, waiting on the researcher, waiting on a run, analysis or integration, paused or dormant, superseded, concluded); it never encodes scientific verification. Superseded routes have dashed connectors and borders; dormant and paused topics are muted.
+
+**Structure from records only.** Lanes come from `directionId`, the spine from the primary `parentId`/`childIds`, and labels such as Prerequisite, Alternative route, Control or Application from the optional recorded `parentContribution`. Nothing is drawn or labelled from parenthood, order or chronology; a topic without a recorded contribution shows no role. A page that is partial or has a further page says so: the next page is offered on request, branches a parent names but the reading lacks are counted as not loaded or not available, and the provider's reason is shown. The sibling row links to the complete level when its first page is incomplete.
+
+**Continuity.** The trail above each view lists Research map, the direction and the recorded parents. Its steps stay in the current mode: on the map they refocus the map, on a page they open pages, and Show on map or Open topic switches mode explicitly. Back returns to the previous location with its scroll offset and focused control. Node expansion, section state and requested pages are kept in the panel's interaction store. Arrival waits for the location's content. It re-applies while that content is replaced, for example when a resource held only by the previous view reloads once, and the reader's first wheel, touch, pointer or key input ends it. The sidebar outline in `sidebar.context` opens along the current path, keeps the branches the reader opens or closes, and shows titles only. No additional navigation column is added.
+
+**Motion, keyboard and width.** Changing location fades the new view in over 180 ms and opening branches over 140 ms; both are removed under reduced motion, and no animation blocks input. Every node, toggle, trail step and section header is a button reachable by Tab; arrow, Home and End keys move between map nodes. Hover only reveals affordances. At container widths below 880 px the focus summary moves between the focus card and its branches; below 640 px padding and title sizes reduce, and the views keep a 16 px gutter without horizontal scrolling.
+
+**Evidence.** The browser test [`aitp-workspace.e2e.ts`](../../apps/web/tests/aitp-workspace.e2e.ts) walks overview → branch focus → further page → nested topic → its page → material → Back in the assembled Harness Web application with the labelled fixture, checks containment at 1440, 1024, 720 and 390 px in light and dark themes and in Chinese, and compares accessibility snapshots in [its expected directory](../../apps/web/tests/expected/aitp-workspace/). [14](14-implementation-blueprint.md#topic-redesign-review) owns the progress record. The fixture establishes no backend support, real-note mapping or researcher acceptance.
+
 ## Research panel and topic home
+
+This section specifies the UI-1 topic home over the note projection; the workspace adapter's views follow the [research map](#research-map).
 
 **Entry.** Research in the sidebar panel list. Opening it sends no prompt and creates no Session.
 
@@ -446,14 +477,14 @@ These are a workspace without a root note ([s7.1](prototype/harness-frame/screen
 
 | Component (proposed client contribution) | Harness extension point used | Data and actions it needs | Backend status |
 | --- | --- | --- | --- |
-| Panel entries and global panels | `sidebar.panellist`, `main` keyed slot, `ctx.layout.selectPanel` | Current Workspace; whether it is a research root | Workspace exists; research-root detection missing |
-| Topic navigator and topic home | Global panel; `useResource` | Topic projection: topics, opening passages with spans, Current work entries with clauses, pending choices, failed-route and branch passages, linked materials, Sessions by origin | Missing (research-record provider) |
-| Note reader | Panel region and dock tab type; `ResourceProtocolMap` | Note resource by address with spans and anchors; Session-independent read authority for configured research roots | Missing; Harness previews read only through a Session filesystem |
-| Session hover card | `sidebar.session.row.hover` | Session origin and task summary by Session id | Missing (origin metadata) |
-| Origin chip, Sources & memory action | `conversation.session.header.actions` | Session origin | Missing |
-| Task card | `conversation.input.dock` | Working-memory projection: researcher items verbatim with event references, choice answers with question and option text, provisional agent items, gaps with requirement level, rules changed and adoption | Missing (task/working-memory provider and model-writable working items) |
-| AITP transcript rows | `tool.call.toolview` | Logged AITP tool calls and results (reads, working items, method use, outcomes) | Missing (AITP tools) |
-| Sources & memory page | Dock page type; `useProjection` | Observation records: locator, why included, requirement level, located / sent / available / condensed / re-read / missing states; rules and Skills in effect with load state; summaries by compaction event | Partly derivable from logged events and visible history; projection missing |
+| Panel entries and global panels | `sidebar.panellist`, `main` keyed slot, `ctx.layout.selectPanel` | Current Workspace; whether it is a research root | Research map and explicitly configured Markdown roots connected; general automatic root discovery remains limited |
+| Topic navigator and topic home | Global panel; `useResource` | Topic projection: topics, opening passages with spans, Current work entries with clauses, pending choices, failed-route and branch passages, linked materials, Sessions by origin | Workspace map/topic/material provider implemented for Markdown; full legacy note projections and topic Session listings remain unconnected |
+| Note reader | Panel region and dock tab type; `ResourceProtocolMap` | Note resource by address with spans and anchors; Session-independent read authority for configured research roots | Workspace and dock note readers have configured-root access; unique supported rendered selections map to raw intervals. Mathematical/cross-source selections and broader note projections remain incomplete |
+| Session hover card | `sidebar.session.row.hover` | Session origin and task summary by Session id | Runtime origin retained; production bridge to the legacy hover-card resource missing |
+| Origin chip, Sources & memory action | `conversation.session.header.actions` | Session origin | Real owner-scoped `aitp-session` bridge implemented; current scope comes from accepted Session events |
+| Task card | `conversation.input.dock` | Working-memory projection: researcher items verbatim with event references, choice answers with question and option text, provisional agent items, gaps with requirement level, rules changed and adoption | Real task-card bridge implemented for original inputs, provisional items and omissions; rule-adoption provider remains missing |
+| AITP transcript rows | `tool.call.toolview` | Logged AITP tool calls and results (reads, working items, method use, outcomes) | Native read/working/write tools logged in ordinary Sessions; dedicated research rows and Skill-use integration remain separate work |
+| Sources & memory page | Dock page type; `useProjection` | Observation records: locator, why included, requirement level, located / sent / available / condensed / re-read / missing states; rules and Skills in effect with load state; summaries by compaction event | Real page bridge implemented with exact request snapshots, compaction/projection state and separate current-note reads; rule/Skill adoption remains missing |
 | Library, knowledge, code readers | Panel regions, dock tab types, `ResourceProtocolMap` | Work/edition/page index with coverage; knowledge entries with labels, prerequisites and bounded where-used; checkout identity, dirty paths, diffs, history | Missing; Harness LSP and previews reusable for viewing |
 | Comparison tab | Dock tab type | Two resolved resources and locators | Uses reader data |
 | Skill catalog and use view | Panel tab, dock tab type | All candidates for a name with source and precedence, loaded text per Session, current text for comparison, relationship record and its author, borrowed portion and dependencies | Registry exposes winners only; relationship record and source-qualified load missing |
@@ -461,7 +492,7 @@ These are a workspace without a root note ([s7.1](prototype/harness-frame/screen
 | Rules panel | Global panel | Effective rule projection with sources, scopes, revisions, adoption receipts; save to the chosen destination | Missing; Harness settings do not supply resolution or adoption |
 | Agent questions, approvals, plan, goal, compaction marker, permissions | Existing Harness packages | — | Existing |
 
-No interface listed as missing is implemented; names such as “working-memory projection” describe required data, not existing APIs. Each backend item belongs to the owners in [10](10-project-workspace.md#harness-service-mapping) and the scope in [14](14-implementation-blueprint.md).
+The workspace adapter and runtime working projection are implemented within the bounded Markdown scope. They do not supply every older UI-1 resource or the proposed rule, Skill and domain-reader views. Each item belongs to the owners in [10](10-project-workspace.md#harness-service-mapping); [14](14-implementation-blueprint.md#memory-backend-work) owns current evidence and open defects.
 
 ## Increments
 
@@ -481,7 +512,7 @@ Acceptance is W1 and the note part of W2 on scratch data, in the running applica
 - a missing source neither throws nor locks work;
 - the topic home contains no generated prose.
 
-UI-1 needs: research-root and topic projection, note resource protocol with Session-independent read authority, Session origin metadata, the working-memory and observation projections, and model-writable working items. Until the last two exist, the task card shows researcher items and source states only, with the agent section absent.
+UI-1 needs research-root and topic projection, Session-independent note access, Session origin, working-memory and observation projections, and model-writable working items. The runtime and workspace adapter now supply the first bounded path. The optional real backend now supplies `aitp-session` and `aitp-note`; the task card and Sources & memory use accepted Session observations without starting an Agent. Exact recorded context and current source reads are separate. Per-file links retain unknown availability unless an actual per-file observation supports more. The broader rule/Skill and legacy note projections remain separate work.
 
 **Later increments**, each independently schedulable once its backend exists:
 - **UI-2**: Materials Library and Knowledge readers with attach-to-Session (W2, C19–C21).
@@ -548,9 +579,9 @@ These are prospective criteria; no usability trial has occurred.
 
 ## Implementation handoff
 
-**Component ownership.** Codex implements the client contributions and backend integration described in [14's crosswalk](14-implementation-blueprint.md#development-crosswalk), using Claude's completed design. The package names below are proposed reservations under `packages/client/`, following the existing `ui-brand-aitp` naming; agree them before concurrent edits.
+**Component ownership.** Codex implements the client contributions and backend integration described in [14's crosswalk](14-implementation-blueprint.md#development-crosswalk), using Claude's completed design. `ui-aitp-research` and `ui-aitp-session` exist under `packages/client/`; the optional `ui-aitp-backend` connects the workspace adapter to the host service. The other packages below remain proposed reservations; agree their ownership before concurrent edits.
 
-| Proposed client package | Owns | Consumes |
+| Client package or proposed reservation | Owns | Consumes |
 | --- | --- | --- |
 | `ui-aitp-resources` | Resource protocols for notes, papers, knowledge entries, Skills and checkouts; the shared reader components; dock tab types and the comparison tab | Research-record, literature, knowledge, Skill and checkout providers through host remotes |
 | `ui-aitp-research` | Research panel entry, topic navigator, topic home, Session hover card | Topic projection; Harness Sessions and their AITP origin |
@@ -560,12 +591,12 @@ These are prospective criteria; no usability trial has occurred.
 
 Every package derives what it shows from backend projections or resources and keeps no scientific state of its own. Layout and navigation history are local view state. Product copy is locale-owned, as Harness requires.
 
-**Required data and actions** are listed per component in the [integration map](#harness-integration-map-and-missing-backend-information); none of the missing items is implemented. **Acceptance per increment** is the walkthrough and state list named in [Increments](#increments). Run it in the application with scratch data, plus keyless recorded-Session snapshots for model-visible rows as Harness testing policy requires. The prototype check is design evidence only.
+**Required data and actions**, including the distinction between runtime support and unconnected legacy views, are listed in the [integration map](#harness-integration-map-and-missing-backend-information). **Acceptance per increment** is the walkthrough and state list named in [Increments](#increments). Run it in the application with scratch data, plus keyless recorded-Session snapshots for model-visible rows as Harness testing policy requires. The prototype check is design evidence only.
 
 **Decisions that change UI behavior.**
 
 1. Already listed as open product defaults in [14](14-implementation-blueprint.md#next-implementation-slice) and [current.md](../../current.md):
-   - session-independent resource access (UI-1 cannot browse without it);
+   - broader session-independent resource access defaults (configured Markdown roots already support browsing);
    - same-name Skill precedence and source-qualified loading (UI-3 selection rules);
    - saved-rule ownership and destination (UI-4);
    - restriction lifetime;

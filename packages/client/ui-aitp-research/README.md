@@ -7,17 +7,21 @@ kind: "package-reference"
 
 ## Summary
 
-Browse a Workspace's project, topics, subtopics and materials without opening a Session. Each topic owns its qualified answer, gap, work and material destinations. The panel, contextual sidebar and material reader consume one asynchronous adapter through Harness resources. The optional development provider uses labelled synthetic data; real storage and model-context delivery belong to separately developed backend services.
+Browse a Workspace's project, topics, subtopics and materials without opening a Session. Each topic owns its qualified answer, gap, work and material destinations. The panel, contextual sidebar and material reader consume one asynchronous adapter through Harness resources. The optional development provider uses labelled synthetic data; the optional [research backend](../ui-aitp-backend/README.md) connects configured Markdown roots and normal Harness conversations.
 
 ## Use and behavior
 
-The plugin adds Research to the global panel list. Selecting it shows the project overview and replaces the sidebar's conversation browser with a topic tree through `sidebar.context`. Conversations returns to the existing host browser. Both placements share viewing state; content remains in the resource service. The header selects among the host's Workspaces. Cards, breadcrumbs and Back support project → topic → child → material → return, including nested children.
+The plugin adds Research to the global panel list. Selecting it shows the research map and replaces the sidebar's conversation browser with a topic outline through `sidebar.context`. Conversations returns to the existing host browser. Both placements share viewing state; content remains in the resource service. The header selects among the host's Workspaces.
 
-Topic tabs show Overview, Work & choices, Claims & routes, Materials and Activity. Work status never substitutes for scientific assessment. Readable materials retain their complete text; linked-only or unsupported resources show the actual missing-content state. Source time, fixture origin and retained readings remain visible. A missing provider is reported as disconnected; a failed refresh retains the original observed value.
+The map has two levels of detail. The overview shows the project, its recorded summary, one lane per research direction with its top-level topics, and the ideas to explore; nodes carry only the title, work state, recorded relation and branch count, and a node's branches open in place. Selecting a node focuses the map on that topic: its question and recorded role in the parent, a summary of the current answer with its conditions, what remains open, the next step and its materials, its branches, and the other topics at the same level. Open topic shows the topic page, which leads with the question, scope and qualified answer and keeps branches, materials, claims and routes, work and choices, and activity in sections. Materials open in a reading column. The location trail and Back connect the levels; Back restores the scroll offset and the focused control, and node, section and loaded-page choices are kept for the return. The sidebar outline opens along the current path and keeps the branches the reader opens or closes.
+
+A topic list shows what the provider has not delivered: a further page is offered on request, children named by a parent but absent from the reading are counted, and partial pages show the provider's reason. Superseded, dormant and paused topics are drawn quietly; work status never substitutes for scientific assessment. Readable materials retain their complete text; linked-only or unsupported resources show the actual missing-content state. Fixture origin and retained readings remain visible, and each page ends with its reading time. A missing provider is reported as disconnected; a failed refresh retains the original observed value. Arrow, Home and End keys move between map nodes; motion is limited to short fades and is removed when reduced motion is requested.
 
 ### Backend connection
 
-The application owns the [typed contract](src/client/workspace-contract.ts), exported type-only from this package's `/client` entry. `WorkspaceTopicSummary` names the hierarchical topic summary there; the older `TopicSummary` export remains the legacy note projection. The contract imposes no filename, database or migration. Stable IDs identify objects; revisions are opaque equality tokens.
+The [typed contract](../../research/research-memory/src/types.ts) is shared with the backend and re-exported type-only from this package's `/client` entry. `WorkspaceTopicSummary` names the hierarchical topic summary there; the older `TopicSummary` export remains the legacy note projection. The contract imposes no filename, database or migration. Provider-owned IDs identify objects; the first Markdown provider uses path IDs and cannot resolve unknown renames. Revisions are opaque observations, with provider-specific edit semantics.
+
+Structure comes only from provider records: a topic's `directionId`, its one `parentId` with `childIds`, and the optional `parentContribution`. That field states how the topic serves its parent, as recorded at the parent, with an optional `relation` of prerequisite, alternative route, control or application. Providers supply it only from an explicit record; the views show nothing when it is absent and never infer support, proof or dependency from parenthood, order or chronology. `Project.summary` is likewise optional and omitted when absent.
 
 A browser provider injects `researchWorkspaces` and registers a factory with `ctx.researchWorkspaces.register(factory)`, returning its disposer through the provider's effect. The factory binds one `ResearchWorkspaceAdapter` to the requested Harness Workspace and the authenticated transport. The registry owns provider lifetime and adapter subscriptions. The [development provider](../ui-aitp-fixtures/README.md) is a complete in-memory example of this registration; replacing it does not require editing components.
 
@@ -33,9 +37,9 @@ The bridge registers these client resource protocols. Every successful frame is 
 
 Expected adapter failures use `WorkspaceError`, carried by the resource bridge as `aitp/workspace` with the original structured details. Abort ends a read subscription. Invalidation and resync events cause authoritative rereads, not optimistic content replacement. A disconnected provider retains the last successful reading beside its failure; a later provider registration wakes existing readers.
 
-Scope and answer edits use `previewChange` then `applyChange` only when the provider advertises both capabilities and the command. The UI keeps qualifications separate from answer text, displays the preview and pending integration, and claims application only after a receipt. The backend owns identity, permission, revision checks, idempotency and recovery. A lost receipt is an unknown outcome, not a confirmed failure; retry uses the same operation identity. Drafts and unresolved operations live in the shared interaction store, so closing the editor, changing topics or leaving the panel preserves recovery within the loaded client. A browser reload resets that view state; durable operation lookup and reconnect reconciliation belong to the backend. The fixture's acknowledgement explicitly means an in-memory demonstration, reset on reload.
+Scope and answer edits use `previewChange` then `applyChange` only when the provider advertises both capabilities and the command. The UI keeps qualifications separate from answer text, displays the preview and pending integration, and claims application only after a receipt. The backend owns source mapping, current permissions, operation identity, idempotency and recovery. A lost receipt is an unknown outcome, not a confirmed failure; retry uses the same operation identity. Drafts and unresolved operations live in the shared interaction store, so closing the editor, changing topics or leaving the panel preserves recovery within the loaded client. A browser reload resets that view state; durable operation lookup and reconnect reconciliation belong to the backend. The fixture's acknowledgement explicitly means an in-memory demonstration, reset on reload.
 
-`readContext` returns bounded source material, not proof of delivery to a model. The browser provider does not create a second agent loop or implement research-memory persistence. Backend work can implement reads and memory independently, then supply this adapter once its transport is ready.
+`readContext` returns bounded source material, not proof of delivery to a model. The optional research backend supplies this adapter and assembles context in the existing Harness loop. The question composer uses the current map focus, topic or material and any explicitly selected passage; submission creates a normal conversation. Its new-conversation icon, selected-passage preview, sending state and retained failed draft use the same presentation as the map. Browsing and text selection alone do not send a request.
 
 ### Existing note and Session views
 
@@ -50,15 +54,17 @@ The previous `aitp-topics`, `aitp-topic` and `aitp-note` types remain available 
 
 ## Model Experience
 
-None, as this package reads research content for display and does not contribute to model requests. A Session draft it opens reaches the model only when the researcher sends it, as ordinary user text.
+Indirectly, through the optional backend: an explicitly submitted question carries its displayed topic/material and selected text to a normal Harness conversation. Browsing alone contributes no model context.
 
 #### KV Cache effect
 
-None; this package does not assemble model requests.
+The backend owns request assembly and cache effects; this package supplies explicit user questions only.
 
 ## Known Limitations and Deferred Work
 
-- The development fixture is the only workspace adapter shipped here. Real filesystem access, durable writing, reconnect recovery and model-context delivery require backend integration and separate acceptance.
+- The development fixture and real Markdown backend are alternative providers. The backend requires an explicitly configured research root; scratch writing requires separate configuration. Question drafts remain local to the current view.
 - PDF, code and data readers need their own providers; an available locator does not establish that its contents were read.
 - Activity lists host Sessions only when supplied by the provider; the fixture does not invent real Session identities.
 - The legacy note reader opens at the document top; exact line scrolling needs located content from its provider.
+- The map draws only the primary parent hierarchy and recorded contributions. Cross-topic uses, dependencies between siblings and the evidence a topic cites from another need provider records before they can be drawn.
+- Return position is restored within the loaded client; reloading the browser starts at the map overview.

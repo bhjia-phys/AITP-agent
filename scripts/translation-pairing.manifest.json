@@ -9,7 +9,11 @@
     "packages/client/ui-brand-aitp/README.md",
     "packages/client/ui-aitp-research/README.md",
     "packages/client/ui-aitp-session/README.md",
-    "packages/client/ui-aitp-fixtures/README.md"
+    "packages/client/ui-aitp-fixtures/README.md",
+    "packages/research/",
+    "packages/client/ui-aitp-backend/README.md",
+    "docs/subsystems/research-memory.md",
+    "docs/subsystems/research-memory.zh.md"
   ],
   "excluded": [
     ".agents/notes/AGENTS.md",

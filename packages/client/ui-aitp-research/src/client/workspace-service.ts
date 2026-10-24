@@ -1,9 +1,11 @@
 /** Workspace adapter ownership; content caches remain in the framework resource service. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
   ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview, ReadEnvelope,
   ResearchEvent, ResearchWorkspaceAdapter, Result,
+  ResearchQuestion,
 } from './workspace-contract.ts'
 
 /** Factory supplied by a fixture or a separately developed backend transport. */
@@ -102,6 +104,18 @@ export class ResearchWorkspaceRegistry {
    */
   retry(workspaceId: WorkspaceId): void {
     this.notify(workspaceId, { kind: 'resync-required', reason: 'requested-refresh' })
+  }
+
+  /**
+   * Submit a human question with its displayed topic and material selection.
+   * @param question - submitted words and current Workspace/topic/material origin.
+   * @returns the normal Session identity or a typed connection/unsupported failure.
+   */
+  async ask(question: ResearchQuestion): Promise<Result<{ readonly sessionId: SessionId }>> {
+    const resolved = this.resolve(question.workspaceId)
+    if (!resolved.ok) return resolved
+    if (resolved.value.ask === undefined) return { ok: false, error: { code: 'unsupported', message: 'Contextual conversations are unavailable from this provider.', retryable: false } }
+    return resolved.value.ask(question)
   }
 
   /**

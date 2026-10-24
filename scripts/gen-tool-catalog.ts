@@ -82,6 +82,8 @@ import type { WorkflowRun, WorkflowStartRequest } from '@deepseek-ai/dsh-workflo
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
 import * as ToolWorkspaceDependencies from '@deepseek-ai/dsh-tool-workspace-dependencies'
+import ResearchMemory from '@deepseek-ai/dsh-research-memory'
+import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { githubSlug } from './verify-md-links.ts'
 
 /** Attachment seam marker that makes the attachments-conditional `read_image` schema harvestable. */
@@ -189,6 +191,25 @@ export interface ToolPackage {
  * guard proves it is exhaustive against the on-disk glob.
  */
 const TOOL_PACKAGES: ToolPackage[] = [
+  {
+    pkg: '@deepseek-ai/dsh-research-memory',
+    dir: 'research-memory',
+    source: {
+      research_working_update: 'packages/research/research-memory/src/runtime.ts',
+      research_read_context: 'packages/research/research-memory/src/runtime.ts',
+      research_prepare_change: 'packages/research/research-memory/src/write-tools.ts',
+      research_apply_change: 'packages/research/research-memory/src/write-tools.ts',
+      research_recover_change: 'packages/research/research-memory/src/write-tools.ts',
+    },
+    requires: ['ctx.agents', 'ctx.sessions', 'ctx.tools', 'ctx.systemPrompt', 'ctx.sessionProjections', 'ctx.sandboxPolicy (write execution)'],
+    writes: ['tool/call', 'tool/result', 'existing runtime-context messages', 'configured scratch sources and operation receipts'],
+    async mount(ctx) {
+      await ctx.plugin(TypertRegistry)
+      await ctx.plugin(AgentRegistry)
+      await ctx.plugin(SessionStore)
+      await ctx.plugin(ResearchMemory, { roots: [] })
+    },
+  },
   {
     pkg: '@deepseek-ai/dsh-plugin-manager',
     dir: 'plugin-manager',

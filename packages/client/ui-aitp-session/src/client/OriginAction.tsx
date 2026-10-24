@@ -33,12 +33,12 @@ export function originText(t: TranslateNS<'aitp.session'>, origin: SessionOrigin
  */
 export function OriginAction({ t, sessionId, useResource, openMemory }: OriginActionProps): ReactNode {
   const memory = useResource<'aitp-session'>(memoryAddress(sessionId))
-  if (memory.status === 'none') return null
+  if (memory.status === 'none' || memory.value === null) return null
   const origin = memory.value?.sessionOrigin
   return (
     <span className={css.originAction}>
       {origin !== undefined && (
-        <span className={css.origin} title={`${t('origin.label')}: ${originText(t, origin)}`}>{originText(t, origin)}</span>
+        <span className={css.origin} title={`${t(memory.value?.origin === 'runtime' ? 'origin.current' : 'origin.label')}: ${originText(t, origin)}`}>{originText(t, origin)}</span>
       )}
       <Tooltip label={t('memory')} side="bottom" align="end">
         <button type="button" className={css.memoryTrigger} aria-label={t('memory')} onClick={openMemory}>

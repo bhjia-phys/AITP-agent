@@ -1,8 +1,9 @@
 /** Async fixture behavior, ownership and qualified source boundaries. */
 import { describe, expect, it, vi } from 'vitest'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
-import type { ChangeIntent, ReadEnvelope, Result, Topic, TopicId } from '@deepseek-ai/dsh-client-ui-aitp-research/client'
+import type { ChangeIntent, ReadEnvelope, ResourceId, Result, Topic, TopicId } from '@deepseek-ai/dsh-client-ui-aitp-research/client'
 import { FixtureWorkspaceAdapter } from '../src/client/workspace-adapter.ts'
+import { createWorkspaceFixtureData, fixtureAccountMarkdown } from '../src/client/workspace-data.ts'
 
 const WS = 'fixture-workspace' as WorkspaceId
 const CHAOS = 'quantum-chaos' as TopicId
@@ -20,9 +21,9 @@ async function scopePreview(adapter: FixtureWorkspaceAdapter, topic: ReadEnvelop
 describe('research workspace fixture', () => {
   it('reads roots, nested children and complete materials asynchronously with explicit origin', async () => {
     const adapter = new FixtureWorkspaceAdapter(WS)
-    expect(value(await adapter.getProject())).toMatchObject({ origin: 'fixture', value: { title: 'Research workspace' } })
+    expect(value(await adapter.getProject())).toMatchObject({ origin: 'fixture', value: { title: 'Interaction, chaos and correlation in finite systems' } })
     const roots = value(await adapter.listTopics({ parentId: null })).value.items
-    expect(roots.map(root => root.value.id)).toEqual(['quantum-chaos', 'electronic-structure'])
+    expect(roots.map(root => root.value.id)).toEqual(['quantum-chaos', 'electronic-structure', 'shared-spectral-grid'])
     const child = value(await adapter.listTopics({ parentId: CHAOS })).value.items[0]!
     const leaf = value(await adapter.getTopic(child.value.childIds[0]!))
     expect(leaf.value.id).toBe(KRYLOV)
@@ -57,7 +58,7 @@ describe('research workspace fixture', () => {
     const topic = value(await adapter.getTopic(KRYLOV))
     const preview = value(await adapter.previewChange({
       topicId: KRYLOV, expectedRevision: topic.revision,
-      command: { kind: 'record-answer', text: 'The reference conserves normalization.', qualification: 'This is a synthetic small-system statement, not a chaos result.', sourceResourceIds: [topic.value.resources[1]!.id] },
+      command: { kind: 'record-answer', text: 'The reference conserves normalization.', qualification: 'This is a synthetic small-system statement, not a chaos result.', sourceResourceIds: [topic.value.resources[0]!.id] },
     }))
     value(await adapter.applyChange({ previewId: preview.value.previewId, operationId: 'answer-1' }))
     const card = value(await adapter.listTopics({})).value.items.find(item => item.value.id === KRYLOV)!
@@ -104,14 +105,46 @@ describe('research workspace fixture', () => {
     const adapter = new FixtureWorkspaceAdapter(WS)
     const context = value(await adapter.readContext({ topicId: KRYLOV, maxItems: 1, maxCharacters: 5000 }))
     expect(context.value.entries).toHaveLength(1)
-    expect(context.value.entries[0]!.text).toContain('larger research question remains open')
-    expect(context.value.omissions).toHaveLength(2)
+    expect(context.value.entries[0]!.text).toContain('it does not by itself establish chaos')
+    expect(context.value.omissions).toHaveLength(4)
     expect(context.value.completeness).toBe('partial')
     const tiny = value(await adapter.readContext({ topicId: KRYLOV, maxCharacters: 1 }))
     expect(tiny.value.entries).toEqual([])
     expect(tiny.value.omissions.length).toBeGreaterThan(0)
     expect(value(await adapter.getActivity({ topicId: KRYLOV })).value.items).toEqual([])
     expect(await adapter.readContext({ topicId: KRYLOV, maxItems: 0 })).toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+  })
+
+  it('pages parent-scoped lists, reports a declared partial list and passes recorded contributions through', async () => {
+    const adapter = new FixtureWorkspaceAdapter(WS)
+    const roots = value(await adapter.listTopics({ parentId: null })).value
+    const rest = value(await adapter.listTopics({ parentId: null, cursor: roots.nextCursor! })).value
+    expect(rest.items.map(item => item.value.id)).toEqual(['random-matrix-reading'])
+    expect(rest.items[0]!.value.directionId).toBeUndefined()
+    const chains = value(await adapter.listTopics({ parentId: 'long-range-chains' as TopicId })).value
+    expect(chains.items).toHaveLength(3)
+    expect(chains.nextCursor).not.toBeNull()
+    expect(chains.items[0]!.value.parentContribution?.text).toContain('operator spreading')
+    expect(chains.items.find(item => item.value.id === 'spectral-form-factor')?.value).toMatchObject({ work: { state: 'superseded' }, parentContribution: { relation: 'alternative' } })
+    const electronic = value(await adapter.listTopics({ parentId: 'electronic-structure' as TopicId })).value
+    expect(electronic).toMatchObject({ completeness: 'partial', incompleteReason: expect.stringContaining('could not be read') as string })
+    expect(value(await adapter.getTopic('electronic-structure' as TopicId)).value.childIds).toContain('band-alignment')
+    expect(await adapter.getTopic('band-alignment' as TopicId)).toMatchObject({ ok: false, error: { code: 'not-found' } })
+    expect(value(await adapter.listTopics({})).value.nextCursor).toBeNull()
+    const data = value(await adapter.getResource('spacing-ratio-table' as ResourceId)).value.content
+    expect(data).toMatchObject({ kind: 'plain-text' })
+  })
+
+  it('renders an account that states each absent field instead of omitting it', () => {
+    const topic = createWorkspaceFixtureData().topics.find(item => item.id === ('integrable-limit' as TopicId))!
+    const sparse = fixtureAccountMarkdown({ ...topic, currentAnswer: null, gap: null, work: { state: 'dormant', label: 'Dormant' }, resources: [] })
+    expect(sparse).toContain('No current answer is recorded.')
+    expect(sparse).toContain('No gap recorded.')
+    expect(sparse).toContain('No next action recorded.')
+    expect(sparse).toContain('No materials are linked yet.')
+    expect(sparse).toContain('## Role in the parent topic')
+    const { parentContribution: _omitted, ...plain } = topic
+    expect(fixtureAccountMarkdown(plain)).not.toContain('## Role in the parent topic')
   })
 
   it('binds pagination to its selection and observed snapshot', async () => {

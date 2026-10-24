@@ -13,13 +13,14 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import { en } from '../src/client/locales.ts'
+import { en, zh } from '../src/client/locales.ts'
 import { NoteReader } from '../src/client/NoteReader.tsx'
 import { NoteTabBody, NoteTabTitle, type NoteTabBodyProps } from '../src/client/NoteTab.tsx'
 import { noteAddress, type NoteView, type TopicIndexView } from '../src/client/protocol.ts'
 import { ResearchPanelIcon } from '../src/client/ResearchPanelIcon.tsx'
 import { TopicHome, type TopicHomeActions } from '../src/client/TopicHome.tsx'
 import { TopicNavigator } from '../src/client/TopicNavigator.tsx'
+import { WorkStateLabel } from '../src/client/WorkspaceViews.tsx'
 import { BARE, HOME, INDEX, NOTE, WS } from './data.client.ts'
 
 afterEach(cleanup)
@@ -30,6 +31,19 @@ const loading: ResourceSnapshot<never> = { status: 'loading', value: undefined, 
 const live = <V,>(value: V): ResourceSnapshot<V> => ({ status: 'live', value, failure: undefined })
 const failed = <V,>(code: string, value?: V, message = 'read failed'): ResourceSnapshot<V> => ({
   status: 'failed', value, failure: new RemoteError(code as 'aitp/note-missing', message, { path: 'x' }),
+})
+
+it.each([
+  { language: 'English', dictionary: en, missing: 'Status not recorded' },
+  { language: 'Chinese', dictionary: zh, missing: '未记录状态' },
+])('localizes an empty work label in $language and preserves authored labels verbatim', ({ dictionary, missing }) => {
+  const translate = makeTranslate(dictionary) as TranslateNS<'aitp.research'>
+  const view = render(<WorkStateLabel t={translate} work={{ state: 'unknown', label: '' }} />)
+  expect(screen.getByText(missing)).toBeDefined()
+  const authored = 'Awaiting N → ∞ comparison; the finite-size conclusion remains conditional.'
+  view.rerender(<WorkStateLabel t={translate} work={{ state: 'unknown', label: authored }} />)
+  expect(screen.getByText(authored).textContent).toBe(authored)
+  expect(screen.queryByText(missing)).toBeNull()
 })
 
 describe('Topic home', () => {

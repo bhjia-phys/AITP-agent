@@ -15,6 +15,7 @@ This table connects model-visible tool names to the plugin package and service s
 
 | Tool package | Model-visible names | Requires | Writes / affects | Shipped aliases | Deployment note |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-research-memory` | `research_apply_change`, `research_prepare_change`, `research_read_context`, `research_recover_change`, `research_working_update` | `ctx.agents`, `ctx.sessions`, `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionProjections`, `ctx.sandboxPolicy (write execution)` | `tool/call`, `tool/result`, `existing runtime-context messages`, `configured scratch sources and operation receipts` | - | - |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-plugin-market` | `plugin_market` | `ctx.tools`, `ctx.pluginMarket` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`, `list_mcp_resources`, `read_mcp_resource` | `ctx.tools`, `ctx.mcpResources` | `tool/call`, `tool/result` | - | - |
@@ -48,6 +49,195 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
+
+<a id="deepseek-aidsh-research-memory"></a>
+
+## `@deepseek-ai/dsh-research-memory`
+
+### `research_apply_change`
+
+Apply a prepared source edit from this conversation and research direction. Existing host write scope and current session file policy must permit it. Reuse the same operationId for a retry; partial or unknown operations are inspected, never automatically replayed. A file save is not complete scientific integration.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "operationId"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/write-tools.ts`](../packages/research/research-memory/src/write-tools.ts)
+
+### `research_prepare_change`
+
+Decide whether the current research work warrants an edit, no change, or a pending outcome. Prepare exact source-passage replacements with rationale, supporting references and remaining affected uses. This does not apply the changes or turn your interpretation into a human decision. Parent uses change only when you explicitly include their affected passages.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "edit",
+        "no-change",
+        "pending"
+      ]
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "edits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "description": "Copy the exact resource: locator shown beside a Source passage in research_read_context. This is not a topic: ID, file path or original human input sourceId; a locator does not grant write permission."
+          },
+          "originalText": {
+            "type": "string"
+          },
+          "replacementText": {
+            "type": "string"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "resourceId",
+          "originalText",
+          "replacementText",
+          "rationale",
+          "sourceRefs"
+        ]
+      }
+    },
+    "remainingUses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "disposition",
+    "rationale",
+    "edits",
+    "remainingUses"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/write-tools.ts`](../packages/research/research-memory/src/write-tools.ts)
+
+### `research_read_context`
+
+Recover the current research direction, source-backed context and exact resource: locators beside Source passages. Use these locators unchanged when preparing source edits. To inspect omitted original human inputs, list their source IDs with inputOffset, then read an exact original input using sourceId and an optional character offset. Original questions include the offered choices and complete answer. This reads only the direction already selected by the human; it does not grant write permission.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sourceId": {
+      "type": "string"
+    },
+    "offset": {
+      "type": "integer"
+    },
+    "inputOffset": {
+      "type": "integer"
+    }
+  }
+}
+```
+
+Source: [`packages/research/research-memory/src/runtime.ts`](../packages/research/research-memory/src/runtime.ts)
+
+### `research_recover_change`
+
+Inspect an operation from this conversation and research direction without applying it. Distinguish its historical file outcomes from current source observations. Matching text never makes an interrupted operation successful. Read the named sources before deciding on a new proposal.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "operationId"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/write-tools.ts`](../packages/research/research-memory/src/write-tools.ts)
+
+### `research_working_update`
+
+Keep a concise provisional working item for the current research direction: a gap, result and limitation, failed route and reopening condition, next step, or pending integration. Update only your own items. Original human instructions and decisions remain unchanged. This does not write scientific notes or pause work. Cite original input source IDs when they constrain the item.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "upsert",
+        "retire"
+      ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "gap",
+        "result",
+        "failed-route",
+        "next-step",
+        "pending-integration"
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "condition": {
+      "type": "string"
+    },
+    "sourceIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "operation",
+    "id"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/runtime.ts`](../packages/research/research-memory/src/runtime.ts)
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 

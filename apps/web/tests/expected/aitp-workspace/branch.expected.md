@@ -1,0 +1,71 @@
+- region "Research":
+  - heading "Research" [level=1]
+  - text: workspace
+  - navigation "Research location":
+    - button "Back"
+    - list:
+      - listitem:
+        - button "Research map"
+      - listitem: Many-body dynamics
+      - listitem:
+        - button "Quantum chaos"
+      - listitem: Long-range chains
+  - paragraph:
+    - strong: Demo workspace
+    - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
+  - article:
+    - paragraph: Awaiting analysis
+    - 'heading "Long-range chains: which comparisons survive a change of interaction exponent?" [level=2]'
+    - paragraph:
+      - text: Which diagnostics remain comparable when the interaction exponent
+      - math: α
+      - text: changes?
+    - paragraph:
+      - strong: "Role in Quantum chaos:"
+      - text: Supplies the matched-grid comparison the parent question relies on, for the exponents listed in its scope only.
+  - complementary "Current understanding":
+    - heading "Current understanding" [level=3]
+    - paragraph: Two of the three planned comparisons remain meaningful across the studied exponents.
+    - paragraph: Conditions and limits
+    - paragraph: The third comparison changes normalisation between exponents and is not yet reconciled.
+    - heading "What remains open" [level=3]
+    - paragraph: A symmetry resolution that is consistent across all exponents.
+    - heading "Next step" [level=3]
+    - paragraph: Reconcile the normalisation of the third comparison.
+    - heading "Materials" [level=3]
+    - list:
+      - listitem:
+        - 'button "Note Long-range chains: which comparisons survive a change of interaction exponent?: full account"':
+          - text: Note
+          - strong: "Long-range chains: which comparisons survive a change of interaction exponent?: full account"
+      - listitem:
+        - button "Paper Long-range-chain literature reference":
+          - text: Paper
+          - strong: Long-range-chain literature reference
+    - button "Open topic"
+    - button "Read full account"
+  - region "Branches of Long-range chains":
+    - list:
+      - listitem:
+        - button "Operator Krylov dynamics In progress"
+        - button "2 branches of Operator Krylov dynamics": 2 branches
+      - listitem:
+        - button "Spectral form factor route Superseded Alternative route"
+      - listitem:
+        - button "Spacing-ratio scaling Awaiting a run"
+      - listitem:
+        - button "Symmetry resolution In progress Prerequisite"
+      - listitem:
+        - button "Entanglement growth after a quench Dormant"
+  - region "Other branches at this level":
+    - heading "Other branches at this level" [level=3]
+    - list:
+      - listitem:
+        - button "Eigenstate thermalisation Awaiting your choice"
+      - listitem:
+        - button "Integrable nearest-neighbour limit Concluded"
+  - text: Ask about this research
+  - textbox "Ask about this research":
+    - /placeholder: What is still unclear, or what should we investigate next?
+  - paragraph: Continue with the research context from this page.
+  - button "Ask in a new conversation" [disabled]
