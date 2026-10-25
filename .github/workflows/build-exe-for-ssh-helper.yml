@@ -64,7 +64,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - uses: pnpm/action-setup@v6
@@ -74,7 +74,7 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-      - uses: actions/cache@v6
+      - uses: actions/cache@v6.1.0
         with:
           path: ~/.pkg-cache
           key: ssh-pkg-${{ matrix.target }}-${{ hashFiles('pnpm-lock.yaml') }}

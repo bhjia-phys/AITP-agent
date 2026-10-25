@@ -1287,7 +1287,7 @@ describe('Weighted approval workflow', () => {
     })
     const setupIndex = steps.findIndex(step => typeof step.uses === 'string' && step.uses.startsWith('actions/setup-python@'))
     expect(steps[setupIndex]?.if).toBe("steps.revoke.outputs.active == 'true'")
-    expect(steps[setupIndex]?.uses).toBe('actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1')
+    expect(steps[setupIndex]?.uses).toBe('actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97')
     const revokeIndex = steps.findIndex(step => step.id === 'revoke')
     expect(revokeIndex).toBeGreaterThan(steps.indexOf(checkout!))
     expect(revokeIndex).toBeLessThan(setupIndex)

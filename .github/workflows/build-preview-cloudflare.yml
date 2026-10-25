@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-24.04
     name: cloudflare pages preview
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
 
@@ -57,7 +57,7 @@ jobs:
 
       # Read-only: the preview lane consumes the default-branch cache without
       # putting cache upload on its own path.
-      - uses: actions/cache/restore@v6
+      - uses: actions/cache/restore@v6.1.0
         with:
           path: ${{ steps.pnpm-store.outputs.path }}
           key: ${{ runner.os }}-node-${{ env.PRIMARY_NODE_VERSION }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
