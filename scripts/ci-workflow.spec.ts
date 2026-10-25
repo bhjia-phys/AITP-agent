@@ -343,7 +343,7 @@ describe('CI workflow', () => {
       const cores = jobName === 'windows-native-tests' ? 2 : 16
       expect(evaluateRunsOn(job['runs-on'], { vars: { DSH_CI_FAILOVER_WINDOWS: 'blacksmith' } }))
         .toBe(`blacksmith-${cores}vcpu-windows-2025`)
-      expect(job.if).toBe("github.event_name == 'pull_request'")
+      expect(job.if).toBe("github.repository == 'deepseek-ai/deepseek-harness' && github.event_name == 'pull_request'")
     }
 
     // windows-build runs the blocking build/site pair.
@@ -613,7 +613,7 @@ describe('CI workflow', () => {
     const aggregate = workflowJob(workflow, 'all-checks-passed')
 
     expect(benchmark['runs-on']).toBe('ubuntu-24.04')
-    expect(benchmark.if).toBe("github.event_name == 'pull_request'")
+    expect(benchmark.if).toBe("github.repository == 'deepseek-ai/deepseek-harness' && github.event_name == 'pull_request'")
     expect(benchmark.needs).toBeUndefined()
     expect(benchmark['continue-on-error']).toBeUndefined()
     expect(benchmark.env).toBeUndefined()
@@ -787,7 +787,7 @@ describe('CI workflow', () => {
     }
 
     expect(pythonRuntime).toMatchObject({
-      if: "github.event_name == 'pull_request'",
+      if: "github.repository == 'deepseek-ai/deepseek-harness' && github.event_name == 'pull_request'",
       name: 'python runtime / release-shaped matrix',
       uses: './.github/workflows/build-exe-for-python-sdk.yml',
       with: {
