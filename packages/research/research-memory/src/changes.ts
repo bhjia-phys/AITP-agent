@@ -33,8 +33,8 @@ function replaceSectionBody(original: string, edited: string): string | undefine
 export class ResearchChanges {
   /** Shared scratch writer used by both UI commands and Session-scoped model tools. */
   readonly writer: ScratchWriter
-  constructor(private readonly source: MarkdownWorkspace, config: ScratchWriterConfig) {
-    this.writer = new ScratchWriter(source, config)
+  constructor(private readonly source: MarkdownWorkspace, config: ScratchWriterConfig, authorizeSourceWrites?: () => Promise<boolean>) {
+    this.writer = new ScratchWriter(source, config, authorizeSourceWrites)
   }
 
   /**

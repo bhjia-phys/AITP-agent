@@ -173,6 +173,8 @@ This section specifies the UI-1 topic home over the note projection; the workspa
 
 **Entry.** Research in the sidebar panel list. Opening it sends no prompt and creates no Session.
 
+**Project setup and creation.** The workspace adapter first reports whether the selected Harness Workspace has been enabled for research. The owner explicitly enables read-only access or saving; existing host-configured limits remain visible. New topic and New subdirection collect a title, research question, optional scope and the current parent. Successful creation opens the new topic and focuses its question composer without contacting a model. Unconfirmed outcomes retain the original creation request for inspection and retry. Providers without creation support retain their existing reading views. [14](14-implementation-blueprint.md#topic-onboarding) owns implementation evidence and boundaries.
+
 **Navigator.** Root note; topics from the root note's links with kind (topic, family map, learning story) and authored disposition; an Unmapped group of note candidates not linked from the root. A family map shows its own description and children, never an invented common answer.
 
 **Topic home** (Proposed AITP; [synthetic demonstration](prototype/harness-frame/screenshots/s1-1.png)), in this order:

@@ -1,0 +1,80 @@
+.setup,
+.form {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+  min-width: 0;
+  margin: 24px auto;
+  padding: 20px;
+  border: 0.5px solid var(--dsw-alias-border-l1);
+  border-radius: var(--dsw-radius-md);
+  background: var(--dsw-alias-bg-layer-1);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.setup h2,
+.form h2 {
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+}
+
+.setup p,
+.form p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.creation {
+  margin-bottom: 20px;
+}
+
+.form {
+  margin: 16px 0 0;
+}
+
+.form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: var(--dsw-radius-sm);
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  resize: vertical;
+}
+
+.error {
+  padding: 8px 12px;
+  border-left: 2px solid var(--dsw-alias-state-warn-primary);
+  background: var(--dsw-alias-state-warn-tertiary);
+  color: var(--dsw-alias-label-primary);
+}
+
+@container (max-width: 500px) {
+  .setup,
+  .form {
+    padding: 16px;
+  }
+
+  .setup {
+    margin: 16px;
+  }
+}

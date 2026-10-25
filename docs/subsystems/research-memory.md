@@ -5,18 +5,27 @@ The [research-memory plugin](../../packages/research/research-memory/README.md) 
 | Data | Owner | Recovery |
 | --- | --- | --- |
 | Scientific accounts and materials | Existing Markdown files | Fresh scoped reads; unfamiliar forms remain readable text |
-| Original questions, answers and model working items | Existing Session messages and tool results | `researchWorking` projection; bounded Session query for the same workspace and topic |
+| Original human inputs, assistant questions and model working items | Existing Session events | `researchWorking` projection; bounded Session query for the same workspace and topic |
 | Topic links and source observations | `MarkdownWorkspace` instance | Rebuild from files; path identities survive process restart, unknown renames remain unresolved |
 | Prepared edits and application outcomes | Scratch writer runtime directory outside the source tree | Durable operation ID, observed per-file outcome and separate current-source observation |
+| Project enrollment and topic creation | Application-owned grants and creation receipts outside scientific files | Fresh canonical Workspace authority, persisted write choice and original creation identity |
 | Browser data | Existing Harness resources | Generated Remote transport and invalidation followed by fresh reads |
 
 The root `research.md` is the project account. Explicit links determine topic parents and material ownership; directory proximity alone does not. Shared materials retain multiple possible owners. An unavailable configured root does not disable another successfully authorized root. A question carries its workspace, topic, material and optional selected passage; unresolved ownership stays visible instead of choosing a nearby topic.
 
-Context reads select recognized question and current-answer sections as core account units, with explicit complete-unit budget omissions. A failed filesystem watcher triggers fresh discovery on reads; unchanged discovery retains its pagination identity, while changed sources or explicit refresh invalidate old cursors.
+Context reads select recognized question and current-answer sections as core account units, with explicit complete-unit budget omissions. A failed filesystem watcher triggers fresh discovery on reads; unchanged source membership and text retain pagination identity, while selected-source admission, changed sources or explicit refresh invalidate old cursors.
+
+Partial discovery can admit a known selected in-root regular file and bounded relevant accounts recognized through explicit links. Reserved directories and symlink paths remain excluded; path probes do not infer parents. Established relationships survive unrelated selections, while competing explicit links retain ambiguity. This supplements the initial bounded scan without completing the inventory: incoming parent links and other material owners can remain unknown.
 
 The required context section is delivered on actual model requests and retained by Harness's existing context records. Original human input, provisional model items, scientific source passages and historical content remain distinct. Historical input does not transfer action permissions. The current owner-only question producer and conservative history policy prevent a non-owner continuation from acquiring access to other conversations.
 
+Unanswered assistant questions contribute their original wording and offered options to current and same-topic recovered context, with exact Session references that `research_read_context` can reopen. A missing linked structured reply establishes no human decision; later ordinary human answers and corrections retain authority. Whole-unit omissions remain explicit.
+
+Historical recovery selects matching-topic conversations before applying the configured conversation limit. Its transient membership index uses current live projections or cold classifications validated against persistence identity, revision and Session lifecycle, and prunes removed Sessions. Unchanged unrelated classifications avoid body rereads. Cold classification and selected histories share a finite event-processing budget, with explicit incomplete-coverage notices; metadata enumeration remains unpaginated and a cold observation can still read a complete log. The index retains no raw log or scientific text and rebuilds after restart.
+
 The browser and model tools share one literal-passage scratch writer. A prepared change may be `no-change`, `pending` or an edit; application reports complete, partial or uncertain outcomes. Applying text does not complete the proposal's remaining scientific integration. The writer preserves the source UTF-8 BOM and serializes source publication through one owning writer, so resource aliases share the same publication boundary. It coordinates its own calls only; arbitrary external editing and multi-file transactions remain outside its guarantees. [Package configuration and limitations](../../packages/research/research-memory/README.md) define the concrete bounds.
+
+The owner explicitly enrolls a registered Workspace from Research; observing setup grants no source access. Read-only enrollment creates no scientific file. Writable initialization preserves an existing project account, and topic creation adds only the person's opening and explicit parent links. Creation shares the source-publication boundary with edits; both recheck the current write grant there. Provider disposal refuses new onboarding requests and drains already admitted source and receipt work. Static operator-configured limits retain precedence over enrollment.
 
 The owner-scoped `getSessionMemory` read projects existing accepted Session events and registered message projections without starting an Agent or rereading scientific sources. It exposes exact named request-context snapshots with current, condensed, projected or superseded state; current files open through a separate note read. Per-file links retain unknown delivery state, and prose does not establish rule adoption. Output bounds report omitted complete units. The existing cold-history API can still load an entire Session before projection bounds apply.
 
@@ -35,6 +44,27 @@ Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnp
 One source adapter per explicitly configured research root.
 
 ```ts cordis-catalog
+/**
+ * Observe owner setup before any source root has been authorized.
+ * @param request - existing Workspace identity, resolved by the host registry.
+ * @returns current access and explicit enrollment availability, without reading scientific content.
+ */
+@Remote({ name: 'getSetup', resources: { workspace: addressedWorkspace } }) async getSetup(request: { workspaceId: WorkspaceId }): Promise<Result<ResearchSetup>>
+
+/**
+ * Explicitly enroll a registered Workspace and create its root account only when absent.
+ * @param request - Workspace and the owner's chosen source-write authorization.
+ * @returns durable setup; configured deployment policy cannot be broadened here.
+ */
+@Remote({ name: 'initialize', resources: { workspace: addressedWorkspace } }) async initialize(request: { workspaceId: WorkspaceId } & ResearchInitializeRequest): Promise<Result<ResearchSetup>>
+
+/**
+ * Create a new ordinary topic account and append an explicit parent/child relationship.
+ * @param request - Workspace, human-authored opening and stable retry identity.
+ * @returns durable source identities, or an honest rejected, partial or unknown outcome.
+ */
+@Remote({ name: 'createTopic', resources: { workspace: addressedWorkspace } }) async createTopic(request: { workspaceId: WorkspaceId } & CreateTopicRequest): Promise<Result<CreateTopicReceipt>>
+
 /**
  * Read provider capabilities for one explicitly configured root.
  * @param request - addressed Workspace; its root must be explicitly configured.
@@ -101,7 +131,7 @@ One source adapter per explicitly configured research root.
 @Remote({ name: 'refresh', resources: { workspace: addressedWorkspace } }) async refresh(request: { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<void>
 
 /**
- * Every connection begins with a fresh-read request; notifications carry no scientific content.
+ * Every connection begins with a baseline; unenrolled owner feeds carry setup invalidations only.
  * @param request - Workspace whose observations are followed.
  * @param signal - ends the stream and immediately detaches observation listeners.
  * @returns coalesced invalidations; source values must be reread after each one.

@@ -89,7 +89,7 @@ export function WorkspaceQuestion({ t, workspaceId, location, reading, ask, open
         </div>
         <blockquote>{selected.text}</blockquote>
       </div>}
-      <textarea id={id} className={css.composerInput} rows={3} value={question} disabled={pending}
+      <textarea id={id} data-research-question="" className={css.composerInput} rows={3} value={question} disabled={pending}
         placeholder={t('workspace.ask.placeholder')} aria-invalid={visibleError !== undefined}
         aria-describedby={`${id}-hint${visibleError === undefined ? '' : ` ${id}-error`}`}
         onPointerDown={rememberSelection}

@@ -8,13 +8,15 @@ import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepsee
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { TopicId, TopicPage, TopicSummary } from './workspace-contract.ts'
-import { workspaceProjectAddress, workspaceTopicsAddress } from './workspace-resources.ts'
+import { workspaceProjectAddress, workspaceSetupAddress, workspaceTopicsAddress } from './workspace-resources.ts'
 import { disclosureKey, type createResearchPanelStore } from './store.ts'
 import type {} from './sidebar-locales.ts'
 import css from './workspace-sidebar.module.css'
 
 /** The host owns switching back to its existing conversation browser. */
 export interface WorkspaceSidebarFace {
+  /** Check provider enrollment before subscribing to scientific-content resources. */
+  checkSetup?: boolean
   /** Show the current conversation and its Workspace/session list. */
   showConversations: () => void
   /** Re-read this Workspace after a failed page or an expired cursor. */
@@ -61,9 +63,22 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps): ReactNode {
       </div>
       {workspace === undefined
         ? <p className={css.notice}>{t('noWorkspace')}</p>
-        : <WorkspaceTree key={workspace.workspaceId} {...props} workspaceId={workspace.workspaceId} workspaceTitle={workspace.title} />}
+        : <WorkspaceTreeSetup key={workspace.workspaceId} {...props}
+          workspaceId={workspace.workspaceId} workspaceTitle={workspace.title} />}
     </nav>
   )
+}
+
+function WorkspaceTreeSetup(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId; workspaceTitle: string }): ReactNode {
+  const setup = props.useResource<'aitp-workspace-setup'>(workspaceSetupAddress(props.workspaceId))
+  const legacy = (setup.status === 'none' && props.checkSetup !== true)
+    || (setup.failure?.code === 'aitp/workspace' && setup.failure.details.code === 'unsupported')
+  if (legacy || setup.value?.configured === true) return <WorkspaceTree {...props} />
+  return <div className={css.treeRegion}>
+    <p className={css.projectTitle}>{props.workspaceTitle}</p>
+    <p className={css.notice}>{props.t('setupRequired')}</p>
+    {setup.status === 'failed' && <Button variant="ghost" size="sm" onClick={() => { props.retry(props.workspaceId) }}>{props.t('retry')}</Button>}
+  </div>
 }
 
 function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId; workspaceTitle: string }): ReactNode {

@@ -135,15 +135,26 @@ export class ScratchWriter {
   /**
    * @param workspace Source reader whose real root must match the writable root.
    * @param config Explicit writable scope, separate runtime receipts and byte bound.
+   * @param authorizeSourceWrites Optional fresh Host authority check inside source-publication serialization.
    * @throws If the byte bound is invalid or a configured path is not absolute.
    */
-  constructor(private readonly workspace: SourceReader, private readonly config: ScratchWriterConfig) {
+  constructor(private readonly workspace: SourceReader, private readonly config: ScratchWriterConfig,
+    private readonly authorizeSourceWrites?: () => Promise<boolean>) {
     if (!Number.isSafeInteger(config.maxOperationBytes) || config.maxOperationBytes <= 0) {
       throw new Error('maxOperationBytes must be a positive safe integer.')
     }
     if (!isAbsolute(config.stateDirectory) || (config.writableRoot !== null && !isAbsolute(config.writableRoot))) {
       throw new Error('Scratch writer roots and runtime state directories must be absolute paths.')
     }
+  }
+
+  /**
+   * Serialize an owner operation with all source edits from this writer.
+   * @param operation - trusted source publisher, responsible for its own paths and receipts.
+   * @returns the operation's settled value after earlier source publications finish.
+   */
+  async serializeSources<T>(operation: () => Promise<T>): Promise<T> {
+    return this.locked(['source:publication'], operation)
   }
 
   /**
@@ -210,7 +221,10 @@ export class ScratchWriter {
         if (this.config.writableRoot === null) {
           throw new WriteFailure('read-only', 'Source application is disabled; the prepared operation remains available.')
         }
-        return await this.locked(['source:publication'], async () => {
+        return await this.serializeSources(async () => {
+          if (this.authorizeSourceWrites !== undefined && !await this.authorizeSourceWrites()) {
+            throw new WriteFailure('read-only', 'Source application is disabled by the current root authorization.')
+          }
           for (const [index, before] of operation.files.entries()) {
             let current = before
             let sourceAttempted = false

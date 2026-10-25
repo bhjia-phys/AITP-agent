@@ -1,5 +1,5 @@
 /** Load the production research service, write its scratch source, and resume from disk. */
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Context } from '@deepseek-ai/cordis'
@@ -18,13 +18,16 @@ import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import ResearchMemory from '@deepseek-ai/dsh-research-memory'
 import ExactSessionQuery from '../runtime/query-plugin.ts'
-import type { Result, TopicId } from '@deepseek-ai/dsh-research-memory'
+import type { CreateTopicReceipt, Result, TopicId } from '@deepseek-ai/dsh-research-memory'
 import * as mock from './mock-llm.ts'
 
 const configuredPath = process.argv[2]
 if (configuredPath === undefined) throw new Error('The service fixture needs its Loader configuration path.')
 const configPath = configuredPath
 const root = join(process.cwd(), 'notes')
+const onboardingRoot = join(process.cwd(), 'enrolled-notes')
+const onboardingWorkspace = 'enrolled-workspace' as WorkspaceId
+const onboardingRequest = { operationId: 'loader-topic-create', title: 'New control', question: 'Does the isolated control settle A?', scope: 'Finite size only.' }
 const workspaceId = 'service-scratch' as WorkspaceId
 const topicId = 'topic:child%2Fresearch.md' as TopicId
 const sessionId = SessionId('research-service-write')
@@ -32,6 +35,7 @@ const agentOptions = { provider: 'research-service-model', model: 'research-serv
 const originalParent = '# Project\n\n[Child](child/research.md) supplies finite-size controls only; it does not settle the root question.\n\n## Other work\n\n[Sibling](sibling/research.md) studies an independent question.\n'
 const originalSibling = '# Sibling\n\nDoes C hold?\n\n## Current answer\n\nUndetermined; this question has not been assessed.\n'
 await mkdir(join(root, 'child'), { recursive: true })
+await mkdir(onboardingRoot)
 await mkdir(join(root, 'sibling'), { recursive: true })
 await writeFile(join(root, 'research.md'), originalParent)
 await writeFile(join(root, 'sibling/research.md'), originalSibling)
@@ -45,6 +49,8 @@ function unwrap<T>(result: Result<T>): T {
 
 async function boot(): Promise<Context> {
   const ctx = new Context()
+  ctx.provide('dshHomePath', (...parts: string[]) => join(process.cwd(), '.app-home', ...parts))
+  ctx.provide('workspaceRegistry', { get: (id: WorkspaceId) => id === onboardingWorkspace ? { path: onboardingRoot } : undefined } as never)
   ctx.baseUrl = `${pathToFileURL(dirname(configPath)).href}/`
   await ctx.plugin(Loader)
   Object.assign(ctx.loader.builtins, { include: Include, llm: LlmRuntime, sessions: SessionStore,
@@ -61,6 +67,15 @@ async function boot(): Promise<Context> {
 const signal = new AbortController().signal
 let ctx = await boot()
 try {
+  const setupBefore = unwrap(await ctx.researchMemory.getSetup({ workspaceId: onboardingWorkspace }))
+  const providerBefore = await ctx.researchMemory.provider({ workspaceId: onboardingWorkspace }, signal)
+  unwrap(await ctx.researchMemory.initialize({ workspaceId: onboardingWorkspace, writable: false }))
+  const readOnlyCreatedNoFiles = (await readdir(onboardingRoot)).length === 0
+  unwrap(await ctx.researchMemory.initialize({ workspaceId: onboardingWorkspace, writable: true }))
+  const created = unwrap(await ctx.researchMemory.createTopic({ workspaceId: onboardingWorkspace, ...onboardingRequest }))
+  const child = unwrap(await ctx.researchMemory.createTopic({ workspaceId: onboardingWorkspace, ...onboardingRequest,
+    operationId: 'loader-child-create', title: 'Child control', parentTopicId: created.topicId }))
+  await writeFile('service-onboarding.json', JSON.stringify({ setupBefore, providerBefore, readOnlyCreatedNoFiles, created, child }))
   const project = unwrap(await ctx.researchMemory.getProject({ workspaceId }, signal))
   const before = unwrap(await ctx.researchMemory.getTopic({ workspaceId, topicId }, signal))
   const agent = await ctx.agentLoop.create(sessionId, agentOptions, { cwd: root })
@@ -83,6 +98,14 @@ try {
 
 ctx = await boot()
 try {
+  const created = JSON.parse(await readFile('service-onboarding.json', 'utf8')) as { created: CreateTopicReceipt; child: CreateTopicReceipt }
+  await writeFile('service-onboarding-restarted.json', JSON.stringify({
+    setup: unwrap(await ctx.researchMemory.getSetup({ workspaceId: onboardingWorkspace })),
+    sameReceipt: unwrap(await ctx.researchMemory.createTopic({ workspaceId: onboardingWorkspace, ...onboardingRequest })),
+    child: unwrap(await ctx.researchMemory.getTopic({ workspaceId: onboardingWorkspace, topicId: created.child.topicId }, signal)),
+    context: unwrap(await ctx.researchMemory.readContext({ workspaceId: onboardingWorkspace,
+      query: { topicId: created.child.topicId, include: ['ancestors'] } }, signal)),
+  }))
   const handle = await ctx.agents.resume({ resumeSessionId: sessionId, agentOptions })
   handle.agent.followup(createUserMessage({ source: { kind: 'user' },
     content: [{ type: 'text', text: 'Resume the same child after restart.' }] }))

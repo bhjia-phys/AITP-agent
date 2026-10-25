@@ -13,7 +13,7 @@ import { ResearchPanel, type ResearchPanelFace, type ResearchPanelProps } from '
 import { createResearchPanelStore } from '../src/client/store.ts'
 import { workspaceEditKey } from '../src/client/workspace-edit-state.ts'
 import type { ApplyReceipt, ChangePreview, Project, ReadEnvelope, ResearchProvider, Resource, ResourceId, Result, Revision, Topic, TopicId, TopicPage, WorkspaceRead } from '../src/client/workspace-contract.ts'
-import { workspaceActivityAddress, workspaceProjectAddress, workspaceResourceAddress, workspaceTopicAddress, workspaceTopicsAddress } from '../src/client/workspace-resources.ts'
+import { workspaceActivityAddress, workspaceProjectAddress, workspaceResourceAddress, workspaceSetupAddress, workspaceTopicAddress, workspaceTopicsAddress } from '../src/client/workspace-resources.ts'
 
 afterEach(cleanup)
 
@@ -80,14 +80,15 @@ function panel(values = resources(), overrides: Partial<ResearchPanelFace> = {},
     })),
     ...overrides,
   }
+  const readResource = vi.fn((address: string) => values[address] ?? none)
   const props = {
     t, useWorkspaces: (select: (value: { items: WorkspaceView[] }) => unknown) => select({ items: workspaces }),
-    useResource: (address: string) => values[address] ?? none,
+    useResource: readResource,
     useStore: bindSnapshotSelector(store), actions: store.actions, ...face,
   } as ResearchPanelProps
   let view = render(<ResearchPanel {...props} />)
   return {
-    store, face, rerender: () => { view.rerender(<ResearchPanel {...props} />) },
+    store, face, readResource, rerender: () => { view.rerender(<ResearchPanel {...props} />) },
     leavePanel: () => { view.unmount() },
     returnToPanel: () => { view = render(<ResearchPanel {...props} />) },
   }
@@ -102,6 +103,154 @@ function openChild(): void {
 
 const trail = (): HTMLElement => screen.getByRole('navigation', { name: 'Research location' })
 const section = (name: string): HTMLElement => screen.getByRole('button', { name: new RegExp(`^${name}`) })
+
+describe('workspace enrollment and new topics', () => {
+  it('reads setup before research contents and keeps enrollment visible through unavailable setup', () => {
+    const values = resources()
+    values[workspaceSetupAddress(WS)] = live({ configured: false, writable: false, canInitialize: true })
+    const initializeResearch = vi.fn<NonNullable<ResearchPanelFace['initializeResearch']>>(async () => ({ ok: true, value: { configured: true, writable: false, canInitialize: true } }))
+    const { readResource, rerender } = panel(values, { initializeResearch })
+    expect(screen.getByRole('button', { name: 'Enable research project' })).toBeDefined()
+    expect(readResource).not.toHaveBeenCalledWith(workspaceProjectAddress(WS))
+    expect(initializeResearch).not.toHaveBeenCalled()
+    values[workspaceSetupAddress(WS)] = { status: 'failed', value: undefined, failure: failure('not-connected') }
+    act(rerender)
+    expect(screen.getByRole('button', { name: 'Enable research project' })).toBeDefined()
+    expect(screen.getByRole('alert')).toBeDefined()
+    values[workspaceSetupAddress(WS)] = live({ configured: true, writable: false, canInitialize: true })
+    act(rerender)
+    expect(screen.getByRole('heading', { name: 'Research programme' })).toBeDefined()
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'New topic' }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Enable saving' })).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Enable saving' }))
+    expect(screen.getByRole('checkbox', { name: 'Allow saving research changes' })).toBeDefined()
+  })
+
+  it('preserves static read-only permissions and keeps the legacy reader free of creation controls', () => {
+    const values = resources()
+    values[workspaceSetupAddress(WS)] = live({ configured: true, writable: false, canInitialize: false })
+    panel(values)
+    expect(screen.getByText('This project is read-only.')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Enable saving' })).toBeNull()
+    cleanup()
+    panel(resources())
+    expect(screen.getByRole('heading', { name: 'Research programme' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'New topic' })).toBeNull()
+  })
+
+  it('opens the host workspace browser from an empty workspace list without creating a Session', () => {
+    const showWorkspaces = vi.fn()
+    const { face } = panel({}, { showWorkspaces }, [])
+    fireEvent.click(screen.getByRole('button', { name: 'Show workspaces' }))
+    expect(showWorkspaces).toHaveBeenCalledOnce()
+    expect(face.startDraft).not.toHaveBeenCalled()
+    expect(face.openSession).not.toHaveBeenCalled()
+  })
+
+  it('opens the created topic, focuses its question composer and asks through the normal bound conversation', async () => {
+    const values = resources()
+    values[workspaceSetupAddress(WS)] = live({ configured: true, writable: true, canInitialize: true })
+    const createTopic = vi.fn<NonNullable<ResearchPanelFace['createTopic']>>(async (_workspaceId, request) => ({ ok: true, value: { operationId: request.operationId, topicId: CHILD, resourceId: NOTE } }))
+    const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>(async () => ({ ok: true, value: { sessionId: 'created-question' as SessionId } }))
+    const { store, face } = panel(values, { createTopic, askQuestion })
+    fireEvent.click(screen.getByRole('button', { name: /^Main question/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'New subdirection' }))
+    expect(screen.getByRole('button', { name: 'Place in project Under “Main question”' })).toBeDefined()
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'New limit' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Research question' }), { target: { value: 'What should we control?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create topic' }))
+    await waitFor(() => { expect(store.getSnapshot().location).toEqual({ kind: 'topic', topicId: CHILD }) })
+    expect(createTopic).toHaveBeenCalledOnce()
+    const submitted = createTopic.mock.calls[0]?.[1]
+    expect(submitted?.operationId).toBeTypeOf('string')
+    expect(submitted?.operationId).not.toBe('')
+    expect(createTopic).toHaveBeenCalledExactlyOnceWith(WS, { operationId: submitted?.operationId,
+      parentTopicId: ROOT, title: 'New limit', question: 'What should we control?' })
+    expect(askQuestion).not.toHaveBeenCalled()
+    const input = screen.getByRole('textbox', { name: 'Ask about this research' })
+    expect(document.activeElement).toBe(input)
+    fireEvent.change(input, { target: { value: 'Investigate this question.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask in a new conversation' }))
+    await waitFor(() => { expect(face.openSession).toHaveBeenCalledWith('created-question') })
+    expect(askQuestion).toHaveBeenCalledExactlyOnceWith({ workspaceId: WS, topicId: CHILD, question: 'Investigate this question.' })
+  })
+
+  it('retains a pending request across workspace switches and a late unknown reply, then retries the same request', async () => {
+    const other = 'other-workspace' as WorkspaceId
+    const values = resources()
+    values[workspaceSetupAddress(WS)] = live({ configured: true, writable: true, canInitialize: true })
+    values[workspaceSetupAddress(other)] = live({ configured: true, writable: true, canInitialize: true })
+    let finish!: (result: Awaited<ReturnType<NonNullable<ResearchPanelFace['createTopic']>>>) => void
+    const createTopic = vi.fn<NonNullable<ResearchPanelFace['createTopic']>>(() => new Promise((resolve) => { finish = resolve }))
+    const { store } = panel(values, { createTopic }, [
+      { workspaceId: WS, path: '/research', title: 'First workspace', sessionIds: [], createdAt: '', updatedAt: '' },
+      { workspaceId: other, path: '/other', title: 'Other workspace', sessionIds: [], createdAt: '', updatedAt: '' },
+    ])
+    fireEvent.click(screen.getByRole('button', { name: 'New topic' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'Retained topic' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Research question' }), { target: { value: 'What remains open?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create topic' }))
+    const request = createTopic.mock.calls[0]![1]
+    act(() => { store.actions.selectWorkspace(other) })
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
+    await act(async () => { finish({ ok: false, error: { code: 'outcome-unknown', operationId: request.operationId, message: 'Inspect the original attempt before continuing.' } }) })
+    expect(store.getSnapshot().workspaceId).toBe(other)
+    act(() => { store.actions.selectWorkspace(WS) })
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Title' }).value).toBe('Retained topic')
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Title' }).disabled).toBe(true)
+    act(() => { store.actions.open(WS, { kind: 'topic', topicId: ROOT }, { scrollTop: 0, focusIndex: null }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Retry topic creation' }))
+    expect(createTopic.mock.calls[1]).toEqual([WS, request])
+    await act(async () => { finish({ ok: true, value: { operationId: request.operationId, topicId: CHILD, resourceId: NOTE } }) })
+    expect(store.getSnapshot().location).toEqual({ kind: 'topic', topicId: CHILD })
+  })
+
+  it('settles a successful create after the panel unmounts and restores its destination without another create', async () => {
+    const values = resources()
+    values[workspaceSetupAddress(WS)] = live({ configured: true, writable: true, canInitialize: true })
+    let finish!: (result: Awaited<ReturnType<NonNullable<ResearchPanelFace['createTopic']>>>) => void
+    const createTopic = vi.fn<NonNullable<ResearchPanelFace['createTopic']>>(() => new Promise((resolve) => { finish = resolve }))
+    const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>()
+    const { store, leavePanel, returnToPanel } = panel(values, { createTopic, askQuestion })
+    fireEvent.click(screen.getByRole('button', { name: 'New topic' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'Late acknowledgement' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Research question' }), { target: { value: 'Which result arrived?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create topic' }))
+    const request = createTopic.mock.calls[0]![1]
+    leavePanel()
+    await act(async () => { finish({ ok: true, value: { operationId: request.operationId, topicId: CHILD, resourceId: NOTE } }) })
+    act(returnToPanel)
+    expect(store.getSnapshot().location).toEqual({ kind: 'topic', topicId: CHILD })
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Ask about this research' }))
+    expect(createTopic).toHaveBeenCalledOnce()
+    expect(askQuestion).not.toHaveBeenCalled()
+  })
+
+  it('retains partial-creation guidance and lets the researcher inspect the actual created account without discarding the attempt', async () => {
+    const values = resources()
+    values[workspaceSetupAddress(WS)] = live({ configured: true, writable: true, canInitialize: true })
+    const createTopic = vi.fn<NonNullable<ResearchPanelFace['createTopic']>>(async (_workspaceId, request) => ({ ok: false, error: {
+      code: 'partial-apply', operationId: request.operationId, message: 'Created notes/new/research.md; inspect its incomplete parent link.',
+      changed: [{ target: { kind: 'resource', id: NOTE }, revision: REVISION }], remaining: [{ kind: 'topic', id: ROOT }],
+    } }))
+    const { store } = panel(values, { createTopic })
+    fireEvent.click(screen.getByRole('button', { name: 'New topic' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'Partial topic' } })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Research question' }), { target: { value: 'What was saved?' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create topic' }))
+    await screen.findByRole('button', { name: 'Check creation status' })
+    fireEvent.click(screen.getByText('Creation details'))
+    expect(screen.getByText('Created notes/new/research.md; inspect its incomplete parent link.')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect created account' }))
+    expect(store.getSnapshot().location).toEqual({ kind: 'resource', topicId: null, resourceId: NOTE })
+    expect(screen.getByRole('heading', { name: 'Full control' })).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Resume topic creation' }))
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Title' }).value).toBe('Partial topic')
+    fireEvent.click(screen.getByRole('button', { name: 'Check creation status' }))
+    await waitFor(() => { expect(createTopic).toHaveBeenCalledTimes(2) })
+    expect(createTopic.mock.calls[1]).toEqual(createTopic.mock.calls[0])
+  })
+})
 
 describe('research map overview', () => {
   it('orients by direction and topic without answers, and reveals branches only on request', () => {

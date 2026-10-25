@@ -74,6 +74,7 @@ jobs:
           pnpm exec vitest run --config vitest.web.config.ts --maxWorkers=1
           apps/web/tests/aitp-workspace.e2e.ts
           apps/web/tests/aitp-memory.e2e.ts
+          apps/web/tests/aitp-onboarding.e2e.ts
       - name: Run keyless GPT reliability regressions
         run: >-
           pnpm exec vitest run --maxWorkers=1

@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
-import type { Session } from '@deepseek-ai/dsh-session'
+import { SessionSeq, type Session } from '@deepseek-ai/dsh-session'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-session-projection'
@@ -14,6 +14,7 @@ import type {
   ResearchContextRead, ResearchHumanInput, ResearchOrigin, ResearchRecovery, ResearchRuntimeConfig,
   ResearchWorkingState, ResearchWriteRecord,
 } from './working-types.ts'
+import { unansweredQuestionEntries } from './question-context.ts'
 
 export type { ResearchContextRead, ResearchOrigin, ResearchRuntimeConfig } from './working-types.ts'
 
@@ -28,6 +29,16 @@ function scopedHumans(state: ResearchWorkingState, origin: ResearchOrigin): Rese
   return state.humans.filter(input => scopeKey(input.origin) === scopeKey(origin))
 }
 
+function currentQuestions(session: Session, state: ResearchWorkingState, origin: ResearchOrigin): ResearchContextRead['entries'] {
+  const carriers = state.pending.filter(call => call.name === 'ask_user_question' && scopeKey(call.origin) === scopeKey(origin))
+    .flatMap((call) => {
+      // oxlint-disable-next-line typescript/no-deprecated -- Exact pending-call recovery includes compacted original carriers.
+      const event = session.eventAt(SessionSeq(call.seq))
+      return event === undefined ? [] : [event]
+    })
+  return unansweredQuestionEntries(session.id, carriers, state, origin)
+}
+
 /**
  * Render complete qualified units and explicitly account for every omitted unit.
  * @param state Replayed pointers and provisional items; only its active topic is rendered.
@@ -35,6 +46,7 @@ function scopedHumans(state: ResearchWorkingState, origin: ResearchOrigin): Rese
  * @param config Complete context and original-input budgets; units are never silently truncated.
  * @param humanText Reads the original human carrier, including complete question choices when applicable.
  * @param writeText Reads the correlated preparation rationale and remaining scientific uses, when available.
+ * @param questions Complete unanswered assistant questions from the owning Session, prioritized before provisional items.
  * @returns Bounded context with provenance and omission counts, or an empty string when no origin is bound.
  */
 export function renderResearchContext(
@@ -43,6 +55,7 @@ export function renderResearchContext(
   config: ResearchRuntimeConfig,
   humanText: (input: ResearchHumanInput) => string,
   writeText: (write: ResearchWriteRecord) => string = write => `Source edit ${write.operationId}: ${write.state}; original proposal details not loaded.`,
+  questions: ResearchContextRead['entries'] = [],
 ): string {
   const origin = state.origin
   if (origin === null) return ''
@@ -64,6 +77,7 @@ export function renderResearchContext(
     humanCharacters += text.length
     includedHuman++
   }
+  for (const question of questions) units.push({ kind: 'source', text: `Source ${question.label} [${question.source.target}]:\n${question.text}` })
   for (const item of items) units.push({ kind: 'working', text: `Provisional model item [${item.id}; ${item.kind}; ${item.sourceId}]:\n${item.text}\nCondition / reopening: ${item.condition}\nOriginal input references: ${item.sourceIds.join(', ')}` })
   for (const write of writes) units.push({ kind: 'working', text: `Recorded source-edit outcome [${write.sourceId}]:\n${writeText(write)}` })
   if (origin.selectedText !== undefined) units.push({ kind: 'source', text: `Original human-selected excerpt (not a fresh source read; context may be incomplete):\n${origin.selectedText}` })
@@ -107,7 +121,7 @@ export function installRuntime(
   const prepared = new WeakMap<Session, string>()
   const disposers: (() => void)[] = []
   disposers.push(ctx.sessionProjections.register({
-    key: 'researchWorking', stateVersion: 4, stateSchema: workingStateSchema,
+    key: 'researchWorking', stateVersion: 5, stateSchema: workingStateSchema,
     init: emptyWorkingState, apply: applyWorkingEvent,
   }))
   const stateOf = (session: Session): ResearchWorkingState => ctx.sessionProjections.stateOf(session, 'researchWorking') ?? emptyWorkingState()
@@ -146,7 +160,7 @@ export function installRuntime(
     prepared.set(agent.session, renderResearchContext(state, read, config, (input) => {
       const message = proposed.get(input.sourceId)
       return input.seq === -1 && message !== undefined ? contentText(message.content) : readHumanInput(agent.session, input)
-    }, write => readSessionWrite(agent.session, write)))
+    }, write => readSessionWrite(agent.session, write), currentQuestions(agent.session, state, state.origin)))
     return decision
   }, { prepend: true }))
   disposers.push(ctx.tools.register(defineTool({
@@ -189,7 +203,7 @@ export function installRuntime(
   })))
   disposers.push(ctx.tools.register(defineTool({
     name: 'research_read_context',
-    description: 'Recover the current research direction, source-backed context and exact resource: locators beside Source passages. Use these locators unchanged when preparing source edits. To inspect omitted original human inputs, list their source IDs with inputOffset, then read an exact original input using sourceId and an optional character offset. Original questions include the offered choices and complete answer. This reads only the direction already selected by the human; it does not grant write permission.',
+    description: 'Recover the current research direction, source-backed context and exact resource: locators beside Source passages. Use these locators unchanged when preparing source edits. List original human inputs and unanswered assistant questions with inputOffset, then reopen an exact sourceId with an optional character offset. Questions retain their complete offered choices; an unanswered assistant question is not a human decision. This reads only the direction already selected by the human; it does not grant write permission.',
     parameters: {
       sourceId: { type: 'string' }, offset: { type: 'integer' }, inputOffset: { type: 'integer' },
     },
@@ -201,12 +215,20 @@ export function installRuntime(
       if (exec.agent === undefined) throw new Error('research_read_context requires an agent conversation')
       const { state, origin } = active(exec.agent)
       const inputs = scopedHumans(state, origin)
+      const questions = currentQuestions(exec.agent.session, state, origin)
       const offset = args.offset ?? 0
       const inputOffset = args.inputOffset ?? 0
       if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(inputOffset) || inputOffset < 0) throw new Error('Read offsets must be non-negative safe integers')
       if (args.sourceId !== undefined) {
         const input = inputs.find(candidate => candidate.sourceId === args.sourceId)
         if (input === undefined) {
+          const question = questions.find(entry => entry.source.target === args.sourceId)
+          if (question !== undefined) {
+            const header = `Unanswered assistant question [${args.sourceId}]; character offset ${offset} of ${question.text.length}. Windowed original account; continue with offset.\n`
+            const room = config.maxContextCharacters - header.length
+            if (room <= 0) throw new Error('Research context budget cannot fit the question locator')
+            return { text: header + question.text.slice(offset, offset + room) }
+          }
           const recovered = await recovery?.readOriginal(origin, exec.agent.session, args.sourceId, offset, exec.signal)
           if (recovered === undefined) throw new Error('Original input was not found in this research direction')
           if (recovered.length > config.maxContextCharacters) throw new Error('Historical input exceeds the current context budget; reduce the recovery character bound')
@@ -219,16 +241,18 @@ export function installRuntime(
         return { text: `${header}${full.slice(offset, offset + limit)}` }
       }
       if (args.inputOffset !== undefined) {
-        const page = inputs.slice(inputOffset, inputOffset + config.maxHumanInputs)
-        let text = `Original human inputs: ${inputs.length}; starting at ${inputOffset}.\n`
+        const sources = [...inputs.map(input => ({ id: input.sourceId, kind: input.kind })),
+          ...questions.map(question => ({ id: question.source.target, kind: 'unanswered assistant question' }))]
+        const page = sources.slice(inputOffset, inputOffset + config.maxHumanInputs)
+        let text = `Original human inputs: ${inputs.length}; unanswered assistant questions: ${questions.length}; starting at ${inputOffset}.\n`
         let returned = 0
         for (const input of page) {
-          const line = `${input.sourceId} (${input.kind})\n`
+          const line = `${input.id} (${input.kind})\n`
           if (text.length + line.length + 80 > config.maxContextCharacters) break
           text += line
           returned++
         }
-        return { text: `${text}Next inputOffset: ${inputOffset + returned < inputs.length ? inputOffset + returned : 'end'}` }
+        return { text: `${text}Next inputOffset: ${inputOffset + returned < sources.length ? inputOffset + returned : 'end'}` }
       }
       let read = await resolveContext(origin, exec.signal)
       if (recovery !== undefined) {
@@ -237,7 +261,7 @@ export function installRuntime(
       }
       const session = exec.agent.session
       return { text: renderResearchContext(state, read, config,
-        input => readHumanInput(session, input), write => readSessionWrite(session, write)) }
+        input => readHumanInput(session, input), write => readSessionWrite(session, write), questions) }
     },
   })))
   return () => { for (const dispose of disposers.toReversed()) dispose() }

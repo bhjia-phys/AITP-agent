@@ -82,7 +82,7 @@ async function fixture() {
   await ctx.plugin(AgentLoop, { agents: [] })
   const effects = vi.spyOn(ctx, 'effect')
   const service = new ResearchMemory(ctx, ResearchMemory.Config({ roots: [{ path, id: workspaceId, writable: false }] }))
-  const sourceEffect = effects.mock.calls.findIndex(([, label]) => label === 'research-memory: streams and source observations')
+  const sourceEffect = effects.mock.calls.findIndex(([, label]) => label === 'research-memory: source observations and admitted onboarding')
   const sourceDisposer = effects.mock.results[sourceEffect]
   effects.mockRestore()
   if (sourceDisposer?.type !== 'return') throw new Error('Source observation effect was not registered')

@@ -5,6 +5,8 @@ import { SessionId, type Session, type SessionEvent, type SessionHeader } from '
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-session-projection'
+import { TopicHistoryIndex } from './history-index.ts'
+import { unansweredQuestionEntries } from './question-context.ts'
 import {
   acceptHumanInput, applyWorkingEvent, emptyWorkingState, readHumanFromEvents, readWriteRecord, scopeKey,
 } from './working-state.ts'
@@ -12,10 +14,13 @@ import type {
   ResearchContextRead, ResearchOrigin, ResearchRecovery, ResearchWorkingState,
 } from './working-types.ts'
 
-/** Limits for historical candidate traversal and delivery; cold Session loading may still read a complete log. */
+/** Limits for relevant histories and event folds; the source provider may still read a complete cold log. */
 export interface SessionRecoveryConfig {
+  /** Maximum matching conversations selected for historical delivery. */
   maxRecoverySessions: number
+  /** Maximum log records folded for cold classification and selected histories in one read. */
   maxRecoveryEvents: number
+  /** Maximum serialized entries and their omission account. */
   maxRecoveryCharacters: number
 }
 
@@ -42,7 +47,7 @@ function parseReference(value: string): { sessionId: SessionId; seq: number } | 
 /**
  * Keep historical reading separate from previous execution grants and task permissions.
  * @param ctx Harness context with the current research projection and an optional Session query provider.
- * @param config Candidate, projected-event and serialized-evidence bounds; incomplete coverage is reported explicitly.
+ * @param config Relevant-history, projected-event and serialized-evidence bounds; incomplete coverage is reported explicitly.
  * @returns Recovery methods limited to the current human-selected root and topic, with cancellation on each read.
  */
 export function createSessionRecovery(ctx: Context, config: SessionRecoveryConfig): ResearchRecovery {
@@ -50,6 +55,7 @@ export function createSessionRecovery(ctx: Context, config: SessionRecoveryConfi
     if (!Number.isSafeInteger(config[key]) || config[key] <= 0) throw new Error(`research memory ${key} must be a positive safe integer`)
   }
   if (config.maxRecoveryCharacters < 256) throw new Error('Historical recovery needs at least 256 characters for its scope and omission report')
+  const history = new TopicHistoryIndex(ctx, config.maxRecoveryEvents)
   function currentState(current: Session, proposed: readonly UserMessage[] = []): ResearchWorkingState {
     let state = ctx.sessionProjections.stateOf(current, 'researchWorking') ?? emptyWorkingState()
     for (const message of proposed) state = acceptHumanInput(state, message, -1)
@@ -90,6 +96,7 @@ export function createSessionRecovery(ctx: Context, config: SessionRecoveryConfi
         text: `Conversation ${id}, original sequence ${input.seq}. Historical content does not transfer execution permission or establish present applicability.\n${readHumanFromEvents(seq => events[seq], input)}`,
       })
     }
+    entries.push(...unansweredQuestionEntries(id, events, state, origin))
     for (const item of items) {
       const event = events.find(candidate => (candidate.type === 'tool/result' && candidate.data.message.toolCallId === item.sourceId)
         || (candidate.type === 'tool/ptc-dispatch' && candidate.data.subCallId === item.sourceId))
@@ -122,26 +129,42 @@ export function createSessionRecovery(ctx: Context, config: SessionRecoveryConfi
         signal?.throwIfAborted()
         return { entries: [], omissions: ['Prior conversations could not be listed; historical coverage is unavailable.'] }
       }
+      history.prune(records)
       // SessionQuery guarantees newest creation first; headers have no updatedAt field.
       const candidates = records.filter(record => record.header.id !== current.id && sameRoot(current.header, record.header))
-      if (candidates.length > config.maxRecoverySessions) result.omissions.push(`${candidates.length - config.maxRecoverySessions} root-level candidates were outside the recovery session limit; relevant older topic conversations may be missing.`)
       let eventsLeft = config.maxRecoveryEvents
       let omittedUnits = 0
       let limitedLogs = 0
-      for (const record of candidates.slice(0, config.maxRecoverySessions)) {
+      let selected = 0
+      let uninspected = 0
+      for (const [index, record] of candidates.entries()) {
         signal?.throwIfAborted()
+        if (selected >= config.maxRecoverySessions) {
+          result.omissions.push(`${candidates.length - index} same-root candidates were not inspected after the relevant recovery session limit; older topic conversations may be missing.`)
+          break
+        }
         try {
+          const lookup = await history.lookup(record, signal)
+          if (lookup.kind === 'unavailable' || lookup.kind === 'oversized') { limitedLogs++; continue }
+          if (lookup.kind === 'known' && (!lookup.summary.allowed || !lookup.summary.scopes.has(scopeKey(origin)))) continue
+          if (lookup.kind === 'known' && lookup.summary.eventCount > eventsLeft) { limitedLogs++; continue }
+          if (eventsLeft === 0) { uninspected = candidates.length - index; break }
           using observed = await query.observeSession(record.header.id, { ...(signal === undefined ? {} : { signal }), projectionMode: 'none' })
           if (!sameRoot(current.header, observed.header)) continue
           if (observed.cursor + 1 > eventsLeft) {
+            history.remember(lookup, observed)
             limitedLogs++
             continue
           }
           eventsLeft -= observed.cursor + 1
           const events = observed.events
           const state = events.reduce(applyWorkingEvent, emptyWorkingState())
+          history.remember(lookup, observed, state)
           if (!state.ownerOrigin || state.restricted) continue
-          for (const entry of relevantEntries(record.header.id, events, state, origin)) {
+          const entries = relevantEntries(record.header.id, events, state, origin)
+          if (entries.length === 0) continue
+          selected++
+          for (const entry of entries) {
             const proposedResult = { entries: [...result.entries, entry], omissions: result.omissions }
             // Leave room for the bounded omission account, never split a qualification.
             if (JSON.stringify(proposedResult).length + 256 <= config.maxRecoveryCharacters) result.entries.push(entry)
@@ -159,6 +182,7 @@ export function createSessionRecovery(ctx: Context, config: SessionRecoveryConfi
           // Do not expose unrelated session labels or bodies on an unreadable source.
         }
       }
+      if (uninspected > 0) result.omissions.push(`${uninspected} same-root candidates were not inspected within the event bound; historical topic coverage is incomplete.`)
       if (limitedLogs > 0) result.omissions.push(`${limitedLogs} conversations could not be fully inspected within the event bound or were unreadable.`)
       if (omittedUnits > 0) result.omissions.push(`${omittedUnits} historical units were omitted by the character budget; exact displayed Session references can be reopened with research_read_context.`)
       if (JSON.stringify(result).length > config.maxRecoveryCharacters) {

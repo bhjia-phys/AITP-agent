@@ -71,6 +71,36 @@ it('mounts its generated namespace beside the Web roster, rereads sources and wi
   }
 }, 60_000)
 
+it('opens setup for an unenrolled Workspace through the generated feed, then enrolls and creates a topic with named arguments', async ({ mock, start }) => {
+  const client = await start()
+  const setup = { configured: false, writable: false, canInitialize: true }
+  const initialized = { configured: true, writable: true, canInitialize: true }
+  const receipt = { operationId: 'browser-create-once', topicId: 'topic:new%2Fresearch.md', resourceId: 'resource:new%2Fresearch.md' }
+  mock.load({ unary: {
+    'researchMemory/provider': ok({ ...provider, capabilities: { ...provider.capabilities, read: false, readContext: false } }),
+    'researchMemory/getSetup': ok({ ok: true, value: setup }),
+    'researchMemory/initialize': ok({ ok: true, value: initialized }),
+    'researchMemory/createTopic': ok({ ok: true, value: receipt }),
+  }, stream: {
+    'researchMemory/follow': openStream([{ kind: 'resync-required', reason: 'research-workspace-not-initialized' }]),
+  } })
+  const source = client.ctx.resources.source('dsh-resource://aitp-workspace-setup/workspace/source-workspace')
+  const release = source.subscribe(() => {})
+  try {
+    await vi.waitFor(() => { expect(source.getSnapshot()).toMatchObject({ status: 'live', value: setup }) })
+    expect(mock.log.calls('researchMemory/getProject')).toEqual([])
+    expect(mock.log.requests('researchMemory/getSetup')).toContainEqual({ request: { workspaceId: WS } })
+    mock.unary('researchMemory/getSetup', ok({ ok: true, value: initialized }))
+    mock.unary('researchMemory/provider', ok({ ...provider, capabilities: { ...provider.capabilities, applyChanges: true } }))
+    expect(await client.ctx.researchWorkspaces.initialize(WS, { writable: true })).toEqual({ ok: true, value: initialized })
+    await vi.waitFor(() => { expect(source.getSnapshot()).toMatchObject({ status: 'live', value: initialized }) })
+    expect(mock.log.requests('researchMemory/initialize')).toEqual([{ request: { workspaceId: WS, writable: true } }])
+    const input = { operationId: receipt.operationId, title: 'Control', question: 'Does A hold?', scope: 'Finite N.' }
+    expect(await client.ctx.researchWorkspaces.createTopic(WS, input)).toEqual({ ok: true, value: receipt })
+    expect(mock.log.requests('researchMemory/createTopic')).toEqual([{ request: { ...input, workspaceId: WS } }])
+  } finally { release() }
+}, 60_000)
+
 it('reads real Session resources through the mounted endpoint, follows the existing event stream, and opens current sources separately', async ({ mock, start }) => {
   const sessionId = 'memory-session' as SessionId
   mock.unary('session/list', ok({ items: [{ sessionId, updatedAt: 0, running: false, blank: false, agentAvailable: false }] }))

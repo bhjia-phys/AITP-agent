@@ -4,3 +4,8 @@
 #   pnpm aitp-agent web --patch apps/cli/config/aitp-ui-fixtures.cordis.patch.yml
 - id: ui-aitp-fixtures
   disabled: false
+# Fixtures and the runtime adapter are mutually exclusive providers.
+- id: ui-aitp-backend
+  disabled: true
+- id: research-memory
+  disabled: true
