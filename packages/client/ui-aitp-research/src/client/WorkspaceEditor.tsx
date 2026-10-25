@@ -5,7 +5,7 @@ import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { Topic, TopicId, WorkspaceRead } from './workspace-contract.ts'
 import { workspaceEditKey } from './workspace-edit-state.ts'
 import type { WorkspaceViewProps } from './WorkspaceViews.tsx'
-import css from './research.module.css'
+import css from './workspace.module.css'
 
 /**
  * Edit state belongs to the declared view store so navigation cannot lose an in-flight operation.
@@ -80,7 +80,11 @@ export function WorkspaceEditor(props: WorkspaceViewProps & {
           <Button variant="outline" size="sm" onClick={() => { actions.rebaseEdit(key, read.revision) }}>{t('workspace.edit.adopt')}</Button>
         </div>}
       </div>}
-      {acknowledged !== null && <p role="status" className={css.editSuccess}>{t(acknowledged === 'fixture' ? 'workspace.edit.appliedFixture' : 'workspace.edit.applied')}</p>}
+      {acknowledged !== null && <p role="status" className={css.editSuccess}>
+        {t(edit.sourceObservations?.some(item => item.state === 'unavailable') ? 'workspace.edit.appliedUnavailable'
+          : edit.sourceObservations?.some(item => item.state === 'different') ? 'workspace.edit.appliedEarlier'
+            : acknowledged === 'fixture' ? 'workspace.edit.appliedFixture' : 'workspace.edit.applied')}
+      </p>}
       <div className={css.actions}>
         {acknowledged === null && <>
           <Button variant="outline" size="sm" disabled={locked || text.trim() === ''} onClick={() => { void preview() }}>{t(pending === 'preview' ? 'workspace.edit.preparing' : 'workspace.edit.preview')}</Button>

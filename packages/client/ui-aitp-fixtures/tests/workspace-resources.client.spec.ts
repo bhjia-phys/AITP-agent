@@ -41,7 +41,7 @@ describe('research workspace resource bridge', () => {
     const dispose = registry.register(() => adapter)
     await flush()
     const observed = source.getSnapshot().value
-    expect(source.getSnapshot()).toMatchObject({ status: 'live', value: { origin: 'fixture', provider: { capabilities: { read: true } }, value: { title: 'Research workspace' } } })
+    expect(source.getSnapshot()).toMatchObject({ status: 'live', value: { origin: 'fixture', provider: { capabilities: { read: true } }, value: { title: 'Interaction, chaos and correlation in finite systems' } } })
     adapter.setConnected(false)
     await flush()
     expect(source.getSnapshot()).toMatchObject({ status: 'failed', failure: { details: { code: 'not-connected' } } })
@@ -98,7 +98,7 @@ describe('research workspace resource bridge', () => {
     registry.retry(WS)
     await flush()
     expect(firstSignal.aborted).toBe(true)
-    expect(source.getSnapshot()).toMatchObject({ status: 'live', value: { value: { title: 'Research workspace' } } })
+    expect(source.getSnapshot()).toMatchObject({ status: 'live', value: { value: { title: 'Interaction, chaos and correlation in finite systems' } } })
     const current = source.getSnapshot().value
     oldRead.resolve({ ok: true, value: { ...original, value: { ...original.value, title: 'Obsolete response' } } })
     await flush()

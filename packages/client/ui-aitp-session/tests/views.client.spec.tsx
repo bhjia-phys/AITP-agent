@@ -88,6 +88,8 @@ describe('task card', () => {
     expect(container.innerHTML).toBe('')
     const whileLoading = render(<TaskCard {...taskProps({ status: 'loading', value: undefined, failure: undefined })} />)
     expect(whileLoading.container.innerHTML).toBe('')
+    const unbound = render(<TaskCard {...taskProps({ status: 'live', value: null, failure: undefined })} />)
+    expect(unbound.container.innerHTML).toBe('')
   })
 
   it('reports a failed first read in place', () => {
@@ -134,7 +136,7 @@ describe('task card', () => {
     }
     render(<TaskCard {...taskProps(live(memory))} />)
     expect(screen.getByText('No task statement recorded')).toBeDefined()
-    expect(screen.getByText('1 from you')).toBeDefined()
+    expect(screen.getByText('1 original human inputs')).toBeDefined()
     expect(screen.getByText('2 provisional notes')).toBeDefined()
     expect(screen.getByText('1 generated summary')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Details' }))
@@ -186,6 +188,10 @@ describe('Sources & memory page', () => {
     page(none)
     expect(screen.getByText(/^Research memory is not connected for this Session\./u)).toBeDefined()
     cleanup()
+    page({ status: 'live', value: null, failure: undefined })
+    expect(screen.getByText(/^Research memory is not connected for this Session\./u)).toBeDefined()
+    expect(screen.queryByRole('status', { name: 'Loading' })).toBeNull()
+    cleanup()
     page({ status: 'loading', value: undefined, failure: undefined })
     expect(screen.getByRole('status', { name: 'Loading' })).toBeDefined()
     cleanup()
@@ -227,5 +233,39 @@ describe('Sources & memory page', () => {
     const props = { t } as Parameters<typeof MemoryPageTitle>[0]
     render(<MemoryPageTitle {...props} />)
     expect(screen.getByText('Sources & memory')).toBeDefined()
+  })
+
+  it('keeps original human input, provisional model conditions and exact context distinct without inferring per-file delivery', () => {
+    const current = 'Source report.md: B holds only under A.\nUnavailable source: the selected passage no longer occurs.'
+    const value: SessionMemoryView = {
+      ...EMPTY,
+      researcher: [{ id: 'human', kind: 'task', text: 'Does B require A?', turn: 1 },
+        { id: 'answer', kind: 'answer', text: 'Keep the original convention.', question: 'Which convention?', turn: 2 }],
+      agent: [{ id: 'model', kind: 'result', text: 'B holds conditionally.', condition: 'Only under A.', turn: 2, status: 'active' }],
+      sources: [{ id: 'reference', label: 'report.md', reason: 'selected', requirement: 'researcher', state: { kind: 'unknown' },
+        address: 'dsh-resource://aitp-note/workspace/w/note/report.md' }],
+      contextSnapshots: [{ id: 'old', turn: 1, text: 'An older recorded context.', state: 'condensed' },
+        { id: 'current', turn: 2, text: current, state: 'current' }],
+      coverage: { omittedItems: 3, contextRecorded: true, sourceDelivery: 'context-only' },
+    }
+    const open = page(live(value))
+    expect(screen.getByText('Does B require A?')).toBeDefined()
+    expect(screen.getByText('Human answer · answerer not recorded · Turn 2')).toBeDefined()
+    expect(screen.getByText('Agent · provisional · Result and limitation · Turn 2')).toBeDefined()
+    expect(screen.getByText('Condition or reopening criterion: Only under A.')).toBeDefined()
+    expect(screen.getByText('Per-source delivery is not recorded · Required by you · you selected it')).toBeDefined()
+    expect(screen.getByText('Turn 1 · Original text condensed out of request history')).toBeDefined()
+    expect(screen.getByText('Turn 2 · In current request history')).toBeDefined()
+    expect(screen.getByText((_, element) => element?.tagName === 'P' && element.textContent === current)).toBeDefined()
+    expect(screen.getByText('3 complete items are omitted from this bounded view; their original Session records are unchanged.')).toBeDefined()
+    expect(screen.queryByText(/0 in context now/u)).toBeNull()
+    expect(screen.queryByText('Rules and methods in effect')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }))
+    expect(open).toHaveBeenCalledWith('dsh-resource://aitp-note/workspace/w/note/report.md')
+    cleanup()
+    render(<TaskCard {...taskProps(live(value))} />)
+    expect(screen.getByText('3 items omitted from this view')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
+    expect(screen.getByText('Condition or reopening criterion: Only under A.')).toBeDefined()
   })
 })

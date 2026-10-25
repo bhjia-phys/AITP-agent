@@ -93,7 +93,7 @@ it('registers the panel, its sidebar entry and the note tab type, and removes th
 it('serves labelled fixture data and typed failures, and serves nothing once the fixture unloads', async ({ start }) => {
   const client = await start()
   expect((await read(client, workspaceProjectAddress(WS))).value).toMatchObject({
-    origin: 'fixture', provider: { origin: 'fixture' }, value: { title: 'Research workspace' },
+    origin: 'fixture', provider: { origin: 'fixture' }, value: { title: 'Interaction, chaos and correlation in finite systems' },
   })
   const index = await read(client, topicsAddress(WS))
   expect(index.status).toBe('live')

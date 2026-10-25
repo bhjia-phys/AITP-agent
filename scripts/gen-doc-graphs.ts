@@ -518,6 +518,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns WorkspaceId-branded records over the domain facility; stable sessionIds accounts drive Host RPC and GUI projections.',
   },
   {
+    key: 'researchMemory',
+    pkg: 'research-memory',
+    title: 'Scoped research sources and memory',
+    mode: 'service',
+    consumers: ['client-ui-aitp-backend'],
+    note: 'Reads explicitly configured Markdown owners, delivers recorded research context through existing Sessions, and applies recoverable writes within configured scratch roots.',
+  },
+  {
     key: 'sessionQuery',
     pkg: 'session-query',
     title: 'Session reads, traces, filters, and search',

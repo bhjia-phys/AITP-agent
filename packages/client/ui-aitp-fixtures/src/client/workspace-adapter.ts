@@ -51,13 +51,15 @@ export class FixtureWorkspaceAdapter implements ResearchWorkspaceAdapter {
       if (!cursor.ok) return cursor
       if (query.limit !== undefined && (!Number.isSafeInteger(query.limit) || query.limit <= 0)) return failed('invalid-request', 'A positive integer page limit is required.')
       const all = [...this.topics.values()].filter(({ topic }) => query.parentId === undefined || topic.parentId === query.parentId)
-      const limit = query.limit ?? all.length
+      // Parent-scoped lists use the demonstration page size, as a provider may; the unscoped outline list is one page.
+      const limit = query.limit ?? (query.parentId === undefined ? all.length : this.data.pageSize)
       const page = all.slice(cursor.value, cursor.value + limit)
       const next = cursor.value + page.length
+      const incomplete = query.parentId == null ? undefined : this.data.incomplete.get(query.parentId)
       return this.envelope({
         items: page.map(({ topic, revision }) => this.observation(this.summary(topic), revision)),
         nextCursor: next < all.length ? this.makeCursor(next, query.parentId === undefined ? '*' : query.parentId ?? 'roots') : null,
-        completeness: 'complete',
+        ...(incomplete === undefined ? { completeness: 'complete' as const } : { completeness: 'partial' as const, incompleteReason: incomplete }),
       })
     }, options)
   }
@@ -239,6 +241,7 @@ export class FixtureWorkspaceAdapter implements ResearchWorkspaceAdapter {
       id: topic.id, title: topic.title, parentId: topic.parentId, childIds: topic.childIds,
       ...(topic.shortTitle === undefined ? {} : { shortTitle: topic.shortTitle }),
       ...(topic.directionId === undefined ? {} : { directionId: topic.directionId }),
+      ...(topic.parentContribution === undefined ? {} : { parentContribution: topic.parentContribution }),
       currentAnswer: topic.currentAnswer, gap: topic.gap, work: topic.work, resourceCount: topic.resourceCount,
     }
   }

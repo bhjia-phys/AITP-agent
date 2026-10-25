@@ -1,5 +1,5 @@
-/** Project cards and exact resource destinations, read through Harness resources. */
-import { useState, type ReactNode } from 'react'
+/** Shared parts of the workspace views and the material reader, read through Harness resources. */
+import type { ReactNode } from 'react'
 import { Button, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -9,10 +9,13 @@ import { markdownLabels } from './Passage.tsx'
 import type { ResearchPanelProps } from './ResearchPanel.tsx'
 import type { ResearchLocation } from './store.ts'
 import { Empty, Loading, Notice } from './states.tsx'
-import type { ReadEnvelope, ResourceId, TopicId, TopicQuery, TopicSummary, WorkspaceError } from './workspace-contract.ts'
+import type {
+  ParentContribution, QualifiedAnswer, ReadEnvelope, ResourceId, ResourceReference, TopicId, WorkSummary, WorkspaceError,
+} from './workspace-contract.ts'
 import type { AitpResearchKey } from './locales.ts'
-import { workspaceProjectAddress, workspaceResourceAddress, workspaceTopicAddress, workspaceTopicsAddress } from './workspace-resources.ts'
-import css from './research.module.css'
+import { workspaceResourceAddress, workspaceTopicAddress } from './workspace-resources.ts'
+import css from './workspace.module.css'
+import { selectionSource } from './workspace-selection.ts'
 
 /** Shared runtime props; data remains in the resource layer. */
 export type WorkspaceViewProps = ResearchPanelProps & {
@@ -40,6 +43,16 @@ const readFailureCopy: Record<WorkspaceError['code'], readonly [AitpResearchKey,
 }
 
 /**
+ * Localized title and detail of a read without a usable value.
+ * @param snapshot - read snapshot that has no value.
+ * @returns dictionary keys for the state's title and detail.
+ */
+export function unavailableCopy(snapshot: ResourceSnapshot<unknown>): readonly [AitpResearchKey, AitpResearchKey] {
+  if (snapshot.status === 'none') return readFailureCopy['not-connected']
+  return snapshot.failure?.code === 'aitp/workspace' ? readFailureCopy[snapshot.failure.details.code] : readFailureCopy['unavailable']
+}
+
+/**
  * The state of a read without a usable value.
  * @param props - read snapshot, localized copy and retry action.
  * @returns an explicit loading, disconnected or failed state.
@@ -50,13 +63,9 @@ export function WorkspaceUnavailable({ snapshot, t, retry }: {
   retry: () => void
 }): ReactNode {
   if (snapshot.status === 'loading') return <Loading label={t('state.loading')} />
-  const copy = snapshot.status === 'none'
-    ? readFailureCopy['not-connected']
-    : snapshot.failure?.code === 'aitp/workspace'
-      ? readFailureCopy[snapshot.failure.details.code]
-      : readFailureCopy['unavailable']
+  const copy = unavailableCopy(snapshot)
   return (
-    <div className={css.workspaceState}>
+    <div className={css.unavailableState}>
       <Empty title={t(copy[0])} body={t(copy[1])} />
       <Button variant="outline" size="sm" onClick={retry}>{t('workspace.retry')}</Button>
     </div>
@@ -64,110 +73,118 @@ export function WorkspaceUnavailable({ snapshot, t, retry }: {
 }
 
 /**
- * Retained values keep the time and revision of the successful reading.
+ * Fixture label and stale notice of the reading a view shows.
  * @param props - actual read envelope, failed-refresh state and retry action.
  * @returns source and stale notices.
  */
 export function WorkspaceReadingMeta({ t, read, stale, retry }: {
   t: T
-  read: Pick<ReadEnvelope<unknown>, 'origin' | 'observedAt' | 'revision'>
+  read: Pick<ReadEnvelope<unknown>, 'origin'> & { provider?: { notice?: string } }
   stale: boolean
   retry: () => void
 }): ReactNode {
+  if (read.origin !== 'fixture' && !stale && read.provider?.notice === undefined) return null
   return (
     <div className={css.readingMeta}>
       {read.origin === 'fixture' && <p className={css.fixtureLabel}><strong>{t('workspace.fixture')}</strong> · {t('workspace.fixture.detail')}</p>}
       {stale && <Notice>{t('workspace.retained')} <button type="button" className={css.linkButton} onClick={retry}>{t('workspace.retry')}</button></Notice>}
-      <p className={css.meta}>{t('workspace.observed', { time: observedLabel(read.observedAt) })}</p>
+      {read.provider?.notice !== undefined && <Notice>{read.provider.notice}</Notice>}
     </div>
   )
 }
 
 /**
- * The project page exposes root topics and their direct children.
- * @param props - framework reads and navigation callbacks.
- * @returns the project overview.
+ * When the shown value was read; retained values keep their original time.
+ * @param props - localized copy and read envelope.
+ * @returns the reading-time footer.
  */
-export function WorkspaceProject(props: WorkspaceViewProps): ReactNode {
-  const project = props.useResource<'aitp-workspace-project'>(workspaceProjectAddress(props.workspaceId))
-  const retry = (): void => { props.retry(props.workspaceId) }
-  if (project.value === undefined) return <WorkspaceUnavailable snapshot={project} t={props.t} retry={retry} />
-  const { value } = project.value
+export function ReadAt({ t, read }: { t: T; read: Pick<ReadEnvelope<unknown>, 'observedAt'> }): ReactNode {
+  return <p className={css.readAt}>{t('workspace.observed', { time: observedLabel(read.observedAt) })}</p>
+}
+
+/**
+ * Provider-owned work status; it says nothing about scientific verification.
+ * @param props - recorded work summary and localized copy for an absent label.
+ * @returns the recorded status dot with its verbatim label, or neutral localized absence text.
+ */
+export function WorkStateLabel({ work, t }: { work: Pick<WorkSummary, 'state' | 'label'>; t: T }): ReactNode {
+  return <span className={css.workState} data-state={work.state}>{work.label === '' ? t('workspace.work.unknown') : work.label}</span>
+}
+
+/**
+ * A current answer with its conditions; the two are never shown apart.
+ * @param props - localized copy and the recorded answer, if any.
+ * @returns the qualified answer or the explicit absence of one.
+ */
+export function QualifiedAnswerView({ t, answer, topicId }: { t: T; answer: QualifiedAnswer | null; topicId: TopicId }): ReactNode {
+  if (answer === null) return <p className={css.note}>{t('workspace.noAnswer')}</p>
+  const sourceId = answer.attribution.sourceResourceIds.length === 1 ? answer.attribution.sourceResourceIds[0] : undefined
   return (
-    <>
-      <WorkspaceReadingMeta t={props.t} read={project.value} stale={project.status === 'failed'} retry={retry} />
-      <header className={css.projectHero}>
-        <p className={css.eyebrow}>{props.t('workspace.overview')}</p>
-        <h2 className={css.projectTitle} tabIndex={-1} data-arrival="">{value.title}</h2>
-        <p className={css.projectIntro}>{props.t('workspace.intro')}</p>
-        {value.directions.length > 0 && <div className={css.directionList}>
-          {value.directions.map(item => <span key={item.id}>{item.title}</span>)}
-        </div>}
-      </header>
-      <section aria-label={props.t('workspace.topics')}>
-        <h3 className={css.sectionHeading}>{props.t('workspace.topics')}</h3>
-        <WorkspaceTopicCards {...props} query={{ parentId: null }} />
-      </section>
-      {value.seeds.length > 0 && <section className={css.section}>
-        <h3 className={css.sectionHeading}>{props.t('workspace.seeds')}</h3>
-        <div className={css.seedGrid}>{value.seeds.map(seed => (
-          <article key={seed.id} className={css.seedCard}><h4>{seed.title}</h4><p>{seed.summary}</p></article>
-        ))}</div>
-      </section>}
-    </>
+    <div className={css.answer} {...selectionSource(topicId, sourceId)}>
+      <MarkdownText text={answer.text} labels={markdownLabels(t)} />
+      {answer.qualification !== '' && <div className={css.qualification}>
+        <p className={css.label}>{t('workspace.limits')}</p>
+        <MarkdownText text={answer.qualification} labels={markdownLabels(t)} />
+      </div>}
+    </div>
   )
 }
 
 /**
- * One query page with an explicit continuation instead of silently truncating.
- * @param props - view callbacks and topic query.
- * @returns child-owned cards with paging and availability feedback.
+ * The recorded role of a topic in its parent; nothing is shown when it is absent.
+ * @param props - view reads, the parent identity and the recorded contribution.
+ * @returns the contribution note.
  */
-export function WorkspaceTopicCards(props: WorkspaceViewProps & { query: TopicQuery }): ReactNode {
-  const [more, setMore] = useState(false)
-  const result = props.useResource<'aitp-workspace-topics'>(workspaceTopicsAddress(props.workspaceId, props.query))
-  const retry = (): void => { props.retry(props.workspaceId) }
-  if (result.value === undefined) return <WorkspaceUnavailable snapshot={result} t={props.t} retry={retry} />
-  const page = result.value.value
+export function ContributionNote(props: Pick<WorkspaceViewProps, 't' | 'useResource' | 'workspaceId'> & {
+  parentId: TopicId | null
+  contribution: ParentContribution | undefined
+}): ReactNode {
+  const { parentId, contribution } = props
+  if (parentId === null || contribution === undefined) return null
+  return <ContributionText {...props} parentId={parentId} contribution={contribution} />
+}
+
+function ContributionText(props: Pick<WorkspaceViewProps, 't' | 'useResource' | 'workspaceId'> & {
+  parentId: TopicId
+  contribution: ParentContribution
+}): ReactNode {
+  const parent = props.useResource<'aitp-workspace-topic'>(workspaceTopicAddress(props.workspaceId, props.parentId))
+  const title = parent.value?.value.shortTitle ?? parent.value?.value.title
   return (
-    <>
-      {result.status === 'failed' && <Notice>{props.t('workspace.retained')} <button type="button" className={css.linkButton} onClick={retry}>{props.t('workspace.retry')}</button></Notice>}
-      {page.items.length === 0 && <p className={css.quiet}>{props.t(props.query.parentId == null ? 'workspace.noTopics' : 'workspace.noChildren')}</p>}
-      <div className={css.topicGrid}>
-        {page.items.map(item => <WorkspaceTopicCard key={item.value.id} {...props} topic={item.value} />)}
-      </div>
-      {page.completeness === 'partial' && <p className={css.quiet}>{page.incompleteReason ?? props.t('workspace.partial')}</p>}
-      {page.nextCursor !== null && (more
-        ? <WorkspaceTopicCards key={page.nextCursor} {...props} query={{ ...props.query, cursor: page.nextCursor }} />
-        : <Button variant="ghost" size="sm" onClick={() => { setMore(true) }}>{props.t('workspace.more')}</Button>)}
-    </>
+    <p className={css.contribution}>
+      <strong>{title === undefined ? props.t('map.contribution.parent') : props.t('map.contribution', { title })}</strong>{' '}
+      <span {...selectionSource(props.parentId, parent.value?.value.accountResourceId, 'source')}>{props.contribution.text}</span>
+    </p>
   )
 }
 
-function WorkspaceTopicCard(props: WorkspaceViewProps & { topic: TopicSummary }): ReactNode {
-  const { topic, t, navigate } = props
-  return (
-    <article className={css.topicCard}>
-      <div className={css.cardTop}><span className={css.workState} data-state={topic.work.state}>{topic.work.label}</span><span className={css.quiet}>{t('workspace.materialCount', { count: topic.resourceCount })}</span></div>
-      <h4 className={css.cardTitle}><button type="button" onClick={() => { navigate({ kind: 'topic', topicId: topic.id, tab: 'overview' }) }}>{topic.title}</button></h4>
-      {topic.currentAnswer === null ? <p className={css.quiet}>{t('workspace.noAnswer')}</p> : (
-        <div className={css.cardAnswer}>
-          <MarkdownText text={topic.currentAnswer.text} labels={markdownLabels(t)} />
-          {topic.currentAnswer.qualification !== '' && <p className={css.cardQualification}>{topic.currentAnswer.qualification}</p>}
-        </div>
-      )}
-      {topic.gap !== null && <p className={css.cardGap}><span>{t('workspace.gap')}</span>{topic.gap}</p>}
-      {topic.work.nextAction !== undefined && <p className={css.cardNext}><span>{t('workspace.next')}</span>{topic.work.nextAction}</p>}
-      {topic.childIds.length > 0 && <div className={css.childLinks} aria-label={t('workspace.children')}>
-        {topic.childIds.map(topicId => <WorkspaceTopicShortcut key={topicId} {...props} topicId={topicId} />)}
-      </div>}
-    </article>
-  )
+/**
+ * Where a material lives, as recorded by its provider.
+ * @param resource - material reference.
+ * @returns its path, URI or unavailability reason.
+ */
+export function materialLocator(resource: Pick<ResourceReference, 'target'>): string {
+  const { target } = resource
+  return target.kind === 'workspace-path' ? target.path : target.kind === 'uri' ? target.uri : target.reason
 }
 
-function WorkspaceTopicShortcut(props: WorkspaceViewProps & { topicId: TopicId }): ReactNode {
-  const topic = props.useResource<'aitp-workspace-topic'>(workspaceTopicAddress(props.workspaceId, props.topicId))
-  return <button type="button" className={css.linkButton} onClick={() => { props.navigate({ kind: 'topic', topicId: props.topicId, tab: 'overview' }) }}>{topic.value?.value.shortTitle ?? topic.value?.value.title ?? props.t('workspace.openChild')}</button>
+/**
+ * Materials of one topic, each opening its reader.
+ * @param props - view callbacks, the current topic and its material references.
+ * @returns the material rows, or the explicit absence of materials.
+ */
+export function MaterialLinks(props: Pick<WorkspaceViewProps, 't' | 'navigate'> & {
+  topicId: TopicId
+  resources: readonly ResourceReference[]
+  showLocator: boolean
+}): ReactNode {
+  if (props.resources.length === 0) return <p className={css.note}>{props.t('workspace.noMaterials')}</p>
+  return <ul className={css.materials}>{props.resources.map(resource => <li key={resource.id}>
+    <button type="button" className={css.materialLink} onClick={() => { props.navigate({ kind: 'resource', resourceId: resource.id, topicId: resource.ownerTopicId ?? props.topicId }) }}>
+      <span className={css.materialKind}>{props.t(`workspace.material.${resource.kind}`)}</span><strong>{resource.title}</strong>
+      {props.showLocator && <span className={css.materialPath}>{materialLocator(resource)}</span>}
+    </button>
+  </li>)}</ul>
 }
 
 /**
@@ -181,16 +198,19 @@ export function WorkspaceMaterial(props: WorkspaceViewProps & { resourceId: Reso
   if (result.value === undefined) return <WorkspaceUnavailable snapshot={result} t={props.t} retry={retry} />
   const resource = result.value.value
   return (
-    <>
+    <div className={css.enter}>
       <WorkspaceReadingMeta t={props.t} read={result.value} stale={result.status === 'failed'} retry={retry} />
-      <p className={css.eyebrow}>{props.t(`workspace.material.${resource.kind}`)}</p>
-      <h2 className={css.title} tabIndex={-1} data-arrival="">{resource.title}</h2>
-      <p className={css.materialLocator}>{props.t('workspace.material.location')}: {resource.target.kind === 'workspace-path' ? resource.target.path : resource.target.kind === 'uri' ? resource.target.uri : resource.target.reason}</p>
+      <header className={css.materialHeader}>
+        <p className={css.eyebrow}>{props.t(`workspace.material.${resource.kind}`)}</p>
+        <h2 className={css.pageTitle} tabIndex={-1} data-arrival="">{resource.title}</h2>
+        <p className={css.materialLocator}>{props.t('workspace.material.location')}: {materialLocator(resource)}</p>
+      </header>
       {resource.content.kind === 'unavailable'
         ? <Empty title={props.t('workspace.material.unavailable')} body={resource.content.detail} />
-        : <article className={css.materialBody}>{resource.content.kind === 'markdown'
-          ? <MarkdownText text={resource.content.text} labels={markdownLabels(props.t)} />
+        : <article className={css.materialBody} {...selectionSource(props.topicId ?? undefined, resource.id, resource.content.kind === 'markdown' ? 'rendered' : 'source')}>{resource.content.kind === 'markdown'
+          ? <div className={css.prose}><MarkdownText text={resource.content.text} labels={markdownLabels(props.t)} /></div>
           : <pre className={css.plainText}>{resource.content.text}</pre>}</article>}
-    </>
+      <ReadAt t={props.t} read={result.value} />
+    </div>
   )
 }

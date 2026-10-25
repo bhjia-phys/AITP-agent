@@ -1,36 +1,43 @@
 - region "Research":
   - heading "Research" [level=1]
   - text: workspace
-  - navigation "Research location"
   - paragraph:
     - strong: Demo workspace
     - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
+  - paragraph: Research map
+  - heading "Interaction, chaos and correlation in finite systems" [level=2]
+  - paragraph: "A synthetic demonstration programme: how interaction range, symmetry and approximation choices limit what finite calculations can establish. It is not an actual research record."
+  - region "Research directions":
+    - region "Many-body dynamics":
+      - heading "Many-body dynamics" [level=3]
+      - list:
+        - listitem:
+          - button "Quantum chaos In progress"
+          - button "3 branches of Quantum chaos": 3 branches
+    - region "Electronic structure":
+      - heading "Electronic structure" [level=3]
+      - list:
+        - listitem:
+          - button "Electronic structure In progress"
+          - button "3 branches of Electronic structure": 3 branches
+    - region "Numerical methods":
+      - heading "Numerical methods" [level=3]
+      - list:
+        - listitem:
+          - button "Shared spectral grid In progress"
+    - button "Load more topics"
+  - region "Ideas to explore":
+    - heading "Ideas to explore" [level=3]
+    - list:
+      - listitem:
+        - paragraph: Shared numerical controls
+        - paragraph: Compare which verification procedures transfer between topics before reusing a result.
+      - listitem:
+        - paragraph: Boundary conditions as a variable
+        - paragraph: Every current answer assumes open boundaries; a periodic comparison may change several of them.
   - paragraph: Read Oct 23, {{clock}} AM
-  - paragraph: Project overview
-  - heading "Research workspace" [level=2]
-  - paragraph: Questions, current understanding and the next useful step.
-  - text: Many-body dynamics Electronic structure
-  - region "Research topics":
-    - heading "Research topics" [level=3]
-    - article:
-      - text: In progress 1 materials
-      - heading "Quantum chaos" [level=4]:
-        - button "Quantum chaos"
-      - paragraph: A bounded reference route is available for comparison.
-      - paragraph: Synthetic state only; the larger research question remains open.
-      - paragraph: What remains open Separate numerical completion from a physical interpretation.
-      - paragraph: Next step Open the long-range-chain subtopic and inspect its limits.
-      - button "Long-range chains"
-    - article:
-      - text: In progress 1 materials
-      - heading "Electronic structure" [level=4]:
-        - button "Electronic structure"
-      - paragraph: A bounded reference route is available for comparison.
-      - paragraph: Synthetic state only; the larger research question remains open.
-      - paragraph: What remains open Numerical convergence and physical approximation errors remain separate.
-      - paragraph: Next step Inspect the GW diagnostic branch.
-      - button "GW diagnostics"
-  - heading "Ideas to explore" [level=3]
-  - article:
-    - heading "Shared numerical controls" [level=4]
-    - paragraph: Compare which verification procedures transfer between topics before reusing a result.
+  - text: Ask about this research
+  - textbox "Ask about this research":
+    - /placeholder: What is still unclear, or what should we investigate next?
+  - paragraph: Continue with the research context from this page.
+  - button "Ask in a new conversation" [disabled]

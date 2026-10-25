@@ -127,7 +127,7 @@
     "verify-upgrade-guides": "tsx scripts/verify-upgrade-guides.ts",
     "verify-translation-prompt": "tsx scripts/verify-translation-prompt.ts",
     "verify-translation-pairing": "tsx scripts/verify-translation-pairing.ts",
-    "test:docs": "tsx scripts/run-gates.ts doc-quick",
+    "test:docs": "tsx scripts/aitp-doc-sync.ts doc-quick",
     "gen-translation-brief": "tsx scripts/gen-translation-brief.ts",
     "verify-doc-budgets": "tsx scripts/verify-doc-budgets.ts",
     "docs:dev": "pnpm --filter @deepseek-ai/website run dev",
@@ -195,7 +195,7 @@
     "gen-module-graph": "tsx scripts/gen-module-graph.ts",
     "verify-module-graph": "tsx scripts/gen-module-graph.ts --check",
     "constraints": "tsx scripts/check-workspace-constraints.ts",
-    "doc-sync": "tsx scripts/run-gates.ts doc-sync",
+    "doc-sync": "tsx scripts/aitp-doc-sync.ts doc-sync",
     "hygiene": "tsx scripts/run-gates.ts hygiene",
     "publish:npm-baseline": "tsx scripts/publish-npm-baseline.ts",
     "release:dsh": "tsx scripts/release/bump.ts --family dsh",
@@ -293,6 +293,7 @@
     "@deepseek-ai/dsh-working-directory": "workspace:*",
     "@deepseek-ai/dsh-experimental-worktree": "workspace:*",
     "@deepseek-ai/dsh-experimental-tool-worktree": "workspace:*",
-    "@deepseek-ai/dsh-experimental-cua-macos": "workspace:*"
+    "@deepseek-ai/dsh-experimental-cua-macos": "workspace:*",
+    "@deepseek-ai/dsh-research-memory": "workspace:*"
   }
 }

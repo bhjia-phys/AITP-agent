@@ -50,6 +50,7 @@ export { REGION_BEGIN, REGION_END }
  * errors, so the partition can never silently drift from the service API.
  */
 export const SERVICE_PAGE: Record<string, string> = {
+  researchMemory: 'research-memory.md',
   translator: 'translation.md',
   cotTranslation: 'translation.md',
   speechToText: 'voice-input.md',
@@ -170,6 +171,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  researchWorkspaces: 'Client-only adapter registry; packages/client/ui-aitp-research/README.md owns its registration and lifecycle API.',
   invocation: 'not a service: per-call accessor (RemoteInvocation | undefined) the Gateway derives for each Remote call — packages/api/gateway/README.md owns the contract',
   webTerminals: 'client-side terminal view models — packages/api/terminal-controller/README.md owns the API',
   appReady: 'not a service: launcher-provided successful-startup signal — packages/boot/cmdline/README.md owns the launcher contract',
@@ -284,6 +286,29 @@ export const EVENT_WALK_EXEMPTIONS: Record<string, string> = {
  * appear on more than one page.
  */
 export const LINK_MAP: Readonly<Record<string, string>> = {
+  ActivityPage: 'research-memory.md',
+  ActivityQuery: 'research-memory.md',
+  ApplyReceipt: 'research-memory.md',
+  ApplyRequest: 'research-memory.md',
+  ChangeIntent: 'research-memory.md',
+  ChangePreview: 'research-memory.md',
+  ContextQuery: 'research-memory.md',
+  ContextRead: 'research-memory.md',
+  Project: 'research-memory.md',
+  ParentContribution: 'research-memory.md',
+  ReadEnvelope: 'research-memory.md',
+  ResearchEvent: 'research-memory.md',
+  ResearchProvider: 'research-memory.md',
+  ResearchQuestion: 'research-memory.md',
+  SessionMemoryView: 'research-memory.md',
+  Resource: 'research-memory.md',
+  ResourceId: 'research-memory.md',
+  Result: 'research-memory.md',
+  Topic: 'research-memory.md',
+  TopicId: 'research-memory.md',
+  TopicPage: 'research-memory.md',
+  TopicQuery: 'research-memory.md',
+
   Principal: 'typert.md',
   PrincipalMap: 'typert.md',
   RemoteAccessResource: 'typert.md',

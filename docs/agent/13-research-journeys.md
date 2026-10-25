@@ -21,7 +21,7 @@ a fixed literature/derivation/code/review sequence or make missing context an au
 action ban. The model chooses its next step adaptively. Explicit researcher instructions,
 actual tool permissions and honest scientific qualifications remain applicable. P1–P5
 references below locate implementation work; they are not phases every research task must
-pass through. Read/write policies remain to be specified for the selected authoring scope.
+pass through. Configured scratch writing has a bounded cooperative policy in [B5](14-implementation-blueprint.md#memory-backend-work); real-note authoring and broader reviewed workflows remain separately scoped.
 
 [16’s three case walkthroughs](16-topic-centred-redesign.md#cases) assess theory/code/evidence, competing routes and an exploratory seed against read-only inspection of actual records. They specify correction, recovery and failure acceptance routes. The revised overview must expose each child’s own answer, decisive limit and materials through direct navigation. A work label or completed child control must not make the parent claim appear accepted. The linked prototype tests synthetic interactions only; these are not passed application workflows on real research.
 
@@ -50,7 +50,7 @@ cannot close the missing parts of a case.
 
 | Case | Retained evidence and research gap to requalify | Planned implementation reference |
 | --- | --- | --- |
-| [C01 Return to a project](#c01) | Pi read-only/recovery evidence retained; Harness project/topic/material navigation uses an asynchronous fixture; real research continuity remains unconnected | Headless continuity; P1 / UI-1, W1 |
+| [C01 Return to a project](#c01) | Markdown map/topic/material navigation, scoped request delivery and scratch recovery tested in Harness; reproduced selection/omission defects are repaired, while human research-continuity assessment and the planned paired scientific comparison remain | Headless continuity; B1–B6; P1 / UI-1, W1 |
 | [C02 Idea to scoped question](#c02) | Discussion and choice-card foundation; idea lifecycle and approved branch creation unavailable | P1 context; P3–P4 authoring |
 | [C03 Discover and import literature](#c03) | Existing text can be searched; literature retrieval/import and edition adapter unavailable | P2b local library; separately approved retrieval |
 | [C04 Close reading across editions](#c04) | Note reading foundation; W2 page/edition states are synthetic; actual research PDF/edition route unavailable | UI-1 note selection; P2b / UI-2, W2 |
@@ -65,7 +65,7 @@ cannot close the missing parts of a case.
 | [C13 Reusable knowledge](#c13) | Knowledge text may be read/searched; knowledge service and promotion writes unavailable | P2a; P3–P4 |
 | [C14 Distill a procedure](#c14) | Distillation Skill can be read; W5 draft/evaluation/file states are synthetic; actual proposal/evaluation integration unavailable | Proposal/Skill-use slice; UI-6, W5; P4 named actual Skill-write pilot |
 | [C15 Independent review](#c15) | Requests and real log exports exist; review execution/assessment unavailable | P3b–c |
-| [C16 Interrupt and resume](#c16) | Pi recovery evidence retained; W1/W6 memory/adoption states are synthetic; Harness research continuity and effect reconciliation unverified | Headless continuity; UI-1 W1; UI-4 W6; P3c/P4 effects |
+| [C16 Interrupt and resume](#c16) | Harness working-state recovery, two compactions/restart and scratch write reconciliation tested; full W1 client bridge, W6 rule adoption and broader effects remain incomplete | B2–B6; UI-1 W1; UI-4 W6; P3c/P4 effects |
 | [C17 Delegate and hand off](#c17) | Export/retained-note foundation; application worker execution unavailable | P3 review; P5 research workers |
 | [C18 Desktop, hosts and interoperability](#c18) | Local server and portable Markdown foundation; native attachment and fresh cross-host continuation unverified | P2d; explicit compatibility exercise |
 | [C19 Browse a knowledge wiki](#c19) | Existing text/link reading foundation; global wiki index, entry navigation and knowledge adapter unavailable | P2a |
@@ -141,7 +141,9 @@ at a choice. Shared editors, source-backed project overview and the closed-threa
 outcome lifecycle remain [mock][prototype]/[specification][memory]. This is not a
 completed project-return journey.
 
-**Harness UI acceptance route — W1 / UI-1.** The [research client](../../packages/client/ui-aitp-research/README.md) exercises project → nested topic → material → return through an asynchronous fixture, preserving each child's qualifications and displaying missing content explicitly. Completing this case still requires real providers: open Research without creating a Session, follow actual topic and failed-route passages, then open the intended Session and inspect its task card and Sources & memory. The [W1 walkthrough](12-desktop-interface.md#scenario-walkthroughs) includes two compactions and a disconnected view; real recovery must preserve instructions, provisional items and last-observed labels. Headless continuity and client implementation can proceed independently.
+**Harness UI acceptance route — W1 / UI-1.** The [research client](../../packages/client/ui-aitp-research/README.md) exercises map → nested topic → material → return through both an asynchronous fixture and the configured Markdown backend. The actual-backend browser regression also checks source-preserving scratch save and a material question reaching the actual model request through a deterministic transport substitute; full case acceptance still requires the researcher to exercise the combined route: open Research without creating a Session, follow actual topic and failed-route passages, then open the intended Session and inspect its task card and Sources & memory. The [W1 walkthrough](12-desktop-interface.md#scenario-walkthroughs) includes two compactions and a disconnected view; real recovery must preserve instructions, provisional items and last-observed labels. Headless continuity and client implementation can proceed independently.
+
+**First backend exercise (engineering mechanisms tested; scientific assessment pending).** [B1–B6 evidence](14-implementation-blueprint.md#memory-backend-work) now covers source ownership, actual request delivery, two compactions, restart, scratch writes and browser-provider refresh with deterministic external models. Follow [B1–B6](14-implementation-blueprint.md#memory-backend-work) from a shared material opened under one child direction. Recover the correct owner, original human correction, relevant failed route and unanswered choice; inspect actual model input after two compactions and a restart. A new conversation finds relevant pending integration without treating it as an applied note change. A scratch child update changes the parent only where its meaning is affected; overview, detail and the next request agree with the saved account. Duplicate titles, ambiguous ownership, missing sources and partial application must remain explicit. Read-only visits still produce no scientific edit. This extends C01 together with C15/C16. The individual mechanism tests do not claim one human-approved scientific trial, automatic detection of every affected argument, or live-model research improvement.
 
 **Acceptance and counterexample.** Return with no memorized path; locate the
 current owner and explain the limitation. Close a scratch thread, then open its old
@@ -473,14 +475,14 @@ actual sources. Compiled, citation-checked, scientifically checked and
 researcher-approved remain separate. Declining the proposal leaves source text
 unchanged; known dependent passages carry the correction or an explicit limitation.
 
-**Current support and gap.** [Writing instructions][writing] and text reads exist;
+**Retained Pi support and gap.** [Writing instructions][writing] and text reads exist;
 the [proposal mock][prototype] is synthetic. [DocumentService][documents],
 [manuscript adapter][manuscripts], review execution and build/effect paths are
 unavailable. Automatic context selection does not yet guarantee reading the whole
 affected argument: the current English restructuring-word heuristic suppresses
 ordinary excerpts but does not itself load the whole owning note; selected files
 still determine that input. Complete-argument reading is presently a Skill
-guidance; runtime prioritization and delivered-coverage tracking remain to be implemented.
+guidance in that baseline. The current Markdown backend has bounded request prioritization and source observations; it does not guarantee complete scientific dependency discovery or implement a manuscript/build workflow.
 
 **Acceptance and counterexample.** Request substantive restructuring in Chinese
 and English; inspect the actually delivered context, not just its reference list.
@@ -558,13 +560,15 @@ edited paragraph can make an earlier review stale. Agreement between models is
 not independent physical evidence, and the researcher's decision is not replaced
 by a reviewer verdict.
 
-**Current support and gap.** [ReviewService][review] persists queued requests and
+**Retained Pi support and gap.** [ReviewService][review] persists queued requests and
 exports actual logs; reports and assessments are empty, application is unavailable, and
 reviewer task shells are absent. The [current session export][sessions] explicitly
 excludes worker/reviewer conversations and lacks full-output artifact references;
 its existence does not establish complete review evidence. The [Astra design
 critique][design-review] was performed through the host agent workflow; it is not
-an executed application reviewer feature. Proposal/review visuals are mock only.
+an executed application reviewer feature. Those proposal/review visuals are mock only.
+
+**Current Harness support.** B4/B5 provide no-change/pending proposals, exact-passage scratch edits and durable apply/recovery outcomes. Independent reviewer execution and assessment remain unimplemented. The nested-qualification counterexample in [Q06](../../current.md#q06) now reconciles a single changed field and rejects divergent changes; the [backend receipt](../../agent/notes/harness-integration.md#research-memory-backend) retains its original failure and regressions. This does not establish complete scientific authoring support.
 
 **Acceptance and counterexample.** Seed a dropped condition, an omitted critical
 premise and a premise changed outside the proposed edit, including a Chinese
@@ -591,7 +595,7 @@ reconstructing authority from an old successful action. A run with unknown submi
 outcome remains uncertain; unrelated read-only recovery can proceed. A stale
 path does not silently retarget an active task.
 
-**Current support and gap.** [Session/task handling][sessions], [context refresh][context]
+**Retained Pi support and gap.** [Session/task handling][sessions], [context refresh][context]
 and [compaction][compaction] exist. The [recorded pilot][integration] preserved a
 waiting task across a status interjection, restart and forced compaction, with
 original failures retained. [Effects][effects] and command/action recovery are
@@ -604,12 +608,14 @@ decisions from model summaries.
 
 **New Harness evidence.** The [2026-10-23 paired live exercise](../../agent/notes/harness-integration.md#gpt-live-acceptance) completed two native compactions and fresh-process recovery in each of four synthetic sessions. Both hosts respected the mid-task analytic-only correction, reported an unread source removed before continuation, and derived the correct unpinned/pinned limiting gap. AITP retained operative meaning in generated summaries after the original instruction was shadowed; it did not preserve the complete user correction verbatim. Codex retained the correction in its native replacement history. These short, manually compacted examples do not establish equivalent stress, the planned agreement/source-observation services, automatic missing-premise discovery or near-capacity continuity. No real notes were written.
 
+**Current backend evidence.** [B2/B3](14-implementation-blueprint.md#memory-backend-work) separately test original human inputs, provisional model items and pending integration through actual requests, two production compactions and process restart. B5 tests durable scratch receipts, partial/unknown outcomes and retry identity; those checks do not cover arbitrary external effects. [Q02](../../current.md#q02) retains the missing-origin failure and its repair; missing and ambiguous reasons are now asserted in actual model requests. The real task-card and Sources & memory bridge reads accepted Session events and exact context snapshots. Broader note/rule/Skill views, near-capacity behavior and scientific acceptance remain open.
+
 The proposed [rule editor](12-desktop-interface.md#collaboration-rule-editor) adds a related
 continuation test: a scoped user rule change must survive restart with its exact source
 and actual adoption state. Rule editing/resolution is currently unavailable; a declared
 config API and readable Skill do not implement it.
 
-**Harness UI acceptance routes — W1 / UI-1 and W6 / UI-4 (design only).** [W1](12-desktop-interface.md#scenario-walkthroughs) exposes original instructions, provisional working items, source observations and generated summaries separately after compaction. W6 separately tests a rule edit during a running request: saved is not yet adopted, the next request records actual use, and save failure retains the draft. These are synthetic walkthroughs; real rule-source persistence/adoption and restart evidence are still required. UI-1 includes a read-only effective-rule view, not the rule editor.
+**Harness UI acceptance routes — full W1 / UI-1 and W6 / UI-4 remain unaccepted.** [W1](12-desktop-interface.md#scenario-walkthroughs) exposes original instructions, provisional working items, source observations and generated summaries separately after compaction. W6 separately tests a rule edit during a running request: saved is not yet adopted, the next request records actual use, and save failure retains the draft. These are synthetic walkthroughs; real rule-source persistence/adoption and restart evidence are still required. UI-1 includes a read-only effective-rule view, not the rule editor.
 
 **Acceptance and counterexample.** Interrupt with a required choice pending;
 change a scratch source between delivery and resume; simulate an uncertain

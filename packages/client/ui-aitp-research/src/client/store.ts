@@ -4,14 +4,17 @@ import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/clie
 import type { ResourceId, TopicId } from './workspace-contract.ts'
 import { workspaceEditActions, type WorkspaceEditOwner } from './workspace-edit-state.ts'
 
-/** Detail views preserve the selected tab when returning from a material. */
-export type TopicTab = 'overview' | 'work' | 'statements' | 'materials' | 'activity'
-
-/** What the panel's reading region shows. */
+/**
+ * What the panel's reading region shows: the research map, centred on the
+ * project or on one topic's branches; a topic page; or one material.
+ */
 export type ResearchLocation =
-  | { readonly kind: 'project' }
-  | { readonly kind: 'topic'; readonly topicId: TopicId; readonly tab: TopicTab }
+  | { readonly kind: 'map'; readonly focusId: TopicId | null }
+  | { readonly kind: 'topic'; readonly topicId: TopicId }
   | { readonly kind: 'resource'; readonly topicId: TopicId | null; readonly resourceId: ResourceId }
+
+/** Interface regions whose open or closed state the reader chooses; `listing` records a requested next page. */
+export type DisclosureScope = 'map' | 'outline' | 'section' | 'listing'
 
 /** Where the reader was in a location they left, so Back can return there. */
 export type ResearchReturnPoint = {
@@ -49,6 +52,8 @@ export type ResearchPanelState = WorkspaceEditOwner & {
   arrival: ResearchArrival
   /** Increments on every navigation, so arriving at an equal location still settles. */
   visit: number
+  /** Open (true) or closed (false) regions by {@link disclosureKey}; absent keys use each view's default. */
+  disclosure: Record<string, boolean>
 }
 
 /** The panel's complete mutation API. */
@@ -56,12 +61,23 @@ export type ResearchPanelActions = typeof workspaceEditActions & {
   selectWorkspace: (draft: ResearchPanelState, workspaceId: WorkspaceId) => void
   open: (draft: ResearchPanelState, workspaceId: WorkspaceId, location: ResearchLocation, leave: ResearchReturnPoint) => void
   goBack: (draft: ResearchPanelState, workspaceId: WorkspaceId) => void
-  setTab: (draft: ResearchPanelState, workspaceId: WorkspaceId, tab: TopicTab) => void
+  setDisclosed: (draft: ResearchPanelState, key: string, open: boolean) => void
 }
 
 /** Locations kept for Back; older entries fall off. */
 const BACK_LIMIT = 50
-const PROJECT: ResearchLocation = { kind: 'project' }
+const PROJECT: ResearchLocation = { kind: 'map', focusId: null }
+
+/**
+ * Identify one disclosure choice; choices of different Workspaces never collide.
+ * @param workspaceId - Workspace that owns the region.
+ * @param scope - map node, outline node, topic-page section or topic-list page.
+ * @param ids - topic identity followed by the section, or a topic query followed by its page cursor.
+ * @returns the key used in {@link ResearchPanelState.disclosure}.
+ */
+export function disclosureKey(workspaceId: WorkspaceId, scope: DisclosureScope, ...ids: readonly string[]): string {
+  return JSON.stringify([workspaceId, scope, ...ids])
+}
 
 /**
  * Read navigation only in the Workspace that owns it. A removed selection may
@@ -82,14 +98,14 @@ export function createResearchPanelStore(): EngineStoreHandle<ResearchPanelState
   return defineStore({
     init: (): ResearchPanelState => ({
       pendingEdits: {},
-      workspaceId: null, location: { kind: 'project' }, back: [], arrival: { kind: 'none' }, visit: 0,
+      workspaceId: null, location: PROJECT, back: [], arrival: { kind: 'none' }, visit: 0, disclosure: {},
     }),
     actions: {
       ...workspaceEditActions,
       selectWorkspace: (draft, workspaceId: WorkspaceId) => {
         if (draft.workspaceId === workspaceId) return
         draft.workspaceId = workspaceId
-        draft.location = { kind: 'project' }
+        draft.location = PROJECT
         draft.back = []
         draft.arrival = { kind: 'enter', focus: false }
         draft.visit += 1
@@ -112,8 +128,8 @@ export function createResearchPanelStore(): EngineStoreHandle<ResearchPanelState
         draft.arrival = { kind: 'return', ...previous.returnTo }
         draft.visit += 1
       },
-      setTab: (draft, workspaceId: WorkspaceId, tab: TopicTab) => {
-        if (draft.workspaceId === workspaceId && draft.location.kind === 'topic') draft.location = { ...draft.location, tab }
+      setDisclosed: (draft, key: string, open: boolean) => {
+        draft.disclosure[key] = open
       },
     },
   })

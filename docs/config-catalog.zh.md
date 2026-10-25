@@ -2636,6 +2636,58 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-repeat-tool-reminder -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-research-memory -->
+<a id="deepseek-aidsh-research-memory"></a>
+
+## `@deepseek-ai/dsh-research-memory`
+
+- `inject`: `typert` · `agents` · `sessions` · `systemPrompt` · `tools` · `sessionProjections`
+- `source`: [`packages/research/research-memory/src/index.ts:61`](../packages/research/research-memory/src/index.ts)
+
+```ts config-catalog
+/** Explicit host access and bounds for configured research roots. */
+export interface Config {
+  /** Only these roots can be read through this service. */
+  roots?: {
+    /** Absolute directory containing the scientific sources. */
+    path: string
+    /** Explicit identity for headless compositions without a Workspace registry. */
+    id?: string
+    /** Enable source writes on this configured scratch root; defaults to false. */
+    writable?: boolean
+    /** Durable operation receipts outside the scientific source tree. */
+    stateDirectory?: string
+  }[]
+  /** Maximum source files admitted by discovery. */
+  maxFiles?: number
+  /** Maximum UTF-8 bytes read from one source file. */
+  maxFileBytes?: number
+  /** Maximum complete research-context characters, including labels and omissions. */
+  maxContextCharacters?: number
+  /** Maximum provisional model items in the current direction. */
+  maxWorkingItems?: number
+  /** Maximum characters in one provisional item field. */
+  maxItemCharacters?: number
+  /** Maximum original human inputs included in one request. */
+  maxHumanInputs?: number
+  /** Maximum characters allocated to original human inputs in one request. */
+  maxHumanCharacters?: number
+  /** Maximum characters accepted from the question form. */
+  maxQuestionCharacters?: number
+  /** Maximum UTF-8 bytes in a complete durable operation receipt. */
+  maxOperationBytes?: number
+  /** Maximum serialized model write-tool result characters. */
+  maxResultCharacters?: number
+  /** Maximum prior conversation candidates inspected for the active root. */
+  maxRecoverySessions?: number
+  /** Maximum historical events projected; the query provider may read a whole cold log. */
+  maxRecoveryEvents?: number
+  /** Maximum serialized historical evidence characters before the final request bound. */
+  maxRecoveryCharacters?: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-research-memory -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-sandbox-local -->
 <a id="deepseek-aidsh-sandbox-local"></a>
 
@@ -4604,6 +4656,7 @@ export interface Config {
 | `@deepseek-ai/dsh-client-modules` | `loader` | [`packages/client/modules/src/index.ts`](../packages/client/modules/src/index.ts) |
 | `@deepseek-ai/dsh-client-resources` | — | [`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-agent-preset` | — | [`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-backend` | — | [`packages/client/ui-aitp-backend/src/index.ts`](../packages/client/ui-aitp-backend/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-fixtures` | — | [`packages/client/ui-aitp-fixtures/src/index.ts`](../packages/client/ui-aitp-fixtures/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-research` | — | [`packages/client/ui-aitp-research/src/index.ts`](../packages/client/ui-aitp-research/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-session` | — | [`packages/client/ui-aitp-session/src/index.ts`](../packages/client/ui-aitp-session/src/index.ts) |

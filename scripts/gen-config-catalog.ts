@@ -1024,12 +1024,16 @@ export function render(entries: CatalogEntry[], locale: Locale = 'en'): string {
 }
 
 /**
- * Compute both language versions and their consistency record.
+ * Compute both language versions and, by default, their consistency record.
  * @param scanRoot - Repository root used to resolve paired-document links.
+ * @param options - Omit the record without computing its hashes when requested.
  * @returns Repository-relative output paths and exact generated content.
  */
-export function computeConfigCatalogOutputs(scanRoot: string = root): ReadonlyMap<string, string> {
-  const entries = collectConfigCatalog()
+export function computeConfigCatalogOutputs(
+  scanRoot: string = root,
+  options: { withoutPairingRecord?: boolean } = {},
+): ReadonlyMap<string, string> {
+  const entries = collectConfigCatalog(scanRoot)
   const context = {
     repoRoot: scanRoot,
     isTranslationPairSource: translationPairSourcePredicate(parseTranslationPairingManifest(
@@ -1042,18 +1046,22 @@ export function computeConfigCatalogOutputs(scanRoot: string = root): ReadonlyMa
     { ...context, sourcePath: PATHS.zh },
     languageSwitcherTargets(PATHS.source),
   ).content
-  return new Map([
+  const outputs = new Map([
     [PATHS.source, en],
     [PATHS.zh, zh],
-    [PATHS.meta, renderTranslationPairingRecord(PATHS, computeTranslationPairingRecord(PATHS, en, zh, context))],
   ])
+  if (!options.withoutPairingRecord) {
+    outputs.set(PATHS.meta, renderTranslationPairingRecord(PATHS, computeTranslationPairingRecord(PATHS, en, zh, context)))
+  }
+  return outputs
 }
 
 /** CLI entry: default writes the catalog pair and record, `--check` fails if any
- * committed copy is stale. Guarded behind an entry-point check so importing this
+ * committed copy is stale; `--without-pairing-record` omits hash records.
+ * Guarded behind an entry-point check so importing this
  * module for tests neither regenerates the committed files nor calls process.exit. */
 function main(): void {
-  const outputs = computeConfigCatalogOutputs()
+  const outputs = computeConfigCatalogOutputs(root, { withoutPairingRecord: process.argv.includes('--without-pairing-record') })
   const stale = [...outputs].filter(([path, content]) => (
     !existsSync(resolve(root, path)) || readFileSync(resolve(root, path), 'utf8') !== content
   )).map(([path]) => path)
