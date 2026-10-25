@@ -283,7 +283,7 @@ describe('worktree-local Lefthook installer', { timeout: 90_000 }, () => {
     expect(readFileSync(legacyHook, 'utf8')).toBe('#!/bin/sh\n# legacy hook\n')
   })
 
-  it('replaces the owned hook path Git copies into a newly added worktree', async () => {
+  it('replaces an inherited owned hook path in a newly added worktree', async () => {
     const fixture = createFixture()
     const mainInstall = await runInstaller(fixture, fixture.main)
     expect(mainInstall.status, mainInstall.stderr).toBe(0)
@@ -291,6 +291,8 @@ describe('worktree-local Lefthook installer', { timeout: 90_000 }, () => {
     const mainHookBefore = readFileSync(join(mainHooks, 'pre-commit'), 'utf8')
     const lateLinked = join(fixture.container, 'late-linked')
     git(fixture, fixture.main, ['worktree', 'add', '-b', 'late-linked', lateLinked])
+    // Git versions differ in whether worktree creation copies the main worktree's config.
+    git(fixture, lateLinked, ['config', '--worktree', 'core.hooksPath', mainHooks])
     write(join(lateLinked, 'lefthook.yml'), 'late-linked-worktree-config\n')
     installFakeLefthook(lateLinked)
     expect(git(fixture, lateLinked, ['config', '--worktree', '--get', 'core.hooksPath'])).toBe(mainHooks)

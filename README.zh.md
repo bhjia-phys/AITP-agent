@@ -8,7 +8,7 @@
 
 这个模块化科研工作台基于 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 开发，由 [AITP Research Protocol](https://github.com/bhjia-phys/AITP-Research-Protocol) 提供可移植的科研方法。科研记录保持可检查、可携带；工作台明确组织课题结构，界面不受笔记模板限制。研究者确定目标与边界，AI 自主推进其中的常规步骤。规则编辑和只显示必要信息的科研界面仍是需要落实的设计。
 
-当前主线使用 Harness 的插件、服务、Web 和桌面基础设施。AITP 的底层接入以科研记忆的选择、读取、上下文交付、压缩恢复和维护为核心；Skills 是其中的方法指导。AI 根据问题和证据自主选择动作，不设置固定科研动作流程。具体方案见[运行时记忆设计](docs/agent/10-project-workspace.md#aitp-runtime-integration)。`agent/` 保留此前的 Pi 实现与检查证据，不是新主线。旧测试通过不能证明新应用已完成科研记忆、上下文、独立审阅或写回；实际覆盖见规划和场景文档。
+当前主线使用 Harness 的插件、服务、Web 和桌面基础设施。首版 Markdown 科研后台已连接课题会话、人的原始输入、来源交付、恢复与限定笔记写回；可移植 AITP Skills 指导模型的科研与编辑判断。AI 在已约定范围内根据问题和证据选择动作。[开发规划](docs/agent/14-implementation-blueprint.md#memory-backend-work)维护实际覆盖和仍需进行的科研评估。`agent/` 中的 Pi 实现保留为历史比较基线。
 
 ## 科研原则
 
@@ -18,7 +18,7 @@
 
 **科研状态独立于会话持续存在。** 每项科研信息只有一个权威归属，会话是操作它们的临时上下文。研究者确定和调整目标、检查证据、纠正解释；agent 恢复相关状态并推进已授权工作。界面提供工作区服务接口，供后台和 AI 共用读写能力。前端通过适配接口取得课题结构与可读文档；存储方式和已有笔记的兼容映射由后台负责。
 
-[统一设计提案](docs/agent/16-topic-centred-redesign.md)将这些原则落实到项目与子课题总览、资料下钻、UI/AI 共同读写和冲突恢复。[交互原型](docs/agent/prototype/topic-workspace/README.md)使用合成内容。正式 Harness 客户端已实现项目、课题与材料导航，以及预览和应用修改；当前可选启用的异步 provider 使用合成数据。[适配契约与对接说明](packages/client/ui-aitp-research/README.md#backend-connection)允许后台独立推进。真实科研 provider、持久写入、模型上下文交付与依赖分析仍待开发。应用检查仅支持已测试的客户端行为，不构成科学正确性或生产可用性的证据。
+[统一设计提案](docs/agent/16-topic-centred-redesign.md)连接项目与课题总览、来源导航和 UI/模型共同写回。[可点击原型](docs/agent/prototype/topic-workspace/README.md)是合成设计证据。正式 Research 地图使用真实 Markdown provider；单独显式启用的覆盖配置保留合成 fixture。原生项目启用和课题创建使用[同一后台契约](packages/client/ui-aitp-research/README.md#backend-connection)。PDF、知识库/代码读取器、科研独立审阅和更广的依赖整合保留各自的实施与验收范围。工程检查不建立科学正确性或一般科研质量优势。
 
 ## 从哪里开始
 
@@ -76,6 +76,12 @@ pnpm aitp-agent web --no-open
 AITP 为 ChatGPT 路线（`openai-codex`）默认选择 SSE 流式连接，后续 provider 配置可显式选择其他连接方式。已观察到的 auto／WebSocket 退出卡住问题现已定位到并发连接的所有权缺陷并修复。独立登录及有限的读／改／运行任务已在 SSE、auto 和显式 WebSocket 路线上通过。这些是兼容性检查，不是科研质量评测，具体边界见 [GPT 执行证据](agent/notes/harness-integration.md#gpt-reliability-slice)。
 
 GPT API key 与 ChatGPT 订阅授权是不同路线；不会静默导入 Codex CLI 登录。凭据、会话、副本实验和真实科研资料都应留在发布树之外。
+
+## 开始一个科研课题
+
+正常 AITP Web 配置已包含科研后台，初始不读取任何目录。在对话中把已有项目目录添加为工作区，再进入 Research 并选中它。点击“启用研究项目”；要创建课题和保存记录时，勾选“允许保存研究修改”。只读启用不创建科研文件。已有宿主配置的访问限制继续适用。
+
+使用“新建课题”或“新建子方向”，填写名称、研究问题和可选范围。创建会保存新记录及明确的父子链接，刷新地图并打开课题，尚不联系模型。“在新对话中提问”才会发起带课题来源上下文的普通 Harness 对话；之后的消息沿用其范围。项目授权保存在应用存储中，重启后仍有效。资料格式、恢复预算和写入结果不确定的处理见[科研记忆说明](packages/research/research-memory/README.md)。
 
 ## 上游与许可
 

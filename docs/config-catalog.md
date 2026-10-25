@@ -2640,7 +2640,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-research-memory`
 
 - `inject`: `typert` · `agents` · `sessions` · `systemPrompt` · `tools` · `sessionProjections`
-- `source`: [`packages/research/research-memory/src/index.ts:61`](../packages/research/research-memory/src/index.ts)
+- `source`: [`packages/research/research-memory/src/index.ts:64`](../packages/research/research-memory/src/index.ts)
 
 ```ts config-catalog
 /** Explicit host access and bounds for configured research roots. */
@@ -2656,7 +2656,7 @@ export interface Config {
     /** Durable operation receipts outside the scientific source tree. */
     stateDirectory?: string
   }[]
-  /** Maximum source files admitted by discovery. */
+  /** Maximum directory entries inspected by discovery, including directories. */
   maxFiles?: number
   /** Maximum UTF-8 bytes read from one source file. */
   maxFileBytes?: number
@@ -2676,9 +2676,12 @@ export interface Config {
   maxOperationBytes?: number
   /** Maximum serialized model write-tool result characters. */
   maxResultCharacters?: number
-  /** Maximum prior conversation candidates inspected for the active root. */
+  /** Maximum matching-topic conversations selected for historical delivery. */
   maxRecoverySessions?: number
-  /** Maximum historical events projected; the query provider may read a whole cold log. */
+  /**
+   * Maximum records folded for cold topic classification and selected histories per recovery.
+   * The query provider may still read a complete cold log before this processing bound applies.
+   */
   maxRecoveryEvents?: number
   /** Maximum serialized historical evidence characters before the final request bound. */
   maxRecoveryCharacters?: number

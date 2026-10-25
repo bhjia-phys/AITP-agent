@@ -3,6 +3,8 @@ import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-sto
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { ResourceId, TopicId } from './workspace-contract.ts'
 import { workspaceEditActions, type WorkspaceEditOwner } from './workspace-edit-state.ts'
+import { topicCreationActions, type TopicCreationOwner } from './topic-creation-state.ts'
+import type { TopicCreationJournal, TopicRecoveryState } from './topic-creation-journal.ts'
 
 /**
  * What the panel's reading region shows: the research map, centred on the
@@ -41,7 +43,9 @@ export type ResearchArrival =
   | ({ readonly kind: 'return' } & ResearchReturnPoint)
 
 /** Panel selection plus the locations visited before the current one. */
-export type ResearchPanelState = WorkspaceEditOwner & {
+export type ResearchPanelState = WorkspaceEditOwner & TopicCreationOwner & {
+  /** Tab-owned creation recovery availability; scientific records remain provider-owned. */
+  topicRecovery: TopicRecoveryState
   /** Chosen or navigated Workspace; null follows Harness order until the first navigation. */
   workspaceId: WorkspaceId | null
   /** The location on screen. */
@@ -57,7 +61,7 @@ export type ResearchPanelState = WorkspaceEditOwner & {
 }
 
 /** The panel's complete mutation API. */
-export type ResearchPanelActions = typeof workspaceEditActions & {
+export type ResearchPanelActions = typeof workspaceEditActions & typeof topicCreationActions & {
   selectWorkspace: (draft: ResearchPanelState, workspaceId: WorkspaceId) => void
   open: (draft: ResearchPanelState, workspaceId: WorkspaceId, location: ResearchLocation, leave: ResearchReturnPoint) => void
   goBack: (draft: ResearchPanelState, workspaceId: WorkspaceId) => void
@@ -92,16 +96,20 @@ export function workspaceLocation(state: ResearchPanelState, workspaceId: Worksp
 
 /**
  * Create the panel state before the first render.
+ * @param journal - optional tab-owned topic recovery; omitted by memory-only test hosts.
  * @returns the registration-owned store handle.
  */
-export function createResearchPanelStore(): EngineStoreHandle<ResearchPanelState, ResearchPanelActions> {
-  return defineStore({
+export function createResearchPanelStore(journal?: TopicCreationJournal): EngineStoreHandle<ResearchPanelState, ResearchPanelActions> {
+  const handle = defineStore({
     init: (): ResearchPanelState => ({
       pendingEdits: {},
+      topicDrafts: {},
+      topicRecovery: 'available',
       workspaceId: null, location: PROJECT, back: [], arrival: { kind: 'none' }, visit: 0, disclosure: {},
     }),
     actions: {
       ...workspaceEditActions,
+      ...topicCreationActions,
       selectWorkspace: (draft, workspaceId: WorkspaceId) => {
         if (draft.workspaceId === workspaceId) return
         draft.workspaceId = workspaceId
@@ -133,4 +141,19 @@ export function createResearchPanelStore(): EngineStoreHandle<ResearchPanelState
       },
     },
   })
+  if (journal === undefined) return handle
+  return {
+    ...handle,
+    create(scopeKey) {
+      const instance = handle.create(scopeKey)
+      const restored = journal.load()
+      instance.store.update((draft) => { draft.topicDrafts = restored.drafts; draft.topicRecovery = restored.state })
+      if (restored.state !== 'unreadable') instance.subscribe(() => {
+        if (!journal.save(instance.getSnapshot().topicDrafts) && instance.getSnapshot().topicRecovery !== 'unavailable') {
+          instance.store.update((draft) => { draft.topicRecovery = 'unavailable' })
+        }
+      })
+      return instance
+    },
+  }
 }

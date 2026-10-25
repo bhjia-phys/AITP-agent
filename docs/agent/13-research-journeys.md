@@ -50,12 +50,12 @@ cannot close the missing parts of a case.
 
 | Case | Retained evidence and research gap to requalify | Planned implementation reference |
 | --- | --- | --- |
-| [C01 Return to a project](#c01) | Markdown map/topic/material navigation, scoped request delivery and scratch recovery tested in Harness; reproduced selection/omission defects are repaired, while human research-continuity assessment and the planned paired scientific comparison remain | Headless continuity; B1–B6; P1 / UI-1, W1 |
+| [C01 Return to a project](#c01) | Harness navigation, scoped delivery and scratch recovery tested; [paired synthetic writing/file-only recovery](../../agent/notes/harness-integration.md#research-behavior-comparison) adds finite behavior evidence. [Recovery fixes](../../agent/notes/harness-integration.md#research-recovery-fixes) cover unanswered timed choices, crowded history and selected deep files within bounded coverage; researcher-operated continuity remains open | Headless continuity; B1–B6; P1 / UI-1, W1 |
 | [C02 Idea to scoped question](#c02) | Discussion and choice-card foundation; idea lifecycle and approved branch creation unavailable | P1 context; P3–P4 authoring |
 | [C03 Discover and import literature](#c03) | Existing text can be searched; literature retrieval/import and edition adapter unavailable | P2b local library; separately approved retrieval |
 | [C04 Close reading across editions](#c04) | Note reading foundation; W2 page/edition states are synthetic; actual research PDF/edition route unavailable | UI-1 note selection; P2b / UI-2, W2 |
 | [C05 Learn a framework](#c05) | Learning Skill/context foundation; dedicated knowledge/story view unavailable | P2a; P3–P4 retained writing |
-| [C06 Analytic derivation](#c06) | Source reading and model discussion foundation; no accepted analytic workflow or reviewed authoring | P1 scope; P2a; P3–P4 |
+| [C06 Analytic derivation](#c06) | Paired finite commutator/source-correction and qualified-use writing controls; no accepted open-research analytic workflow or reviewed authoring | P1 scope; P2a; P3–P4 |
 | [C07 Cross-topic transfer](#c07) | Parent-use/source lookup foundation; full condition-aware relation view and integration unavailable | P2a; P3–P4 |
 | [C08 Formula, code and debugging](#c08) | Pi retained text reading/mock; Harness generic preview/navigation/editing/execution exists. W3 checkout/formula comparison is synthetic; research-linked execution remains unverified | P2c / UI-5, W3; P4 bounded execution |
 | [C09 Numerical campaign](#c09) | Retained text can be inspected; run adapter, scheduler and campaign controller unavailable | P4 bounded run; P5 orchestration |
@@ -64,7 +64,7 @@ cannot close the missing parts of a case.
 | [C12 Manuscript, figures and citations](#c12) | Text reading foundation; proposal mock; document/manuscript/build paths unavailable | P3 scratch; P4 real pilot |
 | [C13 Reusable knowledge](#c13) | Knowledge text may be read/searched; knowledge service and promotion writes unavailable | P2a; P3–P4 |
 | [C14 Distill a procedure](#c14) | Distillation Skill can be read; W5 draft/evaluation/file states are synthetic; actual proposal/evaluation integration unavailable | Proposal/Skill-use slice; UI-6, W5; P4 named actual Skill-write pilot |
-| [C15 Independent review](#c15) | Requests and real log exports exist; review execution/assessment unavailable | P3b–c |
+| [C15 Independent review](#c15) | Supplied-review-claim assessment tested in finite pairs; dedicated independent reviewer execution/assessment workflow unavailable | P3b–c |
 | [C16 Interrupt and resume](#c16) | Harness working-state recovery, two compactions/restart and scratch write reconciliation tested; full W1 client bridge, W6 rule adoption and broader effects remain incomplete | B2–B6; UI-1 W1; UI-4 W6; P3c/P4 effects |
 | [C17 Delegate and hand off](#c17) | Export/retained-note foundation; application worker execution unavailable | P3 review; P5 research workers |
 | [C18 Desktop, hosts and interoperability](#c18) | Local server and portable Markdown foundation; native attachment and fresh cross-host continuation unverified | P2d; explicit compatibility exercise |
@@ -142,6 +142,8 @@ outcome lifecycle remain [mock][prototype]/[specification][memory]. This is not 
 completed project-return journey.
 
 **Harness UI acceptance route — W1 / UI-1.** The [research client](../../packages/client/ui-aitp-research/README.md) exercises map → nested topic → material → return through both an asynchronous fixture and the configured Markdown backend. The actual-backend browser regression also checks source-preserving scratch save and a material question reaching the actual model request through a deterministic transport substitute; full case acceptance still requires the researcher to exercise the combined route: open Research without creating a Session, follow actual topic and failed-route passages, then open the intended Session and inspect its task card and Sources & memory. The [W1 walkthrough](12-desktop-interface.md#scenario-walkthroughs) includes two compactions and a disconnected view; real recovery must preserve instructions, provisional items and last-observed labels. Headless continuity and client implementation can proceed independently.
+
+**Native first-use control (engineering evidence).** [The onboarding browser case](../../apps/web/tests/aitp-onboarding.e2e.ts) starts from an empty project and the normal AITP Web overlays, with no prewritten notes or research-root environment configuration. Read-only enrollment creates no scientific file; an explicit saving choice permits a new topic and child account with actual parent links. Creation makes no model call. After browser reload, the first child question reaches the real AgentLoop request with the authored child and parent questions and scopes; only the external model transport is substituted. This establishes the entry and delivery path, not autonomous scientific reading, editorial judgment or comparative research benefit. [14](14-implementation-blueprint.md#topic-onboarding) owns its implementation limits.
 
 **First backend exercise (engineering mechanisms tested; scientific assessment pending).** [B1–B6 evidence](14-implementation-blueprint.md#memory-backend-work) now covers source ownership, actual request delivery, two compactions, restart, scratch writes and browser-provider refresh with deterministic external models. Follow [B1–B6](14-implementation-blueprint.md#memory-backend-work) from a shared material opened under one child direction. Recover the correct owner, original human correction, relevant failed route and unanswered choice; inspect actual model input after two compactions and a restart. A new conversation finds relevant pending integration without treating it as an applied note change. A scratch child update changes the parent only where its meaning is affected; overview, detail and the next request agree with the saved account. Duplicate titles, ambiguous ownership, missing sources and partial application must remain explicit. Read-only visits still produce no scientific edit. This extends C01 together with C15/C16. The individual mechanism tests do not claim one human-approved scientific trial, automatic detection of every affected argument, or live-model research improvement.
 
@@ -287,12 +289,21 @@ conclusion, or the specific blocked step and why the tried route fails. Algebrai
 closure, a matching number and a physical construction remain distinguishable.
 A paused branch stays paused after a status or learning conversation.
 
-**Current support and gap.** [Research][research] and [verification][verify] Skills,
+**Retained Pi support.** [Research][research] and [verification][verify] Skills,
 [source reads][reader] and [context instructions][context] provide a discussion
-foundation. The current read-only tool registry incidentally excludes execution;
-this does not establish how future effect-capable tools honor the user's instruction.
-The derivation view itself should impose no automatic tool restriction. Reviewed
-derivation editing and the dedicated work area are unavailable.
+foundation. Its read-only registry incidentally excludes execution; this does not
+establish instruction-following with effect-capable tools.
+
+**Current Harness evidence and gap.** [Finite paired controls](../../agent/notes/harness-integration.md#research-behavior-comparison)
+use an exactly inspectable commutator equation whose corrected source has a nonzero
+diagonal. Both hosts retain the valid original solution, identify the new full-equation
+obstruction and repair known using passages; file-only continuation recovers those
+conditions. Weighted-readout controls additionally distinguish a valid conditional
+proof from its unsupported extension. These tests use bounded synthetic sources and
+reduced execution tools, not an accepted open-physics workflow or enforcement test
+with all scientific execution capabilities enabled. Reviewed derivation editing and
+the dedicated work area remain unavailable; the view should impose no automatic
+tool restriction.
 
 **Acceptance and counterexample.** Include a misleading algebraic match and an
 explicit analytic-only instruction in the fixture. Recover the physical gap and
@@ -568,7 +579,7 @@ its existence does not establish complete review evidence. The [Astra design
 critique][design-review] was performed through the host agent workflow; it is not
 an executed application reviewer feature. Those proposal/review visuals are mock only.
 
-**Current Harness support.** B4/B5 provide no-change/pending proposals, exact-passage scratch edits and durable apply/recovery outcomes. Independent reviewer execution and assessment remain unimplemented. The nested-qualification counterexample in [Q06](../../current.md#q06) now reconciles a single changed field and rejects divergent changes; the [backend receipt](../../agent/notes/harness-integration.md#research-memory-backend) retains its original failure and regressions. This does not establish complete scientific authoring support.
+**Current Harness support.** B4/B5 provide no-change/pending proposals, exact-passage scratch edits and durable apply/recovery outcomes. The dedicated independent-review execution/assessment workflow remains unimplemented. A [paired author-assessment control](../../agent/notes/harness-integration.md#research-behavior-comparison) now supplies one valid correction and one plausible invalid remedy: both hosts check the equation, correct the affected uses and reject the invalid remedy. Those comments are test-driver inputs, not an independently produced review or an application review feature. The nested-qualification counterexample in [Q06](../../current.md#q06) now reconciles a single changed field and rejects divergent changes; the [backend receipt](../../agent/notes/harness-integration.md#research-memory-backend) retains its original failure and regressions. This does not establish complete scientific authoring support.
 
 **Acceptance and counterexample.** Seed a dropped condition, an omitted critical
 premise and a premise changed outside the proposed edit, including a Chinese
@@ -609,6 +620,8 @@ decisions from model summaries.
 **New Harness evidence.** The [2026-10-23 paired live exercise](../../agent/notes/harness-integration.md#gpt-live-acceptance) completed two native compactions and fresh-process recovery in each of four synthetic sessions. Both hosts respected the mid-task analytic-only correction, reported an unread source removed before continuation, and derived the correct unpinned/pinned limiting gap. AITP retained operative meaning in generated summaries after the original instruction was shadowed; it did not preserve the complete user correction verbatim. Codex retained the correction in its native replacement history. These short, manually compacted examples do not establish equivalent stress, the planned agreement/source-observation services, automatic missing-premise discovery or near-capacity continuity. No real notes were written.
 
 **Current backend evidence.** [B2/B3](14-implementation-blueprint.md#memory-backend-work) separately test original human inputs, provisional model items and pending integration through actual requests, two production compactions and process restart. B5 tests durable scratch receipts, partial/unknown outcomes and retry identity; those checks do not cover arbitrary external effects. [Q02](../../current.md#q02) retains the missing-origin failure and its repair; missing and ambiguous reasons are now asserted in actual model requests. The real task-card and Sources & memory bridge reads accepted Session events and exact context snapshots. Broader note/rule/Skill views, near-capacity behavior and scientific acceptance remain open.
+
+**Unanswered-choice counterexample and repair.** The [earlier mechanism exercise](../../agent/notes/harness-integration.md#research-behavior-comparison) preserved full timed questions/options in events/UI but omitted them from fresh same-topic requests. The [repair](../../agent/notes/harness-integration.md#research-recovery-fixes) now delivers original unanswered call units and exact reopenable references. An actual Loader regression covers two deliberately incomplete production compactions and JSONL cold service restoration; native/PTC settlement, empty answer batches, scope and omission bounds have focused regressions. A pending call is an assistant question without a linked structured reply, not a human decision; later applicable human messages retain authority. These tests establish the repaired delivery mechanism, not a live-model failure rate, semantic detection of free-text answers or a second operating-system process restart.
 
 The proposed [rule editor](12-desktop-interface.md#collaboration-rule-editor) adds a related
 continuation test: a scoped user rule change must survive restart with its exact source

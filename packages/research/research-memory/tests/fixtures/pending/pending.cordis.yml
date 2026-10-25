@@ -1,0 +1,37 @@
+- name: cordis:llm
+- name: cordis:sessions
+- name: cordis:projections
+- name: cordis:persistence
+  config:
+    root: './.sessions'
+    compression: none
+- name: cordis:query
+- name: cordis:prompt
+- name: cordis:tools
+- name: cordis:agents
+- name: cordis:loop
+  config:
+    agents: []
+- name: cordis:typert
+- name: cordis:policy
+  config:
+    mode: read-only
+    workspaceRoot: !!js process.cwd() + '/notes'
+- name: cordis:meter
+- name: cordis:compaction
+  config:
+    auto: false
+    retainTokens: 64
+    maxTokens: 256
+    compactionRetries: 0
+- name: cordis:questions
+- name: cordis:ask
+  config:
+    mode: timed
+    timeout: 1
+- name: cordis:mock
+- name: cordis:research
+  config:
+    roots:
+      - id: pending-workspace
+        path: !!js process.cwd() + '/notes'

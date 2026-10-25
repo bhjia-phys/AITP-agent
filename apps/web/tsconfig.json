@@ -23,6 +23,7 @@
   // cannot see both sides of the cordis Context merges).
   "exclude": [
     "tests/aitp-memory.e2e.ts",
+    "tests/aitp-onboarding.e2e.ts",
     "tests/aitp-workspace.e2e.ts",
     "tests/collapse-timing.e2e.ts",
     "tests/notice-wake-tail.e2e.ts",

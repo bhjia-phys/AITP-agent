@@ -117,6 +117,35 @@ export type Result<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: WorkspaceError }
 
+/** Owner-visible research enrollment, available before source access has been granted. */
+export interface ResearchSetup {
+  readonly configured: boolean
+  readonly writable: boolean
+  /** Explicit enrollment or a change to an existing enrollment is available. */
+  readonly canInitialize: boolean
+}
+
+/** Explicit owner authorization for the registered Workspace's canonical root. */
+export interface ResearchInitializeRequest {
+  readonly writable: boolean
+}
+
+/** Human-authored topic opening; an identical retry reuses operationId. */
+export interface CreateTopicRequest {
+  readonly operationId: string
+  readonly title: string
+  readonly question: string
+  readonly scope?: string
+  readonly parentTopicId?: TopicId
+}
+
+/** Durable acknowledgment of a new source account and its explicit parent link. */
+export interface CreateTopicReceipt {
+  readonly operationId: string
+  readonly topicId: TopicId
+  readonly resourceId: ResourceId
+}
+
 /** Cancellation control for one adapter read, independent of other readers. */
 export interface ReadOptions {
   readonly signal?: AbortSignal
@@ -439,6 +468,12 @@ export interface ResearchProvider {
 export interface ResearchWorkspaceAdapter {
   readonly workspaceId: WorkspaceId
   readonly provider: ResearchProvider
+  /** Read owner enrollment before attempting any source reads. */
+  getSetup?(): Promise<Result<ResearchSetup>>
+  /** Explicitly authorize this registered Workspace and preserve any existing root account. */
+  initialize?(request: ResearchInitializeRequest): Promise<Result<ResearchSetup>>
+  /** Create a fresh linked account using the supplied human question and scope. */
+  createTopic?(request: CreateTopicRequest): Promise<Result<CreateTopicReceipt>>
   /** Submit an explicit human question with its reading origin to a new conversation. */
   ask?(question: Omit<ResearchQuestion, 'workspaceId'>): Promise<Result<{ readonly sessionId: SessionId }>>
   /**

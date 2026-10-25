@@ -6,6 +6,7 @@ import type {
   ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview, ReadEnvelope,
   ResearchEvent, ResearchWorkspaceAdapter, Result,
   ResearchQuestion,
+  ResearchSetup, ResearchInitializeRequest, CreateTopicRequest, CreateTopicReceipt,
 } from './workspace-contract.ts'
 
 /** Factory supplied by a fixture or a separately developed backend transport. */
@@ -104,6 +105,36 @@ export class ResearchWorkspaceRegistry {
    */
   retry(workspaceId: WorkspaceId): void {
     this.notify(workspaceId, { kind: 'resync-required', reason: 'requested-refresh' })
+  }
+
+  /**
+   * Enroll only the Workspace explicitly selected by the researcher.
+   * @param workspaceId - Harness Workspace identity.
+   * @param request - explicit read and write choice.
+   * @returns the provider's resulting setup or a typed failure.
+   */
+  async initialize(workspaceId: WorkspaceId, request: ResearchInitializeRequest): Promise<Result<ResearchSetup>> {
+    const resolved = this.resolve(workspaceId)
+    if (!resolved.ok) return resolved
+    if (resolved.value.initialize === undefined) return { ok: false, error: { code: 'unsupported', message: 'This connection cannot enable research projects.', retryable: false } }
+    const result = await resolved.value.initialize(request)
+    if (result.ok) this.retry(workspaceId)
+    return result
+  }
+
+  /**
+   * Create an actual topic, retaining the caller's operation identity on retry.
+   * @param workspaceId - Harness Workspace identity.
+   * @param request - researcher-supplied title, question and optional parent.
+   * @returns the authoritative identities or a typed failure.
+   */
+  async createTopic(workspaceId: WorkspaceId, request: CreateTopicRequest): Promise<Result<CreateTopicReceipt>> {
+    const resolved = this.resolve(workspaceId)
+    if (!resolved.ok) return resolved
+    if (resolved.value.createTopic === undefined) return { ok: false, error: { code: 'unsupported', message: 'This connection cannot create topics.', retryable: false } }
+    const result = await resolved.value.createTopic(request)
+    if (result.ok) this.retry(workspaceId)
+    return result
   }
 
   /**

@@ -30,7 +30,7 @@ describe('CI workflow', () => {
     expect(compatibilityLimit).toBeGreaterThan(0)
     expect(compatibility.strategy).toMatchObject({
       'fail-fast': false,
-      matrix: { include: [{ node: '22.19' }, { node: '24.9' }, { node: 26 }] },
+      matrix: { include: [{ node: '22.22.2' }, { node: '24.15.0' }, { node: 26 }] },
     })
     expect(workflowJob(ci, 'all-checks-passed').needs).toContain('node-compat')
     const ordinaryJobs = Object.entries(ci.jobs)
@@ -343,7 +343,7 @@ describe('CI workflow', () => {
       const cores = jobName === 'windows-native-tests' ? 2 : 16
       expect(evaluateRunsOn(job['runs-on'], { vars: { DSH_CI_FAILOVER_WINDOWS: 'blacksmith' } }))
         .toBe(`blacksmith-${cores}vcpu-windows-2025`)
-      expect(job.if).toBe("github.event_name == 'pull_request'")
+      expect(job.if).toBe("github.repository == 'deepseek-ai/deepseek-harness' && github.event_name == 'pull_request'")
     }
 
     // windows-build runs the blocking build/site pair.
@@ -613,7 +613,7 @@ describe('CI workflow', () => {
     const aggregate = workflowJob(workflow, 'all-checks-passed')
 
     expect(benchmark['runs-on']).toBe('ubuntu-24.04')
-    expect(benchmark.if).toBe("github.event_name == 'pull_request'")
+    expect(benchmark.if).toBe("github.repository == 'deepseek-ai/deepseek-harness' && github.event_name == 'pull_request'")
     expect(benchmark.needs).toBeUndefined()
     expect(benchmark['continue-on-error']).toBeUndefined()
     expect(benchmark.env).toBeUndefined()
@@ -787,7 +787,7 @@ describe('CI workflow', () => {
     }
 
     expect(pythonRuntime).toMatchObject({
-      if: "github.event_name == 'pull_request'",
+      if: "github.repository == 'deepseek-ai/deepseek-harness' && github.event_name == 'pull_request'",
       name: 'python runtime / release-shaped matrix',
       uses: './.github/workflows/build-exe-for-python-sdk.yml',
       with: {
@@ -1287,7 +1287,7 @@ describe('Weighted approval workflow', () => {
     })
     const setupIndex = steps.findIndex(step => typeof step.uses === 'string' && step.uses.startsWith('actions/setup-python@'))
     expect(steps[setupIndex]?.if).toBe("steps.revoke.outputs.active == 'true'")
-    expect(steps[setupIndex]?.uses).toBe('actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1')
+    expect(steps[setupIndex]?.uses).toBe('actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97')
     const revokeIndex = steps.findIndex(step => step.id === 'revoke')
     expect(revokeIndex).toBeGreaterThan(steps.indexOf(checkout!))
     expect(revokeIndex).toBeLessThan(setupIndex)
@@ -1510,6 +1510,46 @@ describe('Documentation site publication', () => {
 
     // The environment owns the deployment tag policy and the required reviewers.
     expect(deploy.environment).toMatchObject({ name: 'github-pages' })
+  })
+})
+
+describe('AITP Node floor verification', () => {
+  it('runs keyless jsdom and real language-server checks at both installed-workspace floors', () => {
+    const workflow = loadWorkflow('.github/workflows/aitp-validation.yml')
+    const job = workflowJob(workflow, 'node-floor-smoke')
+    const manifest: unknown = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
+    if (!isRecord(manifest) || !isRecord(manifest.engines) || !Array.isArray(job.steps)) {
+      throw new TypeError('Node floors require the root engine range and executable workflow steps')
+    }
+
+    expect(manifest.engines.node).toBe('^22.22.2 || ^24.15.0 || >=26.0.0')
+    expect(workflowEvent(workflow, 'pull_request').branches).toEqual(['main'])
+    expect(job.if).toBeUndefined()
+    expect(job.needs).toBeUndefined()
+    expect(job['continue-on-error']).not.toBe(true)
+    expect(job.strategy).toMatchObject({
+      'fail-fast': false,
+      'max-parallel': 1,
+      matrix: { include: [{ node: '22.22.2' }, { node: '24.15.0' }] },
+    })
+    expect(job.env).toMatchObject({ VITEST_MAX_WORKERS: '1' })
+
+    const steps = job.steps.filter(isRecord)
+    expect(steps.find(step => step.uses === 'actions/checkout@v7.0.1')).toMatchObject({
+      with: { submodules: 'recursive', 'persist-credentials': false },
+    })
+    expect(steps.some(step => step.uses === 'pnpm/action-setup@v6')).toBe(true)
+    expect(steps.find(step => step.uses === 'actions/setup-node@v7.0.0')).toMatchObject({
+      with: { 'node-version': '${{ matrix.node }}' },
+    })
+    const commands = steps.flatMap(step => typeof step.run === 'string' ? [step.run] : [])
+    expect(commands).toEqual([
+      'pnpm install --frozen-lockfile',
+      'pnpm exec vitest run --maxWorkers=1 scripts/vitest-environment.compat.spec.ts',
+      'pnpm exec vitest run --config vitest.e2e.config.ts --maxWorkers=1 --retry=0 packages/lsp/lsp-stdio/tests/typescript-server.e2e.ts',
+    ])
+    for (const step of steps) expect(step['continue-on-error']).not.toBe(true)
+    expect(JSON.stringify(job)).not.toContain('secrets.')
   })
 })
 

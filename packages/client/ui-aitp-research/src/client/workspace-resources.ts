@@ -5,12 +5,13 @@ import { RemoteError, type RemoteResult } from '@deepseek-ai/dsh-typert-protocol
 import type {} from '@deepseek-ai/dsh-client-resources/client'
 import type {
   ActivityPage, Project, ReadEnvelope, ResearchWorkspaceAdapter, Resource,
-  ResourceId, Result, Topic, TopicId, TopicPage, TopicQuery, WorkspaceError, WorkspaceRead,
+  ResourceId, Result, Topic, TopicId, TopicPage, TopicQuery, WorkspaceError, WorkspaceRead, ResearchSetup,
 } from './workspace-contract.ts'
 import type { ResearchWorkspaceRegistry } from './workspace-service.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface ResourceProtocolMap {
+    'aitp-workspace-setup': ResearchSetup
     'aitp-workspace-project': WorkspaceRead<Project>
     'aitp-workspace-topics': WorkspaceRead<TopicPage>
     'aitp-workspace-topic': WorkspaceRead<Topic>
@@ -27,6 +28,15 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 }
 
 const enc = encodeURIComponent
+
+/**
+ * Read enrollment before attempting research-content reads.
+ * @param workspaceId - Harness Workspace identity.
+ * @returns the setup resource address.
+ */
+export function workspaceSetupAddress(workspaceId: WorkspaceId): string {
+  return `dsh-resource://aitp-workspace-setup/workspace/${enc(workspaceId)}`
+}
 
 /**
  * Address the project overview without creating a Session.
@@ -143,6 +153,19 @@ export async function* workspaceFrames<T>(
   signal: AbortSignal,
   read: Read<T>,
 ): AsyncIterable<RemoteResult<WorkspaceRead<T>>> {
+  yield* providerFrames(registry, address, signal, true, async (adapter, parsed, readSignal) => {
+    const result = await read(adapter, parsed, readSignal)
+    return result.ok ? { ok: true, value: { ...result.value, provider: adapter.provider } } : result
+  })
+}
+
+async function* providerFrames<T>(
+  registry: ResearchWorkspaceRegistry,
+  address: string,
+  signal: AbortSignal,
+  requiresRead: boolean,
+  read: (adapter: ResearchWorkspaceAdapter, parsed: ParsedAddress, signal: AbortSignal) => Promise<Result<T>>,
+): AsyncIterable<RemoteResult<T>> {
   const parsed = parseAddress(address)
   if (!parsed.ok) {
     yield remoteFailure(parsed.error)
@@ -175,7 +198,7 @@ export async function* workspaceFrames<T>(
         continue
       }
       const adapter = resolved.value
-      if (!adapter.provider.capabilities.read) {
+      if (requiresRead && !adapter.provider.capabilities.read) {
         yield remoteFailure({ code: 'unsupported', message: 'This provider cannot read research data.', retryable: false })
         continue
       }
@@ -191,9 +214,7 @@ export async function* workspaceFrames<T>(
       active = undefined
       if (released()) return
       if (observedGeneration !== generation || result === undefined) continue
-      yield result.ok
-        ? { ok: true, value: { ...result.value, provider: adapter.provider } }
-        : remoteFailure(result.error)
+      yield result.ok ? result : remoteFailure(result.error)
     }
   } finally {
     active?.abort()
@@ -208,6 +229,13 @@ export async function* workspaceFrames<T>(
  * @param registry - adapter registry to resolve for every observation.
  */
 export function registerWorkspaceResources(ctx: Context, registry: ResearchWorkspaceRegistry): void {
+  ctx.effect(() => ctx.resources.register({
+    protocol: 'aitp-workspace-setup',
+    open: (address, { signal }) => providerFrames(registry, address, signal, false,
+      async adapter => adapter.getSetup === undefined
+        ? { ok: false, error: { code: 'unsupported', message: 'This connection does not support project setup.', retryable: false } }
+        : adapter.getSetup()),
+  }), 'research: setup resource')
   ctx.effect(() => ctx.resources.register({
     protocol: 'aitp-workspace-project',
     open: (address, { signal }) => workspaceFrames(registry, address, signal,

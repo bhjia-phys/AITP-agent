@@ -5,6 +5,7 @@ import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type {
   ActivityQuery, ApplyRequest, ChangeIntent, ContextQuery, ReadOptions, ResearchEvent,
   ResearchProvider, ResearchQuestion, ResearchWorkspaceAdapter, ResourceId, Result, TopicId, TopicQuery,
+  ResearchInitializeRequest, CreateTopicRequest,
 } from '@deepseek-ai/dsh-research-memory/types'
 import type { BackendText } from './locales.ts'
 import { invocationFailure } from './errors.ts'
@@ -46,6 +47,32 @@ export class RuntimeWorkspaceAdapter implements ResearchWorkspaceAdapter {
 
   getProject(options?: ReadOptions) {
     return this.read(signal => this.transport.researchMemory.getProject({ workspaceId: this.workspaceId }, signal), options)
+  }
+
+  getSetup() {
+    return this.read(() => this.transport.researchMemory.getSetup({ workspaceId: this.workspaceId }))
+  }
+
+  async initialize(request: ResearchInitializeRequest) {
+    const result = await this.read(() => this.transport.researchMemory.initialize({ ...request, workspaceId: this.workspaceId }))
+    if (result.ok) {
+      const stream = this.stream
+      this.stream = undefined
+      await stream?.dispose()
+      await this.watching
+      if (this.listeners.size > 0 && !this.lifetime.signal.aborted) this.startFollowing()
+      this.publish({ kind: 'resync-required', reason: 'research-workspace-initialized' })
+    }
+    return result
+  }
+
+  async createTopic(request: CreateTopicRequest) {
+    const result = await this.read(() => this.transport.researchMemory.createTopic({ ...request, workspaceId: this.workspaceId }),
+      undefined, request.operationId)
+    if (result.ok || result.error.code === 'partial-apply' || result.error.code === 'outcome-unknown') {
+      this.publish({ kind: 'resync-required', reason: 'research-topic-created-or-unresolved' })
+    }
+    return result
   }
 
   listTopics(query: TopicQuery, options?: ReadOptions) {

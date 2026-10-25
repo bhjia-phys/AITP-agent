@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { runLoaderSmoke, LOADER_SMOKE_TEST_TIMEOUT_MS } from '@deepseek-ai/dsh-loader-smoke'
 import type { GenerateOptions } from '@deepseek-ai/dsh-llm'
-import type { ReadEnvelope, SessionMemoryView, Topic } from '../src/types.ts'
+import type { CreateTopicReceipt, ReadEnvelope, ResearchSetup, SessionMemoryView, Topic } from '../src/types.ts'
 import type { WriteOperation } from '../src/writer.ts'
 
 function currentContext(request: GenerateOptions | undefined): string {
@@ -21,6 +21,28 @@ describe('the production ResearchMemory service through Loader', () => {
       configPath: fileURLToPath(new URL('./fixtures/service/service.cordis.yml', import.meta.url)),
       tsconfigPath: fileURLToPath(new URL('../../../../tsconfig.json', import.meta.url)),
       inspect: async (cwd) => {
+        const onboarding = JSON.parse(await readFile(join(cwd, 'service-onboarding.json'), 'utf8')) as {
+          setupBefore: ResearchSetup
+          providerBefore: { capabilities: { read: boolean } }
+          readOnlyCreatedNoFiles: boolean
+          created: CreateTopicReceipt
+          child: CreateTopicReceipt
+        }
+        expect(onboarding.setupBefore).toEqual({ configured: false, writable: false, canInitialize: true })
+        expect(onboarding.providerBefore.capabilities.read).toBe(false)
+        expect(onboarding.readOnlyCreatedNoFiles).toBe(true)
+        const onboardingRestarted = JSON.parse(await readFile(join(cwd, 'service-onboarding-restarted.json'), 'utf8')) as {
+          setup: ResearchSetup
+          sameReceipt: CreateTopicReceipt
+          child: ReadEnvelope<Topic>
+          context: unknown
+        }
+        expect(onboardingRestarted.setup).toEqual({ configured: true, writable: true, canInitialize: true })
+        expect(onboardingRestarted.sameReceipt).toEqual(onboarding.created)
+        expect(onboardingRestarted.child.value)
+          .toMatchObject({ id: onboarding.child.topicId, parentId: onboarding.created.topicId, currentAnswer: null })
+        expect(JSON.stringify(onboardingRestarted.context)).toContain('Does the isolated control settle A?')
+        expect(JSON.stringify(onboardingRestarted.context)).toContain('Finite size only.')
         const requests = (await readFile(join(cwd, 'service-requests.jsonl'), 'utf8')).trim().split('\n')
           .map(line => JSON.parse(line) as GenerateOptions)
         expect(requests).toHaveLength(7)

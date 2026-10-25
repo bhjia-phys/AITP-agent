@@ -8,11 +8,14 @@ import { Remote, RemoteError, TypertRemoteService, principalOf } from '@deepseek
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionQueryError } from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-api-session-controller'
+import type {} from '@deepseek-ai/dsh-app-boot'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { MarkdownWorkspace, resourceIdForPath } from './markdown.ts'
 import { ResearchChanges } from './changes.ts'
+import { ResearchOnboarding } from './onboarding.ts'
+import { onboardingFailure } from './onboarding-files.ts'
 import { installRuntime } from './runtime.ts'
 import { installWriteTools } from './write-tools.ts'
 import { createSessionRecovery } from './recovery.ts'
@@ -23,7 +26,7 @@ import type {
   ActivityPage, ActivityQuery, ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview,
   ContextQuery, ContextRead, Project, ReadEnvelope, ResearchProvider, ResearchQuestion,
   Resource, ResourceId, Result, Topic, TopicId, TopicPage, TopicQuery,
-  ResearchEvent,
+  ResearchEvent, ResearchSetup, ResearchInitializeRequest, CreateTopicRequest, CreateTopicReceipt,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -70,7 +73,7 @@ export interface Config {
     /** Durable operation receipts outside the scientific source tree. */
     stateDirectory?: string
   }[]
-  /** Maximum source files admitted by discovery. */
+  /** Maximum directory entries inspected by discovery, including directories. */
   maxFiles?: number
   /** Maximum UTF-8 bytes read from one source file. */
   maxFileBytes?: number
@@ -90,9 +93,12 @@ export interface Config {
   maxOperationBytes?: number
   /** Maximum serialized model write-tool result characters. */
   maxResultCharacters?: number
-  /** Maximum prior conversation candidates inspected for the active root. */
+  /** Maximum matching-topic conversations selected for historical delivery. */
   maxRecoverySessions?: number
-  /** Maximum historical events projected; the query provider may read a whole cold log. */
+  /**
+   * Maximum records folded for cold topic classification and selected histories per recovery.
+   * The query provider may still read a complete cold log before this processing bound applies.
+   */
   maxRecoveryEvents?: number
   /** Maximum serialized historical evidence characters before the final request bound. */
   maxRecoveryCharacters?: number
@@ -131,11 +137,16 @@ export class ResearchMemory extends TypertRemoteService {
   private readonly changes = new Map<string, ResearchChanges>()
   private readonly notifications = new EventEmitter().setMaxListeners(0)
   private readonly lifetime = new AbortController()
+  private readonly onboarding: ResearchOnboarding
+  private readonly onboardingOperations = new Set<Promise<void>>()
 
   /** @param ctx - composed Harness host. @param config - authorized source roots and bounds. */
   constructor(ctx: Context, config: Config) {
     super(ctx, 'researchMemory', { namespace: 'researchMemory' })
     this.config = ResearchMemory.Config(config)
+    const homePath = ctx.get('dshHomePath')
+    this.onboarding = new ResearchOnboarding(homePath === undefined ? undefined : () => homePath('research-memory'),
+      this.config.maxOperationBytes, this.config.maxFileBytes)
     ctx.effect(() => async () => {
       this.lifetime.abort()
       const refreshing: Promise<void>[] = []
@@ -144,8 +155,8 @@ export class ResearchMemory extends TypertRemoteService {
         observed.watcher = undefined
         if (observed.refreshing !== undefined) refreshing.push(observed.refreshing)
       }
-      await Promise.allSettled(refreshing)
-    }, 'research-memory: streams and source observations')
+      await Promise.allSettled([...refreshing, ...this.onboardingOperations])
+    }, 'research-memory: source observations and admitted onboarding')
     installRuntime(ctx, this.config, (origin, signal) => this.contextFor(origin, signal), createSessionRecovery(ctx, this.config))
     installWriteTools(ctx, {
       maxResultCharacters: this.config.maxResultCharacters,
@@ -169,20 +180,43 @@ export class ResearchMemory extends TypertRemoteService {
     this.notifications.emit(root)
   }
 
+  private admitOnboarding(): Disposable | undefined {
+    if (this.lifetime.signal.aborted) return undefined
+    let release: () => void = () => {}
+    const settled = new Promise<void>((resolve) => { release = resolve })
+    this.onboardingOperations.add(settled)
+    return { [Symbol.dispose]: () => {
+      this.onboardingOperations.delete(settled)
+      release()
+    } }
+  }
+
+  private stopping(): Result<never> {
+    return { ok: false, error: { code: 'unavailable', message: 'The research service is stopping; no new setup operation was admitted.', retryable: true } }
+  }
+
   /** Unavailable configured paths grant no access and do not disable other canonical matches. */
   private async configuredRoots(root: string, signal?: AbortSignal): Promise<ResolvedConfig['roots']> {
     const resolved = await Promise.allSettled(this.config.roots.map(async item => ({ ...item, path: await realpath(item.path) })))
     signal?.throwIfAborted()
-    return resolved.flatMap(item => item.status === 'fulfilled' && item.value.path === root ? [item.value] : [])
+    const configured = resolved.flatMap(item => item.status === 'fulfilled' && item.value.path === root ? [item.value] : [])
+    if (configured.length > 0) return configured
+    const enrolled = await this.onboarding.enrolled(root)
+    signal?.throwIfAborted()
+    return enrolled === undefined ? [] : [enrolled]
+  }
+
+  private async workspaceRoot(workspaceId: WorkspaceId, registered = false): Promise<string> {
+    const workspace = this.ctx.get('workspaceRegistry')?.get(workspaceId)
+    const path = workspace?.path ?? (registered ? undefined : this.config.roots.find(item => item.id === workspaceId)?.path)
+    if (path === undefined) throw new RemoteError('research/workspace-missing', 'The Workspace is unavailable.', {})
+    return realpath(path)
   }
 
   private async reader(workspaceId: WorkspaceId, signal?: AbortSignal, refresh = false): Promise<MarkdownWorkspace> {
     const lifetime = signal === undefined ? this.lifetime.signal : AbortSignal.any([signal, this.lifetime.signal])
     lifetime.throwIfAborted()
-    const workspace = this.ctx.get('workspaceRegistry')?.get(workspaceId)
-    const path = workspace?.path ?? this.config.roots.find(item => item.id === workspaceId)?.path
-    if (path === undefined) throw new RemoteError('research/workspace-missing', 'The Workspace is unavailable.', {})
-    const root = await realpath(path)
+    const root = await this.workspaceRoot(workspaceId)
     lifetime.throwIfAborted()
     const allowed = await this.configuredRoots(root, lifetime)
     if (allowed.length === 0) throw new RemoteError('research/root-not-configured', 'This research root has not been configured for access.', {})
@@ -239,11 +273,96 @@ export class ResearchMemory extends TypertRemoteService {
     if (configured?.stateDirectory === undefined) return undefined
     let changes = this.changes.get(reader.root)
     if (changes === undefined) {
-      changes = new ResearchChanges(reader, { writableRoot: configured.writable ? reader.root : null,
-        stateDirectory: configured.stateDirectory, maxOperationBytes: this.config.maxOperationBytes })
+      changes = new ResearchChanges(reader, { writableRoot: reader.root,
+        stateDirectory: configured.stateDirectory, maxOperationBytes: this.config.maxOperationBytes }, async () => {
+        const current = (await this.configuredRoots(reader.root))[0]
+        return current?.writable === true && current.stateDirectory === configured.stateDirectory
+      })
       this.changes.set(reader.root, changes)
     }
     return changes
+  }
+
+  /**
+   * Observe owner setup before any source root has been authorized.
+   * @param request - existing Workspace identity, resolved by the host registry.
+   * @returns current access and explicit enrollment availability, without reading scientific content.
+   */
+  @Remote({ name: 'getSetup', resources: { workspace: addressedWorkspace } })
+  async getSetup(request: { workspaceId: WorkspaceId }): Promise<Result<ResearchSetup>> {
+    this.requireOwner()
+    try {
+      const root = await this.workspaceRoot(request.workspaceId)
+      const allowed = await this.configuredRoots(root)
+      const staticRoot = await Promise.allSettled(this.config.roots.map(item => realpath(item.path)))
+      const configured = staticRoot.some(item => item.status === 'fulfilled' && item.value === root)
+      return { ok: true, value: { configured: allowed.length > 0,
+        writable: allowed.some(item => item.writable && item.stateDirectory !== undefined),
+        canInitialize: !configured && this.ctx.get('workspaceRegistry')?.get(request.workspaceId) !== undefined
+          && await this.onboarding.available(root) } }
+    } catch (error) {
+      if (error instanceof RemoteError) throw error
+      return { ok: false, error: onboardingFailure(error) }
+    }
+  }
+
+  /**
+   * Explicitly enroll a registered Workspace and create its root account only when absent.
+   * @param request - Workspace and the owner's chosen source-write authorization.
+   * @returns durable setup; configured deployment policy cannot be broadened here.
+   */
+  @Remote({ name: 'initialize', resources: { workspace: addressedWorkspace } })
+  async initialize(request: { workspaceId: WorkspaceId } & ResearchInitializeRequest): Promise<Result<ResearchSetup>> {
+    this.requireOwner()
+    using operation = this.admitOnboarding()
+    if (operation === undefined) return this.stopping()
+    const setup = await this.getSetup(request)
+    if (!setup.ok) return setup
+    if (!setup.value.canInitialize) return { ok: false, error: { code: 'read-only',
+      message: 'Research access for this Workspace is controlled by host configuration, or application enrollment is unavailable.', retryable: false } }
+    const root = await this.workspaceRoot(request.workspaceId, true)
+    const previous = this.changes.get(root)
+    const enroll = () => this.onboarding.initialize(root, request)
+    const result = previous === undefined ? await enroll() : await previous.writer.serializeSources(enroll)
+    if (!result.ok) return result
+    this.markDirty(root)
+    return { ok: true, value: { configured: true, writable: result.value.writable, canInitialize: true } }
+  }
+
+  /**
+   * Create a new ordinary topic account and append an explicit parent/child relationship.
+   * @param request - Workspace, human-authored opening and stable retry identity.
+   * @returns durable source identities, or an honest rejected, partial or unknown outcome.
+   */
+  @Remote({ name: 'createTopic', resources: { workspace: addressedWorkspace } })
+  async createTopic(request: { workspaceId: WorkspaceId } & CreateTopicRequest): Promise<Result<CreateTopicReceipt>> {
+    this.requireOwner()
+    using operation = this.admitOnboarding()
+    if (operation === undefined) return this.stopping()
+    const reader = await this.reader(request.workspaceId)
+    const allowed = (await this.configuredRoots(reader.root))[0]
+    if (!allowed?.writable || allowed.stateDirectory === undefined) return { ok: false, error: {
+      code: 'read-only', message: 'Saving topics is disabled for this research root.', retryable: false,
+    } }
+    const changes = await this.writer(request.workspaceId)
+    if (changes === undefined) return { ok: false, error: { code: 'read-only', message: 'This root has no operation storage.', retryable: false } }
+    const result = await changes.writer.serializeSources(async (): Promise<Result<CreateTopicReceipt>> => {
+      const current = (await this.configuredRoots(reader.root))[0]
+      if (!current?.writable || current.stateDirectory === undefined) return { ok: false, error: {
+        code: 'read-only', message: 'Saving topics was disabled before publication.', retryable: false,
+      } }
+      return this.onboarding.create(reader, current.stateDirectory, request)
+    })
+    if (result.ok || result.error.code === 'partial-apply' || result.error.code === 'outcome-unknown') {
+      this.markDirty(reader.root)
+      // Source receipts remain authoritative if a derived refresh fails after publication.
+      try { await this.reader(request.workspaceId, undefined, true) }
+      catch (error) {
+        if (!(error instanceof Error)) throw error
+        if (!this.lifetime.signal.aborted) this.ctx.logger.warn('Research topic was published; its index needs a refresh.')
+      }
+    }
+    return result
   }
 
   /**
@@ -255,6 +374,15 @@ export class ResearchMemory extends TypertRemoteService {
   @Remote({ name: 'provider', resources: { workspace: addressedWorkspace } })
   async provider(request: { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<ResearchProvider> {
     signal.throwIfAborted()
+    const root = await this.workspaceRoot(request.workspaceId)
+    const allowed = await this.configuredRoots(root, signal)
+    if (allowed.length === 0) {
+      this.requireOwner()
+      return { id: 'aitp-markdown', origin: 'runtime', capabilities: {
+        read: false, readContext: false, readActivity: false, previewChanges: false,
+        applyChanges: false, changeEvents: true, commands: [],
+      } }
+    }
     const reader = await this.reader(request.workspaceId, signal)
     const configured = await this.configuredRoots(reader.root, signal)
     const writable = principalOf(this.ctx.invocation) === undefined
@@ -371,7 +499,7 @@ export class ResearchMemory extends TypertRemoteService {
   }
 
   /**
-   * Every connection begins with a fresh-read request; notifications carry no scientific content.
+   * Every connection begins with a baseline; unenrolled owner feeds carry setup invalidations only.
    * @param request - Workspace whose observations are followed.
    * @param signal - ends the stream and immediately detaches observation listeners.
    * @returns coalesced invalidations; source values must be reread after each one.
@@ -380,22 +508,25 @@ export class ResearchMemory extends TypertRemoteService {
   async *follow(request: { workspaceId: WorkspaceId }, signal: AbortSignal): AsyncIterable<ResearchEvent> {
     const lifetime = AbortSignal.any([signal, this.lifetime.signal])
     lifetime.throwIfAborted()
-    const reader = await this.reader(request.workspaceId, lifetime)
+    const root = await this.workspaceRoot(request.workspaceId)
+    const allowed = await this.configuredRoots(root, lifetime)
+    if (allowed.length === 0) this.requireOwner()
+    else await this.reader(request.workspaceId, lifetime)
     lifetime.throwIfAborted()
     let dirty = false
     let wake: (() => void) | undefined
     const changed = (): void => { dirty = true; wake?.() }
     const detach = (): void => {
-      this.notifications.off(reader.root, changed)
+      this.notifications.off(root, changed)
       lifetime.removeEventListener('abort', stopped)
     }
     const stopped = (): void => { changed(); detach() }
-    this.notifications.on(reader.root, changed)
+    this.notifications.on(root, changed)
     lifetime.addEventListener('abort', stopped, { once: true })
     try {
       lifetime.throwIfAborted()
-      yield { kind: 'resync-required', reason: this.readers.get(reader.root)?.watcher === undefined
-        ? 'automatic-source-notifications-unavailable' : 'connected-or-reconnected' }
+      yield { kind: 'resync-required', reason: allowed.length === 0 ? 'research-workspace-not-initialized'
+        : this.readers.get(root)?.watcher === undefined ? 'automatic-source-notifications-unavailable' : 'connected-or-reconnected' }
       const isAborted = (): boolean => lifetime.aborted
       const hasChanges = (): boolean => dirty
       while (!isAborted()) {
@@ -403,7 +534,7 @@ export class ResearchMemory extends TypertRemoteService {
         wake = undefined
         if (isAborted()) break
         dirty = false
-        yield { kind: 'resync-required', reason: this.readers.get(reader.root)?.watcher === undefined
+        yield { kind: 'resync-required', reason: this.readers.get(root)?.watcher === undefined
           ? 'automatic-source-notifications-unavailable' : 'source-changed' }
       }
     } finally { detach() }

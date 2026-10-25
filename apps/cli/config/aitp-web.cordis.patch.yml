@@ -3,8 +3,15 @@
   disabled: true
 - id: ui-brand-aitp
   disabled: false
-# Research views; they read the AITP resource protocols and show an unconnected state without a provider.
+# Research views and transport; source access begins with explicit Workspace enrollment.
 - id: ui-aitp-research
   disabled: false
 - id: ui-aitp-session
   disabled: false
+# The authenticated owner enrolls each Workspace from Research before source access.
+- id: research-memory
+  disabled: false
+- id: ui-aitp-backend
+  disabled: false
+- id: ui-aitp-fixtures
+  disabled: true

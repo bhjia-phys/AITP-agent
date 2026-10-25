@@ -9,7 +9,7 @@ import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { WorkspaceSidebar, type WorkspaceSidebarProps } from '../src/client/WorkspaceSidebar.tsx'
 import { sidebarEn } from '../src/client/sidebar-locales.ts'
 import { createResearchPanelStore } from '../src/client/store.ts'
-import { workspaceProjectAddress, workspaceTopicsAddress } from '../src/client/workspace-resources.ts'
+import { workspaceProjectAddress, workspaceSetupAddress, workspaceTopicsAddress } from '../src/client/workspace-resources.ts'
 import type { Project, ResearchProvider, ResourceId, Revision, TopicId, TopicPage, TopicSummary, WorkspaceRead } from '../src/client/workspace-contract.ts'
 
 afterEach(cleanup)
@@ -52,6 +52,7 @@ const stay = { scrollTop: 0, focusIndex: null }
 const expand = (title: string): void => { fireEvent.click(screen.getByRole('button', { name: `Show branches of ${title}` })) }
 
 function mount(options: {
+  checkSetup?: boolean
   wide?: boolean
   workspaces?: WorkspaceView[]
   topics?: ResourceSnapshot<WorkspaceRead<TopicPage>>
@@ -67,6 +68,7 @@ function mount(options: {
   }
   const props = {
     ...callbacks,
+    checkSetup: options.checkSetup,
     wide: options.wide ?? true,
     t: makeTranslate(sidebarEn),
     useStore: bindSnapshotSelector(store),
@@ -90,6 +92,16 @@ function mount(options: {
 }
 
 describe('contextual research sidebar', () => {
+  it('waits for explicit enrollment before reading the topic tree and preserves the legacy tree', () => {
+    const { updateResource } = mount({ checkSetup: true, resources: {
+      [workspaceSetupAddress(WS)]: live({ configured: false, writable: false, canInitialize: true }),
+    } })
+    expect(screen.getByText('Enable this workspace in Research to view its topics.')).toBeDefined()
+    expect(screen.queryByText('Example research')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Spectral dynamics' })).toBeNull()
+    updateResource(workspaceSetupAddress(WS), live({ configured: true, writable: false, canInitialize: true }))
+    expect(screen.getByRole('button', { name: 'Spectral dynamics' })).toBeDefined()
+  })
   it('navigates nested topics through collapsed branches and follows selections made by the main panel', () => {
     const { store } = mount()
     expect(screen.getByText('Example project')).toBeTruthy()

@@ -3,7 +3,7 @@ import type { ConnectionGeneration } from '@deepseek-ai/dsh-client-connection/cl
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import type { RemoteStreamHandle } from '@deepseek-ai/dsh-typert-protocol'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import type { ResearchEvent, ResearchProvider, Revision, TopicId } from '@deepseek-ai/dsh-research-memory/types'
+import type { ResearchEvent, ResearchProvider, ResourceId, Revision, TopicId } from '@deepseek-ai/dsh-research-memory/types'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { RuntimeWorkspaceAdapter, type ResearchRemote, type ResearchTransport } from '../src/client/adapter.ts'
 import { en } from '../src/client/locales.ts'
@@ -59,6 +59,9 @@ function harness() {
     code: 'unsupported' as const, message: 'This source does not provide that operation.', retryable: false,
   } } }
   const remote = {
+    getSetup: vi.fn<ResearchRemote['getSetup']>().mockResolvedValue({ ok: true, value: { ok: true, value: { configured: false, writable: false, canInitialize: true } } }),
+    initialize: vi.fn<ResearchRemote['initialize']>().mockResolvedValue({ ok: true, value: { ok: true, value: { configured: true, writable: true, canInitialize: true } } }),
+    createTopic: vi.fn<ResearchRemote['createTopic']>().mockResolvedValue(unsupported),
     provider: vi.fn<ResearchRemote['provider']>().mockResolvedValue({ ok: true, value: readProvider }),
     getProject: vi.fn<ResearchRemote['getProject']>().mockResolvedValue({ ok: true, value: { ok: true, value: project } }),
     listTopics: vi.fn<ResearchRemote['listTopics']>().mockResolvedValue(unsupported),
@@ -95,6 +98,34 @@ function harness() {
 }
 
 describe('research backend browser adapter', () => {
+  it('reads setup before provider admission, forwards explicit enrollment and restarts an initially unavailable source feed', async () => {
+    const h = harness()
+    expect(await h.adapter.getSetup()).toEqual({ ok: true, value: { configured: false, writable: false, canInitialize: true } })
+    expect(h.remote.getSetup).toHaveBeenCalledWith({ workspaceId: WS })
+    expect(h.remote.provider).not.toHaveBeenCalled()
+    h.remote.provider.mockResolvedValueOnce({ ok: false, error: new RemoteError('research/root-not-configured', 'Not enrolled.', {}) })
+    const events: ResearchEvent[] = []
+    h.adapter.subscribeChanges({}, event => events.push(event))
+    await vi.waitFor(() => { expect(events.at(-1)).toMatchObject({ kind: 'connection', state: 'disconnected' }) })
+    expect(await h.adapter.initialize({ writable: true })).toMatchObject({ ok: true, value: { configured: true, writable: true } })
+    expect(h.remote.initialize).toHaveBeenCalledWith({ workspaceId: WS, writable: true })
+    await vi.waitFor(() => { expect(h.feeds).toHaveLength(1) })
+    h.feeds[0]!.push({ kind: 'resync-required', reason: 'connected-or-reconnected' })
+    await vi.waitFor(() => { expect(events.at(-2)).toMatchObject({ kind: 'connection', state: 'connected' }) })
+  })
+
+  it('forwards stable topic creation identities and preserves a lost acknowledgment without an automatic retry', async () => {
+    const h = harness()
+    const request = { operationId: 'new-topic-once', title: 'Control', question: 'Does A hold?', parentTopicId: TOPIC }
+    const receipt = { operationId: request.operationId, topicId: 'topic:new-source' as TopicId, resourceId: 'resource:new-source' as ResourceId }
+    h.remote.createTopic.mockResolvedValueOnce({ ok: true, value: { ok: true, value: receipt } })
+    expect(await h.adapter.createTopic(request)).toEqual({ ok: true, value: receipt })
+    expect(h.remote.createTopic).toHaveBeenCalledWith({ ...request, workspaceId: WS })
+    h.remote.createTopic.mockResolvedValueOnce({ ok: false, error: new RemoteError('gateway/internal', 'Acknowledgment lost.', {}) })
+    expect(await h.adapter.createTopic(request)).toMatchObject({ ok: false, error: { code: 'outcome-unknown', operationId: request.operationId } })
+    expect(h.remote.createTopic).toHaveBeenCalledTimes(2)
+  })
+
   it('publishes host capabilities and resync notifications, and refreshes them on real stream reconnection', async () => {
     const h = harness()
     expect(h.adapter.provider.capabilities.read).toBe(false)

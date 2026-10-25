@@ -1973,6 +1973,24 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'One source adapter per explicitly configured research root.',
     methods: [
       {
+        signature: '@Remote({ name: \'getSetup\', resources: { workspace: addressedWorkspace } }) async getSetup(request: { workspaceId: WorkspaceId }): Promise<Result<ResearchSetup>>',
+        description: 'Observe owner setup before any source root has been authorized.',
+        parameters: [{ name: 'request', description: 'existing Workspace identity, resolved by the host registry.' }],
+        returns: 'current access and explicit enrollment availability, without reading scientific content.',
+      },
+      {
+        signature: '@Remote({ name: \'initialize\', resources: { workspace: addressedWorkspace } }) async initialize(request: { workspaceId: WorkspaceId } & ResearchInitializeRequest): Promise<Result<ResearchSetup>>',
+        description: 'Explicitly enroll a registered Workspace and create its root account only when absent.',
+        parameters: [{ name: 'request', description: 'Workspace and the owner\'s chosen source-write authorization.' }],
+        returns: 'durable setup; configured deployment policy cannot be broadened here.',
+      },
+      {
+        signature: '@Remote({ name: \'createTopic\', resources: { workspace: addressedWorkspace } }) async createTopic(request: { workspaceId: WorkspaceId } & CreateTopicRequest): Promise<Result<CreateTopicReceipt>>',
+        description: 'Create a new ordinary topic account and append an explicit parent/child relationship.',
+        parameters: [{ name: 'request', description: 'Workspace, human-authored opening and stable retry identity.' }],
+        returns: 'durable source identities, or an honest rejected, partial or unknown outcome.',
+      },
+      {
         signature: '@Remote({ name: \'provider\', resources: { workspace: addressedWorkspace } }) async provider(request: { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<ResearchProvider>',
         description: 'Read provider capabilities for one explicitly configured root.',
         parameters: [{ name: 'request', description: 'addressed Workspace; its root must be explicitly configured.' }, { name: 'signal', description: 'cancels this caller while shared source refresh remains owned by the service.' }],
@@ -2023,7 +2041,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: '@Remote({ name: \'follow\', mode: \'stream\', resources: { workspace: addressedWorkspace } }) async *follow(request: { workspaceId: WorkspaceId }, signal: AbortSignal): AsyncIterable<ResearchEvent>',
-        description: 'Every connection begins with a fresh-read request; notifications carry no scientific content.',
+        description: 'Every connection begins with a baseline; unenrolled owner feeds carry setup invalidations only.',
         parameters: [{ name: 'request', description: 'Workspace whose observations are followed.' }, { name: 'signal', description: 'ends the stream and immediately detaches observation listeners.' }],
         returns: 'coalesced invalidations; source values must be reread after each one.',
       },
@@ -5403,6 +5421,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface CreateTeamTaskRequest {\n    readonly subject: string;\n    readonly description: string;\n    readonly blockedBy?: readonly TeamTaskId[];\n    readonly writeScopes?: readonly string[];\n}',
   },
   {
+    name: 'CreateTopicReceipt',
+    declaration: 'export interface CreateTopicReceipt {\n    readonly operationId: string;\n    readonly topicId: TopicId;\n    readonly resourceId: ResourceId;\n}',
+  },
+  {
+    name: 'CreateTopicRequest',
+    declaration: 'export interface CreateTopicRequest {\n    readonly operationId: string;\n    readonly title: string;\n    readonly question: string;\n    readonly scope?: string;\n    readonly parentTopicId?: TopicId;\n}',
+  },
+  {
     name: 'CreateWorktreeRequest',
     declaration: 'export interface CreateWorktreeRequest {\n    name?: string;\n    from?: string;\n}',
   },
@@ -6963,12 +6989,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ResearchEvent = {\n    readonly kind: \'invalidate\';\n    readonly eventId: string;\n    readonly targets: readonly VersionedTarget[];\n} | {\n    readonly kind: \'resync-required\';\n    readonly reason: string;\n} | {\n    readonly kind: \'connection\';\n    readonly state: \'connected\' | \'disconnected\' | \'unsupported\';\n    readonly message?: string;\n};',
   },
   {
+    name: 'ResearchInitializeRequest',
+    declaration: 'export interface ResearchInitializeRequest {\n    readonly writable: boolean;\n}',
+  },
+  {
     name: 'ResearchProvider',
     declaration: 'export interface ResearchProvider {\n    readonly id: string;\n    readonly origin: DataOrigin;\n    readonly notice?: string;\n    readonly capabilities: {\n        readonly read: boolean;\n        readonly readContext: boolean;\n        readonly readActivity: boolean;\n        readonly previewChanges: boolean;\n        readonly applyChanges: boolean;\n        readonly changeEvents: boolean;\n        readonly commands: readonly ChangeCommand[\'kind\'][];\n    };\n}',
   },
   {
     name: 'ResearchQuestion',
     declaration: 'export interface ResearchQuestion {\n    readonly workspaceId: WorkspaceId;\n    readonly topicId?: TopicId;\n    readonly resourceId?: ResourceId;\n    readonly anchor?: string;\n    readonly selectedText?: string;\n    readonly selectedTextFormat?: \'source\' | \'rendered\';\n    readonly selectedRange?: ResearchSourceRange;\n    readonly question: string;\n}',
+  },
+  {
+    name: 'ResearchSetup',
+    declaration: 'export interface ResearchSetup {\n    readonly configured: boolean;\n    readonly writable: boolean;\n    readonly canInitialize: boolean;\n}',
   },
   {
     name: 'ResearchSourceRange',

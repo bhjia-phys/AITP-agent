@@ -1,7 +1,7 @@
 /** Replay of research working items using ordinary Session input and tool records. */
 import { z } from 'zod'
 import type { ContentBlock, UserMessage } from '@deepseek-ai/dsh-llm'
-import { SessionSeq, type Session, type SessionEvent } from '@deepseek-ai/dsh-session'
+import { SessionSeq, TOOL_OUTCOME_UNKNOWN, type Session, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-questions'
 import type { ResearchHumanInput, ResearchOrigin, ResearchWorkingState, ResearchWriteRecord } from './working-types.ts'
@@ -181,14 +181,17 @@ export function applyWorkingEvent(state: ResearchWorkingState, event: SessionEve
     return { ...settled, writes: [...state.writes.filter(item => item !== previous), write] }
   }
   if (call.name === 'ask_user_question') {
-    if (isError || state.humans.some(input => input.sourceId === `answer:${callId}`)) return state
+    if (event.type === 'tool/result' && event.data.error?.code === TOOL_OUTCOME_UNKNOWN) return state
     let answer: unknown
-    try { answer = JSON.parse(contentText(content)) } catch { return state }
+    try { answer = JSON.parse(contentText(content)) } catch { answer = undefined }
+    if (!isError && z.object({ pending: z.literal(true) }).safeParse(answer).success) return state
+    const settled = { ...state, pending: state.pending.filter(pending => pending.callId !== callId) }
+    if (isError || state.humans.some(input => input.sourceId === `answer:${callId}`)) return settled
     const answered = z.object({ answers: z.array(z.object({
       id: z.string(), selected: z.array(z.string()), custom: z.string().optional(),
-    })).min(1) }).safeParse(answer)
+    })) }).safeParse(answer)
     if (!answered.success) return state
-    return { ...state, pending: state.pending.filter(pending => pending.callId !== callId), humans: [...state.humans, {
+    return { ...settled, humans: [...state.humans, {
       sourceId: `answer:${callId}`, seq: event.seq, kind: 'question-answer', origin: call.origin, questionSeq: call.seq,
     }] }
   }

@@ -13,7 +13,7 @@ import { renderedSelectionRanges } from './markdown-selection.ts'
 
 export { pathForResourceId, resourceIdForPath, topicIdForPath } from './markdown-files.ts'
 
-/** Authorized root and positive bounds for discovery entries, complete file bytes and serialized context characters. */
+/** Authorized root and positive bounds for discovery/selected-source entries, complete file bytes and serialized context characters. */
 export interface MarkdownWorkspaceConfig {
   readonly root: string
   readonly maxFiles: number
@@ -76,6 +76,84 @@ interface Index {
   readonly parents: ReadonlyMap<string, readonly string[]>
   readonly users: ReadonlyMap<string, readonly string[]>
   readonly status: MarkdownIndexStatus
+  readonly sourceIssues: readonly ScanIssue[]
+  readonly unobserved: boolean
+  readonly supplemented: boolean
+  readonly establishedParents: ReadonlyMap<string, string>
+  readonly establishedOwners: ReadonlyMap<string, string>
+}
+interface SelectedSources {
+  readonly index: Index
+  readonly fresh: ReadonlyMap<string, MarkdownSource>
+}
+
+function uniqueRelations(relations: ReadonlyMap<string, readonly string[]>): ReadonlyMap<string, string> {
+  const unique = new Map<string, string>()
+  for (const [path, values] of relations) {
+    const value = values[0]
+    if (values.length === 1 && value !== undefined) unique.set(path, value)
+  }
+  return unique
+}
+
+function relationships(paths: ReadonlySet<string>, notes: ReadonlyMap<string, Note>) {
+  const topicPaths = new Set([...paths].filter(path => posix.basename(path).toLowerCase() === 'research.md' && path !== 'research.md'))
+  for (const note of notes.values()) {
+    for (const link of note.parsed.links) {
+      if (link.role !== 'reference' && /\.md$/i.test(link.path) && paths.has(link.path) && link.path !== 'research.md') topicPaths.add(link.path)
+    }
+  }
+  const parents = new Map<string, Set<string>>()
+  const users = new Map<string, Set<string>>()
+  const issues: ScanIssue[] = []
+  const add = (map: Map<string, Set<string>>, target: string, owner: string): void => {
+    const values = map.get(target) ?? new Set<string>()
+    values.add(owner)
+    map.set(target, values)
+  }
+  for (const [path, note] of notes) {
+    const siblingOwner = posix.join(posix.dirname(path), 'research.md')
+    const owner = topicPaths.has(path) ? path
+      : /^readme\.md$/i.test(posix.basename(path)) && topicPaths.has(siblingOwner) ? siblingOwner : undefined
+    for (const link of note.parsed.links) {
+      if (owner) add(users, link.path, owner)
+      if (owner && topicPaths.has(link.path) && link.path !== owner) {
+        if (link.role === 'child') add(parents, link.path, owner)
+        if (link.role === 'parent') add(parents, owner, link.path)
+      }
+    }
+  }
+  for (const [child, candidates] of parents) {
+    if (candidates.size > 1) issues.push({ path: child, reason: 'Several explicit parent relationships exist; no primary parent was chosen.' })
+    const seen = new Set([child])
+    let next = [...candidates][0]
+    while (next !== undefined && parents.get(next)?.size === 1) {
+      if (seen.has(next)) { candidates.clear(); issues.push({ path: child, reason: 'Explicit parent relationships form a cycle; the parent remains unresolved.' }); break }
+      seen.add(next)
+      next = [...(parents.get(next) ?? [])][0]
+    }
+  }
+  return {
+    topicPaths, issues,
+    parents: new Map([...parents].map(([path, values]) => [path, [...values]])),
+    users: new Map([...users].map(([path, values]) => [path, [...values]])),
+  }
+}
+
+function sameSources(left: Index, paths: ReadonlySet<string>, notes: ReadonlyMap<string, Note>, issues: readonly ScanIssue[]): boolean {
+  return left.paths.size === paths.size && [...paths].every(path => left.paths.has(path))
+    && left.notes.size === notes.size && [...notes].every(([path, note]) => left.notes.get(path)?.source.text === note.source.text)
+    && JSON.stringify(left.status.issues) === JSON.stringify(issues)
+}
+
+function textSource(path: string): boolean {
+  return /\.(?:md|txt|tex|py|ts|tsx|js|json|yaml|yml|csv|log|sh|cpp|cc|h|hpp|f90)$/i.test(path)
+}
+
+function accountCandidate(index: Index, path: string): boolean {
+  return path !== 'research.md' && /\.md$/i.test(path) && (index.topicPaths.has(path)
+    || posix.basename(path).toLowerCase() === 'research.md'
+    || [...index.notes.values()].some(note => note.parsed.links.some(link => link.path === path && link.role !== 'reference')))
 }
 
 /** Reads ordinary notes inside one configured root. Derived views never edit their sources. */
@@ -86,6 +164,8 @@ export class MarkdownWorkspace {
   private readonly instanceId = randomUUID()
   private sequence = 0
   private index: Index | undefined
+  private discovered: Index | undefined
+  private readonly supplements = new Map<string, Note | null>()
   private rebuilding: Promise<Result<MarkdownIndexStatus>> | undefined
   private readonly parsedSources = new Map<string, { readonly text: string; readonly parsed: ParsedMarkdown }>()
 
@@ -139,51 +219,25 @@ export class MarkdownWorkspace {
           }
         }
       }
-      const parents = new Map<string, Set<string>>()
-      const users = new Map<string, Set<string>>()
-      const add = (map: Map<string, Set<string>>, target: string, owner: string): void => {
-        const values = map.get(target) ?? new Set<string>()
-        values.add(owner)
-        map.set(target, values)
-      }
-      for (const [path, note] of notes) {
-        const siblingOwner = posix.join(posix.dirname(path), 'research.md')
-        const owner = topicPaths.has(path) ? path
-          : /^readme\.md$/i.test(posix.basename(path)) && topicPaths.has(siblingOwner) ? siblingOwner : undefined
-        for (const link of note.parsed.links) {
-          if (owner) add(users, link.path, owner)
-          if (owner && topicPaths.has(link.path) && link.path !== owner) {
-            if (link.role === 'child') add(parents, link.path, owner)
-            if (link.role === 'parent') add(parents, owner, link.path)
-          }
-        }
-      }
-      for (const [child, candidates] of parents) {
-        if (candidates.size > 1) issues.push({ path: child, reason: 'Several explicit parent relationships exist; no primary parent was chosen.' })
-        const seen = new Set([child])
-        let next = [...candidates][0]
-        while (next !== undefined && parents.get(next)?.size === 1) {
-          if (seen.has(next)) { candidates.clear(); issues.push({ path: child, reason: 'Explicit parent relationships form a cycle; the parent remains unresolved.' }); break }
-          seen.add(next)
-          next = [...(parents.get(next) ?? [])][0]
-        }
-      }
+      const relation = relationships(paths, notes)
+      const sourceIssues = [...issues]
+      issues.push(...relation.issues)
       const completeness = scan.partial || issues.length ? 'partial' : 'complete'
       const previous = this.index
       const unchanged = options?.preserveUnchangedRevision && previous !== undefined
-        && previous.paths.size === paths.size && [...paths].every(path => previous.paths.has(path))
-        && previous.notes.size === notes.size
-        && [...notes].every(([path, note]) => previous.notes.get(path)?.source.text === note.source.text)
-        && previous.status.completeness === completeness && JSON.stringify(previous.status.issues) === JSON.stringify(issues)
+        && previous.status.completeness === completeness && sameSources(previous, paths, notes, issues)
       const status: MarkdownIndexStatus = {
         revision: unchanged ? previous.status.revision : this.revision(),
-        observedAt: new Date().toISOString(), files: paths.size, topics: topicPaths.size, completeness, issues,
+        observedAt: new Date().toISOString(), files: paths.size, topics: relation.topicPaths.size, completeness, issues,
       }
       this.index = {
-        paths, notes, topicPaths, status,
-        parents: new Map([...parents].map(([path, values]) => [path, [...values]])),
-        users: new Map([...users].map(([path, values]) => [path, [...values]])),
+        paths, notes, topicPaths: relation.topicPaths, status, sourceIssues,
+        parents: relation.parents, users: relation.users,
+        unobserved: scan.partial || sourceIssues.length > 0, supplemented: false,
+        establishedParents: uniqueRelations(relation.parents), establishedOwners: uniqueRelations(relation.users),
       }
+      this.discovered = this.index
+      this.supplements.clear()
       return status
     }, options)
     try { return await this.rebuilding }
@@ -224,7 +278,7 @@ export class MarkdownWorkspace {
   }
 
   /**
-   * Read a bounded topic page with fresh account text and relationships from the discovered index.
+   * Read a bounded topic page with fresh account text and relationships from the observed index.
    * @param query - parent scope, page limit and optional cursor belonging to this index snapshot and scope.
    * @param options - optional cancellation for discovery and each selected account read.
    * @returns observed topic summaries and discovery completeness, or a failure for stale cursors, invalid bounds or unreadable accounts.
@@ -257,51 +311,54 @@ export class MarkdownWorkspace {
 
   /**
    * Read the current account; file nesting never supplies a scientific parent.
-   * @param topicId - identity of an account already recognized by discovery.
+   * @param topicId - account identity recognized by inventory or validated direct selection during incomplete discovery.
    * @param options - optional cancellation for discovery and the fresh account read.
    * @returns an attributed topic projection preserving unrecognized account text, or a typed identity/access failure.
    */
   async getTopic(topicId: TopicId, options?: ReadOptions): Promise<Result<ReadEnvelope<Topic>>> {
     return this.attempt(async () => {
-      const index = await this.ensure(options)
       const path = pathForTopicId(topicId)
+      const selection = await this.selected(path, true, options)
+      const { index } = selection
       if (!index.topicPaths.has(path)) throw new SourceError('not-found', 'The topic is outside the discovered scope. Refresh to discover new topics.')
-      const source = await this.mustRead(path, options)
+      const source = selection.fresh.get(path) ?? await this.mustRead(path, options)
       return this.envelope(this.topic(index, path, source), source)
     }, options)
   }
 
   /**
    * Read current text for supported text formats; other materials remain navigable references.
-   * @param resourceId - identity present in discovered files or authored material links.
+   * @param resourceId - observed source identity, or an explicitly named file validated during incomplete discovery.
    * @param options - optional cancellation for discovery and the fresh supported-format read.
    * @returns an attributed material envelope with complete text or explicit unsupported-format content, or a typed read failure.
    */
   async getResource(resourceId: ResourceId, options?: ReadOptions): Promise<Result<ReadEnvelope<Resource>>> {
     return this.attempt(async () => {
-      const index = await this.ensure(options)
       const path = pathForResourceId(resourceId)
+      const selection = await this.selected(path, false, options)
+      const { index } = selection
       if (!index.paths.has(path) && !index.users.has(path)) throw new SourceError('not-found', 'The resource is outside the discovered scope. Refresh to discover new resources.')
       const reference = this.reference(index, path)
-      if (!/\.(?:md|txt|tex|py|ts|tsx|js|json|yaml|yml|csv|log|sh|cpp|cc|h|hpp|f90)$/i.test(path)) {
+      if (!textSource(path)) {
         return this.envelope({ ...reference, content: { kind: 'unavailable', reason: 'unsupported-format', detail: 'This reader currently opens Markdown and text sources only.' }, attribution: { sourceResourceIds: [resourceId] } })
       }
-      const source = await this.mustRead(path, options)
+      const source = selection.fresh.get(path) ?? await this.mustRead(path, options)
       return this.envelope({ ...reference, content: { kind: /\.md$/i.test(path) ? 'markdown' : 'plain-text', text: source.text }, attribution: { sourceResourceIds: [resourceId] } }, source)
     }, options)
   }
 
   /**
    * Read coherent source units with omissions; the character bound includes the serialized JSON envelope.
-   * @param query - discovered topic, requested related-source classes and optional tighter character/item bounds.
+   * @param query - recognized or explicitly selected account, related-source classes and optional tighter character/item bounds.
    * @param options - optional cancellation for discovery and fresh selected-source reads.
    * @returns bounded attributed context with complete units and explicit omissions;
    * invalid scope or an unusably small budget yields a typed failure.
    */
   async readContext(query: ContextQuery, options?: ReadOptions): Promise<Result<ReadEnvelope<ContextRead>>> {
     return this.attempt(async () => {
-      const index = await this.ensure(options)
       const path = pathForTopicId(query.topicId)
+      const selection = await this.selected(path, true, options)
+      const { index } = selection
       if (!index.topicPaths.has(path)) throw new SourceError('not-found', 'The context topic is not discovered.')
       const maxCharacters = Math.min(query.maxCharacters ?? this.config.maxContextCharacters, this.config.maxContextCharacters)
       const maxItems = query.maxItems ?? this.config.maxFiles
@@ -309,9 +366,18 @@ export class MarkdownWorkspace {
       const include = new Set(query.include ?? ['ancestors', 'work'])
       const selected = [path]
       if (include.has('ancestors')) {
-        let parent = this.primaryParent(index, path)
         const seen = new Set(selected)
-        while (parent && !seen.has(parent)) { selected.push(parent); seen.add(parent); parent = this.primaryParent(index, parent) }
+        const candidates = index.supplemented ? [...(index.parents.get(path) ?? [])]
+          : [this.primaryParent(index, path)].filter((parent): parent is string => parent !== undefined)
+        for (const parent of candidates) if (!seen.has(parent)) {
+          selected.push(parent)
+          seen.add(parent)
+          if (index.supplemented) candidates.push(...(index.parents.get(parent) ?? []))
+          else {
+            const next = this.primaryParent(index, parent)
+            if (next !== undefined) candidates.push(next)
+          }
+        }
         if (index.paths.has('research.md')) selected.push('research.md')
       }
       if (include.has('children')) selected.push(...[...index.topicPaths].filter(candidate => this.primaryParent(index, candidate) === path))
@@ -328,7 +394,8 @@ export class MarkdownWorkspace {
           omissions.push({ target: { kind: 'resource', id }, reason: 'This source was not read because the context item limit was reached.' })
           continue
         }
-        const source = await this.readSource(id, options)
+        const current = selection.fresh.get(candidate)
+        const source = current === undefined ? await this.readSource(id, options) : { ok: true as const, value: current }
         if (!source.ok) { omissions.push({ target: { kind: 'resource', id }, reason: source.error.message }); continue }
         const parsed = this.parse(source.value)
         const isAccount = index.topicPaths.has(candidate) || candidate === 'research.md'
@@ -378,16 +445,27 @@ export class MarkdownWorkspace {
    */
   async resolveOrigin(query: OriginQuery, options?: ReadOptions): Promise<Result<ResolvedOrigin>> {
     return this.attempt(async () => {
-      const index = await this.ensure(options)
       const path = query.resourceId !== undefined ? pathForResourceId(query.resourceId)
         : query.topicId !== undefined ? pathForTopicId(query.topicId) : undefined
       const explicit = query.topicId !== undefined ? pathForTopicId(query.topicId) : undefined
+      let selection: SelectedSources
+      if (explicit !== undefined) selection = await this.selected(explicit, true, options)
+      else if (path !== undefined) selection = await this.selected(path, false, options)
+      else selection = { index: await this.ensure(options), fresh: new Map() }
+      if (explicit !== undefined && path !== undefined && path !== explicit && accountCandidate(selection.index, path)) {
+        const material = await this.selected(path, true, options)
+        selection = { index: material.index, fresh: new Map([...selection.fresh, ...material.fresh]) }
+      }
+      const { index } = selection
       if (explicit !== undefined && !index.topicPaths.has(explicit)) return { ...query, status: 'missing', candidateTopicIds: [], reason: 'The requested topic was not discovered.' }
       const candidates = path === undefined ? [] : index.topicPaths.has(path) ? [path] : [...(index.users.get(path) ?? [])]
       if (explicit !== undefined && path !== explicit && !candidates.includes(explicit)) return { ...query, status: 'ambiguous', candidateTopicIds: candidates.map(topicIdForPath), reason: 'The selected material has no recorded relationship to the requested topic.' }
-      const chosen = explicit ?? (candidates.length === 1 ? candidates[0] : undefined)
+      const owner = candidates[0]
+      const uncertainOwner = index.supplemented && path !== undefined && !index.topicPaths.has(path)
+        && (candidates.length !== 1 || owner === undefined || index.establishedOwners.get(path) !== owner)
+      const chosen = explicit ?? (!uncertainOwner && candidates.length === 1 ? candidates[0] : undefined)
       if (path === undefined) return { ...query, status: 'missing', candidateTopicIds: [], reason: 'No topic or source was selected; the question remains a global discussion.' }
-      const source = await this.mustRead(path, options)
+      const source = selection.fresh.get(path) ?? await this.mustRead(path, options)
       let selectedPassage = source.text
       let scope = { start: 0, end: source.text.length }
       if (query.anchor !== undefined) {
@@ -425,7 +503,7 @@ export class MarkdownWorkspace {
         if (applicable.length > 1) return unresolved('ambiguous', 'The selected text occurs more than once in the source range; select a longer passage or a narrower anchor.')
         selectedRange = applicable[0]
       }
-      return { ...query, resourceId: source.resourceId, source, selectedPassage, ...(selectedRange === undefined ? {} : { selectedRange }), ...(chosen !== undefined ? { topicId: topicIdForPath(chosen) } : {}), status: chosen !== undefined ? 'resolved' : candidates.length ? 'ambiguous' : 'missing', candidateTopicIds: candidates.map(topicIdForPath), ...(chosen === undefined ? { reason: candidates.length ? 'This material is used by several topics; select the intended question.' : 'No owning research question was found in the discovered links.' } : {}) }
+      return { ...query, resourceId: source.resourceId, source, selectedPassage, ...(selectedRange === undefined ? {} : { selectedRange }), ...(chosen !== undefined ? { topicId: topicIdForPath(chosen) } : {}), status: chosen !== undefined ? 'resolved' : candidates.length ? 'ambiguous' : 'missing', candidateTopicIds: candidates.map(topicIdForPath), ...(chosen === undefined ? { reason: uncertainOwner ? 'Discovery is partial; material ownership is unresolved. Select the intended research question.' : candidates.length ? 'This material is used by several topics; select the intended question.' : 'No owning research question was found in the discovered links.' } : {}) }
     }, options)
   }
 
@@ -456,12 +534,14 @@ export class MarkdownWorkspace {
   private reference(index: Index, path: string): ResourceReference {
     const owners = index.topicPaths.has(path) ? [path] : index.users.get(path) ?? []
     const owner = owners[0]
-    return { id: resourceIdForPath(path), ownerTopicId: owners.length === 1 && owner !== undefined ? topicIdForPath(owner) : null, title: index.notes.get(path)?.parsed.title ?? posix.basename(path), kind: /\.md$/i.test(path) ? 'note' : /\.pdf$/i.test(path) ? 'paper' : 'other', target: { kind: 'workspace-path', path } }
+    const provenOwner = !index.supplemented || index.topicPaths.has(path) || index.establishedOwners.get(path) === owner
+    return { id: resourceIdForPath(path), ownerTopicId: provenOwner && owners.length === 1 && owner !== undefined ? topicIdForPath(owner) : null, title: index.notes.get(path)?.parsed.title ?? posix.basename(path), kind: /\.md$/i.test(path) ? 'note' : /\.pdf$/i.test(path) ? 'paper' : 'other', target: { kind: 'workspace-path', path } }
   }
 
   private primaryParent(index: Index, path: string): string | undefined {
     const candidates = index.parents.get(path)
-    return candidates?.length === 1 ? candidates[0] : undefined
+    const parent = candidates?.length === 1 ? candidates[0] : undefined
+    return parent !== undefined && (!index.supplemented || index.establishedParents.get(path) === parent) ? parent : undefined
   }
 
   private parse(source: MarkdownSource): ParsedMarkdown {
@@ -473,6 +553,105 @@ export class MarkdownWorkspace {
     if (this.parsedSources.size >= this.config.maxFiles && firstKey !== undefined) this.parsedSources.delete(firstKey)
     this.parsedSources.set(source.relativePath, { text: source.text, parsed })
     return parsed
+  }
+
+  private async selected(path: string, account: boolean, options?: ReadOptions): Promise<SelectedSources> {
+    const observed = await this.ensure(options)
+    const fresh = new Map<string, MarkdownSource>()
+    const recognized = account ? observed.topicPaths.has(path)
+      : observed.paths.has(path) || (observed.users.has(path) && !accountCandidate(observed, path))
+    if (!this.supplements.has(path) && (recognized || !observed.unobserved)) return { index: observed, fresh }
+    if (account && !/\.md$/i.test(path)) throw new SourceError('not-found', 'The selected source is not a recognized research account.')
+    if (!await this.files.discoverable(path, options?.signal)) throw new SourceError('invalid-request', 'The selected source is not a regular file.')
+    const selectedSource = account || textSource(path) ? await this.mustRead(path, options) : undefined
+    if (selectedSource !== undefined) fresh.set(path, selectedSource)
+    const additions = new Map<string, Note | null>()
+    const accountNote = account || accountCandidate(observed, path) || /^(research|readme)\.md$/i.test(posix.basename(path))
+    const note = selectedSource !== undefined && accountNote
+      ? { source: selectedSource, parsed: this.parse(selectedSource) } : null
+    additions.set(path, note)
+    const queue: { path: string; declared: boolean }[] = []
+    const scheduled = new Set([path])
+    const issues: ScanIssue[] = []
+    const limitIssue = { path, reason: 'Selected-source relationship inspection reached the configured entry limit.' }
+    const enqueue = (candidate: string, declared: boolean): void => {
+      if (scheduled.has(candidate)) return
+      if (scheduled.size >= this.config.maxFiles) {
+        if (!issues.includes(limitIssue)) issues.push(limitIssue)
+        return
+      }
+      scheduled.add(candidate)
+      queue.push({ path: candidate, declared })
+    }
+    const parentsOf = (value: Note): void => {
+      for (const link of value.parsed.links) if (link.role === 'parent' && /\.md$/i.test(link.path)) enqueue(link.path, true)
+    }
+    if (note !== null) parentsOf(note)
+    for (const owner of [...(observed.parents.get(path) ?? []), ...(observed.users.get(path) ?? [])]) enqueue(owner, true)
+    let directory = posix.dirname(path)
+    while (true) {
+      enqueue(directory === '.' ? 'research.md' : posix.join(directory, 'research.md'), false)
+      enqueue(directory === '.' ? 'README.md' : posix.join(directory, 'README.md'), false)
+      if (directory === '.') break
+      directory = posix.dirname(directory)
+    }
+    for (const candidate of queue) {
+      options?.signal?.throwIfAborted()
+      try {
+        if (!await this.files.discoverable(candidate.path, options?.signal)) {
+          if (candidate.declared) issues.push({ path: candidate.path, reason: 'The declared account is not a regular source file.' })
+          continue
+        }
+        const source = await this.mustRead(candidate.path, options)
+        fresh.set(candidate.path, source)
+        const parsed = this.parse(source)
+        const candidateNote = { source, parsed }
+        additions.set(candidate.path, candidateNote)
+        parentsOf(candidateNote)
+      } catch (error) {
+        options?.signal?.throwIfAborted()
+        const failure = sourceFailure(error)
+        if (candidate.declared || failure.code !== 'not-found') issues.push({ path: candidate.path, reason: failure.message })
+      }
+    }
+    const base = this.discovered ?? observed
+    const admitted = new Map(this.supplements)
+    // Keep the selected source even when a very small bound evicts its supporting candidates.
+    for (const [candidate, candidateNote] of additions) if (candidate !== path) {
+      admitted.delete(candidate)
+      admitted.set(candidate, candidateNote)
+    }
+    admitted.delete(path)
+    admitted.set(path, note)
+    while (admitted.size > this.config.maxFiles) {
+      const oldest = admitted.keys().next().value
+      if (oldest === undefined) break
+      admitted.delete(oldest)
+    }
+    const paths = new Set([...base.paths, ...admitted.keys()])
+    const notes = new Map(base.notes)
+    for (const [candidate, candidateNote] of admitted) if (candidateNote !== null) notes.set(candidate, candidateNote)
+    const relation = relationships(paths, notes)
+    if (account && !relation.topicPaths.has(path)) {
+      throw new SourceError('not-found', 'The selected document exists, but no research-account relationship was observed within the bounded selection. Inspect its project links or refresh discovery.')
+    }
+    const sourceIssues = base.sourceIssues.filter(issue => !fresh.has(issue.path))
+    const combined = [...sourceIssues, ...issues, ...relation.issues,
+      { path: '', reason: 'Selected sources supplement partial discovery; incoming parent relationships and other material owners may remain unobserved.' },
+    ]
+    const previous = this.index ?? observed
+    const status: MarkdownIndexStatus = {
+      revision: sameSources(previous, paths, notes, combined) ? previous.status.revision : this.revision(),
+      observedAt: new Date().toISOString(), files: paths.size, topics: relation.topicPaths.size,
+      completeness: 'partial', issues: combined,
+    }
+    const index: Index = { paths, notes, topicPaths: relation.topicPaths, parents: relation.parents, users: relation.users,
+      status, sourceIssues, unobserved: true, supplemented: true,
+      establishedParents: base.establishedParents, establishedOwners: base.establishedOwners }
+    this.supplements.clear()
+    for (const [candidate, candidateNote] of admitted) this.supplements.set(candidate, candidateNote)
+    this.index = index
+    return { index, fresh }
   }
 
   private async ensure(options?: ReadOptions): Promise<Index> {

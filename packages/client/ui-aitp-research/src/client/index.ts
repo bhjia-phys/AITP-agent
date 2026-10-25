@@ -23,6 +23,7 @@ import { sidebarEn, sidebarZh } from './sidebar-locales.ts'
 import { WorkspaceSidebar } from './WorkspaceSidebar.tsx'
 import { registerWorkspaceResources } from './workspace-resources.ts'
 import { ResearchWorkspaceRegistry } from './workspace-service.ts'
+import { createTopicCreationJournal } from './topic-creation-journal.ts'
 
 export type { AitpResearchKey } from './locales.ts'
 export type { NoteTabBodyProps } from './NoteTab.tsx'
@@ -72,8 +73,15 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-aitp-research: dictionaries')
   ctx.effect(() => ctx.locale.register('aitp.research.sidebar', { zh: sidebarZh, en: sidebarEn }), 'ui-aitp-research: sidebar dictionaries')
   const t = ctx.locale.bind(NS)
-  const store = createResearchPanelStore()
+  let topicStorage: Storage | undefined
+  try { topicStorage = globalThis.sessionStorage } catch (_error) {
+    // Browser policy can deny tab storage; the form reports this explicitly.
+  }
+  const store = createResearchPanelStore(createTopicCreationJournal(topicStorage, t('topic.create.reloaded')))
   const face: ResearchPanelFace = {
+    showWorkspaces: () => { ctx.layout.selectPanel(null) },
+    initializeResearch: (workspaceId, request) => workspaces.initialize(workspaceId, request),
+    createTopic: (workspaceId, request) => workspaces.createTopic(workspaceId, request),
     openSession: (sessionId) => { ctx.uiWorkspace.openSession(sessionId) },
     startDraft: (workspaceId, prompt) => { ctx.uiWorkspace.startSession(workspaceId, { prompt }) },
     askQuestion: question => workspaces.ask(question),
@@ -86,7 +94,7 @@ export function apply(ctx: ClientContext): void {
   })
   ctx.slots.inject('sidebar.context', () => ctx.slots.register({
     name: 'sidebar.context', key: PANEL_ID, locale: 'aitp.research.sidebar', store,
-    inject: () => ({ showConversations: () => { ctx.layout.selectPanel(null) }, retry: face.retry }),
+    inject: () => ({ checkSetup: true, showConversations: () => { ctx.layout.selectPanel(null) }, retry: face.retry }),
   }, WorkspaceSidebar))
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
     name: 'sidebar.panellist',

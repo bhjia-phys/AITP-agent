@@ -19,6 +19,7 @@
 
 | 工具包 | 模型可见名称 | 依赖 | 写入／影响 | 随产品发布的别名 | 部署说明 |
 | --- | --- | --- | --- | --- | --- |
+| `@deepseek-ai/dsh-research-memory` | `research_apply_change`、`research_prepare_change`、`research_read_context`、`research_recover_change`、`research_working_update` | `ctx.agents`、`ctx.sessions`、`ctx.tools`、`ctx.systemPrompt`、`ctx.sessionProjections`、`ctx.sandboxPolicy`（写入执行时） | `tool/call`、`tool/result`、既有运行时上下文消息、已配置的 scratch 来源及操作回执 | - | - |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-plugin-market` | `plugin_market` | `ctx.tools`, `ctx.pluginMarket` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`, `list_mcp_resources`, `read_mcp_resource` | `ctx.tools`, `ctx.mcpResources` | `tool/call`, `tool/result` | - | - |
@@ -52,6 +53,195 @@
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-workspace-dependencies` | `load_workspace_dependencies` | `ctx.tools` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
+
+<a id="deepseek-aidsh-research-memory"></a>
+
+## `@deepseek-ai/dsh-research-memory`
+
+### `research_apply_change`
+
+应用本会话和科研方向中已准备好的来源修改。既有宿主写入范围及当前会话的文件策略必须允许该操作。重试时复用同一 `operationId`；先检查部分完成或结果未知的操作，绝不自动重放。保存文件不等于完成科学整合。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "operationId"
+  ]
+}
+```
+
+来源：[`packages/research/research-memory/src/write-tools.ts`](../packages/research/research-memory/src/write-tools.ts)
+
+### `research_prepare_change`
+
+判断当前科研工作是否需要修改、不变更或保持待定。准备精确的来源段落替换，并给出理由、支持引用和仍受影响的使用处。这不会应用修改，也不会把你的解释变成人的决定。只有显式包含父课题中受影响的段落，才会修改其对相关结果的使用。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "disposition": {
+      "type": "string",
+      "enum": [
+        "edit",
+        "no-change",
+        "pending"
+      ]
+    },
+    "rationale": {
+      "type": "string"
+    },
+    "edits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "resourceId": {
+            "type": "string",
+            "description": "Copy the exact resource: locator shown beside a Source passage in research_read_context. This is not a topic: ID, file path or original human input sourceId; a locator does not grant write permission."
+          },
+          "originalText": {
+            "type": "string"
+          },
+          "replacementText": {
+            "type": "string"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "resourceId",
+          "originalText",
+          "replacementText",
+          "rationale",
+          "sourceRefs"
+        ]
+      }
+    },
+    "remainingUses": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "disposition",
+    "rationale",
+    "edits",
+    "remainingUses"
+  ]
+}
+```
+
+来源：[`packages/research/research-memory/src/write-tools.ts`](../packages/research/research-memory/src/write-tools.ts)
+
+### `research_read_context`
+
+恢复当前科研方向、有来源依据的上下文，以及 Source 段落旁的精确 `resource:` 定位符。准备来源修改时原样使用这些定位符。用 `inputOffset` 列出人的原始输入和未答的助手问题，再以精确的 `sourceId` 重新打开原文，可另指定字符偏移。问题保留完整的已给选项；未答的助手问题不是人的决定。本工具只读取人已经选择的方向，不授予写入权限。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sourceId": {
+      "type": "string"
+    },
+    "offset": {
+      "type": "integer"
+    },
+    "inputOffset": {
+      "type": "integer"
+    }
+  }
+}
+```
+
+来源：[`packages/research/research-memory/src/runtime.ts`](../packages/research/research-memory/src/runtime.ts)
+
+### `research_recover_change`
+
+检查本会话和科研方向的某个操作，但不应用它。区分其历史文件结果和当前来源观察。文字匹配不会让中断的操作变成成功。决定新提案前，先读取指定来源。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "operationId"
+  ]
+}
+```
+
+来源：[`packages/research/research-memory/src/write-tools.ts`](../packages/research/research-memory/src/write-tools.ts)
+
+### `research_working_update`
+
+为当前科研方向保存简明的暂定工作项：缺口、结果及限制、失败路线及重新考虑的条件、下一步或待完成整合。只更新你自己的工作项。人的原始指令和决定保持不变。这不会写入科研笔记，也不会暂停工作。原始输入对工作项构成约束时，引用相应的来源 ID。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "upsert",
+        "retire"
+      ]
+    },
+    "id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "gap",
+        "result",
+        "failed-route",
+        "next-step",
+        "pending-integration"
+      ]
+    },
+    "text": {
+      "type": "string"
+    },
+    "condition": {
+      "type": "string"
+    },
+    "sourceIds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "operation",
+    "id"
+  ]
+}
+```
+
+来源：[`packages/research/research-memory/src/runtime.ts`](../packages/research/research-memory/src/runtime.ts)
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 

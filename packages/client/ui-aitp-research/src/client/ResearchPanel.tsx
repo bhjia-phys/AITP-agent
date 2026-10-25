@@ -1,5 +1,5 @@
 /** Session-independent research workspace over the asynchronous adapter resources. */
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type MutableRefObject, type ReactNode, type RefObject } from 'react'
 import clsx from 'clsx'
 import { Button, IconChevronDownOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
@@ -10,20 +10,28 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { returnPoint, settleArrival } from './arrival.ts'
 import { workspaceLocation, type createResearchPanelStore, type ResearchLocation, type ResearchArrival } from './store.ts'
-import { Empty } from './states.tsx'
 import type { ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview, ReadEnvelope, Result } from './workspace-contract.ts'
 import { ResearchMap } from './ResearchMap.tsx'
 import { ResearchTrail } from './ResearchTrail.tsx'
 import { WorkspaceMaterial } from './WorkspaceViews.tsx'
 import { WorkspaceTopic } from './WorkspaceTopic.tsx'
 import { WorkspaceQuestion } from './WorkspaceQuestion.tsx'
+import { WorkspaceSetup } from './WorkspaceSetup.tsx'
+import { TopicCreation } from './TopicCreation.tsx'
+import { workspaceSetupAddress, workspaceTopicAddress } from './workspace-resources.ts'
 import type {} from './locales.ts'
 import css from './research.module.css'
-import type { ResearchQuestion } from './workspace-contract.ts'
+import type { CreateTopicReceipt, CreateTopicRequest, ResearchInitializeRequest, ResearchQuestion, ResearchSetup, ResourceId, TopicId } from './workspace-contract.ts'
 import page from './workspace.module.css'
 
 /** Narrow application callbacks bound by the panel registration. */
 export interface ResearchPanelFace {
+  /** Return to the host's existing Workspace browser and directory-picker flow. */
+  showWorkspaces?: () => void
+  /** Explicitly enable research access with the chosen write permission. */
+  initializeResearch?: (workspaceId: WorkspaceId, request: ResearchInitializeRequest) => Promise<Result<ResearchSetup>>
+  /** Create a provider-owned topic with an idempotent operation identity. */
+  createTopic?: (workspaceId: WorkspaceId, request: CreateTopicRequest) => Promise<Result<CreateTopicReceipt>>
   /** Show an existing Harness Session. */
   openSession: (sessionId: SessionId) => void
   /** Prepare a normal Harness conversation; this does not send a model request. */
@@ -60,7 +68,11 @@ export function ResearchPanel(props: ResearchPanelProps): ReactNode {
           current={workspace} onSelect={props.actions.selectWorkspace} />}
       </header>
       {workspace === undefined
-        ? <Empty title={props.t('state.noWorkspace.title')} body={props.t('state.noWorkspace.body')} />
+        ? <div className={css.center}><div className={css.empty}>
+          <p className={css.emptyTitle}>{props.t('state.noWorkspace.title')}</p>
+          <p className={css.emptyBody}>{props.t('state.noWorkspace.body')}</p>
+          {props.showWorkspaces !== undefined && <div className={css.actions}><Button variant="primary" onClick={props.showWorkspaces}>{props.t('setup.showWorkspaces')}</Button></div>}
+        </div></div>
         : <WorkspaceReading key={workspace.workspaceId} {...props} workspaceId={workspace.workspaceId} />}
     </section>
   )
@@ -90,17 +102,69 @@ function WorkspacePicker({ t, workspaces, current, onSelect }: {
 const NO_ARRIVAL: ResearchArrival = { kind: 'none' }
 
 function WorkspaceReading(props: ResearchPanelProps & { workspaceId: WorkspaceId }): ReactNode {
+  const setup = props.useResource<'aitp-workspace-setup'>(workspaceSetupAddress(props.workspaceId))
   const location = props.useStore(state => workspaceLocation(state, props.workspaceId))
   const arrival = props.useStore(state => state.workspaceId === props.workspaceId ? state.arrival : NO_ARRIVAL)
   const visit = props.useStore(state => state.visit)
   const canGoBack = props.useStore(state => state.workspaceId === props.workspaceId && state.back.length > 0)
   const reading = useRef<HTMLDivElement>(null)
+  const questionArrival = useRef<TopicId | null>(null)
   // Navigation restores an exact reading position and focus before the new page paints.
-  useLayoutEffect(() => settleArrival(reading.current, arrival), [visit])
+  useLayoutEffect(() => {
+    const stop = settleArrival(reading.current, arrival)
+    if (location.kind === 'topic' && location.topicId === questionArrival.current) {
+      stop()
+      questionArrival.current = null
+      reading.current?.querySelector<HTMLTextAreaElement>('[data-research-question]')?.focus()
+    }
+    return stop
+  }, [visit])
   const navigate = (next: ResearchLocation): void => { props.actions.open(props.workspaceId, next, returnPoint(reading.current)) }
+  const initializeResearch = props.initializeResearch
+  const initialize = initializeResearch === undefined ? undefined
+    : (request: ResearchInitializeRequest) => initializeResearch(props.workspaceId, request)
+  const legacy = (setup.status === 'none' && initializeResearch === undefined)
+    || (setup.failure?.code === 'aitp/workspace' && setup.failure.details.code === 'unsupported')
+  if (!legacy && setup.value?.configured !== true) return <div className={css.reading}>
+    <WorkspaceSetup t={props.t} setup={setup.value} initialize={initialize}
+      loading={setup.status === 'loading'} unavailable={setup.status === 'failed'} retry={() => { props.retry(props.workspaceId) }} />
+  </div>
+  const topicId = location.kind === 'map' ? location.focusId : location.topicId
+  return <WorkspaceContent {...props} location={location} visit={visit} canGoBack={canGoBack}
+    reading={reading} navigate={navigate} questionArrival={questionArrival} setup={setup.value} initialize={initialize} topicId={topicId} />
+}
+
+function WorkspaceContent(props: ResearchPanelProps & {
+  workspaceId: WorkspaceId
+  location: ResearchLocation
+  visit: number
+  canGoBack: boolean
+  reading: RefObject<HTMLDivElement>
+  navigate: (next: ResearchLocation) => void
+  questionArrival: MutableRefObject<TopicId | null>
+  setup: ResearchSetup | undefined
+  initialize: ((request: ResearchInitializeRequest) => Promise<Result<ResearchSetup>>) | undefined
+  topicId: TopicId | null
+}): ReactNode {
+  const { location, canGoBack, navigate, visit, reading, topicId } = props
+  const [showSaving, setShowSaving] = useState(false)
+  const createTopic = props.createTopic
+  const creation = {
+    t: props.t, workspaceId: props.workspaceId, useStore: props.useStore, actions: props.actions, writable: props.setup?.writable,
+    create: createTopic === undefined ? undefined : (request: CreateTopicRequest) => createTopic(props.workspaceId, request),
+    created: (receipt: CreateTopicReceipt) => { props.questionArrival.current = receipt.topicId; navigate({ kind: 'topic', topicId: receipt.topicId }) },
+    inspect: (resourceId?: ResourceId) => { navigate(resourceId === undefined ? { kind: 'map', focusId: null } : { kind: 'resource', topicId: null, resourceId }) },
+  }
   return (
     <div className={css.reading} ref={reading}>
       <div className={clsx(page.page, location.kind !== 'map' && page.readingPage)}>
+        {props.setup?.configured === true && !props.setup.writable && props.setup.canInitialize && <>
+          <Button variant="ghost" size="sm" onClick={() => { setShowSaving(!showSaving) }}>{props.t(showSaving ? 'workspace.edit.cancel' : 'setup.enableSaving')}</Button>
+          {showSaving && <WorkspaceSetup t={props.t} setup={props.setup} initialize={props.initialize}
+            retry={() => { props.retry(props.workspaceId) }} />}
+        </>}
+        {props.setup !== undefined && (topicId === null ? <TopicCreation {...creation} currentTopicId={null} />
+          : <TopicCreationAtTopic {...creation} useResource={props.useResource} topicId={topicId} />)}
         <ResearchTrail {...props} location={location} canGoBack={canGoBack} navigate={navigate} />
         {location.kind === 'map'
           ? <ResearchMap {...props} focusId={location.focusId} navigate={navigate} />
@@ -114,4 +178,10 @@ function WorkspaceReading(props: ResearchPanelProps & { workspaceId: WorkspaceId
       </div>
     </div>
   )
+}
+
+function TopicCreationAtTopic(props: Omit<Parameters<typeof TopicCreation>[0], 'currentTopicId' | 'currentTopic'>
+  & Pick<ResearchPanelProps, 'useResource'> & { workspaceId: WorkspaceId; topicId: TopicId }): ReactNode {
+  const topic = props.useResource<'aitp-workspace-topic'>(workspaceTopicAddress(props.workspaceId, props.topicId))
+  return <TopicCreation {...props} currentTopicId={props.topicId} currentTopic={topic} />
 }

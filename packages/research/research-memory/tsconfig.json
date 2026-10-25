@@ -85,6 +85,12 @@
     },
     {
       "path": "../../typert/registry"
+    },
+    {
+      "path": "../../session/session-persistence"
+    },
+    {
+      "path": "../../interaction/tool-ask-user"
     }
   ]
 }

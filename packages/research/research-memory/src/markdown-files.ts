@@ -1,5 +1,5 @@
 import { constants } from 'node:fs'
-import { open, readdir, realpath, stat } from 'node:fs/promises'
+import { lstat, open, readdir, realpath, stat } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import type { ResourceId, TopicId, WorkspaceError } from './types.ts'
 
@@ -72,7 +72,7 @@ export function pathForResourceId(id: ResourceId): string {
 /**
  * Decode a Markdown adapter topic identity without inferring scientific ownership.
  * @param id - a topic identity created from a normalized relative account path.
- * @returns its normalized relative path, which still requires discovery and access checks.
+ * @returns its normalized relative path, which still requires account-recognition and access checks.
  * @throws {SourceError} for a foreign prefix, malformed encoding or invalid path.
  */
 export function pathForTopicId(id: TopicId): string {
@@ -92,9 +92,39 @@ export interface ScanIssue { readonly path: string; readonly reason: string }
 /** Bounded regular-file discovery with omissions kept explicit; paths alone assert no topic relationships. */
 export interface SourceScan { readonly paths: readonly string[]; readonly issues: readonly ScanIssue[]; readonly partial: boolean }
 
+function internalDirectory(name: string): boolean {
+  const normalized = name.toLowerCase()
+  return normalized === '.git' || normalized === 'node_modules' || normalized === '.research-memory'
+}
+
 /** One configured root; realpath checks apply again to each fresh source read. */
 export class MarkdownFiles {
   constructor(readonly root: string, readonly maxFiles: number, readonly maxFileBytes: number) {}
+
+  /**
+   * Check an explicitly named file using the same directory and symlink exclusions as discovery.
+   * @param path - normalized relative path inside the configured root.
+   * @param signal - optional cancellation checked before each path-component observation.
+   * @returns whether the final source is a regular file, without reading its contents.
+   * @throws {Error} for missing paths, excluded directories, symlinks or cancellation.
+   */
+  async discoverable(path: string, signal?: AbortSignal): Promise<boolean> {
+    const parts = normalizedPath(path).split('/')
+    const canonicalRoot = await realpath(this.root)
+    let current = canonicalRoot
+    for (const [index, part] of parts.entries()) {
+      signal?.throwIfAborted()
+      if (internalDirectory(part)) {
+        throw new SourceError('permission-denied', 'Internal dependency and state directories are excluded from discovery.')
+      }
+      current = resolve(current, part)
+      const info = await lstat(current)
+      if (info.isSymbolicLink()) throw new SourceError('permission-denied', 'Symbolic links are not admitted by source discovery.')
+      if (index === parts.length - 1) return info.isFile()
+      if (!info.isDirectory()) return false
+    }
+    return false
+  }
 
   /**
    * Read a complete current UTF-8 file after resolving its containment in this root.
@@ -148,7 +178,7 @@ export class MarkdownFiles {
       entries.sort((a, b) => a.name.localeCompare(b.name))
       let stopped = false
       for (const entry of entries) {
-        if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === '.research-memory') continue
+        if (internalDirectory(entry.name)) continue
         if (visited >= this.maxFiles) { stopped = true; break }
         visited++
         const path = directory ? `${directory}/${entry.name}` : entry.name

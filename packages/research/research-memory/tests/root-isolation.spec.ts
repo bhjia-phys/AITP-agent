@@ -68,7 +68,8 @@ it('reads a healthy canonical match and applies its scratch preview despite an u
 it('still rejects the requested missing root, an unconfigured registered root, and an unknown workspace', async () => {
   const { service } = await fixture()
   await expect(service.getProject({ workspaceId: 'offline' as WorkspaceId }, signal())).rejects.toMatchObject({ code: 'ENOENT' })
-  await expect(service.provider({ workspaceId: 'unknown' as WorkspaceId }, signal())).rejects.toThrow('has not been configured for access')
+  expect(await service.provider({ workspaceId: 'unknown' as WorkspaceId }, signal())).toMatchObject({ capabilities: { read: false, applyChanges: false } })
+  await expect(service.getProject({ workspaceId: 'unknown' as WorkspaceId }, signal())).rejects.toThrow('has not been configured for access')
   await expect(service.getProject({ workspaceId: 'absent' as WorkspaceId }, signal())).rejects.toThrow('Workspace is unavailable')
 })
 

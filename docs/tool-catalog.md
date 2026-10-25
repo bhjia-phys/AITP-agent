@@ -148,7 +148,7 @@ Source: [`packages/research/research-memory/src/write-tools.ts`](../packages/res
 
 ### `research_read_context`
 
-Recover the current research direction, source-backed context and exact resource: locators beside Source passages. Use these locators unchanged when preparing source edits. To inspect omitted original human inputs, list their source IDs with inputOffset, then read an exact original input using sourceId and an optional character offset. Original questions include the offered choices and complete answer. This reads only the direction already selected by the human; it does not grant write permission.
+Recover the current research direction, source-backed context and exact resource: locators beside Source passages. Use these locators unchanged when preparing source edits. List original human inputs and unanswered assistant questions with inputOffset, then reopen an exact sourceId with an optional character offset. Questions retain their complete offered choices; an unanswered assistant question is not a human decision. This reads only the direction already selected by the human; it does not grant write permission.
 
 ```json
 {
