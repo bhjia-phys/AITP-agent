@@ -86,3 +86,35 @@ jobs:
           packages/llm/llm-pi-ai/tests/codex-responses.spec.ts
           packages/llm/llm-pi-ai/tests/codex-retry.spec.ts
           packages/llm/llm-pi-ai/tests/tool-argument-streaming.spec.ts
+
+  node-floor-smoke:
+    name: Node ${{ matrix.node }} keyless compatibility
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - node: '22.22.2'
+          - node: '24.15.0'
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+      VITEST_MAX_WORKERS: '1'
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check jsdom storage and observer compatibility
+        run: pnpm exec vitest run --maxWorkers=1 scripts/vitest-environment.compat.spec.ts
+      - name: Check the real TypeScript language server
+        run: >-
+          pnpm exec vitest run --config vitest.e2e.config.ts --maxWorkers=1 --retry=0
+          packages/lsp/lsp-stdio/tests/typescript-server.e2e.ts

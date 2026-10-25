@@ -8,7 +8,7 @@ The setup tutorial takes a new contributor from prerequisites to a checked check
 
 ### Prerequisites
 
-- Node.js supports 22.19+ and 24+. CI covers 22.19, 24, and 26; see the [Node engine floor Agent Note](../.agents/notes/implemented/process/2026-07-06-node-engine-floor.md).
+- The installed workspace requires Node.js 22.22.2+ within 22.x, 24.15.0+ within 24.x, or 26+. AITP validation checks both LTS floors and uses current Node 24 for its main job; the broader retained upstream matrix runs only under its repository and event conditions. See the [Node engine floor Agent Note](../.agents/notes/implemented/process/2026-07-06-node-engine-floor.md).
 - Node.js TypeScript type stripping enabled. The repository build scripts load `tsdown.config.ts` with tsdown's native config loader, so they fail when `--no-experimental-strip-types` is in `NODE_OPTIONS` or the Node.js build lacks TypeScript support; `pnpm run build` checks this first and names the cause.
 - Corepack-enabled pnpm. The repo pins `pnpm@11.28.5` in `package.json`; run `corepack enable` if `pnpm --version` does not resolve through Corepack.
 - Git 2.26 or newer; hook setup enables Git's worktree-specific configuration extension.
@@ -144,7 +144,7 @@ The vendor manifest guard checks that changes under `vendor/*/src` are staged wi
 
 The pi-ai check regenerates expected metadata in memory. It rejects stale data without rewriting or staging files. After a pi-ai dependency or generator change, follow the package's [provider metadata update steps](../packages/llm/llm-pi-ai/README.md#generated-provider-metadata).
 
-Apart from the scoped pairing and provider metadata checks, the hooks intentionally do not run tests, snapshots, documentation checks, builds, or hygiene. Contributors run the [checks relevant to the changed behavior](../AGENTS.md#run-relevant-checks-locally) once; CI owns exhaustive coverage, built-artifact smokes, and the Node 22.19, 24, and 26 compatibility matrix.
+Apart from the scoped pairing and provider metadata checks, the hooks intentionally do not run tests, snapshots, documentation checks, builds, or hygiene. Contributors run the [checks relevant to the changed behavior](../AGENTS.md#run-relevant-checks-locally) once; CI owns exhaustive coverage and built-artifact smokes where enabled. AITP validation also checks the two supported LTS minima; the broader retained compatibility matrix remains subject to its upstream workflow conditions.
 
 Contributors can opt into the comprehensive local gate set with `pnpm run check:all`. The command is independent of the Git hooks and is not an agent instruction.
 

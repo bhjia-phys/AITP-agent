@@ -30,7 +30,7 @@ describe('CI workflow', () => {
     expect(compatibilityLimit).toBeGreaterThan(0)
     expect(compatibility.strategy).toMatchObject({
       'fail-fast': false,
-      matrix: { include: [{ node: '22.19' }, { node: '24.9' }, { node: 26 }] },
+      matrix: { include: [{ node: '22.22.2' }, { node: '24.15.0' }, { node: 26 }] },
     })
     expect(workflowJob(ci, 'all-checks-passed').needs).toContain('node-compat')
     const ordinaryJobs = Object.entries(ci.jobs)
@@ -1510,6 +1510,46 @@ describe('Documentation site publication', () => {
 
     // The environment owns the deployment tag policy and the required reviewers.
     expect(deploy.environment).toMatchObject({ name: 'github-pages' })
+  })
+})
+
+describe('AITP Node floor verification', () => {
+  it('runs keyless jsdom and real language-server checks at both installed-workspace floors', () => {
+    const workflow = loadWorkflow('.github/workflows/aitp-validation.yml')
+    const job = workflowJob(workflow, 'node-floor-smoke')
+    const manifest: unknown = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
+    if (!isRecord(manifest) || !isRecord(manifest.engines) || !Array.isArray(job.steps)) {
+      throw new TypeError('Node floors require the root engine range and executable workflow steps')
+    }
+
+    expect(manifest.engines.node).toBe('^22.22.2 || ^24.15.0 || >=26.0.0')
+    expect(workflowEvent(workflow, 'pull_request').branches).toEqual(['main'])
+    expect(job.if).toBeUndefined()
+    expect(job.needs).toBeUndefined()
+    expect(job['continue-on-error']).not.toBe(true)
+    expect(job.strategy).toMatchObject({
+      'fail-fast': false,
+      'max-parallel': 1,
+      matrix: { include: [{ node: '22.22.2' }, { node: '24.15.0' }] },
+    })
+    expect(job.env).toMatchObject({ VITEST_MAX_WORKERS: '1' })
+
+    const steps = job.steps.filter(isRecord)
+    expect(steps.find(step => step.uses === 'actions/checkout@v7.0.1')).toMatchObject({
+      with: { submodules: 'recursive', 'persist-credentials': false },
+    })
+    expect(steps.some(step => step.uses === 'pnpm/action-setup@v6')).toBe(true)
+    expect(steps.find(step => step.uses === 'actions/setup-node@v7.0.0')).toMatchObject({
+      with: { 'node-version': '${{ matrix.node }}' },
+    })
+    const commands = steps.flatMap(step => typeof step.run === 'string' ? [step.run] : [])
+    expect(commands).toEqual([
+      'pnpm install --frozen-lockfile',
+      'pnpm exec vitest run --maxWorkers=1 scripts/vitest-environment.compat.spec.ts',
+      'pnpm exec vitest run --config vitest.e2e.config.ts --maxWorkers=1 --retry=0 packages/lsp/lsp-stdio/tests/typescript-server.e2e.ts',
+    ])
+    for (const step of steps) expect(step['continue-on-error']).not.toBe(true)
+    expect(JSON.stringify(job)).not.toContain('secrets.')
   })
 })
 

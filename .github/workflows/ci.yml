@@ -417,15 +417,14 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          - node: '22.19'
-            name: node 22.19
+          - node: '22.22.2'
+            name: node 22.22.2
             runner: ubuntu-latest
             gate_concurrency: '1'
-          # Pinned inside 24.0-24.11.1: those releases carry the v1 internal
-          # loader while reporting major 24, and every other job tracks the
-          # latest 24, which is v2. A bare `24` here would retest that same v2.
-          - node: '24.9'
-            name: node 24.9
+          # Pin both supported LTS floors; the primary jobs already track
+          # the latest Node 24 rather than its minimum supported patch.
+          - node: '24.15.0'
+            name: node 24.15.0
             runner: ubuntu-latest
             gate_concurrency: '1'
           - node: 26

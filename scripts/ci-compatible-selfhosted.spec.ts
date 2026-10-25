@@ -68,11 +68,11 @@ describe('Node compatibility self-hosted routing', () => {
   })
 
   it('preserves all three required version jobs and their concurrency', () => {
-    expect(job.if).toBe("github.event_name == 'pull_request'")
+    expect(job.if).toBe("github.repository == 'deepseek-ai/deepseek-harness' && github.event_name == 'pull_request'")
     expect(job.strategy['fail-fast']).toBe(false)
     expect(job.strategy.matrix.include).toEqual([
-      { node: '22.19', name: 'node 22.19', runner: 'ubuntu-latest', gate_concurrency: '1' },
-      { node: '24.9', name: 'node 24.9', runner: 'ubuntu-latest', gate_concurrency: '1' },
+      { node: '22.22.2', name: 'node 22.22.2', runner: 'ubuntu-latest', gate_concurrency: '1' },
+      { node: '24.15.0', name: 'node 24.15.0', runner: 'ubuntu-latest', gate_concurrency: '1' },
       { node: 26, name: 'node 26', runner: 'ubuntu-latest', gate_concurrency: '1' },
     ])
     expect(job.env.DSH_GATE_CONCURRENCY).toBe('${{ matrix.gate_concurrency }}')
@@ -150,7 +150,7 @@ describe('Node compatibility self-hosted routing', () => {
     const index = job.steps.findIndex(step => step.name === 'Isolate compatibility caches')
     const step = job.steps[index]!
     expect(index).toBeGreaterThan(0)
-    expect(index).toBeLessThan(job.steps.findIndex(candidate => candidate.uses === 'pnpm/action-setup@v5.0.0'))
+    expect(index).toBeLessThan(job.steps.findIndex(candidate => candidate.uses === 'pnpm/action-setup@v6'))
     expect(step.if).toBe("runner.environment == 'self-hosted'")
     const root = mkdtempSync(join(tmpdir(), 'ci-compatible-selfhosted-'))
     try {

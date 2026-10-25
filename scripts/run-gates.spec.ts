@@ -846,7 +846,7 @@ describe('Typert contract preparation', () => {
 })
 
 describe('Node compatibility graph', () => {
-  it.each(['22.19.0', '24.9.0', '26.0.0'])('runs all source compatibility smokes serially on Node %s', (version) => {
+  it.each(['22.22.2', '24.15.0', '26.0.0'])('runs all source compatibility smokes serially on Node %s', (version) => {
     const subject = withNodeVersion(version, () =>
       withPnpmEntrypoint(() => gatesForMode('node-compat')))
 
@@ -879,7 +879,7 @@ describe('Node compatibility graph', () => {
   })
 
   it.each([undefined, '1'])('builds the complete Node 22 artifacts once with skip-typecheck=%s', (skipTypecheck) => {
-    const subject = withNodeVersion('22.19.0', () =>
+    const subject = withNodeVersion('22.22.2', () =>
       withEnv('DSH_NODE_COMPAT_SKIP_TYPECHECK', skipTypecheck, () =>
         withPnpmEntrypoint(() => gatesForMode('node-compat'))))
 
@@ -895,7 +895,7 @@ describe('Node compatibility graph', () => {
   })
 
   it.each(['passed', 'failed'] as const)('runs the Node 22 lazy-search smoke only after a passed build (%s)', async (buildStatus) => {
-    const subject = withNodeVersion('22.19.0', () =>
+    const subject = withNodeVersion('22.22.2', () =>
       withEnv('DSH_NODE_COMPAT_SKIP_TYPECHECK', '1', () =>
         withPnpmEntrypoint(() => gatesForMode('node-compat'))))
     let buildCompleted = false
