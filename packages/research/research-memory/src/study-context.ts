@@ -21,7 +21,13 @@ function uniqueQuote(text: string, quote: string): { start: number; end: number 
   return { start, end: start + quote.length }
 }
 
-function textPassage(reading: ResourceReading, selection: SourceSelection): Passage {
+/**
+ * Resolve a selected text range or anchor against the current authorized reading.
+ * @param reading - observed source body, including any provider-resolved code revision.
+ * @param selection - requested source location and optional exact quotation.
+ * @returns the located passage, before retrieval or result-size truncation.
+ */
+export function resolveStudyTextPassage(reading: ResourceReading, selection: SourceSelection): Passage {
   if (reading.body.kind !== 'text') throw new Error('The selected source is not a text reading.')
   const raw = reading.body.text
   let start = 0, end = raw.length
@@ -53,7 +59,7 @@ function passages(reading: ResourceReading, selection: SourceSelection): Passage
   if (reading.body.kind === 'image') {
     throw new Error('This source is an image preview; no image content, OCR text or visual interpretation was delivered by the text source reader.')
   }
-  if (reading.body.kind === 'text') return [textPassage(reading, selection)]
+  if (reading.body.kind === 'text') return [resolveStudyTextPassage(reading, selection)]
   if (selection.locator !== undefined && selection.locator.kind !== 'pdf-page') throw new Error('The selected locator does not address a PDF page.')
   const requested = selection.locator
   const pages = requested === undefined ? reading.body.pages : reading.body.pages.filter(page => page.page === requested.page)

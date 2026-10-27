@@ -98,6 +98,11 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     ownerPropsReferences: [
       'Domain',
+      'ResourceDomain',
+      'ResourceSummary',
+      'SourceRoot',
+      'SourceRootId',
+      'SourceSelection',
     ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
@@ -140,7 +145,11 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ownerProps: [
       '/** A domain\'s source body stays inside the shared exact-selection boundary. */\nexport interface MaterialBodyInput {\n  readonly reading: ResourceReading\n  readonly text: string\n  readonly raw: boolean\n  readonly onLink: (link: ResourceSummary[\'links\'][number]) => boolean\n  readonly onNavigate: (selection: SourceSelection) => void\n}',
     ],
-    ownerPropsReferences: [],
+    ownerPropsReferences: [
+      'ResourceReading',
+      'ResourceSummary',
+      'SourceSelection',
+    ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
       'useResource: UseResource',
@@ -183,6 +192,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     ownerPropsReferences: [
       'MaterialField',
+      'ResourceReading',
     ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
@@ -237,7 +247,9 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ownerProps: [
       '/** Study plugins may prepare an editable question; only the existing composer submits it. */\nexport interface MaterialStudyTaskOwner {\n  readonly selectionCount: number\n  readonly selections: readonly SourceSelection[]\n  readonly prepareQuestion: (question: string) => void\n}',
     ],
-    ownerPropsReferences: [],
+    ownerPropsReferences: [
+      'SourceSelection',
+    ],
     standardProps: [
       'useRemoteAccess: (action: RemoteEndpoint) => boolean',
       'useResource: UseResource',
@@ -298,7 +310,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'aitp.research.discussion.conversation\', () => ctx.slots.register(\n      { name: \'aitp.research.discussion.conversation\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-aitp-research/src/client/discussion-contract.ts:93',
+    source: 'packages/client/ui-aitp-research/src/client/discussion-contract.ts:126',
   },
   {
     key: 'aitp.research.topic.libraries',

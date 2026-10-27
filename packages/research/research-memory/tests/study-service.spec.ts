@@ -11,7 +11,7 @@ import { createUserMessage, LlmAdapter, ToolCallId, type GenerateOptions, type S
 import { SessionId } from '@deepseek-ai/dsh-session'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import ResearchResources, { resourceEntryId, sourceIdForPath, sourceRootId } from '@deepseek-ai/dsh-research-resources'
-import type { ResourceResult, SourceSelection, StudyRequest } from '@deepseek-ai/dsh-research-resources/types'
+import type { ResourceResult, SourceLocator, SourceSelection, StudyRequest } from '@deepseek-ai/dsh-research-resources/types'
 import ResearchMemory from '../src/index.ts'
 import { promptAdmission } from './fixtures/admission.ts'
 import ExactSessionQuery from './fixtures/runtime/query-plugin.ts'
@@ -134,6 +134,39 @@ it('reports an image observation as undelivered instead of claiming text or visu
   expect(delivered).toContain('no image content, OCR text or visual interpretation was delivered')
   expect(delivered).not.toContain('条件甲只用于有限系统')
   expect(delivered).not.toContain('PDF physical page')
+})
+
+it.each(['anchor', 'text'] as const)('reads a late %s passage before applying follow-up character offsets', async (kind) => {
+  const { ask, selections, ctx, path } = await fixture()
+  const introduction = '# Introduction\n\n' + 'INTRO_ONLY: unrelated background.\n'.repeat(800)
+  const passage = 'The TAIL_SOURCE_CONDITION requires convention C.\nA second line retains the finite-system limit.'
+  const heading = '\n## Tail evidence\n\n'
+  const text = introduction + heading + passage + '\n\n## Appendix\n\nAPPENDIX_ONLY\n'
+  await writeFile(join(path, 'first/note.md'), text)
+  const start = text.indexOf(passage)
+  const locator: SourceLocator = kind === 'anchor' ? { kind, anchor: 'tail-evidence' }
+    : { kind, start, end: start + passage.length, quote: passage }
+  // A new requested location must not inherit an earlier human-selected quote elsewhere in the source.
+  const agent = await ask({ question: 'Keep the source selected for later reading.',
+    selections: [{ ...selections[0]!, selectedText: '# Introduction' }] })
+  const expected = kind === 'anchor' ? '## Tail evidence\n\n' + passage + '\n\n' : passage
+  for (const offset of [0, 23]) {
+    const result = await ctx.tools.execute({ name: 'research_read_source',
+      arguments: { sourceIndex: 1, location: JSON.stringify(locator), offset }, agent,
+      callId: ToolCallId(`late-${kind}-${offset}`), signal: signal() })
+    expect(result.isError).not.toBe(true)
+    const delivered = result.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')
+    expect(delivered).toContain(`window starts at character ${offset} of ${expected.length}`)
+    expect(delivered.endsWith(expected.slice(offset))).toBe(true)
+    expect(delivered).not.toContain('INTRO_ONLY')
+    expect(delivered).not.toContain('APPENDIX_ONLY')
+    expect(JSON.stringify({ text: delivered }).length).toBeLessThanOrEqual(12_000)
+  }
+  const beyond = await ctx.tools.execute({ name: 'research_read_source',
+    arguments: { sourceIndex: 1, location: JSON.stringify(locator), offset: expected.length + 1 }, agent,
+    callId: ToolCallId(`late-${kind}-beyond`), signal: signal() })
+  expect(beyond.isError).toBe(true)
+  expect(JSON.stringify(beyond.content)).toContain('offset is beyond the current source reading')
 })
 
 it('retains a historical human-selected quote separately from a changed current source', async () => {

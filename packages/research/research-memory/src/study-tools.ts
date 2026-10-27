@@ -3,6 +3,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ResearchResources } from '@deepseek-ai/dsh-research-resources'
 import { materialSourceAddress, parseMaterialLocator } from '@deepseek-ai/dsh-research-resources/protocol'
+import { resolveStudyTextPassage } from './study-context.ts'
 
 function boundedWindow(header: string, text: string, offset: number, bound: number): string {
   if (JSON.stringify({ text: header }).length > bound) throw new Error('The source locator exceeds the complete read-result bound; use a smaller location.')
@@ -26,7 +27,7 @@ export function installStudyTools(ctx: Context, resources: Pick<ResearchResource
   maxResultCharacters: number): () => void {
   return ctx.tools.register(defineTool({
     name: 'research_read_source',
-    description: 'Read a current source already selected for this research conversation. sourceIndex is its one-based selected-source number. Optionally specify location as JSON: {"kind":"pdf-page","page":2}, {"kind":"anchor","anchor":"proof"}, or {"kind":"code","startLine":10,"endLine":30,"revision":"commit-id"}. PDF pages and code lines are one-based. offset reopens a bounded character window. This reads evidence, not permission to write or a claim that the whole source was inspected.',
+    description: 'Read a current source already selected for this research conversation. sourceIndex is its one-based selected-source number. Optionally specify location as JSON: {"kind":"pdf-page","page":2}, {"kind":"anchor","anchor":"proof"}, or {"kind":"code","startLine":10,"endLine":30,"revision":"commit-id"}. PDF pages and code lines are one-based. offset reopens a bounded character window within the requested passage. This reads evidence, not permission to write or a claim that the whole source was inspected.',
     parameters: {
       sourceIndex: { type: 'integer', required: true }, location: { type: 'string' }, offset: { type: 'integer' },
     },
@@ -53,12 +54,13 @@ export function installStudyTools(ctx: Context, resources: Pick<ResearchResource
       if (reading.body.kind === 'image') {
         throw new Error('This source is an image preview; no image content, OCR text or visual interpretation was delivered by the text source reader.')
       }
-      const text = reading.body.kind === 'text' ? reading.body.text
+      const text = reading.body.kind === 'text' ? resolveStudyTextPassage(reading, { ref: selected.ref,
+        ...(locator === undefined ? {} : { locator }) }).text
         : reading.body.pages.map(page => `PDF physical page ${page.page}${page.printedPage === undefined ? '' : `; printed page ${page.printedPage}`}\n${page.text}`).join('\n\n')
       if (offset > text.length) throw new Error('The read offset is beyond the current source reading.')
       const header = `Selected source ${args.sourceIndex}: ${reading.resource.title}\n`
         + `Current reading: ${materialSourceAddress(selected.ref, reading.locator ?? locator)}\n`
-        + `Observed ${reading.observedAt}; window starts at character ${offset} of ${text.length}. Reopen with a further offset when needed.\n`
+        + `Observed ${reading.observedAt}; window starts at character ${offset} of ${text.length} in this located passage. Reopen with a further offset when needed.\n`
         + (reading.issues.length === 0 ? '' : `Reading limits: ${reading.issues.join('; ')}\n`)
       return { text: boundedWindow(header, text, offset, maxResultCharacters) }
     },
