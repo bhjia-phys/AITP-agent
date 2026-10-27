@@ -104,6 +104,7 @@ export function installWriteTools(ctx: Context, options: WriteToolsOptions): () 
     const session = exec.agent.session
     const origin = ctx.sessionProjections.stateOf(session, 'researchWorking')?.origin
     if (origin === null || origin === undefined) throw new Error('No human-selected research location is bound to this conversation.')
+    if (origin.scope === 'global' || origin.workspaceId === undefined) throw new Error('Global source study has no selected research-note owner. Choose the intended research direction before preparing a source edit.')
     if (ctx.get('sandboxPolicy') === undefined) throw new Error('The session file policy is unavailable; research writing is disabled.')
     const target = await options.resolveTarget(origin, session)
     if (target === undefined) throw new Error('No scratch writer is configured for this research location.')

@@ -97,6 +97,8 @@ kind: "package-library"
 
 ### 渲染 agent 输出
 
+可选的 `MarkdownDelegateProvider.localLinks` 能力在文件路径解码前接收作者原样书写的本地路径和片段。仅语法上属于本地的目标进入 `canOpen`/`open` 回调；外部 URL、可执行协议及网络路径不能通过这项能力接管。未被接纳的本地链接保持不可点击，激活时会再次检查当前所有者。不提供此能力时，已有的 `openFile` 行为不变。来源阅读器因此可以保留自身范围和锚点导航，无需改写 Markdown，也不会借用 Session 的文件系统。
+
 最近的 `MarkdownDelegateProvider` 提供可选的 `openExternalLink` 和 `openFile` 导航回调。嵌套 Provider 替换外层能力，回调变化无需重新构建 Markdown 即可到达已渲染链接。其 `openFile` 使本地 Markdown 链接在落定后可点击。绝对路径和工作区相对路径支持百分号转义以及 `#L24` / `#L24-L30` 片段；范围定位到起始行。文件名中的字面 `?` 和 `#` 必须百分号编码。悬停提示使用解码后的路径，并在标签为空时提供可访问名称。回调接收解码后的路径和可选行号，渲染器保留标签并显示文件图标。不传回调时，本地链接仍为文本。URL 协议、查询串、不支持的片段及格式错误的目标不会传给文件打开器。
 
 `MarkdownText` 渲染不可信的 GFM 与 TeX 公式、阻止不安全的链接与图片，并可把已解析的文件提及转换为显式控件。外层 `MarkdownDelegateProvider` 会接收普通点击产生的已净化 HTTP(S) URL；带修饰键的点击和 Provider 外的链接保留原生外部 anchor 行为。当 owner 传入 `pathImages` 词表时，本地媒体路径的图片目标只在落定渲染阶段重写为可展示 URL（与 file mentions 相同的流式门）；不传词表时本地目标保持惰性 alt 文本。重写后的图片支持 HTTP(S)、data、blob 及桌面端 `dsh-app://app/api/file` 路由；正文直接书写的桌面端 URL 仍保持惰性。加载或解码失败后，图片替换为作者的 alt 文本；alt 为空时显示原始目标路径；`fileImages` 还提供本地化的失败提示前缀。图片源变化后可重新加载。回复流式输出时，它冻结已完成的块、按已完成行推进顶层未闭合 fence，并从保存的 Shiki grammar state 为该 fence 增量高亮。已完成的 token 行进入固定大小的 React 分组，后续分片只 reconcile 正在增长的分组；最终全量解析解决跨文档语法时，未变化的 fence 会保留该 DOM。`TerminalBlock`、`ReadBlock`、`DiffBlock`、`SearchBlock` 与 `WebBlock` 把对应的工具结果意图渲染为带复制控件、溢出处理及适用时 ANSI 处理的卡片。`JsonTree` 与 `JsonBlock` 以只读方式检查 JSON 值；`UserTextRun` 渲染不做解析的文本，`ReferenceChip` 渲染业务已解析的标签。显式传入 `onActivate` 后，胶囊成为可由键盘操作的按钮；重复指针点击和已有文本选区不触发激活，键盘激活仍然可用。标签继承所属容器的换行规则。识别和 JSON 变换由 [ui-conversation](../ui-conversation/README.zh.md#sent-user-text) 负责。

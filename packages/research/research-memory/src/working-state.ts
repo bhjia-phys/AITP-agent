@@ -5,6 +5,7 @@ import { SessionSeq, TOOL_OUTCOME_UNKNOWN, type Session, type SessionEvent } fro
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from '@deepseek-ai/dsh-user-questions'
 import type { ResearchHumanInput, ResearchOrigin, ResearchWorkingState, ResearchWriteRecord } from './working-types.ts'
+import { sourceSelectionSchema } from './study-schema.ts'
 
 /** Existing tool-result carrier used for model-owned provisional items; it does not edit original human inputs. */
 export const WORKING_TOOL = 'research_working_update'
@@ -15,20 +16,28 @@ const writeOutcomeSchema = z.object({
 })
 /** Normalizes selected source addressing without treating a location or selected passage as an execution grant. */
 export const originSchema = z.object({
-  workspaceId: z.string().min(1), topicId: z.string().optional(), resourceId: z.string().optional(),
+  workspaceId: z.string().min(1).optional(), topicId: z.string().optional(), resourceId: z.string().optional(),
+  scope: z.literal('global').optional(), studyId: z.string().min(1).optional(),
+  selections: z.array(sourceSelectionSchema).optional(),
   anchor: z.string().optional(), selectedText: z.string().optional(),
   selectedTextFormat: z.enum(['source', 'rendered']).optional(),
   selectedRange: z.object({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative(), text: z.string() })
     .refine(value => value.end > value.start && value.end - value.start === value.text.length).optional(),
-}).transform((value): ResearchOrigin => ({
-  workspaceId: value.workspaceId,
-  ...(value.topicId === undefined ? {} : { topicId: value.topicId }),
-  ...(value.resourceId === undefined ? {} : { resourceId: value.resourceId }),
-  ...(value.anchor === undefined ? {} : { anchor: value.anchor }),
-  ...(value.selectedText === undefined ? {} : { selectedText: value.selectedText }),
-  ...(value.selectedTextFormat === undefined ? {} : { selectedTextFormat: value.selectedTextFormat }),
-  ...(value.selectedRange === undefined ? {} : { selectedRange: value.selectedRange }),
-}))
+}).refine(value => value.scope === 'global'
+  ? value.studyId !== undefined && value.topicId === undefined
+  : value.workspaceId !== undefined, 'A topic origin needs its Workspace; global study needs its own study identity.')
+  .transform((value): ResearchOrigin => ({
+    ...(value.workspaceId === undefined ? {} : { workspaceId: value.workspaceId }),
+    ...(value.scope === undefined ? {} : { scope: value.scope }),
+    ...(value.studyId === undefined ? {} : { studyId: value.studyId }),
+    ...(value.selections === undefined ? {} : { selections: value.selections }),
+    ...(value.topicId === undefined ? {} : { topicId: value.topicId }),
+    ...(value.resourceId === undefined ? {} : { resourceId: value.resourceId }),
+    ...(value.anchor === undefined ? {} : { anchor: value.anchor }),
+    ...(value.selectedText === undefined ? {} : { selectedText: value.selectedText }),
+    ...(value.selectedTextFormat === undefined ? {} : { selectedTextFormat: value.selectedTextFormat }),
+    ...(value.selectedRange === undefined ? {} : { selectedRange: value.selectedRange }),
+  }))
 /** Validates provisional model content together with its scope and successful tool-call provenance. */
 export const itemSchema = z.object({
   id: z.string().min(1),
@@ -83,6 +92,7 @@ export function isNonOwnerInput(message: UserMessage): boolean {
  * @returns Stable equality key for that workspace/topic pair; it grants no access.
  */
 export function scopeKey(origin: ResearchOrigin): string {
+  if (origin.scope === 'global') return JSON.stringify(['global-study', origin.studyId, origin.workspaceId ?? null])
   return JSON.stringify([origin.workspaceId, origin.topicId ?? null])
 }
 
@@ -93,7 +103,9 @@ export function scopeKey(origin: ResearchOrigin): string {
  */
 export function originPointer(origin: ResearchOrigin): ResearchOrigin {
   const { selectedText: _selectedText, selectedRange: _selectedRange, ...pointer } = origin
-  return pointer
+  return { ...pointer, ...(origin.selections === undefined ? {} : {
+    selections: origin.selections.map(selection => ({ ref: selection.ref })),
+  }) }
 }
 
 /**

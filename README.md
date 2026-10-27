@@ -37,7 +37,7 @@ Update the affected design, plan, cases and current.md together when behavior or
 <a id="relationship-to-aitp"></a>
 ## Repositories and branches
 
-The public repository remains [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent). `main` is the integration and default branch. It fast-forwards the Harness-derived history, including the previous AITP-agent history, without rewriting commits. The former Pi `main` is preserved as `legacy/pi-foundation`; `harness` remains available as the migration branch. The selected upstream baseline is `687f282e86` (`0.2.1-rc.2`), verified against the official `master` on 2026-10-22.
+The public repository remains [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent). `main` is the integration and default branch. It fast-forwards the Harness-derived history, including the previous AITP-agent history, without rewriting commits. The former Pi head (`4eaa9eaf44`) and Harness migration history remain reachable from `main`; obsolete merged branches have been deleted. Existing worktree directories retain their original commits and uncommitted files. The selected upstream baseline is `687f282e86` (`0.2.1-rc.2`), verified against the official `master` on 2026-10-22.
 
 ```sh
 git clone --branch main --recurse-submodules https://github.com/bhjia-phys/AITP-agent.git
@@ -84,7 +84,7 @@ GPT API-key access and ChatGPT subscription sign-in are separate provider routes
 
 The normal AITP Web profile includes the research backend with no directory access enabled. In Conversations, add the existing project folder as a Workspace; then open Research and select it. Choose Enable research project, with Allow saving research changes if you want to create topics and save notes. Read-only enrollment creates no scientific files. Existing host-configured access limits still apply.
 
-Use New topic or New subdirection and enter the title, question and optional scope. Creation writes the new account and its explicit parent link, refreshes the map and opens the topic without contacting a model. Ask in a new conversation starts the ordinary Harness conversation with that topic's source context; later messages keep its scope. Enrollment survives restart in application-owned storage. Source formats, recovery bounds and uncertain write outcomes remain documented in [research memory](packages/research/research-memory/README.md).
+Use New topic or New subdirection and enter the title, question and optional scope. Creation writes the new account and its explicit parent link, refreshes the map and opens the topic without contacting a model. The ordinary Harness conversation opens on the right, under the current topic. Use its New discussion, discussion picker and rename action to manage conversations within that direction. Opening it does not send a model request; submitting the question includes the topic and staged sources, and later messages keep that conversation's scope. Enrollment survives restart in application-owned storage. Source formats, recovery bounds and uncertain write outcomes remain documented in [research memory](packages/research/research-memory/README.md).
 
 ## Upstream and license
 

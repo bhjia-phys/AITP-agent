@@ -8,7 +8,7 @@ import { describe, expect, it, onTestFailed, onTestFinished } from 'vitest'
 import { LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import { launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold } from './scaffold.ts'
-import { newEnglishPage, saveFailureShot } from './support.ts'
+import { newEnglishPage, saveFailureShot, writeComposerDraft } from './support.ts'
 
 const ROOT_ACCOUNT = '# Scratch research project\n\nCan the finite control support a broader claim?\n\n## Topics\n\n[Conditional finite bound](child/research.md) supplies a finite control only; the parent question remains open.\n\n[Independent sibling](sibling/research.md) concerns another question.\n'
 const CHILD_ACCOUNT = '# Conditional finite bound\n\nDoes the bound hold on the selected finite system?\n\n## Scope\n\nFinite N only.\n\n## Current answer\n\nAt N=6, B holds only under A.\n\n## Limitations\n\nNo thermodynamic claim.\n\n## Current work\n\nThe failed open-boundary route can reopen only after its boundary condition changes.\n\n## Materials\n\n[Finite control report](../report.md) records the assumption and the finite-size check.\n'
@@ -122,7 +122,12 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: production AITP resear
         activationErrors.push(message.text())
       }
     })
-    onTestFailed(() => saveFailureShot(page, 'web-e2e-aitp-memory'))
+    onTestFailed(async () => {
+      await saveFailureShot(page, 'web-e2e-aitp-memory')
+      await writeFile(join(evidence, 'web-e2e-aitp-memory-failure.json'), JSON.stringify({
+        activationErrors, pageErrors: console.pageErrors, body: await page.locator('body').ariaSnapshot(),
+      }, null, 2))
+    })
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })
     await page.getByRole('navigation', { name: 'Global panels' })
       .getByRole('button', { name: 'Research', exact: true }).click()
@@ -152,7 +157,8 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: production AITP resear
     expect(await panel.getByRole('button', { name: /^Materials/ }).getAttribute('aria-expanded')).toBe('true')
     await expect.poll(() => page.evaluate(() => document.activeElement?.textContent ?? '')).toContain('report.md')
 
-    await panel.getByRole('button', { name: 'Edit scope', exact: true }).click()
+    await panel.getByRole('button', { name: 'More actions', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Edit scope', exact: true }).click()
     const editor = panel.getByRole('region', { name: 'Edit scope', exact: true })
     await editor.getByRole('textbox', { name: 'Scope', exact: true }).fill(UPDATED_SCOPE)
     await editor.getByRole('button', { name: 'Preview change', exact: true }).click()
@@ -185,27 +191,34 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: production AITP resear
     // A real rendered DOM range crosses strong, link and code elements; source Markdown is not submitted as the human quote.
     const selectedText = await selectRenderedPassage(passage)
     expect(selectedText).toBe(REPORT_QUOTE)
-    const composer = panel.getByRole('textbox', { name: 'Ask about this research', exact: true })
-    await composer.click()
-    await panel.getByText('Selected passage', { exact: true }).waitFor()
-    expect(await panel.locator('blockquote').textContent()).toBe(REPORT_QUOTE)
-    await panel.getByRole('button', { name: 'Clear selection', exact: true }).click()
+    const discuss = panel.getByRole('button', { name: 'Discuss this research', exact: true })
+    await discuss.click()
+    const discussion = panel.locator('[data-research-discussion]')
+    const composer = discussion.locator('[data-composer-input]')
+    await composer.waitFor()
+    const sources = discussion.locator('details').filter({ hasText: 'Sources for the next question' })
+    await sources.locator('summary').click()
+    expect(await sources.locator('blockquote').textContent()).toBe(REPORT_QUOTE)
+    await sources.getByRole('button', { name: 'Use direction only', exact: true }).click()
     await composer.focus()
-    expect(await panel.getByText('Selected passage', { exact: true }).count()).toBe(0)
-    // Keyboard entry has no pointerdown: a valid document-selection gesture must survive native Tab focus too.
+    expect(await sources.locator('blockquote').count()).toBe(0)
+    await discussion.getByRole('button', { name: 'Back to reading', exact: true }).click()
+    // Keyboard entry has no pointerdown: a rendered selection must survive native Tab focus into the discussion action.
     await passage.getByRole('link', { name: 'the matched control', exact: true }).focus()
     expect(await selectRenderedPassage(passage)).toBe(REPORT_QUOTE)
-    await page.keyboard.press('Tab')
-    await expect.poll(() => composer.evaluate(element => element.ownerDocument.activeElement === element)).toBe(true)
-    await panel.getByText('Selected passage', { exact: true }).waitFor()
-    expect(await panel.locator('blockquote').textContent()).toBe(REPORT_QUOTE)
-    await composer.fill(QUESTION)
+    await page.keyboard.press('Shift+Tab')
+    await expect.poll(() => discuss.evaluate(element => element.ownerDocument.activeElement === element)).toBe(true)
+    await page.keyboard.press('Enter')
+    await composer.waitFor()
+    if (await sources.getAttribute('open') === null) await sources.locator('summary').click()
+    expect(await sources.locator('blockquote').textContent()).toBe(REPORT_QUOTE)
+    await writeComposerDraft(page, composer, QUESTION)
     expect(capture.requests).toHaveLength(0)
     const settled = scaffold.whenTurnSettled()
-    await panel.getByRole('button', { name: 'Ask in a new conversation', exact: true }).click()
+    await composer.press('Enter')
     const sessionId = await settled
-    await panel.waitFor({ state: 'hidden' })
-    await page.locator('[data-slot="conversation.chat.flow"]').getByText(REPLY, { exact: true }).waitFor()
+    await discussion.locator('[data-slot="conversation.chat.flow"]').getByText(REPLY, { exact: true }).waitFor()
+    await heading(panel, 'report.md')
     expect(capture.requests).toHaveLength(1)
     const request = capture.requests[0]
     if (request === undefined) throw new Error('The material question never reached the model transport.')
@@ -261,7 +274,8 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: production AITP resear
     }
     expect(await task.getByText('Fixture data, not this Session’s record', { exact: true }).count()).toBe(0)
     await page.screenshot({ path: join(evidence, 'web-e2e-aitp-memory-taskcard.png'), fullPage: true })
-    await page.getByRole('button', { name: 'Sources & memory', exact: true }).click()
+    await task.getByRole('button', { name: 'Details', exact: true }).click()
+    await task.getByRole('button', { name: 'Open sources and memory', exact: true }).click()
     const memory = page.getByRole('heading', { name: 'Sources & memory', exact: true, level: 2 }).locator('..')
     await memory.getByRole('heading', { name: /Original human inputs/ }).waitFor()
     expect(await memory.getByText(QUESTION, { exact: true }).textContent()).toBe(QUESTION)

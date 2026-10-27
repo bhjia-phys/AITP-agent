@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-compaction'
 import { applyWorkingEvent, contentText, emptyWorkingState, scopeKey } from './working-state.ts'
 import type { ResearchWorkingState } from './working-types.ts'
 import type { AgentItem, ResearchContextSnapshot, ResearcherItem, SessionMemoryView, SourceItem, SummaryItem } from './session-view-types.ts'
+import { materialSourceAddress } from '@deepseek-ai/dsh-research-resources/protocol'
 
 /** Bounds apply to the complete serialized UI response, including references and notices. */
 export interface SessionMemoryLimits {
@@ -108,24 +109,31 @@ export function buildSessionMemoryView(
     id: `summary:${event.seq}`, turn: turns.get(event.seq) ?? 0,
     covers: [turns.get(event.data.shadowedRange.start) ?? 0, turns.get(event.data.shadowedRange.end) ?? 0],
   }] : [])
-  const topicPath = pathOf(origin.topicId, 'topic:')
-  const materialPath = pathOf(origin.resourceId, 'resource:')
-  const source = (path: string, reason: 'owner' | 'selected'): SourceItem => ({
+  const topicPath = origin.workspaceId === undefined ? undefined : pathOf(origin.topicId, 'topic:')
+  const materialPath = origin.workspaceId === undefined ? undefined : pathOf(origin.resourceId, 'resource:')
+  const source = (path: string, reason: 'owner' | 'selected', workspaceId: string): SourceItem => ({
     id: `${reason}:${path}`, label: path,
-    address: `dsh-resource://aitp-note/workspace/${encodeURIComponent(origin.workspaceId)}/note/${encodeURIComponent(path)}`,
+    address: `dsh-resource://aitp-note/workspace/${encodeURIComponent(workspaceId)}/note/${encodeURIComponent(path)}`,
     reason, requirement: reason === 'selected' ? 'researcher' : 'optional', state: { kind: 'unknown' },
   })
   const sources = [
-    ...(topicPath === undefined ? [] : [source(topicPath, 'owner')]),
-    ...(materialPath === undefined || materialPath === topicPath ? [] : [source(materialPath, 'selected')]),
+    ...(topicPath === undefined || origin.workspaceId === undefined ? [] : [source(topicPath, 'owner', origin.workspaceId)]),
+    ...(materialPath === undefined || materialPath === topicPath || origin.workspaceId === undefined ? [] : [source(materialPath, 'selected', origin.workspaceId)]),
+    ...(origin.selections ?? []).map((selection): SourceItem => ({
+      id: materialSourceAddress(selection.ref, selection.locator),
+      label: `${selection.ref.rootId}: ${selection.ref.sourceId}`,
+      address: materialSourceAddress(selection.ref, selection.locator),
+      reason: 'selected', requirement: 'researcher', state: { kind: 'unknown' },
+    })),
   ]
   const researcher: ResearcherItem[] = [], selectedAgent: AgentItem[] = [], selectedSources: SourceItem[] = []
   const selectedContexts: ResearchContextSnapshot[] = [], selectedSummaries: SummaryItem[] = []
   const coverage = { omittedItems: 0, contextRecorded: contexts.length > 0, sourceDelivery: 'context-only' as const }
   const view: SessionMemoryView = {
     origin: 'runtime', sessionId: header.id,
-    ...(materialPath !== undefined ? { sessionOrigin: { kind: 'source' as const, label: materialPath, notePath: materialPath } }
-      : topicPath !== undefined ? { sessionOrigin: { kind: 'topic' as const, topic: topicPath, notePath: topicPath } } : {}),
+    ...(origin.scope === 'global' ? { sessionOrigin: { kind: 'global' as const } }
+      : materialPath !== undefined ? { sessionOrigin: { kind: 'source' as const, label: materialPath, notePath: materialPath } }
+        : topicPath !== undefined ? { sessionOrigin: { kind: 'topic' as const, topic: topicPath, notePath: topicPath } } : {}),
     researcher, agent: selectedAgent, gaps: [], sources: selectedSources, rules: [], summaries: selectedSummaries,
     contextSnapshots: selectedContexts, coverage,
   }

@@ -48,7 +48,7 @@ describe('image registration', () => {
       return () => { bodies.delete(options.key); entries.splice(entries.indexOf(options), 1) }
     })
     ctx.provide('documentPreviews', registry)
-    ctx.provide('slots', { inject: (_key: string, callback: () => () => void) => callback(), register } as never)
+    ctx.provide('slots', { inject: (_key: string, callback: () => () => void) => callback(), register, registerFactory: vi.fn() } as never)
     ctx.provide('locale', {
       bind: () => (key: keyof typeof en) => en[key],
       register: (name: string, value: unknown) => {

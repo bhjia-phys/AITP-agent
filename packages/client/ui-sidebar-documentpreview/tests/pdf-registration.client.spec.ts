@@ -49,7 +49,7 @@ describe('PDF registration', () => {
       bind: () => makeTranslate(en),
     } as never)
     ctx.provide('slots', {
-      inject: (_name: string, callback: () => () => void) => callback(), register,
+      inject: (_name: string, callback: () => () => void) => callback(), register, registerFactory: vi.fn(),
     } as never)
     const fiber = ctx.plugin({ apply })
     try {

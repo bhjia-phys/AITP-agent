@@ -8,6 +8,8 @@ import { chatNode, contextLocation } from './common.ts'
 import { contextForm, contextProducer } from './event-projection.ts'
 
 interface ReferencedUserMessageNode extends UserMessageNode {
+  /** Attributed human submissions retain their admitted identity for optimistic-echo matching. */
+  readonly messageId?: string
   /** Labels cited by the immediately following session-reference context. */
   readonly referenceLabels?: readonly string[]
   /** Skill names the same step's `skill-invocation` injections loaded. */
@@ -73,7 +75,8 @@ export const messageDefinition: ConversationNodeDefinition<MessageNode> = {
   start: (_context, match, reader) => {
     const event = match.event
     if (event.type !== 'user/message') throw new Error('input-message start requires user/message')
-    if (event.data.source.kind !== 'user') {
+    const attributedHuman = 'actor' in event.data.source && event.data.source.actor === 'human'
+    if (event.data.source.kind !== 'user' && !attributedHuman) {
       const nextTurn = reader.previous<InboxState>('inbox-next-turn')?.state
       const nextStep = reader.previous<InboxState>('inbox-next-step')?.state
       const location = match.location
@@ -103,6 +106,7 @@ export const messageDefinition: ConversationNodeDefinition<MessageNode> = {
       }
       : {
         kind: 'user',
+        ...attributedHuman ? { messageId: String(event.data.id) } : {},
         seq: event.seq,
         time: event.time,
         content: event.data.content,

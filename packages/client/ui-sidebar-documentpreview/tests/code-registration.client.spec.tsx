@@ -35,6 +35,19 @@ async function boot() {
 }
 
 describe('code renderer registration', () => {
+  it('renders authorized source text in the native code surface without a Session', async () => {
+    const h = await boot()
+    await h.rt.mount(plugin)
+    await act(async () => { h.locale.setLocale('en') })
+    await h.rt.root.declare({}, ({ renderFactorySlot }) => renderFactorySlot('document.code.reader', {
+      text: 'const answer = 42;', path: '研究/source.ts',
+    }))
+    const view = h.rt.renderRoot()
+    expect(view.container.querySelector('[data-code-preview]')).not.toBeNull()
+    expect(view.container.querySelector('pre')?.textContent).toBe('const answer = 42;')
+    expect(view.getByRole('button', { name: 'Copy' })).toBeDefined()
+  })
+
   it('publishes builtin metadata before the document slot exists and waits to register its body', async () => {
     const h = await boot()
     await h.rt.mount(plugin)
@@ -61,6 +74,7 @@ describe('code renderer registration', () => {
     const h = await boot()
     await h.declare()
     const feature = await h.rt.mount(plugin)
+    expect(h.rt.slots.snapshot('factory:document.code.reader')).toHaveLength(1)
     const definition = h.previews.getSnapshot()[0]
     await act(async () => { h.locale.setLocale('en') })
     expect(definition?.title()).toBe('Code')
@@ -69,6 +83,7 @@ describe('code renderer registration', () => {
     await feature.dispose()
     expect(h.previews.getSnapshot()).toEqual([])
     expect(h.rt.slots.entries(SLOT)).toEqual([])
+    expect(h.rt.slots.snapshot('factory:document.code.reader')).toHaveLength(0)
     expect(h.locale.bind('sidebarCodePreview')('title')).toBe('title')
   })
 

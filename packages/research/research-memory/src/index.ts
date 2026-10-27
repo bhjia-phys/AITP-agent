@@ -2,28 +2,39 @@
 import { realpath } from 'node:fs/promises'
 import { watch, type FSWatcher } from 'node:fs'
 import { EventEmitter } from 'node:events'
+import { randomUUID } from 'node:crypto'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { Remote, RemoteError, TypertRemoteService, principalOf } from '@deepseek-ai/dsh-typert-protocol'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { SessionPromptRequest, SessionRequestId } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import { SessionQueryError } from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type {} from '@deepseek-ai/dsh-app-boot'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SourceRootLease, StudyRequest, StudyReceipt, ResourceResult, TopicAssociationProvider } from '@deepseek-ai/dsh-research-resources/types'
+import { sourceIdForPath } from '@deepseek-ai/dsh-research-resources/identity'
 import { MarkdownWorkspace, resourceIdForPath } from './markdown.ts'
 import { ResearchChanges } from './changes.ts'
 import { ResearchOnboarding } from './onboarding.ts'
 import { onboardingFailure } from './onboarding-files.ts'
+import { researchChangeView } from './change-view.ts'
+import { ResearchDiscussions, assertDiscussionScope, readDiscussion } from './discussions.ts'
 import { installRuntime } from './runtime.ts'
 import { installWriteTools } from './write-tools.ts'
 import { createSessionRecovery } from './recovery.ts'
 import { buildSessionMemoryView, replaySessionWorkingState } from './session-view.ts'
+import { readStudyContext } from './study-context.ts'
+import { sourceSelectionSchema } from './study-schema.ts'
+import { installStudyTools } from './study-tools.ts'
 import type { SessionMemoryView } from './session-view-types.ts'
 import type { ResearchOrigin, ResearchContextRead } from './working-types.ts'
 import type {
-  ActivityPage, ActivityQuery, ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview,
+  ResearchChangeView, ResearchChangeQuery, DiscussionPage, DiscussionQuery, ActivityPage, ActivityQuery,
+  ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview,
   ContextQuery, ContextRead, Project, ReadEnvelope, ResearchProvider, ResearchQuestion,
   Resource, ResourceId, Result, Topic, TopicId, TopicPage, TopicQuery,
   ResearchEvent, ResearchSetup, ResearchInitializeRequest, CreateTopicRequest, CreateTopicReceipt,
@@ -36,6 +47,7 @@ const addressedResearchSession = (request: { sessionId: SessionId }): SessionId 
 
 interface SourceObservation {
   reader: MarkdownWorkspace
+  workspaceId: WorkspaceId
   dirty: boolean
   forceNewRevision: boolean
   refreshing: Promise<void> | undefined
@@ -139,11 +151,24 @@ export class ResearchMemory extends TypertRemoteService {
   private readonly lifetime = new AbortController()
   private readonly onboarding: ResearchOnboarding
   private readonly onboardingOperations = new Set<Promise<void>>()
+  private readonly discussions: ResearchDiscussions
+  private sourceInvalidator: ((root: string) => Promise<void>) | undefined
+  private sourceContributor: ((workspaceId: WorkspaceId, root: string) => Promise<void>) | undefined
 
   /** @param ctx - composed Harness host. @param config - authorized source roots and bounds. */
   constructor(ctx: Context, config: Config) {
     super(ctx, 'researchMemory', { namespace: 'researchMemory' })
     this.config = ResearchMemory.Config(config)
+    this.discussions = new ResearchDiscussions(ctx, this.config.maxRecoveryEvents)
+    ctx.on('session/event', (session, event) => {
+      if (event.type === 'user/message' || event.type === 'session/title' || event.type === 'turn/start'
+        || event.type === 'turn/end' || event.type === 'agent/inbox/spliced') {
+        if (session.header.cwd !== undefined) this.notifications.emit(session.header.cwd)
+      }
+    })
+    ctx.on('agent/status', ({ agent }) => {
+      if (agent.session.header.cwd !== undefined) this.notifications.emit(agent.session.header.cwd)
+    })
     const homePath = ctx.get('dshHomePath')
     this.onboarding = new ResearchOnboarding(homePath === undefined ? undefined : () => homePath('research-memory'),
       this.config.maxOperationBytes, this.config.maxFileBytes)
@@ -157,10 +182,93 @@ export class ResearchMemory extends TypertRemoteService {
       }
       await Promise.allSettled([...refreshing, ...this.onboardingOperations])
     }, 'research-memory: source observations and admitted onboarding')
-    installRuntime(ctx, this.config, (origin, signal) => this.contextFor(origin, signal), createSessionRecovery(ctx, this.config))
+    installRuntime(ctx, this.config, (origin, signal, question) => this.contextFor(origin, signal, question),
+      createSessionRecovery(ctx, this.config))
+    const resourceBridge = ctx.inject(['researchResources', 'tools', 'sessionProjections'], (scope) => {
+      const resources = scope.researchResources
+      const roots = new Map<string, Promise<SourceRootLease>>()
+      const materialUses = new Map<string, { key: string; values: Awaited<ReturnType<TopicAssociationProvider['read']>> }>()
+      let active = true
+      const contribute = async (workspaceId: WorkspaceId, root: string): Promise<void> => {
+        if (!active) return
+        let pending = roots.get(root)
+        if (pending === undefined) {
+          pending = resources.registerRoot({ id: `workspace:${workspaceId}`, path: root, workspaceId,
+            isAuthorized: async () => {
+              try { return active && await this.workspaceRoot(workspaceId) === root
+                && (await this.configuredRoots(root)).length > 0 }
+              catch { return false }
+            } })
+          roots.set(root, pending)
+        }
+        try { await pending } catch (error) {
+          if (roots.get(root) === pending) roots.delete(root)
+          throw error
+        }
+      }
+      const invalidate = async (root: string): Promise<void> => {
+        const lease = await roots.get(root)
+        if (lease === undefined || !active) return
+        const result = await resources.refresh({ rootId: lease.rootId }, this.lifetime.signal)
+        if (!result.ok) throw new Error(result.error.message)
+      }
+      scope.effect(() => {
+        this.sourceInvalidator = invalidate
+        this.sourceContributor = contribute
+        return async () => {
+          active = false
+          if (this.sourceContributor === contribute) this.sourceContributor = undefined
+          if (this.sourceInvalidator === invalidate) this.sourceInvalidator = undefined
+          await Promise.allSettled([...roots.values()].map(async (root) => { (await root).dispose() }))
+        }
+      }, 'research-memory: existing root grants')
+      scope.effect(() => resources.registerStudyHandler((request, signal) => this.askStudy(request, signal)),
+        'research-memory: normal source-study conversations')
+      scope.effect(() => installStudyTools(scope, resources, this.config.maxResultCharacters),
+        'research-memory: selected-source follow-up reads')
+      scope.effect(() => resources.registerTopicAssociations({ id: 'research-memory-explicit-material-links',
+        read: async (signal, reportIssue) => {
+          const registered = await resources.listRoots({}, signal)
+          if (!registered.ok) throw new Error(registered.error.message)
+          const rootKey = JSON.stringify(registered.value.map(root => [root.id, root.displayPath]).sort())
+          const result: Awaited<ReturnType<TopicAssociationProvider['read']>>[number][] = []
+          for (const observed of [...this.readers.values()]) {
+            try {
+              const reader = await this.reader(observed.workspaceId, signal)
+              const lease = await roots.get(reader.root)
+              if (lease === undefined) throw new Error('The research-material relationship root is unavailable.')
+              const authored = reader.materialLinks()
+              const key = JSON.stringify([authored.revision, rootKey])
+              let cached = materialUses.get(reader.root)
+              if (cached?.key !== key) {
+                const resolved = await resources.resolveLocalLinks({ links: authored.links.map(link => ({
+                  from: { rootId: lease.rootId, sourceId: sourceIdForPath(link.accountPath) }, href: link.href,
+                })) }, signal)
+                const values = authored.links.flatMap((link, index) => {
+                  const target = resolved[index]
+                  return target === undefined ? [] : [{ ref: target.ref, topic: {
+                    workspaceId: observed.workspaceId, topicId: link.topicId, reason: link.reason,
+                  } }]
+                })
+                cached = { key, values }
+                materialUses.set(reader.root, cached)
+              }
+              result.push(...cached.values)
+            } catch {
+              signal.throwIfAborted()
+              reportIssue?.({ reason: `Authored material uses are unavailable for Workspace ${observed.workspaceId}; its relationships are omitted.` })
+            }
+          }
+          return result
+        },
+      }), 'research-memory: authored material uses')
+      return Promise.all([...this.readers.values()].map(observed => contribute(observed.workspaceId, observed.reader.root))).then(() => {})
+    })
+    ctx.effect(() => () => resourceBridge.dispose(), 'research-memory: optional source service bridge')
     installWriteTools(ctx, {
       maxResultCharacters: this.config.maxResultCharacters,
       resolveTarget: async (origin) => {
+        if (origin.scope === 'global' || origin.workspaceId === undefined) return undefined
         const changes = await this.writer(origin.workspaceId as WorkspaceId)
         if (changes === undefined) return undefined
         const reader = await this.reader(origin.workspaceId as WorkspaceId)
@@ -170,6 +278,7 @@ export class ResearchMemory extends TypertRemoteService {
       onApplied: async (origin) => {
         const reader = await this.reader(origin.workspaceId as WorkspaceId)
         this.markDirty(reader.root)
+        await this.sourceInvalidator?.(reader.root)
       },
     })
   }
@@ -225,6 +334,7 @@ export class ResearchMemory extends TypertRemoteService {
       observed = {
         reader: new MarkdownWorkspace({ root, maxFiles: this.config.maxFiles,
           maxFileBytes: this.config.maxFileBytes, maxContextCharacters: this.config.maxContextCharacters }),
+        workspaceId,
         dirty: true, forceNewRevision: false, refreshing: undefined, watcher: undefined, watchFailure: undefined,
       }
       this.readers.set(root, observed)
@@ -264,6 +374,7 @@ export class ResearchMemory extends TypertRemoteService {
     }
     if (observed.refreshing !== undefined) await waitForObservation(observed.refreshing, lifetime)
     lifetime.throwIfAborted()
+    await this.sourceContributor?.(workspaceId, root)
     return observed.reader
   }
 
@@ -470,7 +581,9 @@ export class ResearchMemory extends TypertRemoteService {
       using observed = await query.observeSession(request.sessionId, { signal, projectionMode: 'none' })
       const state = replaySessionWorkingState(observed.events)
       if (state.origin === null || !state.ownerOrigin || state.restricted) return { ok: true, value: null }
-      await this.reader(state.origin.workspaceId as WorkspaceId, signal)
+      if (state.origin.scope !== 'global' && state.origin.workspaceId !== undefined) {
+        await this.reader(state.origin.workspaceId as WorkspaceId, signal)
+      }
       const value = buildSessionMemoryView(observed, state, {
         maxItems: this.config.maxWorkingItems + this.config.maxHumanInputs + 8,
         maxCharacters: this.config.maxContextCharacters * 2,
@@ -580,7 +693,15 @@ export class ResearchMemory extends TypertRemoteService {
     const writer = await this.writer(request.workspaceId)
     if (writer !== undefined) {
       const result = await writer.apply(request.request, { id: 'host-owner', kind: 'researcher', label: 'Researcher' })
-      if (result.ok || result.error.code === 'partial-apply' || result.error.code === 'outcome-unknown') this.notifications.emit((await this.reader(request.workspaceId)).root)
+      if (result.ok || result.error.code === 'partial-apply' || result.error.code === 'outcome-unknown') {
+        const root = (await this.reader(request.workspaceId)).root
+        this.markDirty(root)
+        try { await this.sourceInvalidator?.(root) } catch (error) {
+          this.ctx.logger.warn(`Research files were processed but material refresh failed: ${String(error)}`)
+          if (result.ok) return { ok: true, value: { ...result.value, value: { ...result.value.value,
+            notificationWarning: 'The file outcome is recorded; material views could not be notified. Reload them before relying on their contents.' } } }
+        }
+      }
       return result
     }
     return { ok: false, error: { code: 'read-only', message: 'Writing is not enabled for this research root.', retryable: false } }
@@ -593,22 +714,24 @@ export class ResearchMemory extends TypertRemoteService {
    * @returns the created normal Session identity or an unresolved-origin/service failure.
    * @throws when the caller is not the owner or the created Session cannot be reached.
    */
-  @Remote({ name: 'ask', resources: { workspace: addressedWorkspace } })
+  @Remote({ name: 'ask', resources: { workspace: addressedWorkspace,
+    session: (request: ResearchQuestion) => request.sessionId } })
   async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>> {
     this.requireOwner()
     signal.throwIfAborted()
-    if (request.question.trim() === '' || request.question.length > this.config.maxQuestionCharacters) {
+    const question = this.questionText(request)
+    if (!this.validQuestion(question, request.content)) {
       return { ok: false, error: { code: 'invalid-request', message: 'The question is empty or exceeds the configured limit.', retryable: false } }
     }
-    const reader = await this.reader(request.workspaceId)
+    const reader = await this.reader(request.workspaceId, signal)
     if ((request.selectedText?.length ?? 0) > this.config.maxContextCharacters) return { ok: false, error: { code: 'invalid-request', message: 'The selected passage exceeds the configured context limit.', retryable: false } }
-    const resolved = await reader.resolveOrigin(request)
+    const resolved = await reader.resolveOrigin(request, { signal })
     if (!resolved.ok) return resolved
     if (resolved.value.status === 'ambiguous') return { ok: false, error: { code: 'invalid-request', message: resolved.value.reason ?? 'This material serves several topics. Open it from the intended topic before asking.', retryable: false } }
     const selectionMissing = (request.selectedText !== undefined || request.anchor !== undefined || request.selectedRange !== undefined)
       && resolved.value.selectedPassage === undefined
     if (resolved.value.status === 'missing' && (selectionMissing || request.topicId !== undefined || request.resourceId !== undefined && request.resourceId !== resourceIdForPath('research.md'))) return { ok: false, error: { code: 'invalid-request', message: resolved.value.reason ?? 'The selected source has no resolved topic.', retryable: false } }
-    const { question, ...selected } = request
+    const { question: _question, content: _content, sessionId: _sessionId, requestId: _requestId, mode: _mode, ...selected } = request
     const origin = { ...selected,
       ...(resolved.value.topicId === undefined ? {} : { topicId: resolved.value.topicId }),
       ...(resolved.value.resourceId === undefined ? {} : { resourceId: resolved.value.resourceId }),
@@ -617,21 +740,166 @@ export class ResearchMemory extends TypertRemoteService {
     if (JSON.stringify(origin).length > this.config.maxContextCharacters) {
       return { ok: false, error: { code: 'invalid-request', message: 'The complete selected-source location exceeds the configured context limit. Select a smaller passage.', retryable: false } }
     }
-    const controller = this.ctx.get('sessionController')
-    if (controller === undefined) return { ok: false, error: { code: 'unsupported', message: 'This host does not provide conversation creation.', retryable: false } }
+    return this.admitDiscussion(request, origin, signal)
+  }
+
+  /**
+   * Inspect a recorded operation without writing sources or resuming an Agent.
+   * @param request - Actual Workspace, owning Session and operation identity.
+   * @param signal - Cancels source authorization and Session observation before receipt inspection.
+   * @returns Bounded immutable before/after text plus the separately rechecked present source state.
+   */
+  @Remote({ name: 'getChange', resources: { workspace: addressedWorkspace, session: addressedResearchSession } })
+  async getChange(request: { workspaceId: WorkspaceId } & ResearchChangeQuery,
+    signal: AbortSignal): Promise<Result<ResearchChangeView>> {
+    this.requireOwner()
+    const query = this.ctx.get('sessionQuery')
+    if (query === undefined) return { ok: false, error: { code: 'unsupported', message: 'Conversation history is unavailable.', retryable: false } }
+    using observed = await query.observeSession(request.sessionId, { signal, projectionMode: 'none' })
+    if (observed.events.length > this.config.maxRecoveryEvents) return { ok: false, error: {
+      code: 'unavailable', message: 'The conversation exceeds the receipt-verification read limit; inspect its original tool record.', retryable: false,
+    } }
+    const state = replaySessionWorkingState(observed.events)
+    const write = state.writes.find(item => item.operationId === request.operationId && item.origin.workspaceId === request.workspaceId
+      && item.origin.scope !== 'global')
+    if (!state.ownerOrigin || state.restricted || write === undefined) return { ok: false, error: {
+      code: 'permission-denied', message: 'This operation is not a recorded source edit of the addressed conversation and Workspace.', retryable: false,
+    } }
     signal.throwIfAborted()
-    const created = await controller.create({ workspaceId: request.workspaceId })
-    const agent = this.ctx.agents.get(created.sessionId)
-    if (agent === undefined) throw new RemoteError('research/session-unavailable', 'The new conversation is unavailable.', {})
-    agent.followup(createUserMessage({ content: [{ type: 'text', text: question }], source: { kind: 'aitp-research', actor: 'human', origin } }))
-    return { ok: true, value: { sessionId: created.sessionId } }
+    const changes = await this.writer(request.workspaceId)
+    if (changes === undefined) return { ok: false, error: { code: 'unavailable', message: 'The original source-edit receipt store is unavailable.', retryable: false } }
+    const recovered = await changes.writer.recover(request.operationId, { sessionId: request.sessionId, workspaceId: request.workspaceId,
+      ...(write.origin.topicId === undefined ? {} : { topicId: write.origin.topicId }) })
+    if (!recovered.ok) return recovered
+    signal.throwIfAborted()
+    return { ok: true, value: researchChangeView(recovered.value, request, this.config.maxContextCharacters) }
+  }
+
+  /**
+   * List ordinary discussions in the exact current research scope without starting any Agent.
+   * @param request - Workspace and optional topic; omission means the root account.
+   * @param signal - Cancels the bounded history read.
+   * @returns Live metadata and explicit omitted-history coverage.
+   */
+  @Remote({ name: 'listDiscussions', resources: { workspace: addressedWorkspace } })
+  async listDiscussions(request: { workspaceId: WorkspaceId } & DiscussionQuery, signal: AbortSignal): Promise<Result<DiscussionPage>> {
+    this.requireOwner()
+    if (request.limit !== undefined && (!Number.isSafeInteger(request.limit) || request.limit < 1)) {
+      return { ok: false, error: { code: 'invalid-request', message: 'Discussion limit must be a positive integer.', retryable: false } }
+    }
+    const reader = await this.reader(request.workspaceId, signal)
+    if (request.topicId !== undefined) {
+      const topic = await reader.getTopic(request.topicId, { signal })
+      if (!topic.ok) return topic
+    }
+    return { ok: true, value: await this.discussions.list(reader.root, {
+      workspaceId: request.workspaceId, ...(request.topicId === undefined ? {} : { topicId: request.topicId }),
+    }, Math.min(request.limit ?? this.config.maxRecoverySessions, this.config.maxRecoverySessions), signal) }
+  }
+
+  private questionText(request: Pick<ResearchQuestion, 'question' | 'content'>): string {
+    return request.content === undefined ? request.question
+      : request.content.filter(part => part.type === 'text').map(part => part.text).join('\n')
+  }
+
+  private validQuestion(question: string, content: ResearchQuestion['content']): boolean {
+    return question.length <= this.config.maxQuestionCharacters
+      && (question.trim().length > 0 || content?.some(part => part.type !== 'text') === true)
+  }
+
+  private async admitDiscussion(request: Pick<StudyRequest, 'sessionId' | 'workspaceId' | 'question' | 'content' | 'requestId' | 'mode'>,
+    origin: ResearchOrigin, signal: AbortSignal): Promise<{ ok: true; value: { sessionId: SessionId } }
+    | { ok: false; error: { code: 'unsupported'; message: string; retryable: false } }> {
+    const controller = this.ctx.get('sessionController')
+    if (controller === undefined) return { ok: false, error: { code: 'unsupported', message: 'This host does not provide conversation admission.', retryable: false } }
+    const root = request.workspaceId === undefined ? undefined : await this.workspaceRoot(request.workspaceId)
+    signal.throwIfAborted()
+    const sessionId = request.sessionId
+      ?? (await controller.create(request.workspaceId === undefined ? {} : { workspaceId: request.workspaceId })).sessionId
+    // Once created/admitted, a cancelled waiter cannot revoke the native Session or its message.
+    const prompt: SessionPromptRequest = { sessionId, requestId: request.requestId ?? brandString<SessionRequestId>(randomUUID()),
+      mode: request.mode ?? 'queue', content: request.content ?? [{ type: 'text', text: request.question }] }
+    const resolved = await controller.resolveAgent(sessionId)
+    if ('error' in resolved) throw resolved.error
+    const snapshot = await readDiscussion(this.ctx, resolved.agent, this.config.maxRecoveryEvents, signal)
+    const guard = (agent: Agent): void => {
+      signal.throwIfAborted()
+      assertDiscussionScope(this.ctx, agent, origin, root, snapshot)
+    }
+    await controller.promptAttributed(prompt, { kind: 'aitp-research', actor: 'human', origin }, guard)
+    if (root !== undefined) this.notifications.emit(root)
+    return { ok: true, value: { sessionId } }
   }
 
   private requireOwner(): void {
     if (principalOf(this.ctx.invocation) !== undefined) throw new RemoteError('research/owner-required', 'Research source writes, conversations and memory views are available to the workspace owner.', {})
   }
 
-  private async contextFor(origin: ResearchOrigin, signal?: AbortSignal): Promise<ResearchContextRead> {
+  private async askStudy(request: StudyRequest, signal: AbortSignal): Promise<ResourceResult<StudyReceipt>> {
+    this.requireOwner()
+    signal.throwIfAborted()
+    const question = this.questionText(request)
+    if (!this.validQuestion(question, request.content)) {
+      return { ok: false, error: { code: 'invalid-request', message: 'The question is empty or exceeds the configured limit.', retryable: false } }
+    }
+    const global = request.scope === 'global' || request.scope !== 'workspace' && request.topicId === undefined
+    if (request.scope === 'global' && request.topicId !== undefined) return { ok: false, error: { code: 'invalid-request', message: 'Global source study cannot also name a research direction.', retryable: false } }
+    if (!global && request.workspaceId === undefined) {
+      return { ok: false, error: { code: 'invalid-request', message: 'A selected research direction needs its actual Workspace.', retryable: false } }
+    }
+    const parsed = sourceSelectionSchema.array().min(1).safeParse(request.selections)
+    if (!parsed.success) return { ok: false, error: { code: 'invalid-request', message: 'Select valid source locations before asking.', retryable: false } }
+    let studyId = request.sourceSetId
+    if (global && request.sessionId !== undefined) {
+      const controller = this.ctx.get('sessionController')
+      if (controller === undefined) return { ok: false, error: { code: 'unsupported', message: 'Conversation admission is unavailable.', retryable: false } }
+      const resolved = await controller.resolveAgent(request.sessionId)
+      if ('error' in resolved) throw resolved.error
+      const existing = (await readDiscussion(this.ctx, resolved.agent, this.config.maxRecoveryEvents, signal)).state.origin
+      if (existing?.scope === 'global') {
+        if (studyId !== undefined && existing.studyId !== studyId) return { ok: false, error: {
+          code: 'invalid-request', message: 'This discussion belongs to another source selection. Open a new discussion.', retryable: false,
+        } }
+        studyId = existing.studyId
+      }
+    }
+    const origin: ResearchOrigin = {
+      ...(request.workspaceId === undefined ? {} : { workspaceId: request.workspaceId }),
+      ...(global ? { scope: 'global', studyId: studyId ?? randomUUID() }
+        : request.topicId === undefined ? {} : { topicId: request.topicId }),
+      selections: parsed.data,
+    }
+    if (JSON.stringify(origin).length > this.config.maxContextCharacters) {
+      return { ok: false, error: { code: 'invalid-request', message: 'The complete selected-source request exceeds the configured context limit.', retryable: false } }
+    }
+    if (!global && request.workspaceId !== undefined) {
+      const reader = await this.reader(request.workspaceId, signal)
+      if (request.topicId !== undefined) {
+        const topic = await reader.getTopic(request.topicId, { signal })
+        if (!topic.ok) return { ok: false, error: { code: 'invalid-request', message: topic.error.message, retryable: false } }
+      }
+    }
+    const resources = this.ctx.get('researchResources')
+    if (resources === undefined) return { ok: false, error: { code: 'unsupported', message: 'The local-source service is unavailable.', retryable: false } }
+    const observed = await readStudyContext(resources, parsed.data, question, this.config.maxContextCharacters, signal)
+    if (observed.invalidSelections.length > 0) return { ok: false, error: {
+      code: 'invalid-request', message: observed.invalidSelections.join('\n'), retryable: false,
+    } }
+    return this.admitDiscussion(request, origin, signal)
+  }
+
+  private async contextFor(origin: ResearchOrigin, signal?: AbortSignal, question = ''): Promise<ResearchContextRead> {
+    const resources = this.ctx.get('researchResources')
+    const selected = origin.selections === undefined ? { entries: [], omissions: [] }
+      : resources === undefined ? { entries: [], omissions: ['The selected local-source service is unavailable.'] }
+        : await readStudyContext(resources, origin.selections, question, this.config.maxContextCharacters, signal ?? this.lifetime.signal)
+    if (origin.scope === 'global') return selected
+    const topic = await this.topicContextFor(origin, signal)
+    return { entries: [...selected.entries, ...topic.entries], omissions: [...selected.omissions, ...topic.omissions] }
+  }
+
+  private async topicContextFor(origin: ResearchOrigin, signal?: AbortSignal): Promise<ResearchContextRead> {
+    if (origin.workspaceId === undefined) return { entries: [], omissions: ['The original research Workspace is unavailable.'] }
     const reader = await this.reader(origin.workspaceId as WorkspaceId, signal)
     const options = signal === undefined ? undefined : { signal }
     if (origin.topicId === undefined && (origin.resourceId === undefined || origin.resourceId === resourceIdForPath('research.md'))) {

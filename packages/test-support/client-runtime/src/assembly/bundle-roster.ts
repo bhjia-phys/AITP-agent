@@ -28,6 +28,7 @@ export const WEB_PROFILE_BUNDLES: readonly string[] = ['@deepseek-ai/dsh-base', 
 
 interface PackageManifest {
   name?: unknown
+  exports?: unknown
   dsh?: { bundle?: { patch?: unknown }; client?: unknown }
 }
 
@@ -132,6 +133,20 @@ function readManifest(path: string): PackageManifest {
 
 /** Resolve package manifests to real paths so linked bundles use their own dependency directories. */
 function locateManifest(anchors: readonly string[], name: string): string | undefined {
+  // A linked bundle can also contribute its own plugin. Node resolves that name
+  // through package exports before node_modules; this is not a dependency search.
+  for (const anchor of anchors) {
+    const own = join(dirname(anchor), 'package.json')
+    if (!existsSync(own)) continue
+    const manifest = readManifest(own)
+    if (manifest.name !== name || manifest.exports === undefined || manifest.exports === null) continue
+    try {
+      createRequire(anchor).resolve(name)
+      return realpathSync(own)
+    } catch {
+      // A blocked/missing root export does not authorize an invented self entry.
+    }
+  }
   const paths = anchors.map(anchor => createRequire(anchor).resolve.paths(name) ?? [])
   for (let depth = 0; depth < Math.max(...paths.map(search => search.length)); depth++) {
     for (const search of paths) {

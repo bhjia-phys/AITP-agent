@@ -64,6 +64,14 @@ Prior-conversation recovery applies `maxRecoverySessions` to matching-topic hist
 
 The model decides whether new information warrants `no-change`, `pending` or a source edit, and names its reasons and remaining scientific uses. `research_prepare_change` retains an exact passage replacement for review; `research_apply_change` rechecks authority, matches a unique original passage against current text, preserves unrelated edits and the source UTF-8 BOM, serializes source publication through the owning writer, then publishes and reads back each file. Model proposals are bound to their Session and topic; UI apply cannot bypass that binding. UI scope/answer commands map only unambiguous existing passages and retain their authored ATX or Setext headings and separators. Nested qualifications are updated in place. A change in only the answer body or dedicated condition field is used once; divergent concurrent edits or ambiguous nested structures are rejected. Separate qualification sections still require an explicit complete-passage edit. A lost result does not justify retrying an uncertain write. `research_recover_change` distinguishes the retained outcome from the file's present contents.
 
+## Selected local sources
+
+When `researchResources` is present, existing authorized research roots contribute counted read grants to that shared service. Authored account links supply topic-material associations with their original using passages; a failed reader reports partial coverage without discarding another root's relationships. The bridge registers the normal Session question handler and `research_read_source`; disposing either plugin withdraws only its own contributions.
+
+Follow-up reads resolve the requested source range, Markdown heading or PDF quotation before applying the bounded character window. Context and follow-up reads use the shared source parser's anchor spans, including later first-level headings and Chinese headings; missing or ambiguous anchors are rejected. The offset is relative to that located passage, and an offset beyond it is rejected. A new location within the selected source does not inherit an earlier selected quotation from another passage. PDF reads without a quotation retain the complete requested pages and their page markers before windowing.
+
+A study can select several sources across authorized roots. The submitted question and original selections remain in the existing Session. An explicit topic keeps its Workspace and direction; a Global study uses an operational study identity without a fabricated topic or write target. Fresh bounded excerpts include exact source links, while historical selected quotations retain their distinct labels after compaction or source changes. Long readings use lexical matching, and incomplete coverage remains explicit. Image preview bodies do not supply text context: selection reports that no image content, OCR text or visual interpretation was delivered, while other valid text sources remain available. Located excerpts are fitted again against the actual final context envelope, including human constraints, scope and coverage notices; exact quotations are not silently shortened. Source addresses retain exact locations without repeating their quoted text in a second locator field. The optional [study plugin](../research-study/README.md) owns provisional answer drafts, separately from this plugin's scientific-file writer.
+
 ## Model Experience
 
 ### Scoped research context
@@ -90,7 +98,7 @@ Changed source or working context replaces the corresponding runtime-context blo
 
 #### What the model sees
 
-The [tool catalog](../../../docs/tool-catalog.md#deepseek-aidsh-research-memory) describes `research_working_update`, `research_read_context`, `research_prepare_change`, `research_apply_change` and `research_recover_change`. Results distinguish original inputs from model-provisional changes and preserve incomplete scientific integration. Preparing or applying a change never converts it into a human decision.
+The [tool catalog](../../../docs/tool-catalog.md#deepseek-aidsh-research-memory) describes `research_working_update`, `research_read_context`, `research_prepare_change`, `research_apply_change` and `research_recover_change`, plus `research_read_source` when the shared source service is present. Results distinguish original inputs from model-provisional changes and preserve incomplete scientific integration. Preparing or applying a change never converts it into a human decision.
 
 #### Token effect
 

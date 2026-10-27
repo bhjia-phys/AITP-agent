@@ -2066,11 +2066,206 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when the caller is not the owner or root access is unavailable.'],
       },
       {
-        signature: '@Remote({ name: \'ask\', resources: { workspace: addressedWorkspace } }) async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>',
+        signature: '@Remote({ name: \'ask\', resources: { workspace: addressedWorkspace, session: (request: ResearchQuestion) => request.sessionId } }) async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>',
         description: 'Submit a human-authored question with its selected topic/material origin.',
         parameters: [{ name: 'request', description: 'exact submitted words and the displayed origin.' }, { name: 'signal', description: 'cancels before admission; admitted messages remain in their Session.' }],
         returns: 'the created normal Session identity or an unresolved-origin/service failure.',
         throws: ['when the caller is not the owner or the created Session cannot be reached.'],
+      },
+      {
+        signature: '@Remote({ name: \'getChange\', resources: { workspace: addressedWorkspace, session: addressedResearchSession } }) async getChange(request: { workspaceId: WorkspaceId } & ResearchChangeQuery, signal: AbortSignal): Promise<Result<ResearchChangeView>>',
+        description: 'Inspect a recorded operation without writing sources or resuming an Agent.',
+        parameters: [{ name: 'request', description: 'Actual Workspace, owning Session and operation identity.' }, { name: 'signal', description: 'Cancels source authorization and Session observation before receipt inspection.' }],
+        returns: 'Bounded immutable before/after text plus the separately rechecked present source state.',
+      },
+      {
+        signature: '@Remote({ name: \'listDiscussions\', resources: { workspace: addressedWorkspace } }) async listDiscussions(request: { workspaceId: WorkspaceId } & DiscussionQuery, signal: AbortSignal): Promise<Result<DiscussionPage>>',
+        description: 'List ordinary discussions in the exact current research scope without starting any Agent.',
+        parameters: [{ name: 'request', description: 'Workspace and optional topic; omission means the root account.' }, { name: 'signal', description: 'Cancels the bounded history read.' }],
+        returns: 'Live metadata and explicit omitted-history coverage.',
+      },
+    ],
+  },
+  {
+    key: 'researchResources',
+    summary: 'Shared local reads; model execution and scientific writing remain separately owned consumers.',
+    description: 'Shared local reads; model execution and scientific writing remain separately owned consumers.',
+    methods: [
+      {
+        signature: 'async registerRoot(registration: SourceRootRegistration): Promise<SourceRootLease>',
+        description: 'Contribute a Host-authorized local root; equal canonical roots share one source identity.',
+        parameters: [{ name: 'registration', description: 'configured or already-enrolled root; never browser-supplied paths.' }],
+        returns: 'a counted lease whose disposal withdraws only this contributor\'s grant.',
+        throws: ['when the path is unavailable, not absolute, or its identity conflicts with another root.'],
+      },
+      {
+        signature: 'registerProvider(provider: ResourceProvider): () => void',
+        description: 'Install one domain projection; every catalog and reader is withdrawn on disposal.',
+        parameters: [{ name: 'provider', description: 'trusted plugin contribution, consuming the shared guarded source context.' }],
+        returns: 'an idempotent disposer; the caller retains it in its plugin effect.',
+      },
+      {
+        signature: 'registerStudyHandler(handler: StudyHandler): () => void',
+        description: 'Connect the single existing-conversation owner without importing a model runtime here.',
+        parameters: [{ name: 'handler', description: 'research-memory integration creating ordinary Harness conversations.' }],
+        returns: 'an idempotent disposer for this handler\'s lifecycle.',
+      },
+      {
+        signature: 'registerTopicAssociations(provider: TopicAssociationProvider): () => void',
+        description: 'Contribute explicit source relationships from existing scientific owners.',
+        parameters: [{ name: 'provider', description: 'source-backed batched reader; it cannot register roots or infer scientific support.' }],
+        returns: 'an idempotent disposer removing this contributor and invalidating the projected catalog.',
+      },
+      {
+        signature: 'async resolveLocalLink(request: { from: SourceRef; href: string }, signal: AbortSignal): Promise<{ ref: SourceRef; locator?: SourceLocator } | undefined>',
+        description: 'Resolve an authored local link through already authorized roots without reading its target.',
+        parameters: [{ name: 'request', description: 'a known source and its original href.' }, { name: 'signal', description: 'cancellation while current Host grants are checked.' }],
+        returns: 'a root-qualified location, or undefined for unregistered, external or malformed links.',
+      },
+      {
+        signature: 'async resolveLocalLinks(request: { links: readonly { from: SourceRef; href: string }[] }, signal: AbortSignal): Promise<readonly ({ ref: SourceRef; locator?: SourceLocator } | undefined)[]>',
+        description: 'Resolve many owned-note links using one current authorized-root observation.',
+        parameters: [{ name: 'request', description: 'original source and href pairs; output positions match input positions.' }, { name: 'signal', description: 'cancellation for the complete bounded relationship read.' }],
+        returns: 'source locations or undefined without reading unregistered targets.',
+      },
+      {
+        signature: '@Remote({ name: \'getSetup\' }) async getSetup(request: { workspaceId?: WorkspaceId }, signal: AbortSignal): Promise<ResourceResult<ResourceSetup>>',
+        description: 'Inspect operational capabilities without granting any filesystem access.',
+        parameters: [{ name: 'request', description: 'reserved existing Workspace selection; it is never a path.' }, { name: 'signal', description: 'cancellation for this capability read.' }],
+        returns: 'availability of read-only attachment and Host-owned saved source sets.',
+      },
+      {
+        signature: '@Remote({ name: \'connectWorkspace\' }) async connectWorkspace(request: { workspaceId: WorkspaceId; domains?: readonly ResourceDomain[] }, signal: AbortSignal): Promise<ResourceResult<RootConnection>>',
+        description: 'Explicitly attach a registered Workspace as a read-only library root.',
+        parameters: [{ name: 'request', description: 'Host Workspace identity and catalog domains; no browser-controlled root path.' }, { name: 'signal', description: 'cancellation before admitting the operational connection.' }],
+        returns: 'a durable connection to the captured canonical path, without creating scientific files.',
+      },
+      {
+        signature: '@Remote({ name: \'disconnectWorkspace\' }) async disconnectWorkspace(request: { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<ResourceResult<{ disconnected: boolean }>>',
+        description: 'Withdraw only the saved Workspace connection, preserving independent configured/research grants.',
+        parameters: [{ name: 'request', description: 'existing or retained Workspace identity to disconnect.' }, { name: 'signal', description: 'cancellation before operational publication.' }],
+        returns: 'whether a runtime connection record was removed; scientific files are untouched.',
+      },
+      {
+        signature: '@Remote({ name: \'listSourceSets\' }) async listSourceSets(request: SourceSetQuery, signal: AbortSignal): Promise<ResourceResult<SourceSetPage>>',
+        description: 'List saved operational collections without returning their selected quotations.',
+        parameters: [{ name: 'request', description: 'bounded page and optional actual topic filter.' }, { name: 'signal', description: 'cancellation for this read.' }],
+        returns: 'source-set summaries with opaque pagination.',
+      },
+      {
+        signature: '@Remote({ name: \'getSourceSet\' }) async getSourceSet(request: { id: SourceSetId }, signal: AbortSignal): Promise<ResourceResult<SourceSet>>',
+        description: 'Open a saved set; its references may now be missing and are never replaced by title guesses.',
+        parameters: [{ name: 'request', description: 'durable source-set identity.' }, { name: 'signal', description: 'cancellation for this read.' }],
+        returns: 'complete bounded references and explicit quotations, not fresh source content.',
+      },
+      {
+        signature: '@Remote({ name: \'saveSourceSet\' }) async saveSourceSet(request: SaveSourceSetRequest, signal: AbortSignal): Promise<ResourceResult<SourceSetReceipt>>',
+        description: 'Save source references and short selected quotations in Host operational storage.',
+        parameters: [{ name: 'request', description: 'exact title, references, optional topic associations and stable retry identity.' }, { name: 'signal', description: 'cancellation before admitting the bounded publication.' }],
+        returns: 'its durable operation receipt; the current set is read separately.',
+      },
+      {
+        signature: '@Remote({ name: \'removeSourceSet\' }) async removeSourceSet(request: RemoveSourceSetRequest, signal: AbortSignal): Promise<ResourceResult<SourceSetReceipt>>',
+        description: 'Remove one operational set without deleting its sources or scientific notes.',
+        parameters: [{ name: 'request', description: 'set identity and stable removal operation identity.' }, { name: 'signal', description: 'cancellation before publication admission.' }],
+        returns: 'the durable historical removal receipt, including unchanged retries.',
+      },
+      {
+        signature: '@Remote({ name: \'listRoots\' }) async listRoots(request: { rootId?: SourceRootId }, signal: AbortSignal): Promise<ResourceResult<readonly SourceRoot[]>>',
+        description: 'List roots explicitly contributed by Host configuration or an existing research grant.',
+        parameters: [{ name: 'request', description: 'optional exact root filter, without a browser-controlled path.' }, { name: 'signal', description: 'cancellation for this observer.' }],
+        returns: 'canonical root metadata; duplicate grants appear once.',
+      },
+      {
+        signature: '@Remote({ name: \'listResources\' }) async listResources(request: ResourceQuery, signal: AbortSignal): Promise<ResourceResult<ResourcePage>>',
+        description: 'Browse a bounded domain catalog with explicit missing discovery coverage.',
+        parameters: [{ name: 'request', description: 'source/root/topic filters and an opaque page cursor.' }, { name: 'signal', description: 'cancellation for this observer, not for another reader\'s shared scan.' }],
+        returns: 'a catalog page; rejected or stale cursors require a fresh first page.',
+      },
+      {
+        signature: '@Remote({ name: \'search\' }) async search(request: ResourceQuery, signal: AbortSignal): Promise<ResourceResult<ResourcePage>>',
+        description: 'Search domain titles, descriptions and authored metadata within the same bounded catalog.',
+        parameters: [{ name: 'request', description: 'search text and the same explicit root/topic filters as browsing.' }, { name: 'signal', description: 'cancellation for this read.' }],
+        returns: 'matching catalog entries and the actual discovery limits.',
+      },
+      {
+        signature: '@Remote({ name: \'readSourceBytes\' }) async readSourceBytes(request: { ref: SourceRef }, signal: AbortSignal): Promise<ResourceResult<ResourceBytes>>',
+        description: 'Read a complete authorized PDF or image for native preview without expanding any source grant.',
+        parameters: [{ name: 'request', description: 'root-qualified current local-file identity, never an arbitrary Host path.' }, { name: 'signal', description: 'cancellation propagated through the root lifetime and complete bounded read.' }],
+        returns: 'preview bytes through binary transport, or an explicit rejection without partial bytes.',
+      },
+      {
+        signature: '@Remote({ name: \'readResource\' }) async readResource(request: ResourceReadRequest, signal: AbortSignal): Promise<ResourceResult<ResourceReading>>',
+        description: 'Open a known source or a newly selected guarded local file in an authorized root.',
+        parameters: [{ name: 'request', description: 'root-qualified identity and optional located reading.' }, { name: 'signal', description: 'cancellation propagated to the provider and bounded source read.' }],
+        returns: 'current complete content or an explicit unsupported/missing reading.',
+      },
+      {
+        signature: '@Remote({ name: \'refresh\' }) async refresh(request: { rootId?: SourceRootId }, signal: AbortSignal): Promise<ResourceResult<true>>',
+        description: 'Mark current catalogs stale; this neither fetches remote material nor modifies source files.',
+        parameters: [{ name: 'request', description: 'optional registered root, or every currently authorized root.' }, { name: 'signal', description: 'cancellation before invalidation.' }],
+        returns: 'whether the requested invalidation was admitted.',
+      },
+      {
+        signature: '@Remote({ name: \'askStudy\', resources: { workspace: (request: StudyRequest) => request.workspaceId, session: (request: StudyRequest) => request.sessionId } }) async askStudy(request: StudyRequest, signal: AbortSignal): Promise<ResourceResult<StudyReceipt>>',
+        description: 'Submit explicit selected evidence through the existing conversation integration.',
+        parameters: [{ name: 'request', description: 'the person\'s words, optional actual topic and eligible source selections.' }, { name: 'signal', description: 'cancellation before the integration admits a normal Session input.' }],
+        returns: 'that Session\'s identity; no domain reader starts its own model loop.',
+      },
+      {
+        signature: '@Remote({ name: \'follow\', mode: \'stream\' }) async *follow(request: { rootId?: SourceRootId }, signal: AbortSignal): AsyncIterable<ResourceEvent>',
+        description: 'Observe source/provider invalidation and an initial resync baseline.',
+        parameters: [{ name: 'request', description: 'reserved empty filter; all events remain Host-owner scoped.' }, { name: 'signal', description: 'caller cancellation or plugin disposal closes the subscription.' }],
+        returns: 'source events; clients reread current authoritative values after each invalidation.',
+      },
+    ],
+  },
+  {
+    key: 'researchStudy',
+    summary: 'Single draft owner; no model provider, new Session log or scientific writeback is created here.',
+    description: 'Single draft owner; no model provider, new Session log or scientific writeback is created here.',
+    methods: [
+      {
+        signature: '@Remote({ name: \'getSetup\' }) async getSetup(): Promise<StudySetup>',
+        description: 'Report the Host capabilities available to this plugin.',
+        parameters: [],
+        returns: 'explicit availability without reading a Session or research source.',
+      },
+      {
+        signature: '@Remote({ name: \'listArtifacts\' }) listArtifacts(request: StudyArtifactQuery): Promise<StudyResult<StudyArtifactPage>>',
+        description: 'Browse saved draft summaries without retrieving their bodies.',
+        parameters: [{ name: 'request', description: 'bounded summary filters.' }],
+        returns: 'a revision-bound page without bodies or context excerpts.',
+      },
+      {
+        signature: '@Remote({ name: \'getArtifact\' }) getArtifact(request: { id: StudyArtifactId }): Promise<StudyResult<StudyArtifact>>',
+        description: 'Open an explicitly saved study draft.',
+        parameters: [{ name: 'request', description: 'existing plugin-owned identity.' }],
+        returns: 'full saved content and original source evidence.',
+      },
+      {
+        signature: '@Remote({ name: \'saveNote\' }) saveNote(request: SaveStudyNoteRequest): Promise<StudyResult<StudyArtifactReceipt>>',
+        description: 'Save a handwritten note or an explicit edit without changing scientific records.',
+        parameters: [{ name: 'request', description: 'explicit handwritten content or edit with an unchanged retry identity.' }],
+        returns: 'historical save receipt.',
+      },
+      {
+        signature: '@Remote({ name: \'captureAnswer\', resources: { session: addressedSession } }) captureAnswer(request: CaptureStudyAnswerRequest, signal: AbortSignal): Promise<StudyResult<StudyArtifactReceipt>>',
+        description: 'Capture only the selected real completed answer through the existing authorized Session observer.',
+        parameters: [{ name: 'request', description: 'existing answer reference and stable save identity, with no client-supplied answer text.' }, { name: 'signal', description: 'cancellation before a new capture is admitted; admitted writes drain on unload.' }],
+        returns: 'durable provisional-draft receipt, including unchanged retry recovery after restart.',
+      },
+      {
+        signature: '@Remote({ name: \'removeArtifact\' }) removeArtifact(request: RemoveStudyArtifactRequest): Promise<StudyResult<StudyArtifactReceipt>>',
+        description: 'Remove this plugin\'s draft while retaining its original sources and retry receipt.',
+        parameters: [{ name: 'request', description: 'existing plugin-owned identity and stable removal identity.' }],
+        returns: 'historical deletion receipt.',
+      },
+      {
+        signature: '@Remote({ name: \'exportMarkdown\' }) exportMarkdown(request: { id: StudyArtifactId }): Promise<StudyResult<{ filename: string; markdown: string }>>',
+        description: 'Export actual saved content and its recorded references.',
+        parameters: [{ name: 'request', description: 'existing saved draft.' }],
+        returns: 'portable Markdown as data; the client chooses an explicit export destination.',
       },
     ],
   },
@@ -2256,6 +2451,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Admit one prompt after explicitly resuming its Session.',
         parameters: [{ name: 'request', description: 'Session identity, prompt content, source metadata, and delivery mode.' }, { name: 'signal', description: 'caller cancellation before prompt admission begins.' }],
         returns: 'acknowledgement that the Agent accepted the prompt.',
+      },
+      {
+        signature: 'async promptAttributed(request: SessionPromptRequest, source: MessageSource, guard: (agent: Agent) => void): Promise<SessionPromptValue>',
+        description: 'Host-domain prompt admission using an immutable attributed source and native attachments.',
+        parameters: [{ name: 'request', description: 'Normal Session prompt and retry identity.' }, { name: 'source', description: 'Source validated by the owning Host domain, never a browser-supplied authority.' }, { name: 'guard', description: 'Recheck domain scope immediately before the synchronous inbox mutation.' }],
+        returns: 'Native admission acknowledgement; the message id equals requestId for correlation.',
       },
       {
         signature: '@Remote(\'attachment\') attachment(request: SessionAttachmentRequest): Promise<SessionAttachmentValue>',
@@ -4918,7 +5119,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ApplyReceipt',
-    declaration: 'export interface ApplyReceipt {\n    readonly operationId: string;\n    readonly changeId: string;\n    readonly committedAt: string;\n    readonly actor: RecordedActor;\n    readonly changed: readonly VersionedTarget[];\n    readonly sourceObservations?: readonly {\n        readonly target: Target;\n        readonly state: \'matches-applied\' | \'different\' | \'unavailable\';\n        readonly revision?: Revision;\n    }[];\n    readonly eventId?: string;\n}',
+    declaration: 'export interface ApplyReceipt {\n    readonly notificationWarning?: string;\n    readonly operationId: string;\n    readonly changeId: string;\n    readonly committedAt: string;\n    readonly actor: RecordedActor;\n    readonly changed: readonly VersionedTarget[];\n    readonly sourceObservations?: readonly {\n        readonly target: Target;\n        readonly state: \'matches-applied\' | \'different\' | \'unavailable\';\n        readonly revision?: Revision;\n    }[];\n    readonly eventId?: string;\n}',
   },
   {
     name: 'ApplyRequest',
@@ -5119,6 +5320,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ButtonProps',
     declaration: 'export interface ButtonProps {\n    readonly label: string;\n    readonly hotkey?: string | undefined;\n    readonly disabled?: boolean | undefined;\n    readonly onPress?: (() => unknown) | undefined;\n}',
+  },
+  {
+    name: 'CaptureStudyAnswerRequest',
+    declaration: 'export interface CaptureStudyAnswerRequest {\n    readonly operationId: string;\n    readonly title: string;\n    readonly kind: StudyArtifactKind;\n    readonly sessionId: SessionId;\n    readonly seq: SessionSeq;\n}',
   },
   {
     name: 'ChangeCommand',
@@ -5535,6 +5740,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'DirectoryRegistrationHandle',
     declaration: 'export interface DirectoryRegistrationHandle {\n    (): void;\n    replace(entries: readonly LlmConfigurableProvider[]): void;\n}',
+  },
+  {
+    name: 'DiscussionPage',
+    declaration: 'export interface DiscussionPage {\n    readonly items: readonly {\n        readonly sessionId: SessionId;\n        readonly title: string;\n        readonly updatedAt: string;\n        readonly busy: boolean;\n    }[];\n    readonly completeness: \'complete\' | \'partial\';\n    readonly issues: readonly string[];\n}',
+  },
+  {
+    name: 'DiscussionQuery',
+    declaration: 'export interface DiscussionQuery {\n    readonly topicId?: TopicId;\n    readonly limit?: number;\n}',
   },
   {
     name: 'Domain',
@@ -6381,6 +6594,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface MessageRoleMap {\n    system: SystemMessage;\n    developer: DeveloperMessage;\n    user: UserMessage;\n    assistant: AssistantMessage;\n    tool: ToolResultMessage;\n}',
   },
   {
+    name: 'MessageSource',
+    declaration: 'export type MessageSource = MessageSourceMap[keyof MessageSourceMap];',
+  },
+  {
     name: 'MessageSourceMap',
     declaration: 'export interface MessageSourceMap {\n    user: {\n        kind: \'user\';\n    };\n    model: ModelMessageSource;\n    tool: ToolMessageSource;\n    \'system-prompt\': SystemPromptMessageSource;\n}',
   },
@@ -6527,6 +6744,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'PaneOpenResult',
     declaration: 'export interface PaneOpenResult {\n    id: string;\n    isPlaced: boolean;\n    reason?: string;\n}',
+  },
+  {
+    name: 'PdfSourcePage',
+    declaration: 'export interface PdfSourcePage {\n    readonly page: number;\n    readonly text: string;\n    readonly pageLabel?: string;\n    readonly printedPage?: string;\n}',
   },
   {
     name: 'PeerAdmission',
@@ -6937,6 +7158,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface RemoteUplinkWindow {\n    readonly maxBytes: number;\n    readonly frameOverheadBytes: number;\n}',
   },
   {
+    name: 'RemoveSourceSetRequest',
+    declaration: 'export interface RemoveSourceSetRequest {\n    readonly operationId: string;\n    readonly id: SourceSetId;\n}',
+  },
+  {
+    name: 'RemoveStudyArtifactRequest',
+    declaration: 'export interface RemoveStudyArtifactRequest {\n    readonly operationId: string;\n    readonly id: StudyArtifactId;\n}',
+  },
+  {
     name: 'RenderedDocumentBytes',
     declaration: 'export interface RenderedDocumentBytes extends WorkspaceFileBytes {\n    readonly missingFonts: string[];\n    readonly generation: OfficeToPdfGeneration;\n}',
   },
@@ -6977,6 +7206,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type Requirement = \'researcher\' | \'owner\' | \'agent\' | \'optional\';',
   },
   {
+    name: 'ResearchChangeQuery',
+    declaration: 'export interface ResearchChangeQuery {\n    readonly sessionId: SessionId;\n    readonly operationId: string;\n}',
+  },
+  {
+    name: 'ResearchChangeView',
+    declaration: 'export interface ResearchChangeView {\n    readonly operationId: string;\n    readonly sessionId: SessionId;\n    readonly workspaceId: WorkspaceId;\n    readonly topicId?: TopicId;\n    readonly state: \'prepared\' | \'no-change\' | \'pending\' | \'applying\' | \'applied\' | \'not-applied\' | \'partial\' | \'unknown\';\n    readonly updatedAt: string;\n    readonly files: readonly {\n        readonly resourceId: ResourceId;\n        readonly relativePath: string;\n        readonly state: \'prepared\' | \'applying\' | \'applied\' | \'not-applied\' | \'unknown\';\n        readonly appliedAt?: string;\n        readonly beforeText?: string;\n        readonly afterText?: string;\n        readonly current?: {\n            readonly state: \'matches-planned-output\' | \'different\' | \'unavailable\';\n            readonly observedAt: string;\n        };\n    }[];\n    readonly remainingUses: readonly string[];\n    readonly completeness: \'complete\' | \'partial\';\n    readonly omittedFiles: number;\n    readonly omittedDiffs: number;\n    readonly omittedUses: number;\n}',
+  },
+  {
     name: 'ResearchContextSnapshot',
     declaration: 'export interface ResearchContextSnapshot {\n    readonly id: string;\n    readonly turn: number;\n    readonly text: string;\n    readonly state: \'current\' | \'condensed\' | \'projected\' | \'superseded\';\n}',
   },
@@ -6998,7 +7235,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ResearchQuestion',
-    declaration: 'export interface ResearchQuestion {\n    readonly workspaceId: WorkspaceId;\n    readonly topicId?: TopicId;\n    readonly resourceId?: ResourceId;\n    readonly anchor?: string;\n    readonly selectedText?: string;\n    readonly selectedTextFormat?: \'source\' | \'rendered\';\n    readonly selectedRange?: ResearchSourceRange;\n    readonly question: string;\n}',
+    declaration: 'export interface ResearchQuestion {\n    readonly workspaceId: WorkspaceId;\n    readonly topicId?: TopicId;\n    readonly resourceId?: ResourceId;\n    readonly anchor?: string;\n    readonly selectedText?: string;\n    readonly selectedTextFormat?: \'source\' | \'rendered\';\n    readonly selectedRange?: ResearchSourceRange;\n    readonly question: string;\n    readonly sessionId?: SessionId;\n    readonly mode?: \'queue\' | \'steer\';\n    readonly requestId?: SessionRequestId;\n    readonly content?: readonly PromptContentPart[];\n}',
   },
   {
     name: 'ResearchSetup',
@@ -7037,12 +7274,84 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface Resource extends ResourceReference {\n    readonly content: {\n        readonly kind: \'markdown\' | \'plain-text\';\n        readonly text: string;\n    } | {\n        readonly kind: \'unavailable\';\n        readonly reason: \'linked-only\' | \'unsupported-format\' | \'not-connected\';\n        readonly detail: string;\n    };\n    readonly attribution: SourceAttribution;\n}',
   },
   {
+    name: 'ResourceBody',
+    declaration: 'export type ResourceBody = {\n    readonly kind: \'text\';\n    readonly format: \'markdown\' | \'plain-text\' | \'code\';\n    readonly text: string;\n    readonly language?: string;\n    readonly revision?: string;\n    readonly startLine?: number;\n    readonly endLine?: number;\n} | {\n    readonly kind: \'pdf\';\n    readonly pageCount: number;\n    readonly pages: readonly PdfSourcePage[];\n    readonly dataBase64?: string;\n} | {\n    readonly kind: \'image\';\n    readonly mediaType: ResourceImageMediaType;\n} | {\n    readonly kind: \'unavailable\';\n    readonly reason: \'missing\' | \'unsupported\' | \'ambiguous\' | \'too-large\' | \'unavailable\';\n    readonly detail: string;\n};',
+  },
+  {
+    name: 'ResourceBytes',
+    declaration: 'export interface ResourceBytes {\n    readonly ref: SourceRef;\n    readonly data: Uint8Array<ArrayBuffer>;\n    readonly mediaType: \'application/pdf\' | ResourceImageMediaType;\n    readonly observedAt: string;\n}',
+  },
+  {
+    name: 'ResourceDomain',
+    declaration: 'export type ResourceDomain = \'knowledge\' | \'literature\' | \'code\';',
+  },
+  {
+    name: 'ResourceEntryId',
+    declaration: 'export type ResourceEntryId = Branded<\'ResearchResourceEntryId\'>;',
+  },
+  {
+    name: 'ResourceError',
+    declaration: 'export interface ResourceError {\n    readonly code: ResourceReadError[\'code\'] | \'outcome-unknown\';\n    readonly message: string;\n    readonly retryable: boolean;\n    readonly operationId?: string;\n}',
+  },
+  {
+    name: 'ResourceEvent',
+    declaration: 'export type ResourceEvent = {\n    readonly kind: \'resync-required\';\n    readonly reason: string;\n} | {\n    readonly kind: \'invalidated\';\n    readonly rootId: SourceRootId;\n} | {\n    readonly kind: \'provider\';\n    readonly providerId: string;\n    readonly connected: boolean;\n};',
+  },
+  {
     name: 'ResourceId',
     declaration: 'export type ResourceId = Branded<\'ResearchResourceId\'>;',
   },
   {
+    name: 'ResourceImageMediaType',
+    declaration: 'export type ResourceImageMediaType = \'image/png\' | \'image/jpeg\' | \'image/gif\' | \'image/webp\' | \'image/bmp\' | \'image/x-icon\' | \'image/svg+xml\';',
+  },
+  {
+    name: 'ResourceIssue',
+    declaration: 'export interface ResourceIssue {\n    readonly rootId?: SourceRootId;\n    readonly providerId?: string;\n    readonly path?: string;\n    readonly reason: string;\n}',
+  },
+  {
+    name: 'ResourceKind',
+    declaration: 'export type ResourceKind = \'knowledge\' | \'literature\' | \'code\' | \'report\' | \'data\' | \'note\';',
+  },
+  {
+    name: 'ResourceLink',
+    declaration: 'export interface ResourceLink {\n    readonly label: string;\n    readonly href: string;\n    readonly target?: SourceRef;\n    readonly locator?: SourceLocator;\n    readonly reason?: string;\n}',
+  },
+  {
+    name: 'ResourcePage',
+    declaration: 'export interface ResourcePage {\n    readonly items: readonly ResourceSummary[];\n    readonly nextCursor: string | null;\n    readonly completeness: \'complete\' | \'partial\';\n    readonly issues: readonly ResourceIssue[];\n    readonly observedAt: string;\n}',
+  },
+  {
+    name: 'ResourceQuery',
+    declaration: 'export interface ResourceQuery {\n    readonly domain?: ResourceDomain;\n    readonly rootId?: SourceRootId;\n    readonly query?: string;\n    readonly cursor?: string;\n    readonly limit?: number;\n    readonly topic?: {\n        readonly workspaceId: WorkspaceId;\n        readonly topicId: SourceTopicId;\n    };\n}',
+  },
+  {
+    name: 'ResourceReadError',
+    declaration: 'export interface ResourceReadError {\n    readonly code: \'invalid-request\' | \'permission-denied\' | \'not-found\' | \'unavailable\' | \'unsupported\' | \'cancelled\';\n    readonly message: string;\n    readonly retryable: boolean;\n}',
+  },
+  {
+    name: 'ResourceReading',
+    declaration: 'export interface ResourceReading {\n    readonly resource: ResourceSummary;\n    readonly body: ResourceBody;\n    readonly locator?: SourceLocator;\n    readonly observedAt: string;\n    readonly issues: readonly string[];\n}',
+  },
+  {
+    name: 'ResourceReadRequest',
+    declaration: 'export interface ResourceReadRequest {\n    readonly ref: SourceRef;\n    readonly locator?: SourceLocator;\n    readonly domain?: ResourceDomain;\n}',
+  },
+  {
     name: 'ResourceReference',
     declaration: 'export interface ResourceReference {\n    readonly id: ResourceId;\n    readonly ownerTopicId: TopicId | null;\n    readonly title: string;\n    readonly kind: \'note\' | \'paper\' | \'code\' | \'report\' | \'data\' | \'other\';\n    readonly target: ResourceTarget;\n}',
+  },
+  {
+    name: 'ResourceResult',
+    declaration: 'export type ResourceResult<T> = {\n    readonly ok: true;\n    readonly value: T;\n} | {\n    readonly ok: false;\n    readonly error: ResourceError;\n};',
+  },
+  {
+    name: 'ResourceSetup',
+    declaration: 'export interface ResourceSetup {\n    readonly canConnect: boolean;\n    readonly canSaveSourceSets: boolean;\n}',
+  },
+  {
+    name: 'ResourceSummary',
+    declaration: 'export interface ResourceSummary {\n    readonly id: ResourceEntryId;\n    readonly ref: SourceRef;\n    readonly catalogRootId?: SourceRootId;\n    readonly locator?: SourceLocator;\n    readonly title: string;\n    readonly kind: ResourceKind;\n    readonly domain: ResourceDomain;\n    readonly providerId: string;\n    readonly description?: string;\n    readonly metadata: Readonly<Record<string, string>>;\n    readonly links: readonly ResourceLink[];\n    readonly topics: readonly TopicAssociation[];\n}',
   },
   {
     name: 'ResourceTarget',
@@ -7067,6 +7376,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'Revision',
     declaration: 'export type Revision = Branded<\'ResearchRevision\'>;',
+  },
+  {
+    name: 'RootConnection',
+    declaration: 'export interface RootConnection {\n    readonly workspaceId: WorkspaceId;\n    readonly rootId: SourceRootId;\n    readonly domains?: readonly ResourceDomain[];\n    readonly connectedAt: string;\n}',
   },
   {
     name: 'RpcId',
@@ -7111,6 +7424,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SaveImageAttachment',
     declaration: 'export interface SaveImageAttachment {\n    data: Uint8Array;\n    mediaType: ImageMediaType;\n    name?: string;\n}',
+  },
+  {
+    name: 'SaveSourceSetRequest',
+    declaration: 'export interface SaveSourceSetRequest {\n    readonly operationId: string;\n    readonly id?: SourceSetId;\n    readonly title: string;\n    readonly selections: readonly SourceSelection[];\n    readonly topics?: readonly SourceSetTopic[];\n}',
+  },
+  {
+    name: 'SaveStudyNoteRequest',
+    declaration: 'export interface SaveStudyNoteRequest {\n    readonly operationId: string;\n    readonly id?: StudyArtifactId;\n    readonly title: string;\n    readonly kind: StudyArtifactKind;\n    readonly markdown: string;\n    readonly citations?: readonly SourceSelection[];\n}',
   },
   {
     name: 'SaveTextSpill',
@@ -7965,8 +8286,72 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SourceAttribution {\n    readonly actor?: RecordedActor;\n    readonly recordedAt?: string;\n    readonly sourceResourceIds: readonly ResourceId[];\n    readonly explanation?: string;\n}',
   },
   {
+    name: 'SourceGrant',
+    declaration: 'export interface SourceGrant {\n    readonly kind: \'configured\' | \'workspace-connection\' | \'research-enrollment\' | \'host\';\n    readonly workspaceId?: WorkspaceId;\n}',
+  },
+  {
+    name: 'SourceId',
+    declaration: 'export type SourceId = Branded<\'ResearchSourceId\'>;',
+  },
+  {
     name: 'SourceItem',
     declaration: 'export interface SourceItem {\n    readonly id: string;\n    readonly label: string;\n    readonly range?: string;\n    readonly address?: string;\n    readonly reason: \'selected\' | \'owner\' | \'agent-read\' | \'linked\';\n    readonly requirement: Requirement;\n    readonly state: {\n        readonly kind: \'located\';\n    } | {\n        readonly kind: \'attached\';\n    } | {\n        readonly kind: \'available\';\n        readonly sentTurn: number;\n    } | {\n        readonly kind: \'condensed\';\n        readonly sentTurn: number;\n        readonly rereadTurn?: number;\n    } | {\n        readonly kind: \'missing\';\n        readonly reason: string;\n    } | {\n        readonly kind: \'pointer\';\n    } | {\n        readonly kind: \'unknown\';\n    };\n}',
+  },
+  {
+    name: 'SourceRef',
+    declaration: 'export interface SourceRef {\n    readonly rootId: SourceRootId;\n    readonly sourceId: SourceId;\n}',
+  },
+  {
+    name: 'SourceRoot',
+    declaration: 'export interface SourceRoot {\n    readonly id: SourceRootId;\n    readonly title: string;\n    readonly displayPath: string;\n    readonly workspaceId?: WorkspaceId;\n    readonly domains?: readonly ResourceDomain[];\n    readonly grants?: readonly SourceGrant[];\n}',
+  },
+  {
+    name: 'SourceRootId',
+    declaration: 'export type SourceRootId = Branded<\'ResearchSourceRootId\'>;',
+  },
+  {
+    name: 'SourceRootLease',
+    declaration: 'export interface SourceRootLease {\n    readonly rootId: SourceRootId;\n    readonly dispose: () => void;\n}',
+  },
+  {
+    name: 'SourceRootRegistration',
+    declaration: 'export interface SourceRootRegistration {\n    readonly id: string;\n    readonly path: string;\n    readonly title?: string;\n    readonly workspaceId?: WorkspaceId;\n    readonly domains?: readonly ResourceDomain[] | undefined;\n    readonly isAuthorized?: () => boolean | Promise<boolean>;\n    readonly grantKind?: SourceGrant[\'kind\'];\n}',
+  },
+  {
+    name: 'SourceSelection',
+    declaration: 'export interface SourceSelection {\n    readonly ref: SourceRef;\n    readonly locator?: SourceLocator;\n    readonly selectedText?: string;\n}',
+  },
+  {
+    name: 'SourceSet',
+    declaration: 'export interface SourceSet extends SourceSetSummary {\n    readonly selections: readonly SourceSelection[];\n}',
+  },
+  {
+    name: 'SourceSetId',
+    declaration: 'export type SourceSetId = Branded<\'ResearchSourceSetId\'>;',
+  },
+  {
+    name: 'SourceSetPage',
+    declaration: 'export interface SourceSetPage {\n    readonly items: readonly SourceSetSummary[];\n    readonly nextCursor: string | null;\n}',
+  },
+  {
+    name: 'SourceSetQuery',
+    declaration: 'export interface SourceSetQuery {\n    readonly cursor?: string;\n    readonly limit?: number;\n    readonly topic?: SourceSetTopic;\n}',
+  },
+  {
+    name: 'SourceSetReceipt',
+    declaration: 'export interface SourceSetReceipt {\n    readonly operationId: string;\n    readonly id: SourceSetId;\n    readonly state: \'saved\' | \'removed\';\n    readonly committedAt: string;\n}',
+  },
+  {
+    name: 'SourceSetSummary',
+    declaration: 'export interface SourceSetSummary {\n    readonly id: SourceSetId;\n    readonly title: string;\n    readonly selectionCount: number;\n    readonly topics: readonly SourceSetTopic[];\n    readonly createdAt: string;\n    readonly updatedAt: string;\n}',
+  },
+  {
+    name: 'SourceSetTopic',
+    declaration: 'export interface SourceSetTopic {\n    readonly workspaceId: WorkspaceId;\n    readonly topicId: SourceTopicId;\n}',
+  },
+  {
+    name: 'SourceTopicId',
+    declaration: 'export type SourceTopicId = Branded<\'ResearchTopicId\'>;',
   },
   {
     name: 'SpawnTeammateRequest',
@@ -8087,6 +8472,74 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'StreamChunk',
     declaration: 'export type StreamChunk = {\n    type: \'block-start\';\n    index: number;\n    blockType: ContentBlockType;\n} | {\n    type: \'text-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'reasoning-delta\';\n    index: number;\n    text: string;\n} | {\n    type: \'tool-call-delta\';\n    index: number;\n    id: ToolCallId;\n    name?: string;\n    argumentsDelta: string;\n} | {\n    type: \'block-end\';\n    index: number;\n    block: ContentBlock;\n} | {\n    type: \'usage\';\n    usage: TokenUsage;\n} | {\n    type: \'finish\';\n    reason: FinishReason;\n    replayState?: ReplayEnvelope;\n};',
+  },
+  {
+    name: 'StudyAnswerCapture',
+    declaration: 'export interface StudyAnswerCapture {\n    readonly sessionId: SessionId;\n    readonly seq: SessionSeq;\n    readonly messageId: string;\n    readonly provider: string;\n    readonly model: string;\n    readonly actor: \'model\';\n    readonly contexts: readonly StudyRecordedContext[];\n}',
+  },
+  {
+    name: 'StudyArtifact',
+    declaration: 'export interface StudyArtifact extends StudyArtifactSummary {\n    readonly markdown: string;\n    readonly citations: readonly StudyCitation[];\n    readonly capture?: StudyAnswerCapture;\n}',
+  },
+  {
+    name: 'StudyArtifactId',
+    declaration: 'export type StudyArtifactId = Branded<\'ResearchStudyArtifactId\'>;',
+  },
+  {
+    name: 'StudyArtifactKind',
+    declaration: 'export type StudyArtifactKind = \'note\' | \'report\' | \'comparison\' | \'outline\' | \'flashcards\' | \'mind-map\';',
+  },
+  {
+    name: 'StudyArtifactPage',
+    declaration: 'export interface StudyArtifactPage {\n    readonly items: readonly StudyArtifactSummary[];\n    readonly nextCursor: string | null;\n}',
+  },
+  {
+    name: 'StudyArtifactQuery',
+    declaration: 'export interface StudyArtifactQuery {\n    readonly cursor?: string;\n    readonly limit?: number;\n    readonly kind?: StudyArtifactKind;\n}',
+  },
+  {
+    name: 'StudyArtifactReceipt',
+    declaration: 'export interface StudyArtifactReceipt {\n    readonly operationId: string;\n    readonly id: StudyArtifactId;\n    readonly version: StudyArtifactVersion;\n    readonly state: \'saved\' | \'removed\';\n    readonly committedAt: string;\n}',
+  },
+  {
+    name: 'StudyArtifactSummary',
+    declaration: 'export interface StudyArtifactSummary {\n    readonly id: StudyArtifactId;\n    readonly version: StudyArtifactVersion;\n    readonly title: string;\n    readonly kind: StudyArtifactKind;\n    readonly status: \'provisional\';\n    readonly origin: \'handwritten\' | \'captured-answer\';\n    readonly edited: boolean;\n    readonly citationCount: number;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly savedBy: \'host-owner\';\n    readonly source?: SourceSelection;\n}',
+  },
+  {
+    name: 'StudyArtifactVersion',
+    declaration: 'export type StudyArtifactVersion = Branded<\'ResearchStudyArtifactVersion\'>;',
+  },
+  {
+    name: 'StudyCitation',
+    declaration: 'export interface StudyCitation {\n    readonly selection: SourceSelection;\n    readonly basis: \'human-linked\' | \'selected\' | \'recorded-context\' | \'recorded-source-read\';\n    readonly sessionId?: SessionId;\n    readonly seq?: SessionSeq;\n}',
+  },
+  {
+    name: 'StudyFailure',
+    declaration: 'export interface StudyFailure {\n    readonly code: \'unsupported\' | \'not-found\' | \'invalid-request\' | \'conflict\' | \'unavailable\' | \'unknown\';\n    readonly message: string;\n    readonly retryable: boolean;\n    readonly operationId?: string;\n}',
+  },
+  {
+    name: 'StudyHandler',
+    declaration: 'export type StudyHandler = (request: StudyRequest, signal: AbortSignal) => Promise<ResourceResult<StudyReceipt>>;',
+  },
+  {
+    name: 'StudyReceipt',
+    declaration: 'export interface StudyReceipt {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'StudyRecordedContext',
+    declaration: 'export interface StudyRecordedContext {\n    readonly seq: SessionSeq;\n    readonly name: string;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'StudyRequest',
+    declaration: 'export interface StudyRequest {\n    readonly scope?: \'workspace\' | \'global\';\n    readonly workspaceId?: WorkspaceId;\n    readonly topicId?: SourceTopicId;\n    readonly sourceSetId?: string;\n    readonly question: string;\n    readonly sessionId?: SessionId;\n    readonly mode?: \'queue\' | \'steer\';\n    readonly requestId?: SessionRequestId;\n    readonly content?: readonly PromptContentPart[];\n    readonly selections: readonly SourceSelection[];\n}',
+  },
+  {
+    name: 'StudyResult',
+    declaration: 'export type StudyResult<T> = {\n    readonly ok: true;\n    readonly value: T;\n} | {\n    readonly ok: false;\n    readonly error: StudyFailure;\n};',
+  },
+  {
+    name: 'StudySetup',
+    declaration: 'export interface StudySetup {\n    readonly canSave: boolean;\n    readonly canCapture: boolean;\n    readonly asSources: boolean;\n}',
   },
   {
     name: 'SubagentActivation',
@@ -8619,6 +9072,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'Topic',
     declaration: 'export interface Topic extends TopicSummary {\n    readonly question: string;\n    readonly scope: string;\n    readonly workItems: readonly WorkItem[];\n    readonly statements: readonly Statement[];\n    readonly resources: readonly ResourceReference[];\n    readonly accountResourceId?: ResourceId;\n}',
+  },
+  {
+    name: 'TopicAssociation',
+    declaration: 'export interface TopicAssociation {\n    readonly workspaceId: WorkspaceId;\n    readonly topicId: SourceTopicId;\n    readonly reason: string;\n}',
+  },
+  {
+    name: 'TopicAssociationProvider',
+    declaration: 'export interface TopicAssociationProvider {\n    readonly id: string;\n    read(signal: AbortSignal, reportIssue?: (issue: ResourceIssue) => void): Promise<readonly {\n        readonly ref: SourceRef;\n        readonly topic: TopicAssociation;\n    }[]>;\n}',
   },
   {
     name: 'TopicId',

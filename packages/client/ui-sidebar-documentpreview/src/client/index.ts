@@ -50,6 +50,12 @@ export type { ReadDocumentBytes, DocumentFileBytes, ReadWorkspaceFilePage, Sessi
 export type { TextPage, TextState, TextStore, TextTabState } from './store.ts'
 export type { DocumentContent, DocumentPreviewProps, DocumentTextPage } from './document/contract.ts'
 export type { DocumentLoadMode, DocumentPreviewDefinition } from './document/registry.ts'
+export type { SourcePdfPageInput } from './pdf/SourcePdfPage.tsx'
+export type { SourcePdfReaderInput } from './pdf/source-reader.ts'
+export type { SourceMarkdownReaderInput } from './markdown/source-reader.ts'
+export type { SourceImageReaderInput } from './image/source-reader.ts'
+export type { SourceCodeReaderInput } from './code/source-reader.ts'
+export type { ZoomPreference } from './zoom/types.ts'
 
 declare module '@deepseek-ai/cordis' {
   interface Context {

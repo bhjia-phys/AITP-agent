@@ -11,7 +11,7 @@ import css from './memory.module.css'
 
 /** Callbacks the task card and header action receive from their registration. */
 export interface MemoryActionsFace {
-  /** Open the Sources & memory page in the on-screen Session's dock. */
+  /** Reveal this view's Session and open Sources & memory in its native dock. */
   openMemory: () => void
   /** Open an `aitp-note` address in the dock. */
   openNote: (address: string) => void

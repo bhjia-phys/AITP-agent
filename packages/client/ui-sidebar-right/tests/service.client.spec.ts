@@ -1,8 +1,8 @@
 /**
  * What `ctx.sidebarRight` promises other plugins.
  *
- * The service is root-scoped and the surface is per session, so every command
- * acts on the Session the plugin names as on screen, through the store the
+ * The service is root-scoped and the surface is per session. Immediate screen commands
+ * act on the Session the plugin names as on screen, through the store the
  * runtime minted for it; the interesting cases are all about that seam. Opening is asserted against a real store instance, because
  * "already open" and "in that tab's place" mean whatever the planner means by
  * them and nothing else, and against the Tab domain, because an open is not
@@ -47,7 +47,7 @@ function harness() {
     title: address => address.slice(address.lastIndexOf('/') + 1),
   })
   const pin = vi.fn<(address: string, signal: AbortSignal) => void>()
-  const { controller, adopt, show, measure } = createSidebarRightController(tabs, pin, {
+  const { controller, adopt, forget, dispose, show, measure } = createSidebarRightController(tabs, pin, {
     autoFullscreen: () => false,
     openWithFocus: (_sessionId, open) => { open() },
     closeWithFocus: (_sessionId, _paneId, close) => { close() },
@@ -80,8 +80,81 @@ function harness() {
   const entries = (): number => instance.getSnapshot().bySession[SESSION]?.history.entries.length ?? 0
   // A surface starts empty; expanding seeds the default guide ('seed').
   const expand = (): void => { instance.actions.setExpanded(SESSION, true) }
-  return { controller, adopt, unadopt, show, measure, tabs, instance, pin, publish, titles, tabOf, layout, entries, room, expand }
+  return { controller, adopt, unadopt, forget, dispose, show, measure, tabs, instance, pin,
+    publish, titles, tabOf, layout, entries, room, expand }
 }
+
+describe('SidebarRightController — requested page opening', () => {
+  const OTHER = 's-request-other' as SessionId
+
+  it('opens immediately in an adopted Session even while another Session is on screen', () => {
+    const h = harness()
+    h.show(OTHER)
+    const cancel = h.controller.requestOpenTab(SESSION, 'guide')
+    expect(h.controller.tabsIn(SESSION).map(tab => tab.kind)).toEqual(['guide'])
+    expect(h.controller.tabsIn(OTHER)).toEqual([])
+    cancel()
+    expect(h.controller.tabsIn(SESSION)).toHaveLength(1)
+  })
+
+  it('waits for the requested Session adoption and opens once, without changing openTabIn no-op behavior', () => {
+    const h = harness()
+    h.unadopt()
+    h.controller.openTabIn(SESSION, 'guide')
+    const first = h.adopt(SESSION, h.instance)
+    expect(h.controller.tabsIn(SESSION)).toEqual([])
+    first()
+    h.controller.requestOpenTab(SESSION, 'guide')
+    h.show(OTHER)
+    const other = createSidebarRightStore(() => ({ kind: 'guide', title: 'seed' })).create()
+    h.adopt(OTHER, other)
+    expect(h.controller.tabsIn(OTHER)).toEqual([])
+    expect(h.instance.getSnapshot().bySession[SESSION]).toBeUndefined()
+    const release = h.adopt(SESSION, h.instance)
+    expect(h.controller.tabsIn(SESSION).map(tab => tab.kind)).toEqual(['guide'])
+    expect(h.layout().expanded).toBe(true)
+    release()
+    const replacement = createSidebarRightStore(() => ({ kind: 'guide', title: 'seed' })).create()
+    h.adopt(SESSION, replacement)
+    expect(h.controller.tabsIn(SESSION)).toEqual([])
+  })
+
+  it('cancels only its pending request, keeping another request for the same Session', () => {
+    const h = harness()
+    h.unadopt()
+    h.tabs.register({ id: 'test/requested', kind: 'requested', title: () => 'requested' })
+    const cancel = h.controller.requestOpenTab(SESSION, 'guide')
+    h.controller.requestOpenTab(SESSION, 'requested')
+    cancel()
+    cancel()
+    h.adopt(SESSION, h.instance)
+    expect(h.controller.tabsIn(SESSION).map(tab => tab.kind)).toEqual(['requested'])
+  })
+
+  it('forgets queued requests only for the removed Session', () => {
+    const h = harness()
+    h.unadopt()
+    h.controller.requestOpenTab(SESSION, 'guide')
+    h.controller.requestOpenTab(OTHER, 'guide')
+    h.forget(SESSION)
+    h.adopt(SESSION, h.instance)
+    expect(h.controller.tabsIn(SESSION)).toEqual([])
+    h.adopt(OTHER, createSidebarRightStore(() => ({ kind: 'guide', title: 'seed' })).create())
+    expect(h.controller.tabsIn(OTHER).map(tab => tab.kind)).toEqual(['guide'])
+  })
+
+  it('discards all queued requests on plugin disposal', () => {
+    const h = harness()
+    h.unadopt()
+    h.controller.requestOpenTab(SESSION, 'guide')
+    h.controller.requestOpenTab(OTHER, 'guide')
+    h.dispose()
+    h.adopt(SESSION, h.instance)
+    h.adopt(OTHER, createSidebarRightStore(() => ({ kind: 'guide', title: 'seed' })).create())
+    expect(h.controller.tabsIn(SESSION)).toEqual([])
+    expect(h.controller.tabsIn(OTHER)).toEqual([])
+  })
+})
 
 describe('SidebarRightController — opening', () => {
   it('keeps independently opened instances distinct when they return to the same pane', () => {
@@ -103,7 +176,7 @@ describe('SidebarRightController — opening', () => {
     } finally { release() }
   })
 
-  it('refuses every write while no Session is on screen', () => {
+  it('refuses on-screen writes while no Session is on screen', () => {
     const { controller } = harness()
     expect(() => { controller.openResource('dsh-resource://file/session/s-test/a.txt') }).toThrow('no session surface is mounted')
     expect(() => { controller.openTab('guide') }).toThrow('no session surface is mounted')

@@ -942,6 +942,15 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
 @Remote('prompt') async prompt(request: SessionPromptRequest, signal: AbortSignal): Promise<SessionPromptValue>
 
 /**
+ * Host-domain prompt admission using an immutable attributed source and native attachments.
+ * @param request - Normal Session prompt and retry identity.
+ * @param source - Source validated by the owning Host domain, never a browser-supplied authority.
+ * @param guard - Recheck domain scope immediately before the synchronous inbox mutation.
+ * @returns Native admission acknowledgement; the message id equals requestId for correlation.
+ */
+async promptAttributed(request: SessionPromptRequest, source: MessageSource, guard: (agent: Agent) => void): Promise<SessionPromptValue>
+
+/**
  * Read one image proven reachable from the addressed Session log.
  * @param request - Session and attachment identities used for authorization.
  * @returns the durable attachment reference and base64-encoded bytes.
@@ -995,7 +1004,7 @@ workspaceDesktop(): { name: string; available: boolean; fileManager: 'finder' | 
 @Remote({ mode: 'stream' }) async *control(signal: AbortSignal): AsyncIterable<SessionControlFrame>
 ```
 
-Types: [SessionId](core.zh.md) · [SessionInspection](persistence.zh.md) · [SessionSearchRequest](session-query.zh.md)
+Types: [Agent](core.zh.md) · [MessageSource](llm-streaming.zh.md) · [SessionId](core.zh.md) · [SessionInspection](persistence.zh.md) · [SessionSearchRequest](session-query.zh.md)
 
 Source: [`packages/api/session-controller/src/index.ts`](../../packages/api/session-controller/src/index.ts)
 

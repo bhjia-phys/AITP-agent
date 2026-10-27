@@ -29,6 +29,7 @@ import type { ChatSnapshot } from './contract/snapshot.ts'
 import { EMPTY_CHAT_SNAPSHOT } from './contract/snapshot.ts'
 import { ApprovalCommand } from './chat/ApprovalCommand.tsx'
 import { ChatView } from './chat/ChatView.tsx'
+import { ChatNavigationRegistry } from './resource-navigation.ts'
 import { ChatFlow } from './chat/ChatFlow.tsx'
 import { registerChatNodeRenderers } from './chat/register-node-renderers.ts'
 import { UserContent } from './chat/UserContent.tsx'
@@ -82,6 +83,9 @@ export const inject = [
  * @param ctx - Client root context.
  */
 export function apply(ctx: Context): void {
+  const navigation = new ChatNavigationRegistry()
+  const releaseNavigation = ctx.reflect.provide('uiChatNavigation', navigation)
+  ctx.effect(() => () => { void releaseNavigation() }, 'ui-chat: presentation resource navigation')
   const quotaNotice = createSnapshotStore<QuotaNoticeState | null>(null)
   let quotaNoticeSeq = 0
   // Each hold is its own token, so a release can only drop the hold it was
@@ -258,9 +262,19 @@ export function apply(ctx: Context): void {
           openFile: async (path, options) => {
             const cwd = ctx.sessions.list.getSnapshot().byId[sessionId]?.cwd
             const url = fileAddressFor(sessionId, cwd, path)
+            if (navigation.open(sessionId, url, options?.line === undefined ? undefined : { line: options.line })) return
             if (options?.line === undefined) ctx.sidebarRight.openResource(url)
             else ctx.sidebarRight.openResource(url, { params: { line: options.line } })
             await Promise.resolve()
+          },
+          resourceLinks: {
+            canOpen: url => url.startsWith('dsh-resource://') && (ctx.get('sidebarRightTabs')?.candidates(url).length ?? 0) > 0,
+            open: (url) => {
+              if (navigation.open(sessionId, url)) return
+              if (url.startsWith('dsh-resource://') && (ctx.get('sidebarRightTabs')?.candidates(url).length ?? 0) > 0) {
+                ctx.sidebarRight.openResource(url)
+              }
+            },
           },
           openExternalLink: (url) => {
             if (linkOpening.getSnapshot() === 'sidebar' && ctx.get('sidebarRightTabs')?.get('browser') !== undefined) {

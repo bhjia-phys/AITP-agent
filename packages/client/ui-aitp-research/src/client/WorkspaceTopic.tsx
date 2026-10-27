@@ -4,7 +4,7 @@
  * state is kept for the return.
  */
 import { useId, useState, type ReactNode } from 'react'
-import { Button, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, FileTypeIcon, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconNewChatOutlineRegular, MarkdownText, Menu, PathLabel } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { markdownLabels } from './Passage.tsx'
 import { disclosureKey } from './store.ts'
@@ -13,13 +13,15 @@ import { ListingStatus, TopicListingView } from './TopicListing.tsx'
 import type { Statement, Topic, TopicId } from './workspace-contract.ts'
 import { workspaceActivityAddress, workspaceTopicAddress } from './workspace-resources.ts'
 import {
-  ContributionNote, MaterialLinks, QualifiedAnswerView, ReadAt, unavailableCopy, WorkspaceReadingMeta,
+  ContributionNote, materialLocator, QualifiedAnswerView, ReadAt, unavailableCopy, WorkspaceReadingMeta,
   WorkspaceUnavailable, WorkStateLabel, type WorkspaceViewProps,
 } from './WorkspaceViews.tsx'
 import { WorkspaceEditor } from './WorkspaceEditor.tsx'
 import { workspaceEditKey } from './workspace-edit-state.ts'
 import css from './workspace.module.css'
 import { selectionSource } from './workspace-selection.ts'
+import topicCss from './topic.module.css'
+import { absentTopicQualification, absentTopicScope, topicExcerpt, topicSectionLabels } from './topic-presentation.ts'
 
 /** Sections of a topic page, in reading order. */
 export type TopicSection = 'branches' | 'materials' | 'statements' | 'work' | 'activity'
@@ -30,6 +32,9 @@ export type TopicSection = 'branches' | 'materials' | 'statements' | 'work' | 'a
  * @returns the topic page.
  */
 export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId }): ReactNode {
+  const [moreOpen, setMoreOpen] = useState(false)
+  const readingDetailsKey = disclosureKey(props.workspaceId, 'section', props.topicId, 'reading-details')
+  const readingDetailsOpen = props.useStore(state => state.disclosure[readingDetailsKey] ?? false)
   const result = props.useResource<'aitp-workspace-topic'>(workspaceTopicAddress(props.workspaceId, props.topicId))
   const editKey = workspaceEditKey(props.workspaceId, props.topicId)
   const edit = props.useStore(state => state.pendingEdits[editKey])
@@ -47,6 +52,18 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
   const unresolved = edit !== undefined && (edit.pending !== null || edit.uncertain)
   const relation = topic.parentContribution?.relation
   const choicePending = topic.workItems.some(item => item.state === 'waiting-on-researcher' || item.options !== undefined)
+  const materials = topic.resources.filter(resource => resource.id !== accountResourceId)
+  const answer = topic.currentAnswer === null ? null : {
+    ...topic.currentAnswer,
+    text: topicExcerpt(topic.currentAnswer.text, topicSectionLabels.answer),
+    qualification: topic.currentAnswer.qualification === absentTopicQualification ? t('topic.noQualification')
+      : topicExcerpt(topic.currentAnswer.qualification, topicSectionLabels.gap),
+  }
+  const gap = topic.gap === null ? null : topicExcerpt(topic.gap, topicSectionLabels.gap)
+  const gapIsQualification = gap !== null && gap.trim() !== '' && gap.trim() === answer?.qualification.trim()
+  const scope = topic.scope === absentTopicScope || topic.scope.trim() === '' ? t('topic.noScope')
+    : topicExcerpt(topic.scope, topicSectionLabels.scope)
+  const question = topic.question.trim() === `# ${topic.title}` ? t('topic.noQuestion') : topic.question
   const beginEdit = (mode: 'scope' | 'answer'): void => {
     props.actions.beginEdit(editKey, {
       topicId: topic.id, topicTitle: topic.title, mode,
@@ -61,52 +78,94 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
     <TopicSectionView {...props} topicId={topic.id} section={name} defaultOpen={defaultOpen} count={count}>{body}</TopicSectionView>
   )
   return (
-    <div className={css.enter} {...selectionSource(topic.id, accountResourceId)}>
+    <div className={`${css.enter} ${css.topicSurface} ${topicCss.topic}`} {...selectionSource(topic.id, accountResourceId)}>
       <WorkspaceReadingMeta t={t} read={read} stale={result.status === 'failed'} retry={retry} />
-      <header className={css.pageHeader}>
-        <p className={css.cardMeta}>
-          <WorkStateLabel t={t} work={topic.work} />
-          {relation !== undefined && <span className={css.relation}>{t(`map.relation.${relation}`)}</span>}
-        </p>
-        <h2 className={css.pageTitle} tabIndex={-1} data-arrival="">{topic.title}</h2>
-        <div className={css.question}><MarkdownText text={topic.question} labels={markdownLabels(t)} /></div>
-        <div className={css.scope}>
-          <p className={css.label}>{t('workspace.scope')}</p>
-          <MarkdownText text={topic.scope} labels={markdownLabels(t)} />
+      <header className={topicCss.header}>
+        <div className={topicCss.heading}>
+          {(topic.work.state !== 'unknown' || relation !== undefined) && <p className={css.cardMeta}>
+            {topic.work.state !== 'unknown' && <WorkStateLabel t={t} work={topic.work} />}
+            {relation !== undefined && <span className={css.relation}>{t(`map.relation.${relation}`)}</span>}
+          </p>}
+          <h2 className={topicCss.title} tabIndex={-1} data-arrival="">{topic.title}</h2>
+          <div className={topicCss.question}><MarkdownText text={question} labels={markdownLabels(t)} /></div>
         </div>
-        <ContributionNote {...props} parentId={topic.parentId} contribution={topic.parentContribution} />
-        <div className={css.actions}>
-          {accountResourceId !== undefined && <Button variant="outline" size="sm"
-            onClick={() => { props.navigate({ kind: 'resource', topicId: topic.id, resourceId: accountResourceId }) }}>
-            {t('workspace.readAccount')}
-          </Button>}
-          <Button variant="ghost" size="sm" onClick={() => { props.navigate({ kind: 'map', focusId: topic.id }) }}>{t('map.showOnMap')}</Button>
-          <Button variant="ghost" size="sm" disabled={unresolved || !canEdit || !read.provider.capabilities.commands.includes('update-scope')}
-            title={!canEdit ? t('workspace.edit.unsupported') : undefined} onClick={() => { beginEdit('scope') }}>{t('workspace.edit.scope')}</Button>
-          <Button variant="ghost" size="sm" disabled={unresolved || !canEdit || !read.provider.capabilities.commands.includes('record-answer')}
-            title={!canEdit ? t('workspace.edit.unsupported') : undefined} onClick={() => { beginEdit('answer') }}>{t('workspace.edit.answer')}</Button>
+        <div className={topicCss.actions}>
+          {props.focusQuestion !== undefined && <Button variant="primary" size="sm"
+            icon={<IconNewChatOutlineRegular size={16} />} onClick={props.focusQuestion}>{t('topic.ask')}</Button>}
+          <Menu autoFocus open={moreOpen} onClose={() => { setMoreOpen(false) }} align="end"
+            items={[
+              { id: 'map', label: t('map.showOnMap') },
+              { id: 'scope', label: t('workspace.edit.scope'), disabled: unresolved || !canEdit || !read.provider.capabilities.commands.includes('update-scope') },
+              { id: 'answer', label: t('workspace.edit.answer'), disabled: unresolved || !canEdit || !read.provider.capabilities.commands.includes('record-answer') },
+            ]}
+            onSelect={(id) => {
+              setMoreOpen(false)
+              if (id === 'map') props.navigate({ kind: 'map', focusId: topic.id })
+              else if (id === 'scope' || id === 'answer') beginEdit(id)
+            }}
+            anchor={<Button variant="ghost" size="sm" aria-haspopup="menu" aria-expanded={moreOpen}
+              onClick={() => { setMoreOpen(!moreOpen) }}>{t('topic.more')}<IconChevronDownOutlineRegular size={14} /></Button>} />
         </div>
       </header>
       <WorkspaceEditNotice {...props} topicId={props.topicId} />
       <WorkspaceEditor {...props} topicId={props.topicId} read={read} />
-      <section className={css.understanding} aria-label={t('workspace.answer')}>
-        <h3 className={css.label}>{t('workspace.answer')}</h3>
-        <QualifiedAnswerView t={t} answer={topic.currentAnswer} topicId={topic.id} />
-      </section>
-      <div className={css.openNext}>
-        <section><h3 className={css.label}>{t('workspace.gap')}</h3><p {...selectionSource(topic.id, accountResourceId, 'source')}>{topic.gap ?? t('workspace.noGap')}</p></section>
-        {topic.work.nextAction !== undefined && <section><h3 className={css.label}>{t('workspace.next')}</h3><p>{topic.work.nextAction}</p></section>}
+      <div className={topicCss.overview}>
+        <section className={topicCss.understanding} aria-label={t('workspace.answer')}>
+          <div className={topicCss.sectionHead}><h3>{t('workspace.answer')}</h3>
+            {accountResourceId !== undefined && <Button variant="outline" size="sm"
+              onClick={() => { props.navigate({ kind: 'resource', topicId: topic.id, resourceId: accountResourceId }) }}>
+              {t('workspace.readAccount')}
+            </Button>}</div>
+          <QualifiedAnswerView t={t} answer={answer} topicId={topic.id}
+            qualificationLabel={gapIsQualification ? t('workspace.gap') : undefined} />
+          <div className={topicCss.next}>
+            {!gapIsQualification && <section><h3>{t('workspace.gap')}</h3>
+              <div {...selectionSource(topic.id, accountResourceId, 'source')}>
+                <MarkdownText text={gap ?? t('workspace.noGap')} labels={markdownLabels(t)} />
+              </div>
+            </section>}
+            {topic.work.nextAction !== undefined && <section><h3>{t('workspace.next')}</h3><p>{topic.work.nextAction}</p></section>}
+          </div>
+        </section>
+        <aside className={topicCss.context} aria-label={t('workspace.scope')}>
+          <h3>{t('workspace.scope')}</h3>
+          <MarkdownText text={scope} labels={markdownLabels(t)} />
+          <ContributionNote {...props} parentId={topic.parentId} contribution={topic.parentContribution} />
+        </aside>
       </div>
       {topic.childIds.length > 0 && section('branches', true, topic.childIds.length, () => <TopicBranches {...props} topic={topic} />)}
-      {section('materials', true, topic.resources.length, () => (
-        <MaterialLinks t={t} navigate={props.navigate} topicId={topic.id} resources={topic.resources} showLocator />
+      {section('materials', true, materials.length, () => (
+        <>
+          <div className={topicCss.libraries}>{props.renderFactorySlot('aitp.research.topic-libraries', {
+            workspaceId: props.workspaceId, topicId: topic.id, title: topic.title,
+            ...props.libraryNavigation === undefined ? {} : { onLeave: props.libraryNavigation.onLeave },
+            returnTo: props.libraryNavigation?.returnTo ?? (() => {
+              props.navigate({ kind: 'topic', topicId: topic.id }); props.showResearch?.()
+            }),
+          })}</div>
+          {materials.length === 0 ? <p className={topicCss.empty}>{t('workspace.noMaterials')}</p>
+            : <ul className={topicCss.materials}>{materials.map(resource => <li key={resource.id}>
+              <button type="button" className={topicCss.material} onClick={() => { props.navigate({ kind: 'resource', topicId: topic.id, resourceId: resource.id }) }}>
+                <span className={topicCss.fileIcon}><FileTypeIcon path={materialLocator(resource)} size={20} /></span>
+                <span className={topicCss.materialBody}><strong>{resource.title}</strong>
+                  <PathLabel path={materialLocator(resource)} /></span>
+                <span className={topicCss.kind}>{t(`workspace.material.${resource.kind}`)}</span>
+                <IconChevronRightOutlineRegular size={14} />
+              </button>
+            </li>)}</ul>}
+        </>
       ))}
       {section('statements', false, topic.statements.length, () => <TopicStatements {...props} topic={topic} />)}
       {section('work', choicePending, topic.workItems.length, () => <TopicWork {...props} topic={topic} />)}
       {section('activity', false, undefined, () => (read.provider.capabilities.readActivity
         ? <TopicActivity {...props} topicId={topic.id} cursor={undefined} />
         : <p className={css.note}>{t('workspace.activityUnavailable')}</p>))}
-      <ReadAt t={t} read={read} />
+      <details className={topicCss.readingDetails} open={readingDetailsOpen}
+        onToggle={(event) => { props.actions.setDisclosed(readingDetailsKey, event.currentTarget.open) }}>
+        <summary>{t('topic.readingDetails')}</summary>
+        {topic.work.state === 'unknown' && <p><WorkStateLabel t={t} work={topic.work} /></p>}
+        <ReadAt t={t} read={read} />
+      </details>
     </div>
   )
 }

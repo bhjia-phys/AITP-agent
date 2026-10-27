@@ -2,7 +2,7 @@
 /** User paths over adapter snapshots; backend and transport semantics have their own suites. */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { bindSnapshotSelector, makeTranslate, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -14,6 +14,15 @@ import { createResearchPanelStore } from '../src/client/store.ts'
 import { workspaceEditKey } from '../src/client/workspace-edit-state.ts'
 import type { ApplyReceipt, ChangePreview, Project, ReadEnvelope, ResearchProvider, Resource, ResourceId, Result, Revision, Topic, TopicId, TopicPage, WorkspaceRead } from '../src/client/workspace-contract.ts'
 import { workspaceActivityAddress, workspaceProjectAddress, workspaceResourceAddress, workspaceSetupAddress, workspaceTopicAddress, workspaceTopicsAddress } from '../src/client/workspace-resources.ts'
+import { ConversationController } from '../../ui-conversation/src/client/service.ts'
+import { InputHub } from '../../ui-conversation/src/client/input/hub.ts'
+import { ComposerBlockRegistry } from '../../ui-conversation/src/client/input/blocks.ts'
+import { ChatNavigationRegistry } from '../../ui-chat/src/client/resource-navigation.ts'
+import { ResearchDiscussionController, discussionView } from '../src/client/discussion-controller.ts'
+import { ResearchWorkspaceRegistry } from '../src/client/workspace-service.ts'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { SourceRootId, SourceId } from '@deepseek-ai/dsh-research-resources/types'
 
 afterEach(cleanup)
 
@@ -83,7 +92,7 @@ function panel(values = resources(), overrides: Partial<ResearchPanelFace> = {},
   const readResource = vi.fn((address: string) => values[address] ?? none)
   const props = {
     t, useWorkspaces: (select: (value: { items: WorkspaceView[] }) => unknown) => select({ items: workspaces }),
-    useResource: readResource,
+    useResource: readResource, renderFactorySlot: vi.fn(() => null),
     useStore: bindSnapshotSelector(store), actions: store.actions, ...face,
   } as ResearchPanelProps
   let view = render(<ResearchPanel {...props} />)
@@ -101,8 +110,99 @@ function openChild(): void {
   fireEvent.click(screen.getByRole('button', { name: 'Open topic' }))
 }
 
+/** Editing is a deliberate secondary action in the topic menu. */
+function topicAction(name: 'Edit scope' | 'Update understanding' | 'Show on map'): HTMLButtonElement {
+  if (screen.queryByRole('menuitem', { name }) === null) fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+  return screen.getByRole<HTMLButtonElement>('menuitem', { name })
+}
+
 const trail = (): HTMLElement => screen.getByRole('navigation', { name: 'Research location' })
 const section = (name: string): HTMLElement => screen.getByRole('button', { name: new RegExp(`^${name}`) })
+
+describe('research discussion entry', () => {
+  it.each(['automatic', 'source set', 'passage'] as const)('returns from material reading with the correct %s source in native admission', async (choice) => {
+    const runtime = await SlotTestRuntime.create()
+    const input = new InputHub(runtime.ctx, makeTranslate())
+    const conversation = new ConversationController(runtime.ctx, {
+      input, blocks: new ComposerBlockRegistry(), maxConcurrentFileUploads: 1,
+    })
+    runtime.ctx.reflect.provide('uiChatNavigation', new ChatNavigationRegistry())
+    const sessionId = brandString<SessionId>(`back-source-${choice}`)
+    const create = vi.fn(async () => runtime.sessions.add({ id: sessionId, snapshot: { blank: true } }))
+    runtime.sessions.stubCreate(create)
+    const registry = new ResearchWorkspaceRegistry(runtime.ctx)
+    vi.spyOn(registry, 'listDiscussions').mockResolvedValue({ ok: true, value: { items: [], completeness: 'complete', issues: [] } })
+    const ask = vi.spyOn(registry, 'ask').mockResolvedValue({ ok: true, value: { sessionId } })
+    const controller = new ResearchDiscussionController(runtime.ctx, registry, () => false, makeTranslate())
+    const study = vi.fn(async () => ({ ok: true as const, value: { sessionId } }))
+    controller.registerStudySubmission(study)
+    const scope = { workspaceId: WS, topicId: CHILD }
+    const selections = [{ ref: { rootId: brandString<SourceRootId>('root'), sourceId: brandString<SourceId>('selected.md') } }]
+    try {
+      const { store } = panel(resources(), {
+        beginDiscussion: (selectedScope, origin) => { void controller.open(selectedScope, origin) },
+        updateDiscussionSource: (selectedScope, origin) => { controller.setReadingSource(selectedScope, origin) },
+      })
+      openChild()
+      await controller.open(scope, undefined, 'Keep this native draft')
+      const original = discussionView(controller.views.getSnapshot(), scope).reference!
+      fireEvent.click(screen.getByRole('button', { name: /Reference paper/ }))
+      expect(store.getSnapshot().location).toEqual({ kind: 'resource', topicId: CHILD, resourceId: PDF })
+      expect(discussionView(controller.views.getSnapshot(), scope).origin?.resourceId).toBe(PDF)
+      if (choice === 'source set') controller.setSource(scope, { selections })
+      if (choice === 'passage') controller.setSource(scope, { resourceId: NOTE, selectedText: 'Exact chosen passage' })
+      fireEvent.click(within(trail()).getByRole('button', { name: 'Back' }))
+      expect(store.getSnapshot().location).toEqual({ kind: 'topic', topicId: CHILD })
+      expect(discussionView(controller.views.getSnapshot(), scope).reference).toBe(original)
+      expect(input.shellFor(original.binding).snapshot.draft).toBe('Keep this native draft')
+      expect(create).toHaveBeenCalledOnce()
+      const captured = conversation.submissions.capture(sessionId)!
+      expect(await captured({ sessionId, requestId: brandString<SessionRequestId>('back-source-question'),
+        content: [{ type: 'text', text: 'Question after returning' }], mode: 'steer' }, new AbortController().signal))
+        .toEqual({ ok: true, value: { accepted: true } })
+      if (choice === 'source set') {
+        expect(study).toHaveBeenCalledWith(expect.objectContaining({ selections }), expect.anything(), expect.anything())
+        expect(ask).not.toHaveBeenCalled()
+      } else {
+        const submitted = ask.mock.calls[0]?.[0]
+        expect(submitted?.resourceId).toBe(choice === 'automatic' ? undefined : NOTE)
+        expect(submitted?.selectedText).toBe(choice === 'passage' ? 'Exact chosen passage' : undefined)
+      }
+    } finally { cleanup(); await controller.dispose(); await runtime.dispose() }
+  })
+
+  it('opens the native discussion for the displayed topic without submitting or replacing the main panel', () => {
+    const beginDiscussion = vi.fn<NonNullable<ResearchPanelFace['beginDiscussion']>>()
+    const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>()
+    const { face } = panel(resources(), { beginDiscussion, askQuestion })
+    openChild()
+    expect(beginDiscussion).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText(t('workspace.ask.label'))).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: t('topic.ask') }))
+    expect(beginDiscussion).toHaveBeenCalledWith(
+      { workspaceId: WS, topicId: CHILD, title: 'Controlled limit' },
+      { workspaceId: WS, topicId: CHILD, title: 'Controlled limit' },
+    )
+    expect(askQuestion).not.toHaveBeenCalled()
+    expect(face.openSession).not.toHaveBeenCalled()
+    expect(screen.getByRole('heading', { name: 'Controlled limit' })).toBeTruthy()
+  })
+
+  it('retains separate reading positions when the sidebar changes topics', () => {
+    const { store } = panel()
+    openChild()
+    const reading = document.querySelector<HTMLElement>('[data-research-reading]')!
+    reading.scrollTop = 340
+    fireEvent.scroll(reading)
+    act(() => { store.actions.visitTopic(WS, ROOT) })
+    reading.scrollTop = 90
+    fireEvent.scroll(reading)
+    act(() => { store.actions.visitTopic(WS, CHILD) })
+    expect(reading.scrollTop).toBe(340)
+    act(() => { store.actions.visitTopic(WS, ROOT) })
+    expect(reading.scrollTop).toBe(90)
+  })
+})
 
 describe('workspace enrollment and new topics', () => {
   it('reads setup before research contents and keeps enrollment visible through unavailable setup', () => {
@@ -493,6 +593,40 @@ describe('branch focus', () => {
 })
 
 describe('topic page', () => {
+  it('presents section bodies once while editing and the full account retain the authored sections', () => {
+    const values = resources()
+    const scope = 'Scope\n-----\n\nFinite systems.'
+    const gap = '## Open questions\n\nDoes the **boundary** change the result?'
+    const answer = '## Current answer\n\nOnly under A.\n\n### Boundary calculation\n\nThe inner heading belongs to the argument.'
+    values[workspaceTopicAddress(WS, CHILD)] = live(read({ ...child, scope, gap,
+      currentAnswer: { text: answer, qualification: gap, attribution },
+    }))
+    const { store } = panel(values)
+    openChild()
+    expect(screen.queryByRole('heading', { name: 'Current answer' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Open questions' })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Boundary calculation' })).toBeDefined()
+    expect(screen.getAllByText('boundary', { exact: true })).toHaveLength(1)
+    expect(screen.getByText('Finite systems.')).toBeDefined()
+    fireEvent.click(topicAction('Edit scope'))
+    expect(store.getSnapshot().pendingEdits[workspaceEditKey(WS, CHILD)]?.text).toBe(scope)
+  })
+
+  it('focuses the existing question composer and keeps editing behind the topic menu', () => {
+    panel(resources(), { askQuestion: vi.fn() })
+    openChild()
+    const input = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Ask about this research' })
+    const scroll = vi.fn()
+    Object.defineProperty(input, 'scrollIntoView', { value: scroll })
+    expect(screen.queryByRole('menuitem', { name: 'Edit scope' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Ask about this topic' }))
+    expect(scroll).toHaveBeenCalledWith({ block: 'center' })
+    expect(document.activeElement).toBe(input)
+    expect(topicAction('Edit scope').disabled).toBe(false)
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(screen.queryByRole('menuitem', { name: 'Edit scope' })).toBeNull()
+  })
+
   it('leads with the qualified answer, then remembers which sections are open across a material visit', () => {
     const { store } = panel()
     openChild()
@@ -509,7 +643,7 @@ describe('topic page', () => {
     expect(section('Claims & routes').getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(section('Claims & routes'))
     expect(screen.getByText('No claims or routes are recorded.')).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
     expect(screen.getByRole('heading', { name: 'Full control' })).toBeDefined()
     expect(screen.getByText('The full argument keeps assumption A.')).toBeDefined()
     expect(within(trail()).getByRole('button', { name: 'Controlled limit' })).toBeDefined()
@@ -517,7 +651,7 @@ describe('topic page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(store.getSnapshot().location).toEqual({ kind: 'topic', topicId: CHILD })
     expect(section('Claims & routes').getAttribute('aria-expanded')).toBe('true')
-    fireEvent.click(screen.getByRole('button', { name: 'Show on map' }))
+    fireEvent.click(topicAction('Show on map'))
     expect(store.getSnapshot().location).toEqual({ kind: 'map', focusId: CHILD })
   })
 
@@ -527,7 +661,7 @@ describe('topic page', () => {
     const store = createResearchPanelStore().create()
     const props = {
       t, useWorkspaces: (select: (value: { items: WorkspaceView[] }) => unknown) => select({ items: [{ workspaceId: WS, path: '/r', title: 'W', sessionIds: [], createdAt: '', updatedAt: '' }] }),
-      useResource: reader, useStore: bindSnapshotSelector(store), actions: store.actions,
+      useResource: reader, renderFactorySlot: vi.fn(() => null), useStore: bindSnapshotSelector(store), actions: store.actions,
       openSession: vi.fn(), startDraft: vi.fn(), retry: vi.fn(), previewChange: vi.fn(), applyChange: vi.fn(),
     } as ResearchPanelProps
     render(<ResearchPanel {...props} />)
@@ -582,7 +716,7 @@ describe('topic page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'gone' }))
     expect(store.getSnapshot().location).toEqual({ kind: 'resource', topicId: CHILD, resourceId: 'gone' })
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Update understanding' }))
+    fireEvent.click(topicAction('Update understanding'))
     expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Answer' }).value).toBe('')
     expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Conditions and limitations' }).value).toBe('')
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -741,7 +875,7 @@ describe('workspace edit feedback', () => {
     const applyChange = vi.fn<ResearchPanelFace['applyChange']>(async (_workspaceId, request) => ({ ok: true, value: read({ operationId: request.operationId, changeId: 'change', committedAt: '', actor: { id: 'user', kind: 'researcher', label: 'Researcher' }, changed: [] }) }))
     const { face } = panel(resources(), { previewChange, applyChange })
     openChild()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit scope' }))
+    fireEvent.click(topicAction('Edit scope'))
     fireEvent.change(screen.getByRole('textbox', { name: 'Scope' }), { target: { value: 'Matched finite systems.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Preview change' }))
     await screen.findByText('Proposed version')
@@ -759,7 +893,7 @@ describe('workspace edit feedback', () => {
     const previewChange = vi.fn<ResearchPanelFace['previewChange']>(async () => ({ ok: true, value: read(preview) }))
     panel(resources(), { previewChange })
     openChild()
-    fireEvent.click(screen.getByRole('button', { name: 'Update understanding' }))
+    fireEvent.click(topicAction('Update understanding'))
     fireEvent.change(screen.getByRole('textbox', { name: 'Answer' }), { target: { value: 'Updated answer.' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Conditions and limitations' }), { target: { value: 'Only at fixed size.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Preview change' }))
@@ -772,7 +906,7 @@ describe('workspace edit feedback', () => {
     const values = resources()
     const { rerender } = panel(values, { previewChange })
     openChild()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit scope' }))
+    fireEvent.click(topicAction('Edit scope'))
     fireEvent.change(screen.getByRole('textbox', { name: 'Scope' }), { target: { value: 'My retained draft.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Preview change' }))
     await screen.findByRole('alert')
@@ -791,7 +925,7 @@ describe('workspace edit feedback', () => {
     const values = resources()
     const { rerender } = panel(values, { previewChange })
     openChild()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit scope' }))
+    fireEvent.click(topicAction('Edit scope'))
     fireEvent.change(screen.getByRole('textbox', { name: 'Scope' }), { target: { value: 'My older draft.' } })
     values[workspaceTopicAddress(WS, CHILD)] = live({ ...read({ ...child, scope: 'External replacement.' }), revision: 'r2' as Revision })
     act(rerender)
@@ -806,7 +940,7 @@ describe('workspace edit feedback', () => {
     const applyChange = vi.fn<ResearchPanelFace['applyChange']>(async (_workspaceId, request) => ({ ok: false, error: { code: 'outcome-unknown', message: 'Receipt lost.', operationId: request.operationId } }))
     panel(resources(), { previewChange, applyChange })
     openChild()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit scope' }))
+    fireEvent.click(topicAction('Edit scope'))
     fireEvent.click(screen.getByRole('button', { name: 'Preview change' }))
     await screen.findByText('Proposed version')
     fireEvent.click(screen.getByRole('button', { name: 'Apply change' }))
@@ -826,7 +960,7 @@ describe('workspace edit feedback', () => {
     const values = resources()
     const { store, leavePanel, returnToPanel } = panel(values, { previewChange, applyChange })
     openChild()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit scope' }))
+    fireEvent.click(topicAction('Edit scope'))
     fireEvent.change(screen.getByRole('textbox', { name: 'Scope' }), { target: { value: 'Retained submitted scope.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Preview change' }))
     await screen.findByText('Proposed version')
@@ -860,7 +994,7 @@ describe('workspace edit feedback', () => {
       .mockImplementation(async (_workspaceId, request) => ({ ok: true, value: read({ operationId: request.operationId, changeId: 'recovered', committedAt: '', actor: { id: 'user', kind: 'researcher', label: 'Researcher' }, changed: [] }) }))
     const { store } = panel(resources(), { previewChange, applyChange })
     openChild()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit scope' }))
+    fireEvent.click(topicAction('Edit scope'))
     fireEvent.click(screen.getByRole('button', { name: 'Preview change' }))
     await screen.findByText('Proposed version')
     fireEvent.click(screen.getByRole('button', { name: 'Apply change' }))
@@ -868,7 +1002,7 @@ describe('workspace edit feedback', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Retry the same operation' }))
     await screen.findByText('Still disconnected.')
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Preview change' }).disabled).toBe(true)
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Update understanding' }).disabled).toBe(true)
+    expect(topicAction('Update understanding').disabled).toBe(true)
     expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Scope' }).disabled).toBe(true)
     expect(store.getSnapshot().pendingEdits[workspaceEditKey(WS, CHILD)]?.uncertain).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Research map' }))
@@ -888,12 +1022,12 @@ describe('workspace edit feedback', () => {
     })
     panel(values)
     openChild()
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Edit scope' }).disabled).toBe(true)
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Update understanding' }).disabled).toBe(true)
+    expect(topicAction('Edit scope').disabled).toBe(true)
+    expect(topicAction('Update understanding').disabled).toBe(true)
   })
 })
 
-it.each(['map summary', 'topic page'] as const)('asks from the recorded child account owner when opened from its parent %s, then returns to the parent', async (from) => {
+it.each(['map summary', 'topic page'] as const)('keeps the parent question when reading a child-owned account from its %s, then returns to the parent', async (from) => {
   const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>(async () => ({ ok: true, value: { sessionId: 'child-account-question' as SessionId } }))
   const values = resources()
   const parent = { ...root, resources: [child.resources[0]!] }
@@ -909,24 +1043,28 @@ it.each(['map summary', 'topic page'] as const)('asks from the recorded child ac
   fireEvent.change(input, { target: { value: 'What does this account establish?' } })
   fireEvent.click(screen.getByRole('button', { name: 'Ask in a new conversation' }))
   await waitFor(() => { expect(face.openSession).toHaveBeenCalledWith('child-account-question') })
-  expect(askQuestion).toHaveBeenCalledExactlyOnceWith({ workspaceId: WS, topicId: CHILD, resourceId: NOTE,
+  expect(askQuestion).toHaveBeenCalledExactlyOnceWith({ workspaceId: WS, topicId: ROOT, resourceId: NOTE,
     question: 'What does this account establish?' })
-  expect(store.getSnapshot().location).toEqual({ kind: 'resource', topicId: CHILD, resourceId: NOTE })
-  expect(within(trail()).getByRole('button', { name: 'Controlled limit' })).toBeDefined()
+  expect(store.getSnapshot().location).toEqual({ kind: 'resource', topicId: ROOT, resourceId: NOTE })
+  expect(within(trail()).getByRole('button', { name: 'Main question' })).toBeDefined()
   fireEvent.click(screen.getByRole('button', { name: 'Back' }))
   expect(store.getSnapshot().location).toEqual(from === 'topic page' ? { kind: 'topic', topicId: ROOT } : { kind: 'map', focusId: ROOT })
   expect(screen.getByRole('heading', { name: 'Main question', level: 2 })).toBeDefined()
 })
 
-it('keeps the selected topic when asking about a shared material, then returns to its topic page', async () => {
+it.each([
+  ['map summary', null], ['topic page', null], ['map summary', ROOT], ['topic page', ROOT],
+] as const)('keeps the selected topic for shared material from its %s with owner %s', async (from, ownerTopicId) => {
   const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>(async () => ({ ok: true, value: { sessionId: 'shared-material-question' as SessionId } }))
   const values = resources()
-  const shared = { ...note, ownerTopicId: null }
+  const shared = { ...note, ownerTopicId }
   values[workspaceTopicAddress(WS, CHILD)] = live(read({ ...child, resources: [shared] }))
   values[workspaceResourceAddress(WS, NOTE)] = live(read(shared))
   const { store, face } = panel(values, { askQuestion })
-  openChild()
-  fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^Main question/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^Controlled limit/ }))
+  if (from === 'topic page') fireEvent.click(screen.getByRole('button', { name: 'Open topic' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
   const input = screen.getByRole('textbox', { name: 'Ask about this research' })
   fireEvent.focus(input)
   fireEvent.change(input, { target: { value: 'How does this shared evidence constrain this topic?' } })
@@ -936,7 +1074,7 @@ it('keeps the selected topic when asking about a shared material, then returns t
     question: 'How does this shared evidence constrain this topic?' })
   expect(store.getSnapshot().location).toEqual({ kind: 'resource', topicId: CHILD, resourceId: NOTE })
   fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-  expect(store.getSnapshot().location).toEqual({ kind: 'topic', topicId: CHILD })
+  expect(store.getSnapshot().location).toEqual(from === 'topic page' ? { kind: 'topic', topicId: CHILD } : { kind: 'map', focusId: CHILD })
   expect(screen.getByRole('heading', { name: 'Controlled limit', level: 2 })).toBeDefined()
 })
 
@@ -944,7 +1082,7 @@ it('submits a human question with its material and topic only after explicit sub
   const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>(async () => ({ ok: true, value: { sessionId: 'new-research-session' as never } }))
   const { face } = panel(resources(), { askQuestion })
   openChild()
-  fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
   expect(askQuestion).not.toHaveBeenCalled()
   const source = screen.getByText('The full argument keeps assumption A.')
   const range = document.createRange()
@@ -970,7 +1108,7 @@ it('keeps the browser-rendered quote across bold, link and inline-code elements'
   }))
   panel(values, { askQuestion })
   openChild()
-  fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
   const paragraph = screen.getByText('finite result').closest('p')!
   const range = document.createRange()
   range.selectNodeContents(paragraph)
@@ -1032,7 +1170,7 @@ it('retains an unsupported mathematical selection visibly and requires clearing 
   values[workspaceResourceAddress(WS, NOTE)] = live(read({ ...note, content: { kind: 'markdown', text: '# Full control\n\nThe formula is $x^2$.' } }))
   panel(values, { askQuestion })
   openChild()
-  fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
   const formula = document.querySelector('.katex')!
   expect(formula).not.toBeNull()
   const range = document.createRange()
@@ -1069,7 +1207,7 @@ it('captures a Tab gesture before focus can overtake the queued selection change
     const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>()
     const { leavePanel } = panel(resources(), { askQuestion })
     openChild()
-    fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
     const input = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Ask about this research' })
     const selection = document.getSelection()!
     const range = document.createRange()
@@ -1097,7 +1235,7 @@ it('retains a source gesture across native focus, clears stale candidates and re
     const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>()
     const { leavePanel } = panel(resources(), { askQuestion })
     openChild()
-    fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
     const input = screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Ask about this research' })
     const selection = document.getSelection()!
     const selectSource = (): void => {
@@ -1166,7 +1304,7 @@ it('clears attached text, blocks duplicate submissions while pending and retains
   const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>(() => new Promise((resolve) => { complete = resolve }))
   const { face } = panel(resources(), { askQuestion })
   openChild()
-  fireEvent.click(screen.getByRole('button', { name: /Control calculation/ }))
+  fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
   const range = document.createRange()
   range.selectNodeContents(screen.getByText('The full argument keeps assumption A.'))
   const selection = document.getSelection()!
@@ -1204,7 +1342,7 @@ it.each(['different', 'unavailable'] as const)('distinguishes an earlier saved c
   }))
   panel(resources(), { previewChange, applyChange })
   openChild()
-  fireEvent.click(screen.getByRole('button', { name: 'Edit scope' }))
+  fireEvent.click(topicAction('Edit scope'))
   fireEvent.click(screen.getByRole('button', { name: 'Preview change' }))
   await screen.findByText('Proposed version')
   fireEvent.click(screen.getByRole('button', { name: 'Apply change' }))

@@ -7,6 +7,22 @@ import { MarkdownText } from './markdown-test-components.tsx'
 afterEach(cleanup)
 
 describe('Markdown file links', () => {
+  it('routes exact local fragments through their owner and never redirects external or executable URLs to it', () => {
+    const open = vi.fn(), canOpen = vi.fn((href: string) => href === 'notes/%E4%B8%AD%E6%96%87.md#convention' || href === '#local')
+    const openFile = vi.fn()
+    const view = render(<MarkdownDelegateProvider localLinks={{ canOpen, open }} openFile={openFile}>
+      <MarkdownText text={'[Section](notes/%E4%B8%AD%E6%96%87.md#convention) [Here](#local) [Missing](other.md) [Web](https://example.test/) [Unsafe](javascript:alert) [Encoded](javascript%3Aalert)'} />
+    </MarkdownDelegateProvider>)
+    fireEvent.click(view.getByRole('button', { name: 'Section' }))
+    fireEvent.click(view.getByRole('button', { name: 'Here' }))
+    expect(open.mock.calls).toEqual([['notes/%E4%B8%AD%E6%96%87.md#convention'], ['#local']])
+    expect(openFile).not.toHaveBeenCalled()
+    expect(view.queryByRole('button', { name: 'Missing' })).toBeNull()
+    expect(view.getByRole('link', { name: 'Web' }).getAttribute('href')).toBe('https://example.test/')
+    expect(canOpen.mock.calls.some(([href]) => /^(?:https:|javascript)/u.test(href))).toBe(false)
+    expect(view.queryByRole('link', { name: 'Unsafe' })).toBeNull()
+  })
+
   it.each([
     ['src/index.ts', 'src/index.ts', undefined],
     ['/workspace/src/index.ts#L24', '/workspace/src/index.ts', { line: 24 }],

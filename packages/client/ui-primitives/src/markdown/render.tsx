@@ -540,9 +540,28 @@ function anchorWrapsOnlyImages(children: Md.PhrasingContent[]): boolean {
 
 /** Anchor over an already-authored href: allowlisted or unwrapped, with optional owner navigation for HTTP(S). */
 function renderSafeLink(href: string, children: ReactNode[], key: Key, glyph = true): ReactNode {
+  if (href.startsWith('dsh-resource://')) return <MarkdownResourceAnchor key={key} href={href} glyph={glyph}>{children}</MarkdownResourceAnchor>
   const safeHref = sanitizeUrl(href)
   if (safeHref === '') return <Fragment key={key}>{children}</Fragment>
   return <MarkdownAnchor key={key} href={safeHref} glyph={glyph}>{children}</MarkdownAnchor>
+}
+
+/** Resource links require a current owner capability; no custom scheme is handed to native navigation. */
+function MarkdownResourceAnchor({ href, glyph, children }: {
+  readonly href: string
+  readonly glyph: boolean
+  readonly children: ReactNode[]
+}): ReactNode {
+  const { resourceLinks } = useMarkdownDelegate()
+  if (!resourceLinks?.canOpen(href)) return <>{children}</>
+  return <a href={href} onAuxClick={(event) => { event.preventDefault() }} onClick={(event) => {
+    event.preventDefault()
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    if (resourceLinks.canOpen(href)) resourceLinks.open(href)
+  }}>
+    {glyph && <LinkIconMedium kind="url" href={href} className={css.linkIcon} />}
+    {children}
+  </a>
 }
 
 function MarkdownAnchor({ href, glyph, children }: {
@@ -571,6 +590,7 @@ function MarkdownAnchor({ href, glyph, children }: {
 
 /** Local destinations use the scoped file delegate after settlement. */
 function renderAnchor(url: string, children: ReactNode[], key: Key, glyph = true, streaming = false): ReactNode {
+  if (!streaming && localReference(url)) return <MarkdownLocalAnchor key={key} href={url} glyph={glyph}>{children}</MarkdownLocalAnchor>
   const file = streaming ? undefined : parseFileLink(url)
   if (file !== undefined) {
     return <MarkdownFileLink key={key} file={file} glyph={glyph}>{children}</MarkdownFileLink>
@@ -578,13 +598,38 @@ function renderAnchor(url: string, children: ReactNode[], key: Key, glyph = true
   return renderSafeLink(normalizeUri(url), children, key, glyph)
 }
 
-function MarkdownFileLink({ file, glyph, children }: {
-  readonly file: { path: string; line?: number }
+/** Only local paths/fragments may enter an owner's local-link capability. */
+function localReference(href: string): boolean {
+  if (href.length === 0 || /[\u0000-\u001f\u007f]/u.test(href)) return false
+  let decoded: string
+  try { decoded = decodeURIComponent(href.split(/[?#]/u)[0] ?? '') } catch { return false }
+  if (/^[\\/]{2}/u.test(decoded) || /[\u0000-\u001f\u007f]/u.test(decoded)) return false
+  return !/^\s*[a-z][a-z\d+.-]*:/iu.test(decoded) || /^[a-z]:[\\/]/iu.test(decoded)
+}
+
+function MarkdownLocalAnchor({ href, glyph, children }: {
+  readonly href: string
   readonly glyph: boolean
   readonly children: ReactNode[]
 }): ReactNode {
+  const { localLinks } = useMarkdownDelegate()
+  const file = parseFileLink(href)
+  if (localLinks === undefined) return file === undefined ? renderSafeLink(normalizeUri(href), children, href, glyph)
+    : <MarkdownFileLink file={file} glyph={glyph}>{children}</MarkdownFileLink>
+  if (!localLinks.canOpen(href)) return <>{children}</>
+  const open = () => { if (localLinks.canOpen(href)) localLinks.open(href) }
+  return file === undefined ? <button type="button" className={clsx(css.fileMention, css.fileLink)} onClick={open}>{children}</button>
+    : <MarkdownFileLink file={file} glyph={glyph} open={open}>{children}</MarkdownFileLink>
+}
+
+function MarkdownFileLink({ file, glyph, children, open }: {
+  readonly file: { path: string; line?: number }
+  readonly glyph: boolean
+  readonly children: ReactNode[]
+  readonly open?: () => void
+}): ReactNode {
   const { openFile, fileImages } = useMarkdownDelegate()
-  if (openFile === undefined) return <>{children}</>
+  if (open === undefined && openFile === undefined) return <>{children}</>
   // Pure-image anchors already contain their preview and keep one navigation target.
   const preview = glyph && classifyLinkPath(file.path) === 'image' ? fileImages : undefined
   const src = preview?.resolve(file.path)
@@ -593,7 +638,10 @@ function MarkdownFileLink({ file, glyph, children }: {
       type="button"
       className={clsx(css.fileMention, css.fileLink)}
       title={src === undefined ? file.path : undefined}
-      onClick={() => { openFile(file.path, file.line === undefined ? undefined : { line: file.line }) }}
+      onClick={() => {
+        if (open !== undefined) open()
+        else openFile?.(file.path, file.line === undefined ? undefined : { line: file.line })
+      }}
     >
       {glyph && <LinkIconMedium kind={classifyLinkPath(file.path)} className={css.linkIcon} />}
       {children}

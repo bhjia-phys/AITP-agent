@@ -1,8 +1,10 @@
 /** Workspace adapter ownership; content caches remain in the framework resource service. */
+import { brandString } from '@deepseek-ai/dsh-brand'
 import type { Context } from '@deepseek-ai/cordis'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {
+  ResearchChangeQuery, ResearchChangeView, DiscussionPage, DiscussionQuery, ReadOptions, TopicId,
   ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview, ReadEnvelope,
   ResearchEvent, ResearchWorkspaceAdapter, Result,
   ResearchQuestion,
@@ -138,15 +140,50 @@ export class ResearchWorkspaceRegistry {
   }
 
   /**
+   * Inspect a native source-edit receipt through its actual Workspace and Session owners.
+   * @param workspaceId - Authorized source Workspace.
+   * @param query - Original conversation and operation.
+   * @param options - Cancels the read.
+   * @returns Bounded exact file comparison and truthful current observations.
+   */
+  async getChange(workspaceId: WorkspaceId, query: ResearchChangeQuery, options?: ReadOptions): Promise<Result<ResearchChangeView>> {
+    const resolved = this.resolve(workspaceId)
+    if (!resolved.ok) return resolved
+    if (resolved.value.getChange === undefined) return { ok: false, error: { code: 'unsupported', message: 'This connection cannot inspect source edits.', retryable: false } }
+    return resolved.value.getChange(query, options)
+  }
+
+  /**
+   * List native discussions in the visible scope; string identities are branded at this adapter boundary.
+   * @param workspaceId - Current Harness Workspace.
+   * @param query - Optional exact direction and row bound.
+   * @param options - Cancels the underlying read.
+   * @returns Bounded authoritative rows or a provider error.
+   */
+  async listDiscussions(workspaceId: WorkspaceId, query: Omit<DiscussionQuery, 'topicId'> & { readonly topicId?: string } = {},
+    options?: ReadOptions): Promise<Result<DiscussionPage>> {
+    const resolved = this.resolve(workspaceId)
+    if (!resolved.ok) return resolved
+    if (resolved.value.listDiscussions === undefined) return { ok: false, error: { code: 'unsupported', message: 'This connection cannot list research discussions.', retryable: false } }
+    if (query.topicId === '') return { ok: false, error: { code: 'invalid-request', message: 'A research direction identity cannot be empty.', retryable: false } }
+    return resolved.value.listDiscussions({ ...(query.limit === undefined ? {} : { limit: query.limit }),
+      ...(query.topicId === undefined ? {} : { topicId: brandString<TopicId>(query.topicId) }) }, options)
+  }
+
+  /**
    * Submit a human question with its displayed topic and material selection.
    * @param question - submitted words and current Workspace/topic/material origin.
+   * @param options - optional cancellation signal passed to the provider.
    * @returns the normal Session identity or a typed connection/unsupported failure.
    */
-  async ask(question: ResearchQuestion): Promise<Result<{ readonly sessionId: SessionId }>> {
+  async ask(question: Omit<ResearchQuestion, 'topicId'> & { readonly topicId?: string },
+    options?: ReadOptions): Promise<Result<{ readonly sessionId: SessionId }>> {
     const resolved = this.resolve(question.workspaceId)
     if (!resolved.ok) return resolved
     if (resolved.value.ask === undefined) return { ok: false, error: { code: 'unsupported', message: 'Contextual conversations are unavailable from this provider.', retryable: false } }
-    return resolved.value.ask(question)
+    if (question.topicId === '') return { ok: false, error: { code: 'invalid-request', message: 'A research direction identity cannot be empty.', retryable: false } }
+    const { topicId, ...submission } = question
+    return resolved.value.ask({ ...submission, ...(topicId === undefined ? {} : { topicId: brandString<TopicId>(topicId) }) }, options)
   }
 
   /**

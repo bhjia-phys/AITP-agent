@@ -1,0 +1,24 @@
+- id: 98e6e613
+  name: cordis:typert
+- id: 3ca64c93
+  name: cordis:resources
+  config:
+    roots:
+      - id: knowledge
+        path: !!js process.cwd() + '/knowledge'
+        domains:
+          - knowledge
+      - id: papers
+        path: !!js process.cwd() + '/papers'
+        domains:
+          - literature
+      - id: checkout
+        path: !!js process.cwd() + '/checkout'
+        domains:
+          - code
+- id: 01941f4b
+  name: cordis:knowledge
+- id: 8d8a0961
+  name: cordis:literature
+- id: 2935334a
+  name: cordis:code

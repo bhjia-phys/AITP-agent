@@ -51,6 +51,25 @@ describe('research panel store', () => {
     })
   })
 
+  it('resumes an external reader without adding another Back destination', () => {
+    const store = createResearchPanelStore().create()
+    const topic = { kind: 'topic' as const, topicId: 'a' as TopicId }
+    const focus = { kind: 'map' as const, focusId: 'a' as TopicId }
+    store.actions.open(ws('w1'), focus, stay)
+    store.actions.open(ws('w1'), topic, stay)
+    store.actions.setDisclosed(disclosureKey(ws('w1'), 'section', 'a', 'statements'), true)
+    const history = store.getSnapshot().back
+    store.actions.restore(ws('w1'), topic, { scrollTop: 360, focusIndex: 4 })
+    expect(store.getSnapshot()).toMatchObject({ location: topic, back: history,
+      arrival: { kind: 'return', scrollTop: 360, focusIndex: 4 },
+      disclosure: { [disclosureKey(ws('w1'), 'section', 'a', 'statements')]: true } })
+    store.actions.goBack(ws('w1'))
+    expect(store.getSnapshot().location).toEqual(focus)
+    store.actions.open(ws('w2'), { kind: 'topic', topicId: 'elsewhere' as TopicId }, stay)
+    store.actions.restore(ws('w1'), topic, { scrollTop: 360, focusIndex: 4 })
+    expect(store.getSnapshot()).toMatchObject({ workspaceId: 'w1', location: topic, back: [] })
+  })
+
   it('keeps the latest fifty locations for Back', () => {
     const store = createResearchPanelStore().create()
     for (let index = 0; index < 60; index += 1) store.actions.open(ws('w1'), { kind: 'topic', topicId: `t${index}` as TopicId }, stay)

@@ -8,6 +8,7 @@
  */
 import { expect, vi } from 'vitest'
 import { ClientRoster, createClientTest, webApp } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
+import type { InjectParams } from '@deepseek-ai/dsh-client-ui-slots'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { MemoryPage, MemoryPageTitle } from '../src/client/MemoryPage.tsx'
 import { apply as nodeApply } from '../src/index.ts'
@@ -18,6 +19,9 @@ import { TaskCard, type MemoryActionsFace } from '../src/client/TaskCard.tsx'
 const SESSION = '@deepseek-ai/dsh-client-ui-aitp-session'
 const FIXTURES = '@deepseek-ai/dsh-client-ui-aitp-fixtures'
 const PAGE_KEY = '@deepseek-ai/dsh-client-ui-aitp-session/memory'
+type MemoryActionsInject = (...args: InjectParams<
+  'conversation.session.header.actions' | 'conversation.input.dock', undefined
+>) => Record<string, unknown>
 
 const it = createClientTest({ roster: ClientRoster.of([
   ...webApp.rows,
@@ -33,6 +37,7 @@ const it = createClientTest({ roster: ClientRoster.of([
     name: SESSION,
     inject: [
       '@deepseek-ai/dsh-client-ui-renderer', '@deepseek-ai/dsh-client-ui-conversation', '@deepseek-ai/dsh-client-ui-sidebar-right',
+      '@deepseek-ai/dsh-client-ui-workspace',
       '@deepseek-ai/dsh-client-resources', '@deepseek-ai/dsh-client-locale',
     ],
     immediately: false,
@@ -69,13 +74,30 @@ it('registers the header action, task card and page, opens through the dock, and
   expect(client.ctx.sidebarRightTabs.get('aitp-memory')?.title('')).toBe('Sources & memory')
 
   const openTab = vi.spyOn(client.ctx.sidebarRight, 'openTab').mockImplementation(() => undefined)
+  const cancelOrigin = vi.fn()
+  const cancelTask = vi.fn()
+  const requestOpenTab = vi.spyOn(client.ctx.sidebarRight, 'requestOpenTab')
+    .mockReturnValueOnce(cancelOrigin).mockReturnValueOnce(cancelTask)
   const openResource = vi.spyOn(client.ctx.sidebarRight, 'openResource').mockImplementation(() => undefined)
-  const face = header?.inject?.()
+  const openSession = vi.spyOn(client.ctx.uiWorkspace, 'openSession').mockImplementation(() => undefined)
+  const originSession = 'origin-session' as SessionId
+  const taskSession = 'task-session' as SessionId
+  // Stored entries erase factory arguments; these registrations use the declared Session scope.
+  const face = (header?.inject as MemoryActionsInject | undefined)?.(originSession)
   if (!isMemoryFace(face)) throw new Error('the header action carries no memory actions')
-  expect(isMemoryFace(dock?.inject?.())).toBe(true)
+  const taskFace = (dock?.inject as MemoryActionsInject | undefined)?.(taskSession)
+  if (!isMemoryFace(taskFace)) throw new Error('the task card carries no memory actions')
   face.openMemory()
+  expect(openSession).toHaveBeenLastCalledWith(originSession)
+  expect(requestOpenTab).toHaveBeenLastCalledWith(originSession, 'aitp-memory')
+  expect(openSession.mock.invocationCallOrder[0]).toBeLessThan(requestOpenTab.mock.invocationCallOrder[0]!)
+  expect(cancelOrigin).not.toHaveBeenCalled()
+  taskFace.openMemory()
+  expect(cancelOrigin).toHaveBeenCalledOnce()
+  expect(openSession).toHaveBeenLastCalledWith(taskSession)
+  expect(requestOpenTab).toHaveBeenLastCalledWith(taskSession, 'aitp-memory')
   face.openNote('dsh-resource://aitp-note/workspace/w/note/research.md')
-  expect(openTab).toHaveBeenCalledWith('aitp-memory')
+  expect(openTab).not.toHaveBeenCalled()
   expect(openResource).toHaveBeenCalledWith('dsh-resource://aitp-note/workspace/w/note/research.md')
   const pageFace = client.ctx.slots.entries('sidebar.right.pane.tab').find(entry => entry.options.key === PAGE_KEY)?.inject?.()
   if (!opensNotes(pageFace)) throw new Error('the page entry carries no note opener')
@@ -84,6 +106,7 @@ it('registers the header action, task card and page, opens through the dock, and
 
   await client.unload(SESSION)
   await client.flush()
+  expect(cancelTask).toHaveBeenCalledOnce()
   expect(client.ctx.slots.entries('conversation.session.header.actions').some(entry => entry.component === OriginAction)).toBe(false)
   expect(client.ctx.slots.entries('conversation.input.dock').some(entry => entry.component === TaskCard)).toBe(false)
   expect(client.ctx.slots.entries('sidebar.right.pane.tab').some(entry => entry.options.key === PAGE_KEY)).toBe(false)

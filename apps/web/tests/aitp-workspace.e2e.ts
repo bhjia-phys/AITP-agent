@@ -40,7 +40,8 @@ function node(panel: Locator, title: string): Locator {
 
 async function applyEdit(panel: Locator, kind: 'scope' | 'answer'): Promise<void> {
   const title = kind === 'scope' ? 'Edit scope' : 'Update understanding'
-  await panel.getByRole('button', { name: title, exact: true }).click()
+  await panel.getByRole('button', { name: 'More actions', exact: true }).click()
+  await panel.page().getByRole('menuitem', { name: title, exact: true }).click()
   const editor = panel.getByRole('region', { name: title, exact: true })
   await editor.getByRole('textbox', { name: kind === 'scope' ? 'Scope' : 'Answer', exact: true }).fill(kind === 'scope' ? SCOPE : ANSWER)
   if (kind === 'answer') await editor.getByRole('textbox', { name: 'Conditions and limitations', exact: true }).fill(LIMIT)
@@ -148,7 +149,8 @@ describe.skipIf(MODE === 'record')('web e2e: AITP topic workspace', () => {
     await applyEdit(panel, 'answer')
     await panel.getByText(ANSWER, { exact: true }).waitFor()
     await panel.getByText(LIMIT, { exact: true }).waitFor()
-    await panel.getByRole('button', { name: 'Show on map', exact: true }).click()
+    await panel.getByRole('button', { name: 'More actions', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Show on map', exact: true }).click()
     const summary = panel.getByRole('complementary', { name: 'Current understanding', exact: true })
     await summary.getByText(ANSWER, { exact: true }).waitFor()
     await summary.getByText(LIMIT, { exact: true }).waitFor()
@@ -183,7 +185,7 @@ describe.skipIf(MODE === 'record')('web e2e: AITP topic workspace', () => {
     const navigation = page.getByRole('navigation', { name: 'Research navigation' })
     expect(await page.locator('[data-slot="sidebar"]').count()).toBe(1)
     expect(await panel.getByRole('navigation', { name: 'Topics', exact: true }).count()).toBe(0)
-    await navigation.getByRole('button', { name: 'Conversations', exact: true }).click()
+    await navigation.getByRole('button', { name: 'All conversations', exact: true }).click()
     await panel.waitFor({ state: 'hidden' })
     await page.locator('[data-slot="sidebar.workspaces"]').waitFor({ state: 'attached' })
     await page.getByRole('navigation', { name: 'Global panels' }).getByRole('button', { name: 'Research', exact: true }).click()
@@ -209,8 +211,10 @@ describe.skipIf(MODE === 'record')('web e2e: AITP topic workspace', () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('zh-CN')
     const chinesePanel = page.getByRole('region', { name: '研究', exact: true })
     await heading(chinesePanel, 'Operator Krylov dynamics')
-    await chinesePanel.getByRole('button', { name: '修改范围', exact: true }).waitFor()
-    await page.getByRole('navigation', { name: '科研导航' }).getByRole('button', { name: '对话', exact: true }).waitFor()
+    await chinesePanel.getByRole('button', { name: '更多操作', exact: true }).click()
+    await page.getByRole('menuitem', { name: '修改范围', exact: true }).waitFor()
+    await page.keyboard.press('Escape')
+    await page.getByRole('navigation', { name: '科研导航' }).getByRole('button', { name: '所有会话', exact: true }).waitFor()
     await compareOrRefreshGolden(join(EXPECTED, 'topic-zh.expected.md'),
       await captureStableAria(page, 'section[aria-label="研究"]', scaffold.workspaceCwd), MODE)
     await assertFixtureInventory(EXPECTED, [

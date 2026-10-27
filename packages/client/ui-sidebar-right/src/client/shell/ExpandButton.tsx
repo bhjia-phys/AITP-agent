@@ -36,6 +36,15 @@ export function ExpandButton({ sessionId, useStore, actions, t, useShortcuts }: 
   const shortcut = useShortcuts(entries => entries.find(entry => entry.id === 'sidebar.right.toggle'))
   const expanded = useStore(state => state.bySession[sessionId]?.layout.expanded ?? false)
   if (expanded) return null
+  return <SidebarExpandControl t={t} shortcut={shortcut} open={() => { actions.setExpanded(sessionId, true) }} />
+}
+
+/** Shared native control; the caller owns which real viewing scope it expands. */
+export function SidebarExpandControl({ t, shortcut, open, panelId }: Pick<ExpandButtonProps, 't'> & {
+  readonly shortcut: ShortcutCatalogEntry | undefined
+  readonly open: () => void
+  readonly panelId?: string
+}): ReactNode {
   return (
     <Tooltip label={t('chrome.expand')} shortcutKeys={shortcut?.keys} side="bottom" delayMs={500}>
       <Button
@@ -44,7 +53,8 @@ export function ExpandButton({ sessionId, useStore, actions, t, useShortcuts }: 
         aria-label={t('chrome.expandAria')}
         aria-keyshortcuts={shortcut?.aria}
         data-sidebar-right-expand
-        onClick={() => { actions.setExpanded(sessionId, true) }}
+        data-sidebar-right-root-expand={panelId}
+        onClick={open}
       >
         <IconPanelLeftOutlineRegular className={css.icon} />
       </Button>

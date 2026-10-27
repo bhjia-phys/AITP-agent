@@ -69,9 +69,14 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-shortcuts` | yes | Application keyboard command registry and physical-key routing |
 | `@deepseek-ai/dsh-client-ui-agent-preset` | no | Agent-preset surfaces: the default for later sessions, this session's seat, and the composition editor |
 | `@deepseek-ai/dsh-client-ui-aitp-backend` | no | Connect research workspace views to the configured Harness research-memory service |
+| `@deepseek-ai/dsh-client-ui-aitp-code` | no | Independent code library contribution for local AITP research materials |
 | `@deepseek-ai/dsh-client-ui-aitp-fixtures` | no | Labelled synthetic providers for the AITP research views; development only, disabled by default |
+| `@deepseek-ai/dsh-client-ui-aitp-knowledge` | no | Independent knowledge library contribution for local AITP research materials |
+| `@deepseek-ai/dsh-client-ui-aitp-literature` | no | Independent literature library contribution for local AITP research materials |
+| `@deepseek-ai/dsh-client-ui-aitp-materials` | no | Local research material browsing, source selection and normal Harness study conversations |
 | `@deepseek-ai/dsh-client-ui-aitp-research` | no | AITP Research panel: topic homes and notes of a research Workspace, readable without a Session |
 | `@deepseek-ai/dsh-client-ui-aitp-session` | no | AITP Session views: task card, Session origin and the Sources & memory page |
+| `@deepseek-ai/dsh-client-ui-aitp-study` | no | Local provisional study notes, real Session answer capture and editable source-grounded tasks |
 | `@deepseek-ai/dsh-client-ui-approval` | no | Approval composer takeover over the scoped Remote Event waterfall |
 | `@deepseek-ai/dsh-client-ui-attachment` | no | Dynamic attachment presentation plugin for conversation input, message-image, and trajectory image slots |
 | `@deepseek-ai/dsh-client-ui-brand-aitp` | no | aitp-agent sidebar identity and presentation tokens for the Harness-derived research application |
@@ -347,7 +352,12 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 
 | Package | Config | Description |
 |---|---|---|
+| `@deepseek-ai/dsh-research-code` | yes | Local code projections over shared research source access |
+| `@deepseek-ai/dsh-research-knowledge` | yes | Local knowledge projections over shared research source access |
+| `@deepseek-ai/dsh-research-literature` | yes | Local literature projections over shared research source access |
 | `@deepseek-ai/dsh-research-memory` | yes | Scoped research sources, attributed working context and scratch note writeback |
+| `@deepseek-ai/dsh-research-resources` | yes | Shared local research roots, guarded source reads and replaceable library providers |
+| `@deepseek-ai/dsh-research-study` | yes | Explicit provisional study drafts from normal Harness answers and local source selections |
 
 ## sandbox
 

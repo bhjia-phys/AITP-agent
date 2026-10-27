@@ -1,4 +1,5 @@
 import { Context } from '@deepseek-ai/cordis'
+import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import AgentRegistry from '@deepseek-ai/dsh-agent'
 import { createInboxStub } from '@deepseek-ai/dsh-agent-loop-testkit'
 import type { Agent, ModelSelectionRef } from '@deepseek-ai/dsh-agent'
@@ -464,6 +465,41 @@ describe('Session file uploads', () => {
       { type: 'file', attachment: first.file },
       { type: 'file', attachment: second.file },
     ])
+  })
+
+  it('admits attributed prompts through native file receipts with stable message identity and retry deduplication', async () => {
+    const { controller, uploads, agent, followup } = await uploadHarness()
+    const receipt = await uploads.upload(agent, { data: 'AAAA', name: 'research.txt' }, new AbortController().signal)
+    followup.mockImplementation((message: UserMessage) => { agent.inbox.append('next-turn', message) })
+    const request = promptRequest([{ type: 'file', receiptId: receipt.receiptId }])
+    const guard = vi.fn()
+    await controller.prompt(request, { kind: 'user' }, guard)
+    expect(guard).toHaveBeenCalledTimes(2)
+    expect(agent.inbox.nextTurn[0]).toMatchObject({ id: request.requestId,
+      content: [{ type: 'file', attachment: receipt.file }], source: { kind: 'user' } })
+    await controller.prompt(request, { kind: 'user' }, guard)
+    expect(followup).toHaveBeenCalledTimes(1)
+    expect(agent.inbox.nextTurn).toHaveLength(1)
+  })
+
+  it('rechecks domain scope after asynchronous attachment admission and leaves rejected receipts retryable', async () => {
+    const { ctx, controller, uploads, agent, followup } = await uploadHarness()
+    const receipt = await uploads.upload(agent, { data: 'AAAA', name: 'research.txt' }, new AbortController().signal)
+    let sameScope = true
+    const original = ctx.attachments.admitPromptContent.bind(ctx.attachments)
+    vi.spyOn(ctx.attachments, 'admitPromptContent').mockImplementationOnce(async (content) => {
+      const admitted = await original(content)
+      sameScope = false
+      return admitted
+    })
+    const guard = (): void => { if (!sameScope) throw new RemoteError('gateway/bad-request', 'Domain scope changed during admission.', {}) }
+    const request = promptRequest([{ type: 'file', receiptId: receipt.receiptId }])
+    await expect(controller.prompt(request, { kind: 'user' }, guard)).rejects.toMatchObject({ code: 'gateway/bad-request' })
+    expect(followup).not.toHaveBeenCalled()
+    expect(uploads.resolve(agent, receipt.receiptId)).toEqual(receipt.file)
+    sameScope = true
+    await expect(controller.prompt(request, { kind: 'user' }, guard)).resolves.toEqual({ accepted: true })
+    expect(followup).toHaveBeenCalledTimes(1)
   })
 
   it('maps a non-canonical payload to the wire attachment error', async () => {

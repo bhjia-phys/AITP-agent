@@ -36,6 +36,9 @@
       "path": "../ui-slots"
     },
     {
+      "path": "../ui-workspace"
+    },
+    {
       "path": "../../research/research-memory"
     }
   ]

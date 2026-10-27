@@ -13,13 +13,17 @@
   border-bottom: 0.5px solid var(--dsw-alias-border-l1);
 }
 
-.switcher > button {
+.navigationTitle {
   flex: 1;
   min-width: 0;
+  align-self: center;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
 }
 
-.currentMode {
-  background: var(--dsw-alias-interactive-bg-active);
+.newDiscussion {
+  flex: none;
+  margin-top: 5px;
 }
 
 .treeRegion {

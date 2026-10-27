@@ -77,7 +77,7 @@ function MapOverview(props: WorkspaceViewProps & { project: WorkspaceRead<Projec
           <p>{seed.title}</p><p>{seed.summary}</p>
         </li>)}</ul>
       </section>}
-      <ReadAt t={t} read={props.project} />
+      <details className={css.topicManagement}><summary>{t('topic.readingDetails')}</summary><ReadAt t={t} read={props.project} /></details>
     </div>
   )
 }

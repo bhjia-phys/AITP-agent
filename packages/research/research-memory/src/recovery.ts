@@ -1,4 +1,5 @@
 /** Scoped historical evidence from the existing live/durable Session query service. */
+import type { ResearchRecovery } from './recovery-types.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import { resolve } from 'node:path'
 import { SessionId, type Session, type SessionEvent, type SessionHeader } from '@deepseek-ai/dsh-session'
@@ -11,7 +12,7 @@ import {
   acceptHumanInput, applyWorkingEvent, emptyWorkingState, readHumanFromEvents, readWriteRecord, scopeKey,
 } from './working-state.ts'
 import type {
-  ResearchContextRead, ResearchOrigin, ResearchRecovery, ResearchWorkingState,
+  ResearchContextRead, ResearchOrigin, ResearchWorkingState,
 } from './working-types.ts'
 
 /** Limits for relevant histories and event folds; the source provider may still read a complete cold log. */

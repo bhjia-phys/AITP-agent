@@ -44,6 +44,9 @@ function observedInputs(
     const source = typeof data === 'object' && data !== null && 'source' in data ? data.source : undefined
     if (typeof source === 'object' && source !== null && 'kind' in source && source.kind === 'user'
       && 'rpcId' in source && typeof source.rpcId === 'string') observed.add(source.rpcId)
+    if (typeof data === 'object' && data !== null && 'messageId' in data && typeof data.messageId === 'string') {
+      observed.add(data.messageId)
+    }
   }
   return { rpcIds: observed, lastInputTurn }
 }
@@ -59,7 +62,7 @@ const MOTION_TAIL_MS = 800
  */
 export function ChatView({
   useSession, useChat, useConversation, useSessions, renderSlot,
-  sessionId, openFile, openExternalLink, loadOlder, loadThrough, loadImage, inspectCall, chatScroll, forkAt, fileMentions,
+  sessionId, openFile, openExternalLink, resourceLinks, loadOlder, loadThrough, loadImage, inspectCall, chatScroll, forkAt, fileMentions,
   usePresentation, useProjection, t,
 }: ChatViewSlotProps) {
   const order = useChat(s => s.order)
@@ -160,16 +163,16 @@ export function ChatView({
     )), observed.lastInputTurn] as const
   }, [pendingSubmissions, order, nodeStore])
   const pendingInputs = useMemo(() => {
-    const local = new Map(visibleSubmissions.map(submission => [submission.requestId, submission]))
+    const local = new Map<string, PendingSubmission>(visibleSubmissions.map(submission => [submission.requestId, submission]))
     // Admitted local identities outlive their bubbles until the Inbox claim watermark.
-    const localIds = new Set(pendingSubmissions.filter(submission => submission.placement !== 'queued')
+    const localIds = new Set<string>(pendingSubmissions.filter(submission => submission.placement !== 'queued')
       .map(submission => submission.requestId))
     const pending = inboxSteering.flatMap<PendingInput>((item) => {
       const source = item.source
-      if (source.kind !== 'user' || !('rpcId' in source)) return [item]
-      const submission = local.get(source.rpcId)
-      if (submission === undefined) return localIds.has(source.rpcId) ? [] : [item]
-      local.delete(source.rpcId)
+      const requestId = source.kind === 'user' && 'rpcId' in source ? source.rpcId : item.id
+      const submission = local.get(requestId)
+      if (submission === undefined) return localIds.has(requestId) ? [] : [item]
+      local.delete(requestId)
       return [submission]
     })
     return [...pending, ...local.values()]
@@ -223,7 +226,8 @@ export function ChatView({
                 </button>
               </div>
             )}
-            <MarkdownDelegateProvider openFile={requestOpenFile} openExternalLink={openExternalLink} fileImages={fileImages}>
+            <MarkdownDelegateProvider openFile={requestOpenFile} openExternalLink={openExternalLink}
+              resourceLinks={resourceLinks} fileImages={fileImages}>
               {renderSlot('conversation.chat.flow', {
                 entries, pendingInputs, lastInputTurn, deferCollapse,
                 cwd, openFile: requestOpenFile, inspectCall, forkAt, loadImage, fileMentions,

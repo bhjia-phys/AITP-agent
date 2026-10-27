@@ -1,0 +1,28 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib/types" },
+  "include": ["src"],
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../../vendor/schemastery" },
+    { "path": "../../../vendor/loader" },
+    { "path": "../../../vendor/include" },
+    { "path": "../../util/atomic-write" },
+    { "path": "../../util/brand" },
+    { "path": "../../boot/app-boot" },
+    { "path": "../../core/session" },
+    { "path": "../../core/agent-loop" },
+    { "path": "../../core/tools" },
+    { "path": "../../api/session-controller/tsconfig.host.json" },
+    { "path": "../../session-query/session-query" },
+    { "path": "../../llm/llm" },
+    { "path": "../../typert/protocol" },
+    { "path": "../../typert/registry" },
+    { "path": "../../test-support/loader-smoke" },
+    { "path": "../research-resources" },
+    { "path": "../research-memory" },
+    { "path": "../research-knowledge" },
+    { "path": "../research-literature" },
+    { "path": "../research-code" }
+  ]
+}

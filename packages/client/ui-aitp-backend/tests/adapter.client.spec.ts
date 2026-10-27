@@ -64,6 +64,8 @@ function harness() {
     createTopic: vi.fn<ResearchRemote['createTopic']>().mockResolvedValue(unsupported),
     provider: vi.fn<ResearchRemote['provider']>().mockResolvedValue({ ok: true, value: readProvider }),
     getProject: vi.fn<ResearchRemote['getProject']>().mockResolvedValue({ ok: true, value: { ok: true, value: project } }),
+    getChange: vi.fn<ResearchRemote['getChange']>().mockResolvedValue(unsupported),
+    listDiscussions: vi.fn<ResearchRemote['listDiscussions']>().mockResolvedValue(unsupported),
     listTopics: vi.fn<ResearchRemote['listTopics']>().mockResolvedValue(unsupported),
     getTopic: vi.fn<ResearchRemote['getTopic']>().mockResolvedValue(unsupported),
     getResource: vi.fn<ResearchRemote['getResource']>().mockResolvedValue(unsupported),

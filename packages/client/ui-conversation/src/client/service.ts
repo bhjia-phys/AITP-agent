@@ -14,7 +14,7 @@ import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 // error, so scope resolution goes through the sessions service (scopeOf
 // method) instead of the standalone helper.
 import type {
-  ISessions, PendingSubmissionRetirement, SessionFace,
+  ISessions, PendingSubmissionRetirement, SessionFace, SessionPromptTransport,
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-file-upload/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -31,6 +31,8 @@ import type {
   DraftAttachmentId, DraftAttachmentSerializationResult, SessionInputResolver, SubmitAttachment, SubmitOutcome,
 } from './contract/input.ts'
 import type { InputSubmitMode } from './contract/composer-submission.ts'
+import type { ComposerSubmissions } from './contract/submissions.ts'
+import { ComposerSubmissionRegistry } from './input/submissions.ts'
 
 /**
  * The outward conversation face (`ctx.conversation`): the scope-addressed
@@ -38,6 +40,8 @@ import type { InputSubmitMode } from './contract/composer-submission.ts'
  * test fake must supply.
  */
 export interface IConversation {
+  /** Optional contextual admission; ordinary sends remain the default when no provider is registered. */
+  readonly submissions: ComposerSubmissions
   /** The per-session input machine registry (SessionInputResolver face). */
   readonly input: SessionInputResolver
   /**
@@ -151,6 +155,7 @@ export class UnsupportedImageMediaTypeError extends Error {
 
 /** Scope-addressed conversation service (root singleton, provided as `conversation`). */
 export class ConversationController extends Service implements IConversation {
+  readonly submissions: ComposerSubmissions = new ComposerSubmissionRegistry()
   /** The per-session input machine registry (SessionInputResolver face). */
   readonly input: SessionInputResolver
   /** The per-session composer-block registry. */
@@ -224,6 +229,7 @@ export class ConversationController extends Service implements IConversation {
    * @param attachmentIds - ordered draft-local attachment ids.
    * @param mode - queue or steer delivery selected by composer policy.
    * @param signal - optional cancellation for the complete Host admission.
+   * @param transport - immutable source-aware route captured before draft serialization.
    * @returns the Host admission outcome; local attachment preparation failures reject.
    */
   async sendSession(
@@ -232,6 +238,7 @@ export class ConversationController extends Service implements IConversation {
     attachmentIds: readonly DraftAttachmentId[],
     mode: InputSubmitMode,
     signal?: AbortSignal,
+    transport?: SessionPromptTransport,
   ): Promise<SubmitOutcome> {
     const attachments = this.resolveDraftAttachments(attachmentIds)
     if (attachments.length !== attachmentIds.length) {
@@ -283,7 +290,8 @@ export class ConversationController extends Service implements IConversation {
       submission.abandon()
       throw error
     }
-    const result = await session.prompt(content, mode, signal, submission.requestId)
+    const result = transport === undefined ? await session.prompt(content, mode, signal, submission.requestId)
+      : await session.prompt(content, mode, signal, submission.requestId, transport)
     if (!result.ok) return { kind: 'error' }
     if (retirement !== undefined && (await retirement).reason !== 'observed') return { kind: 'error' }
     return { kind: 'success' }

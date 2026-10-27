@@ -10,6 +10,27 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createPdfStore, type PdfStore } from './store.ts'
 import { ZoomViewport, zoomSurfaceClass } from '../zoom/ZoomViewport.tsx'
 import { en, zh } from './locales.ts'
+import type {} from './SourcePdfPage.tsx'
+import type {} from './source-reader.ts'
+import { createElement, lazy, Suspense } from 'react'
+import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
+import { LoadingIndicator } from '../LoadingIndicator.tsx'
+
+const SourcePage = lazy(async () => ({ default: (await import('./pdf.tsx')).SourcePdfPage }))
+const SourceReader = lazy(async () => ({ default: (await import('./pdf.tsx')).SourcePdfReader }))
+
+/** Keep PDF.js and its Worker resources deferred until an authorized PDF page is opened. */
+function LazySourcePage(props: FactoryComponentPropsOf<'document.pdf.page'>) {
+  return createElement(Suspense, { fallback: createElement('p', { role: 'status' }, props.t('loading')) }, createElement(SourcePage, props))
+}
+
+/** Keep the native continuous viewer and Worker resources in the existing lazy PDF chunk. */
+function LazySourceReader(props: FactoryComponentPropsOf<'document.pdf.reader'>) {
+  const loading = createElement(LoadingIndicator, { label: props.t('loading') })
+  return createElement(Suspense, { fallback: loading }, createElement(SourceReader, {
+    ...props, loading, ZoomViewport, zoomSurfaceClass,
+  }))
+}
 
 /** PDF metadata and keyed body share this package-local implementation identity. */
 export const PDF_BODY_ID = '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/pdf'
@@ -27,6 +48,8 @@ export function pdfBodyDefinition(title: () => string): DocumentPreviewDefinitio
 export function apply(ctx: Context): void {
   ctx.effect(() => ctx.locale.register('sidebarPdf', { zh, en }))
   const t = ctx.locale.bind('sidebarPdf')
+  ctx.slots.registerFactory({ name: 'document.pdf.page', scope: 'root', locale: 'sidebarPdf' }, LazySourcePage)
+  ctx.slots.registerFactory({ name: 'document.pdf.reader', scope: 'root', locale: 'sidebarPdf' }, LazySourceReader)
   ctx.effect(() => ctx.documentPreviews.register(pdfBodyDefinition(() => t('title'))))
   const presentation = pdfBodyRegistration(ctx)
   ctx.effect(() => ctx.slots.inject('sidebar.right.tab.document', () => ctx.slots.register({

@@ -18,6 +18,18 @@ export interface MarkdownDelegate {
   } | undefined
   /** Ordinary HTTP(S) activation; absent handlers retain native anchor behavior. */
   readonly openExternalLink?: MarkdownExternalLinkHandler | undefined
+  /** Local application resources remain inert unless this owner recognizes and opens their exact address. */
+  readonly resourceLinks?: {
+    /** Resolve only resources the application's current reader registry claims. */
+    canOpen: (href: string) => boolean
+    /** Open the recognized resource in this owner's application context. */
+    open: (href: string) => void
+  } | undefined
+  /** Exact authored relative paths and fragments claimed by this source owner, before file-path decoding. */
+  readonly localLinks?: {
+    readonly canOpen: (href: string) => boolean
+    readonly open: (href: string) => void
+  } | undefined
   /**
    * Open a decoded local destination from settled Markdown; absent handlers leave plain text.
    * @param path - Absolute or workspace-relative file path.
@@ -44,8 +56,11 @@ export function MarkdownDelegateProvider({
   openExternalLink,
   openFile,
   fileImages,
+  resourceLinks,
+  localLinks,
 }: MarkdownDelegateProviderProps): ReactNode {
-  const delegate = useMemo(() => ({ openExternalLink, openFile, fileImages }), [openExternalLink, openFile, fileImages])
+  const delegate = useMemo(() => ({ openExternalLink, openFile, fileImages, resourceLinks, localLinks }),
+    [openExternalLink, openFile, fileImages, resourceLinks, localLinks])
   return (
     <MarkdownDelegateContext.Provider value={delegate}>
       {children}

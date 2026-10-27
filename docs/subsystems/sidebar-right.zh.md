@@ -75,7 +75,9 @@ export function apply(ctx: Context): void {
 
 ## 导航：`ctx.sidebarRight`
 
-两种打开构成导航控制器，进入这一列的每条路都调用其一：`openResource(address, options?)` 打开 `dsh-resource://` 地址——会话区的文件链接、工具行的行号引用、文件树的行；`openTab(kind, options?)` 打开页面——tab 条的新增控件、引导页入口框或 Assistant Markdown 中的 HTTP(S) 链接。两者都以一条历史记录走完四步——认领（注册表为资源排候选，或点名 `kind` 的生效实现应答）；聚焦已显示同一 `(kind, address)` 的 tab；否则落一个新 tab；展开这一列——然后把导航记入 Tab 域（[服务](../../packages/client/ui-sidebar-right/README.zh.md#ctxsidebarright)）。用户看不见的内容不算打开，所以折叠的列会在同一步展开。`openResource` 对 `dsh-resource://` 之外的地址或无人认领的地址抛错；`openTab` 对无人注册的 kind 抛错：二者都是接线错误，不是用户错误。
+即时打开操作针对屏幕上当前的会话：`openResource(address, options?)` 打开 `dsh-resource://` 地址——会话区的文件链接、工具行的行号引用、文件树的行；`openTab(kind, options?)` 打开页面——tab 条的新增控件、引导页入口框或 Assistant Markdown 中的 HTTP(S) 链接。两者都以一条历史记录走完四步——认领（注册表为资源排候选，或点名 `kind` 的生效实现应答）；聚焦已显示同一 `(kind, address)` 的 tab；否则落一个新 tab；展开这一列——然后把导航记入 Tab 域（[服务](../../packages/client/ui-sidebar-right/README.zh.md#ctxsidebarright)）。用户看不见的内容不算打开，所以折叠的列会在同一步展开。`openResource` 对 `dsh-resource://` 之外的地址或无人认领的地址抛错；`openTab` 对无人注册的 kind 抛错：二者都是接线错误，不是用户错误。
+
+跨面板调用者在导航到已有会话时，可以使用 `requestOpenTab(sessionId, kind, options?)`。必要时，请求会等待该会话的原生 store；返回的释放函数可取消尚未执行的打开。移除作用域或卸载插件会丢弃待执行请求。选择会话仍由调用者负责。
 
 | 选项 | 含义 |
 |---|---|
@@ -88,7 +90,7 @@ export function apply(ctx: Context): void {
 
 落位是调用方的选项，从不是类型的属性。会话区调 `openResource(fileAddressFor(sessionId, cwd, path))`，`read` 工具行另加 `{ params: { line } }`（来自调用的 1 起 `offset`）；引导页入口框调 `tab.actions.openTab(entry.kind, { replaceTab: true })`；文件树的行调 `tab.actions.openResource(address)`；tab 条的新增控件调 `openTab('guide', { paneId, revealIfOpened: false })`。
 
-`close(tabId)` 关闭一个 tab；`active()` 返回活动 pane 的活动 tab；`isExpanded()` 与 `toggleExpanded()` 读取与翻转这一列，翻转记入序列。无会话时读操作返回 `undefined` 或 `false`；写操作需要已挂载的会话面，没有时抛错而不是写进没人绘制的面。
+`close(tabId)` 关闭一个 tab；`active()` 返回活动 pane 的活动 tab；`isExpanded()` 与 `toggleExpanded()` 读取与翻转这一列，翻转记入序列。无会话时读操作返回 `undefined` 或 `false`；这些即时写操作需要已挂载的会话面，没有时抛错而不是写进没人绘制的面。
 
 `focus(tabId)` 让一个 tab 成为其 pane 的活动 tab；`split(paneId?)` 分割活动的停靠 pane 或点名的 pane，返回新 pane 的 id——pane 数预算或列宽不允许时返回 `undefined` 且不记账；`float(tabId, rect?)` 把一个 tab 浮出为浮窗 pane；`dock(paneId)` 把浮窗 pane 收回停靠区。四者都走 store 既有动作、各记一条历史；目标不存在或已处于目标状态时是空操作，与 `open` 一样在没有已挂载会话面时抛错。`TabId`、`PaneId`、`TabRecord`、`FloatRect` 自本包 `/client` 入口再导出，调用方无需引 dockkit。
 
@@ -96,7 +98,9 @@ export function apply(ctx: Context): void {
 
 ## Slot 与 owner props
 
-Sidebar 声明四个扩展 slot；其文档 tab 另行声明下表中的 keyed 文档正文 slot（[层级](slots.zh.md)）。
+全局面板资料使用独立的 `ctx.sidebarRightRoots` 控制器。`selectScope(panelId, scopeKey)` 选择面板的阅读范围；`openResource(panelId, address, options?)` 在该范围打开已注册的来源。root 范围在本次应用运行期间保留自己的标签和已访问正文，不创建或借用 Session。root 作用域的 keyed `sidebar.right.root.tab` 与 `sidebar.right.root.tab.title` 席位沿用原生标签类型定义的 id。[owner props](../../packages/client/ui-sidebar-right/src/client/contract/root.ts) 提供 `panelId`、`scopeKey`、标签、导航、可见性和绑定原范围的打开／关闭回调。全局面板在自己的页头以 `{ panelId }` 渲染 `sidebar.right.root.expand` factory，即可重新展开折叠的资料。导航、资源保留和重载限制归[包契约](../../packages/client/ui-sidebar-right/README.zh.md#ctxsidebarright)所有。
+
+Session Sidebar 声明四个扩展 slot；其文档 tab 另行声明下表中的 keyed 文档正文 slot（[层级](slots.zh.md)）。
 
 | Slot | Cardinality | 用途 |
 |---|---|---|

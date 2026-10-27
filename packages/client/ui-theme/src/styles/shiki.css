@@ -29,3 +29,11 @@ body[data-ds-dark-theme] {
   --shiki-token-punctuation: #ced4da;
   --shiki-token-link: #74c0fc;
 }
+
+/* Platform tokens live on body. Resolve aliases on that same element so both
+   themes use their current palette instead of inheriting an unresolved alias. */
+body {
+  --shiki-token-inserted: var(--dsw-alias-file-diff-added-marker);
+  --shiki-token-deleted: var(--dsw-alias-file-diff-deleted-marker);
+  --shiki-token-changed: var(--shiki-token-link);
+}

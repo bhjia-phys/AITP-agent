@@ -7,7 +7,7 @@ import { SlotTestRuntime, type SlotView } from '@deepseek-ai/dsh-client-test-run
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ShortcutCatalogEntry, ShortcutCommandId } from '@deepseek-ai/dsh-client-shortcuts/client'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsRenderFactories, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { PaneId, SplitId, TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import { dockPaneIds, getPane } from '@deepseek-ai/dsh-client-ui-dockkit'
@@ -18,6 +18,7 @@ import { registerSidebarShortcuts } from '../src/client/shortcuts.ts'
 import { ShortcutRegistry } from '@deepseek-ai/dsh-client-shortcuts/src/client/registry.ts'
 import type { SidebarRightTabInfo, SidebarRightTabMenuOwnerProps } from '../src/client/contract/slots.ts'
 import type { createSidebarRightStore } from '../src/client/stores.ts'
+import type { SidebarRightRootTabProps } from '../src/client/contract/root.ts'
 
 declare module '../src/client/contract/params.ts' {
   interface SidebarRightResourceParamsMap {
@@ -29,6 +30,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** A Conversation-column stand-in rendered before the seat, opening a resource as soon as a seat is mounted. */
     'sidebar-right.test.opener': { kind: 'single'; scope: 'session'; owner: { armed: boolean } }
+    'sidebar-right.test.root-header': { kind: 'single'; scope: 'root'; owner: { panelId: MainPanelId } }
   }
 }
 
@@ -82,6 +84,7 @@ async function mountSeat(viewportWidth = 1440, canShow = true, entryCount = 0, o
   runtime.slots.installLocale(locale)
   await runtime.declare({
     'sidebar-right.test.opener': { kind: 'single', scope: 'session' },
+    'sidebar-right.test.root-header': { kind: 'single', scope: 'root' },
     'rightbar': { kind: 'single', scope: 'root' },
     'conversation.session.header.corner': { kind: 'single', scope: 'session' },
   })
@@ -270,6 +273,54 @@ function element(container: HTMLElement, selector: string): HTMLElement {
   if (node === null) throw new Error(`expected ${selector}`)
   return node
 }
+
+it('uses the native frame for global documents and retains body state through tabs, scopes and ordinary Sessions', async () => {
+  const h = await mountSeat()
+  const panelId = 'library' as MainPanelId
+  function RootBody(props: SidebarRightRootTabProps) {
+    return <input data-root-source={props.tab.contentId} aria-label={props.tab.title} />
+  }
+  function RootHeader(props: PropsRuntime<'sidebar-right.test.root-header'> & PropsRenderFactories) {
+    return props.renderFactorySlot('sidebar.right.root.expand', { panelId: props.panelId })
+  }
+  await act(async () => {
+    h.runtime.slots.register({ name: 'sidebar.right.root.tab', key: 'test/text' }, RootBody)
+    h.runtime.slots.register({ name: 'sidebar-right.test.root-header' }, RootHeader)
+  })
+  const header = h.runtime.renderSlot('sidebar-right.test.root-header', { panelId })
+  act(() => {
+    h.runtime.panelInfo.set({ activePanelId: panelId })
+    h.runtime.ctx.sidebarRightRoots.selectScope(panelId, 'topic-A')
+    h.runtime.ctx.sidebarRightRoots.openResource(panelId, 'dsh-resource://file/source/a.md')
+  })
+  const first = element(h.view.container, '[data-root-source]') as HTMLInputElement
+  fireEvent.change(first, { target: { value: 'retained draft' } })
+  expect(first.closest('[data-sidebar-right-root]')?.getAttribute('data-sidebar-right-root')).toBe(panelId)
+  expect(h.controller.mounted.getSnapshot()).toBeUndefined()
+  act(() => { h.runtime.ctx.sidebarRightRoots.openResource(panelId, 'dsh-resource://file/source/b.pdf') })
+  expect(first.isConnected).toBe(true)
+  expect(first.closest('[hidden]')).not.toBeNull()
+  act(() => { h.runtime.ctx.sidebarRightRoots.selectScope(panelId, 'topic-B') })
+  expect(first.closest('[hidden]')).not.toBeNull()
+  act(() => { h.runtime.panelInfo.set({ activePanelId: null }) })
+  expect(h.controller.mounted.getSnapshot()).toBe(SESSION)
+  act(() => {
+    h.runtime.panelInfo.set({ activePanelId: panelId })
+    h.runtime.ctx.sidebarRightRoots.selectScope(panelId, 'topic-A')
+    h.runtime.ctx.sidebarRightRoots.openResource(panelId, 'dsh-resource://file/source/a.md')
+  })
+  expect(element(h.view.container, '[data-root-source="dsh-resource://file/source/a.md"]')).toBe(first)
+  expect(first.value).toBe('retained draft')
+  expect(first.closest('[hidden]')).toBeNull()
+  expect(h.frame.openRightbar).toHaveBeenLastCalledWith(true, false)
+  fireEvent.click(element(h.view.container, '[data-sidebar-right-root-scope="topic-A"] [data-sidebar-right-toggle]'))
+  const expand = element(header.container, '[data-sidebar-right-root-expand]')
+  expect(document.activeElement).toBe(expand)
+  fireEvent.click(expand)
+  expect(first.closest('[hidden]')).toBeNull()
+  expect(first.value).toBe('retained draft')
+  expect(document.activeElement?.closest('[data-sidebar-right-root]')?.getAttribute('data-sidebar-right-root')).toBe(panelId)
+})
 
 describe('RightbarSeat presentation', () => {
   it('keeps a background retained body through standard-source registration and removal', async () => {

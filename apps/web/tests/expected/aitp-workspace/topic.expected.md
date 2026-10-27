@@ -20,47 +20,39 @@
   - paragraph: Concluded Control
   - heading "Small-system control (N ≤ 12)" [level=2]
   - paragraph: Does the implementation reproduce a case with a known answer?
-  - paragraph: Scope
-  - paragraph:
-    - text: Free-fermion limit,
-    - math: N ≤ 12
-    - text: .
-  - paragraph:
-    - strong: "Role in Operator Krylov dynamics:"
-    - text: Separates implementation errors from physical behaviour before larger sizes are interpreted.
-  - button "Read full account"
-  - button "Show on map"
-  - button "Edit scope"
-  - button "Update understanding"
+  - button "Ask about this topic"
+  - button "More actions"
   - region "Current understanding":
     - heading "Current understanding" [level=3]
+    - button "Read full account"
     - paragraph: The control reproduces the analytic free-fermion growth rate within 0.5 %.
     - paragraph: Conditions and limits
     - paragraph: This validates the implementation only; it says nothing about interacting chains at larger sizes.
-  - heading "What remains open" [level=3]
-  - paragraph: No gap recorded
-  - heading "Materials 2" [level=3]:
-    - button "Materials 2" [expanded]
+    - heading "What remains open" [level=3]
+    - paragraph: No gap recorded
+  - complementary "Scope":
+    - heading "Scope" [level=3]
+    - paragraph:
+      - text: Free-fermion limit,
+      - math: N ≤ 12
+      - text: .
+    - paragraph:
+      - strong: "Role in Operator Krylov dynamics:"
+      - text: Separates implementation errors from physical behaviour before larger sizes are interpreted.
+  - heading "Materials 1" [level=3]:
+    - button "Materials 1" [expanded]
+  - button "Related Literature library"
+  - button "Related Knowledge library"
+  - button "Related Code libraries"
   - list:
     - listitem:
-      - 'button "Note Small-system control (N ≤ 12): full account demo/krylov-control/research.md"':
-        - text: Note
-        - strong: "Small-system control (N ≤ 12): full account"
-        - text: demo/krylov-control/research.md
-    - listitem:
-      - button "Report Small-system control report demo/operator-krylov/control-report.md":
-        - text: Report
+      - button "Small-system control report demo/operator-krylov/control-report.md Report":
         - strong: Small-system control report
-        - text: demo/operator-krylov/control-report.md
+        - text: demo/operator-krylov/control-report.md Report
   - heading "Claims & routes 0" [level=3]:
     - button "Claims & routes 0"
   - heading "Work & choices 0" [level=3]:
     - button "Work & choices 0"
   - heading "Activity" [level=3]:
     - button "Activity"
-  - paragraph: Read Oct 23, {{clock}} AM
-  - text: Ask about this research
-  - textbox "Ask about this research":
-    - /placeholder: What is still unclear, or what should we investigate next?
-  - paragraph: Continue with the research context from this page.
-  - button "Ask in a new conversation" [disabled]
+  - group: Source and reading details

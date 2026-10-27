@@ -486,6 +486,21 @@ export class SessionController extends TypertRemoteService {
   }
 
   /**
+   * Host-domain prompt admission using an immutable attributed source and native attachments.
+   * @param request - Normal Session prompt and retry identity.
+   * @param source - Source validated by the owning Host domain, never a browser-supplied authority.
+   * @param guard - Recheck domain scope immediately before the synchronous inbox mutation.
+   * @returns Native admission acknowledgement; the message id equals requestId for correlation.
+   */
+  async promptAttributed(request: SessionPromptRequest, source: MessageSource,
+    guard: (agent: Agent) => void): Promise<SessionPromptValue> {
+    if (!hasPromptContent(request.content)) {
+      throw new RemoteError('gateway/bad-request', 'prompt content must include non-whitespace text or an attachment', {})
+    }
+    return this.commands.prompt(request, source, guard)
+  }
+
+  /**
    * Read one image proven reachable from the addressed Session log.
    * @param request - Session and attachment identities used for authorization.
    * @returns the durable attachment reference and base64-encoded bytes.

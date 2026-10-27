@@ -33,6 +33,8 @@ kind: "package-reference"
 <a id="reference-previews"></a>
 ## 引用预览
 
+嵌入式界面可以通过 `uiChatNavigation.register(sessionId, open)` 在周围的阅读区打开来源引用。只有该界面正在展示对应 Session 并负责处理该地址时，回调才返回 true；返回 false 则保留普通 Sidebar 路径。界面释放时必须撤销注册。来源授权与文件加载仍由已有服务负责。
+
 已发送的普通文件附件保留草稿中的[文件卡片圆角](../../../docs/ui-radius.zh.md#radius-scale)。
 
 `ChatView` 通过节点列表外围既有的 `MarkdownDelegateProvider` 提供文件及 HTTP(S) 导航，直接传入 `requestOpenFile`、`openExternalLink` 和 `fileImages`。文件打开动作保留 Chat 的失败反馈与重试处理。Assistant Markdown 文件链接在消息落定后可于右侧栏打开，包括未修改文件的引用。相对路径基于当前查看的 Session 工作区解析；绝对路径仍使用同一 Session 的文件系统访问。`#L24` 和 `#L24-L30` 定位到指定起始行，并复用现有文件标签。文件缺失时显示预览错误状态。

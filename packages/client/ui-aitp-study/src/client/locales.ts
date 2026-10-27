@@ -1,0 +1,71 @@
+/** Copy for provisional study products and explicit source-grounded task drafts. */
+export const en = {
+  resume: 'Continue draft', details: 'Note details', search: 'Search note titles', noMatches: 'No matching notes on this page.',
+  searchScope: 'Searching titles on the current page.', emptyKind: 'No saved notes of this kind.', emptyHelp: 'Create a note, or select sources in a library to start reading.',
+  title: 'Study notes', description: 'Keep reading notes and selected answers with their sources. These drafts remain provisional.',
+  all: 'All drafts', create: 'New note', back: 'Back to study notes', refresh: 'Refresh',
+  loading: 'Loading study notes…', unavailable: 'Study notes are unavailable. Check your connection and try again.',
+  empty: 'No study notes are saved.', provisional: 'Provisional draft', handwritten: 'Handwritten', captured: 'Captured model answer',
+  edited: 'Edited after capture', sources: 'Sources', selected: 'Chosen for the question', human: 'Linked by the researcher',
+  context: 'Recorded model context', read: 'Recorded source read', observed: 'Saved at {time}', version: 'Observed version: {version}',
+  note: 'Note', report: 'Review', comparison: 'Comparison', outline: 'Close-reading outline', flashcards: 'Study cards', 'mind-map': 'Concept map',
+  name: 'Title', kind: 'Product', markdown: 'Note text (Markdown)', save: 'Save draft', saving: 'Saving…',
+  edit: 'Edit note', export: 'Export Markdown', remove: 'Remove draft', removeHelp: 'Removing a draft keeps its original sources and Session.',
+  unknown: 'The result is unknown. Check the original operation before changing this draft.', check: 'Check operation result',
+  original: 'Open original conversation', asSource: 'Open as a source', noSource: 'The saved note is not currently available as a source.',
+  capture: 'Save this answer as a draft', captureTitle: 'Selected answer', captureHelp: 'Save the completed answer and the sources used in its conversation.',
+  captureSave: 'Capture selected answer', sourceUnavailable: 'This source is not connected to a library reader.',
+  newWithSources: 'Write a reading note', tasks: 'Prepare a task', taskHelp: 'These shortcuts prepare an editable question. Submit it in the existing conversation composer.',
+  comparisonTask: 'Compare the selected sources. Separate agreements, disagreements, assumptions and missing evidence. Cite a returnable source location for each substantive claim.',
+  reportTask: 'Prepare a source-grounded review of the selected materials. Explain the question, methods, findings, limits and unresolved problems. Distinguish the sources’ claims from your synthesis and cite locations.',
+  outlineTask: 'Prepare a close-reading outline in the order of the selected source. Locate each section or physical page, explain prerequisites and identify derivations that require further work. Do not replace close reading with a summary.',
+  flashcardsTask: 'Draft study cards from the selected sources. Each card should contain a focused question, an answer, its assumptions and a source location. Mark unsupported answers explicitly.',
+  mapTask: 'Draft a concept map from the selected sources as a hierarchical list or Mermaid diagram. Label the meaning and assumptions of each connection, include source locations, and separate unsettled connections.',
+  capturePending: 'Selected conversation answer: {session} / event {seq}',
+  next: 'Next page', first: 'First page',
+  expand: 'Expand study sidebar',
+  copy: 'Copy', copied: 'Copied', footnotes: 'Footnotes',
+  sourceNumber: 'Source {number}',
+  journalUnavailable: 'This tab could not retain the pending operation for reload recovery. Keep the page open and check the original operation.',
+  journalInvalid: 'Pending study-operation recovery data could not be read and has been preserved. New operations cannot replace that recovery data.',
+  receiptMismatch: 'The acknowledgement does not match this operation. The original request remains available for checking.',
+} as const
+
+/** Locale keys for provisional study products and prepared tasks. */
+export type StudyKey = keyof typeof en
+/** Chinese copy, checked against the English dictionary keys. */
+export const zh: Record<StudyKey, string> = {
+  resume: '继续草稿', details: '笔记信息', search: '搜索笔记标题', noMatches: '这一页没有匹配的笔记',
+  searchScope: '搜索范围为当前页的笔记标题', emptyKind: '尚无这一类型的笔记', emptyHelp: '新建一份笔记，或从资料库选择来源开始研读',
+  title: '研读笔记', description: '保存研读笔记和选中的回答，并保留对应来源；这些产物仍是待核对的草稿。',
+  all: '全部草稿', create: '新建笔记', back: '返回研读笔记', refresh: '刷新',
+  loading: '正在读取研读笔记…', unavailable: '暂时无法读取研读笔记，请检查连接后重试',
+  empty: '尚未保存研读笔记。', provisional: '待核对草稿', handwritten: '人工笔记', captured: '已保存的模型回答',
+  edited: '保存回答后曾修改', sources: '来源', selected: '本次问题选择的来源', human: '研究者手动关联',
+  context: '记录中的模型上下文', read: '记录中的来源读取', observed: '保存时间：{time}', version: '当前读取的版本：{version}',
+  note: '笔记', report: '综述', comparison: '比较', outline: '精读提纲', flashcards: '学习卡片', 'mind-map': '概念图',
+  name: '标题', kind: '产物类型', markdown: '笔记正文（Markdown）', save: '保存草稿', saving: '正在保存…',
+  edit: '编辑笔记', export: '导出 Markdown', remove: '移除草稿', removeHelp: '移除草稿会保留原始资料和原会话。',
+  unknown: '操作结果尚不确定，请先检查同一次操作，再修改这份草稿。', check: '检查操作结果',
+  original: '打开原始会话', asSource: '作为来源打开', noSource: '这份笔记目前尚不能作为来源打开。',
+  capture: '将此回答保存为草稿', captureTitle: '选中的回答', captureHelp: '将从原会话保存这条回答，并保留当时使用的来源。',
+  captureSave: '保存选中的回答', sourceUnavailable: '此来源尚未连接到资料阅读器。',
+  newWithSources: '写研读笔记', tasks: '准备研读任务', taskHelp: '快捷项只填写可编辑的问题，仍需在现有问题框提交。',
+  comparisonTask: '请比较选中的来源，分别说明共识、分歧、各自前提和缺少的证据；每项实质判断都给出可以返回的原文定位。',
+  reportTask: '请根据选中的资料起草一份有来源依据的综述，说明研究问题、方法、结果、限制与未解决问题，区分作者的主张和你的综合判断，并附原文定位。',
+  outlineTask: '请按照选中原文的顺序准备精读提纲，定位到章节或 PDF 物理页，解释所需前置知识，并列出仍需推导的步骤。概括不能替代原文精读。',
+  flashcardsTask: '请根据选中的来源起草学习卡片，每张包含一个明确问题、回答、适用前提和原文位置；原文没有依据的回答要明确标出。',
+  mapTask: '请根据选中的来源，用分层列表或 Mermaid 图起草概念图，说明每条连接的含义、成立前提和来源位置，并单独标出尚未确定的联系。',
+  capturePending: '选中的会话回答：{session} / 事件 {seq}',
+  next: '下一页', first: '第一页',
+  expand: '展开研读笔记侧栏',
+  copy: '复制', copied: '已复制', footnotes: '脚注',
+  sourceNumber: '来源 {number}',
+  journalUnavailable: '当前标签页未能保存待确认操作的恢复记录。请保持页面打开，并检查原操作结果。',
+  journalInvalid: '研读操作的恢复记录无法读取，原记录已保留，新操作不会覆盖它。',
+  receiptMismatch: '返回的确认与本次操作不一致，原请求仍保留，可继续检查。',
+}
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap { 'aitp.study': StudyKey }
+}

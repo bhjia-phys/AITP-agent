@@ -10,6 +10,7 @@
       - listitem:
         - button "Quantum chaos"
       - listitem: Long-range chains
+  - button "Discuss this research"
   - paragraph:
     - strong: Demo workspace
     - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
@@ -64,8 +65,3 @@
         - button "Eigenstate thermalisation Awaiting your choice"
       - listitem:
         - button "Integrable nearest-neighbour limit Concluded"
-  - text: Ask about this research
-  - textbox "Ask about this research":
-    - /placeholder: What is still unclear, or what should we investigate next?
-  - paragraph: Continue with the research context from this page.
-  - button "Ask in a new conversation" [disabled]

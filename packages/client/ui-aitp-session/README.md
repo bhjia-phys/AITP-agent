@@ -21,6 +21,8 @@ Provenance is shown by both label and rule style: researcher items use a solid a
 
 With no provider or no research origin, the header action and task card render nothing, so Harness is unchanged, and an open page says research memory is not connected. A failed first read shows its code in place; a later failure keeps the last value beside a notice. Fixture values are labelled.
 
+Opening Sources & memory from an embedded research discussion navigates to that same Session's ordinary Conversation and opens its memory tab when the native dock is ready. The button remains bound to the Session it describes. A later open request or plugin unload cancels an earlier request that has not yet reached its dock.
+
 ## Further Exploration
 
 - [Research views](../ui-aitp-research/README.md)

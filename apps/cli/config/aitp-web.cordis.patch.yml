@@ -8,6 +8,26 @@
   disabled: false
 - id: ui-aitp-session
   disabled: false
+- id: research-study
+  disabled: false
+- id: ui-aitp-study
+  disabled: false
+- id: research-resources
+  disabled: false
+- id: research-knowledge
+  disabled: false
+- id: research-literature
+  disabled: false
+- id: research-code
+  disabled: false
+- id: ui-aitp-materials
+  disabled: false
+- id: ui-aitp-literature
+  disabled: false
+- id: ui-aitp-knowledge
+  disabled: false
+- id: ui-aitp-code
+  disabled: false
 # The authenticated owner enrolls each Workspace from Research before source access.
 - id: research-memory
   disabled: false

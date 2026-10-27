@@ -254,6 +254,9 @@ export async function connectFreshWorkspaceZh(page: Page, root: string, name = '
  * selection, and the batched edit lands on a null selection and is silently
  * dropped, leaving the previous draft in place. Real keystrokes leave room for
  * `selectionchange` between keys, which is also what a user's typing does.
+ * Non-ASCII `keyboard.type()` characters have no physical keydown. Yield one
+ * browser task after select-all so Lexical's same-task text-replacement guard
+ * expires before that unkeyed insertion; a real subsequent keydown clears it.
  *
  * Waits for the surface to be editable first. While the input machine is
  * adjudicating or submitting a send — and in every locked state (removed
@@ -276,6 +279,7 @@ export async function writeComposerDraft(
   await input.and(page.locator('[contenteditable="true"]')).waitFor({ timeout: 15_000 })
   await input.click()
   await page.keyboard.press('ControlOrMeta+A')
+  await input.evaluate(() => new Promise<void>((resolve) => { setTimeout(resolve, 0) }))
   if (text === '') await page.keyboard.press('Backspace')
   else await page.keyboard.type(text)
 }

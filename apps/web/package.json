@@ -30,6 +30,8 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@deepseek-ai/dsh-research-resources": "workspace:*",
+    "@deepseek-ai/dsh-research-study": "workspace:*",
     "@deepseek-ai/cordis-plugin-group": "workspace:~",
     "@deepseek-ai/dsh-client-modules": "workspace:*",
     "@deepseek-ai/dsh-client-store": "workspace:*",

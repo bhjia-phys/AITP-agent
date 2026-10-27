@@ -29,6 +29,24 @@ The owner explicitly enrolls a registered Workspace from Research; observing set
 
 The owner-scoped `getSessionMemory` read projects existing accepted Session events and registered message projections without starting an Agent or rereading scientific sources. It exposes exact named request-context snapshots with current, condensed, projected or superseded state; current files open through a separate note read. Per-file links retain unknown delivery state, and prose does not establish rule adoption. Output bounds report omitted complete units. The existing cold-history API can still load an entire Session before projection bounds apply.
 
+## Local libraries and source study
+
+The source authority is [`research-resources`](../../packages/research/research-resources/README.md). Literature, knowledge and code are separate providers with independent Client plugins. They share root grants, root-qualified source identities, bounded discovery, source reading, invalidation and source links. Disabling one domain withdraws its entries without creating another chat runtime or changing the other domains' grants. The AITP overlay enables these plugins; the generic Harness profile keeps them disabled.
+
+A person connects an existing registered Workspace for read access. A connection does not create or edit research files. Canonically identical roots share counted grants; each read rechecks current authority. A source identity includes its root, so equal filenames in different collections remain distinct. Deleting a file, disconnecting a root or removing a provider produces an explicit unavailable location. Source paths do not establish scientific scope.
+
+The knowledge provider reads the existing AITP collection: its index, reusable atoms, source-ordered readings, question-led stories and optional author collections. Support, review and reading coverage retain separate meanings. Drafts and provisional research pointers do not become verified atoms. Literature reads existing PDF text with physical page locations, Markdown, bibliography and TeX sources. Code reads the existing checkout, status, diff and history without fetching or running repository helpers. Image-only PDFs require an additional transcription provider.
+
+Authored links from a recognized `research.md` associate a material with its using topic and preserve the using passage as the reason. Cross-root resolution requires both roots to be authorized. The browser offers global library panels and the same reader within a topic. Entering a child-owned material from its parent's view keeps the explicitly selected parent question; ownership of evidence does not silently switch the conversation's scope.
+
+Saved source sets are operational application data under `research-resources`, outside scientific files. They preserve selections and optional topic scope with stable operation identities for retry and restart. A Global study uses its source-set or study identity without inventing a topic or Workspace. An explicit topic study combines the topic account with its selected materials in the existing Harness Session. Human questions and corrections remain original Session evidence through compaction and recovery.
+
+Current source passages carry exact text offsets, Markdown anchors, physical PDF pages or code revision/line locations. Long source retrieval uses bounded lexical matching, including Chinese pairs; it is not semantic search and does not establish complete reading. The final request assembler can refit eligible source excerpts to its complete envelope while preserving exact source offsets and blank lines; explicit original quotations remain complete or visibly omitted. Source locators are encoded once in their reopenable address. Omissions and stale selections remain visible. `research_read_source` can reopen only a currently selected source; normal source authorization and output bounds still apply. A historical selected quote is labelled separately from a fresh source observation.
+
+[`research-study`](../../packages/research/research-study/README.md) saves editable notes and captures a completed answer from its actual Session event. One operational store owns these provisional drafts, their capture provenance and source references. Selected sources, recorded request context and successful source-tool results are distinct forms of evidence; none establishes that the model fully read a file. A draft may be exported or explicitly used as a source, retaining its generated/provisional identity. Saving a draft does not promote a research result into the knowledge collection or invoke a second research-file writer.
+
+The first implementation supports local source reading, source sets, cited ordinary conversations and provisional text study products. It does not provide OCR, media transcription, generated audio/video, hosted sharing or automatic scientific promotion. Existing AITP Skills and the owning scientific notes retain their authority. The staged acceptance boundaries are in the [local-library implementation plan](../agent/14-implementation-blueprint.md#local-libraries).
+
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
 <a id="cordis-surface"></a>
@@ -169,10 +187,262 @@ One source adapter per explicitly configured research root.
  * @returns the created normal Session identity or an unresolved-origin/service failure.
  * @throws when the caller is not the owner or the created Session cannot be reached.
  */
-@Remote({ name: 'ask', resources: { workspace: addressedWorkspace } }) async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>
+@Remote({ name: 'ask', resources: { workspace: addressedWorkspace, session: (request: ResearchQuestion) => request.sessionId } }) async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>
+
+/**
+ * Inspect a recorded operation without writing sources or resuming an Agent.
+ * @param request - Actual Workspace, owning Session and operation identity.
+ * @param signal - Cancels source authorization and Session observation before receipt inspection.
+ * @returns Bounded immutable before/after text plus the separately rechecked present source state.
+ */
+@Remote({ name: 'getChange', resources: { workspace: addressedWorkspace, session: addressedResearchSession } }) async getChange(request: { workspaceId: WorkspaceId } & ResearchChangeQuery, signal: AbortSignal): Promise<Result<ResearchChangeView>>
+
+/**
+ * List ordinary discussions in the exact current research scope without starting any Agent.
+ * @param request - Workspace and optional topic; omission means the root account.
+ * @param signal - Cancels the bounded history read.
+ * @returns Live metadata and explicit omitted-history coverage.
+ */
+@Remote({ name: 'listDiscussions', resources: { workspace: addressedWorkspace } }) async listDiscussions(request: { workspaceId: WorkspaceId } & DiscussionQuery, signal: AbortSignal): Promise<Result<DiscussionPage>>
 ```
 
 Types: [SessionId](core.md) · [WorkspaceId](workspace.md)
 
 Source: [`packages/research/research-memory/src/index.ts`](../../packages/research/research-memory/src/index.ts)
+
+<a id="ctxresearchresources--researchresources"></a>
+
+### `ctx.researchResources` — `ResearchResources`
+
+Shared local reads; model execution and scientific writing remain separately owned consumers.
+
+```ts cordis-catalog
+/**
+ * Contribute a Host-authorized local root; equal canonical roots share one source identity.
+ * @param registration - configured or already-enrolled root; never browser-supplied paths.
+ * @returns a counted lease whose disposal withdraws only this contributor's grant.
+ * @throws when the path is unavailable, not absolute, or its identity conflicts with another root.
+ */
+async registerRoot(registration: SourceRootRegistration): Promise<SourceRootLease>
+
+/**
+ * Install one domain projection; every catalog and reader is withdrawn on disposal.
+ * @param provider - trusted plugin contribution, consuming the shared guarded source context.
+ * @returns an idempotent disposer; the caller retains it in its plugin effect.
+ */
+registerProvider(provider: ResourceProvider): () => void
+
+/**
+ * Connect the single existing-conversation owner without importing a model runtime here.
+ * @param handler - research-memory integration creating ordinary Harness conversations.
+ * @returns an idempotent disposer for this handler's lifecycle.
+ */
+registerStudyHandler(handler: StudyHandler): () => void
+
+/**
+ * Contribute explicit source relationships from existing scientific owners.
+ * @param provider - source-backed batched reader; it cannot register roots or infer scientific support.
+ * @returns an idempotent disposer removing this contributor and invalidating the projected catalog.
+ */
+registerTopicAssociations(provider: TopicAssociationProvider): () => void
+
+/**
+ * Resolve an authored local link through already authorized roots without reading its target.
+ * @param request - a known source and its original href.
+ * @param signal - cancellation while current Host grants are checked.
+ * @returns a root-qualified location, or undefined for unregistered, external or malformed links.
+ */
+async resolveLocalLink(request: { from: SourceRef; href: string }, signal: AbortSignal): Promise<{ ref: SourceRef; locator?: SourceLocator } | undefined>
+
+/**
+ * Resolve many owned-note links using one current authorized-root observation.
+ * @param request - original source and href pairs; output positions match input positions.
+ * @param signal - cancellation for the complete bounded relationship read.
+ * @returns source locations or undefined without reading unregistered targets.
+ */
+async resolveLocalLinks(request: { links: readonly { from: SourceRef; href: string }[] }, signal: AbortSignal): Promise<readonly ({ ref: SourceRef; locator?: SourceLocator } | undefined)[]>
+
+/**
+ * Inspect operational capabilities without granting any filesystem access.
+ * @param request - reserved existing Workspace selection; it is never a path.
+ * @param signal - cancellation for this capability read.
+ * @returns availability of read-only attachment and Host-owned saved source sets.
+ */
+@Remote({ name: 'getSetup' }) async getSetup(request: { workspaceId?: WorkspaceId }, signal: AbortSignal): Promise<ResourceResult<ResourceSetup>>
+
+/**
+ * Explicitly attach a registered Workspace as a read-only library root.
+ * @param request - Host Workspace identity and catalog domains; no browser-controlled root path.
+ * @param signal - cancellation before admitting the operational connection.
+ * @returns a durable connection to the captured canonical path, without creating scientific files.
+ */
+@Remote({ name: 'connectWorkspace' }) async connectWorkspace(request: { workspaceId: WorkspaceId; domains?: readonly ResourceDomain[] }, signal: AbortSignal): Promise<ResourceResult<RootConnection>>
+
+/**
+ * Withdraw only the saved Workspace connection, preserving independent configured/research grants.
+ * @param request - existing or retained Workspace identity to disconnect.
+ * @param signal - cancellation before operational publication.
+ * @returns whether a runtime connection record was removed; scientific files are untouched.
+ */
+@Remote({ name: 'disconnectWorkspace' }) async disconnectWorkspace(request: { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<ResourceResult<{ disconnected: boolean }>>
+
+/**
+ * List saved operational collections without returning their selected quotations.
+ * @param request - bounded page and optional actual topic filter.
+ * @param signal - cancellation for this read.
+ * @returns source-set summaries with opaque pagination.
+ */
+@Remote({ name: 'listSourceSets' }) async listSourceSets(request: SourceSetQuery, signal: AbortSignal): Promise<ResourceResult<SourceSetPage>>
+
+/**
+ * Open a saved set; its references may now be missing and are never replaced by title guesses.
+ * @param request - durable source-set identity.
+ * @param signal - cancellation for this read.
+ * @returns complete bounded references and explicit quotations, not fresh source content.
+ */
+@Remote({ name: 'getSourceSet' }) async getSourceSet(request: { id: SourceSetId }, signal: AbortSignal): Promise<ResourceResult<SourceSet>>
+
+/**
+ * Save source references and short selected quotations in Host operational storage.
+ * @param request - exact title, references, optional topic associations and stable retry identity.
+ * @param signal - cancellation before admitting the bounded publication.
+ * @returns its durable operation receipt; the current set is read separately.
+ */
+@Remote({ name: 'saveSourceSet' }) async saveSourceSet(request: SaveSourceSetRequest, signal: AbortSignal): Promise<ResourceResult<SourceSetReceipt>>
+
+/**
+ * Remove one operational set without deleting its sources or scientific notes.
+ * @param request - set identity and stable removal operation identity.
+ * @param signal - cancellation before publication admission.
+ * @returns the durable historical removal receipt, including unchanged retries.
+ */
+@Remote({ name: 'removeSourceSet' }) async removeSourceSet(request: RemoveSourceSetRequest, signal: AbortSignal): Promise<ResourceResult<SourceSetReceipt>>
+
+/**
+ * List roots explicitly contributed by Host configuration or an existing research grant.
+ * @param request - optional exact root filter, without a browser-controlled path.
+ * @param signal - cancellation for this observer.
+ * @returns canonical root metadata; duplicate grants appear once.
+ */
+@Remote({ name: 'listRoots' }) async listRoots(request: { rootId?: SourceRootId }, signal: AbortSignal): Promise<ResourceResult<readonly SourceRoot[]>>
+
+/**
+ * Browse a bounded domain catalog with explicit missing discovery coverage.
+ * @param request - source/root/topic filters and an opaque page cursor.
+ * @param signal - cancellation for this observer, not for another reader's shared scan.
+ * @returns a catalog page; rejected or stale cursors require a fresh first page.
+ */
+@Remote({ name: 'listResources' }) async listResources(request: ResourceQuery, signal: AbortSignal): Promise<ResourceResult<ResourcePage>>
+
+/**
+ * Search domain titles, descriptions and authored metadata within the same bounded catalog.
+ * @param request - search text and the same explicit root/topic filters as browsing.
+ * @param signal - cancellation for this read.
+ * @returns matching catalog entries and the actual discovery limits.
+ */
+@Remote({ name: 'search' }) async search(request: ResourceQuery, signal: AbortSignal): Promise<ResourceResult<ResourcePage>>
+
+/**
+ * Read a complete authorized PDF or image for native preview without expanding any source grant.
+ * @param request - root-qualified current local-file identity, never an arbitrary Host path.
+ * @param signal - cancellation propagated through the root lifetime and complete bounded read.
+ * @returns preview bytes through binary transport, or an explicit rejection without partial bytes.
+ */
+@Remote({ name: 'readSourceBytes' }) async readSourceBytes(request: { ref: SourceRef }, signal: AbortSignal): Promise<ResourceResult<ResourceBytes>>
+
+/**
+ * Open a known source or a newly selected guarded local file in an authorized root.
+ * @param request - root-qualified identity and optional located reading.
+ * @param signal - cancellation propagated to the provider and bounded source read.
+ * @returns current complete content or an explicit unsupported/missing reading.
+ */
+@Remote({ name: 'readResource' }) async readResource(request: ResourceReadRequest, signal: AbortSignal): Promise<ResourceResult<ResourceReading>>
+
+/**
+ * Mark current catalogs stale; this neither fetches remote material nor modifies source files.
+ * @param request - optional registered root, or every currently authorized root.
+ * @param signal - cancellation before invalidation.
+ * @returns whether the requested invalidation was admitted.
+ */
+@Remote({ name: 'refresh' }) async refresh(request: { rootId?: SourceRootId }, signal: AbortSignal): Promise<ResourceResult<true>>
+
+/**
+ * Submit explicit selected evidence through the existing conversation integration.
+ * @param request - the person's words, optional actual topic and eligible source selections.
+ * @param signal - cancellation before the integration admits a normal Session input.
+ * @returns that Session's identity; no domain reader starts its own model loop.
+ */
+@Remote({ name: 'askStudy', resources: { workspace: (request: StudyRequest) => request.workspaceId, session: (request: StudyRequest) => request.sessionId } }) async askStudy(request: StudyRequest, signal: AbortSignal): Promise<ResourceResult<StudyReceipt>>
+
+/**
+ * Observe source/provider invalidation and an initial resync baseline.
+ * @param request - reserved empty filter; all events remain Host-owner scoped.
+ * @param signal - caller cancellation or plugin disposal closes the subscription.
+ * @returns source events; clients reread current authoritative values after each invalidation.
+ */
+@Remote({ name: 'follow', mode: 'stream' }) async *follow(request: { rootId?: SourceRootId }, signal: AbortSignal): AsyncIterable<ResourceEvent>
+```
+
+Types: [WorkspaceId](workspace.md)
+
+Source: [`packages/research/research-resources/src/index.ts`](../../packages/research/research-resources/src/index.ts)
+
+<a id="ctxresearchstudy--researchstudy"></a>
+
+### `ctx.researchStudy` — `ResearchStudy`
+
+Single draft owner; no model provider, new Session log or scientific writeback is created here.
+
+```ts cordis-catalog
+/**
+ * Report the Host capabilities available to this plugin.
+ * @returns explicit availability without reading a Session or research source.
+ */
+@Remote({ name: 'getSetup' }) async getSetup(): Promise<StudySetup>
+
+/**
+ * Browse saved draft summaries without retrieving their bodies.
+ * @param request - bounded summary filters.
+ * @returns a revision-bound page without bodies or context excerpts.
+ */
+@Remote({ name: 'listArtifacts' }) listArtifacts(request: StudyArtifactQuery): Promise<StudyResult<StudyArtifactPage>>
+
+/**
+ * Open an explicitly saved study draft.
+ * @param request - existing plugin-owned identity.
+ * @returns full saved content and original source evidence.
+ */
+@Remote({ name: 'getArtifact' }) getArtifact(request: { id: StudyArtifactId }): Promise<StudyResult<StudyArtifact>>
+
+/**
+ * Save a handwritten note or an explicit edit without changing scientific records.
+ * @param request - explicit handwritten content or edit with an unchanged retry identity.
+ * @returns historical save receipt.
+ */
+@Remote({ name: 'saveNote' }) saveNote(request: SaveStudyNoteRequest): Promise<StudyResult<StudyArtifactReceipt>>
+
+/**
+ * Capture only the selected real completed answer through the existing authorized Session observer.
+ * @param request - existing answer reference and stable save identity, with no client-supplied answer text.
+ * @param signal - cancellation before a new capture is admitted; admitted writes drain on unload.
+ * @returns durable provisional-draft receipt, including unchanged retry recovery after restart.
+ */
+@Remote({ name: 'captureAnswer', resources: { session: addressedSession } }) captureAnswer(request: CaptureStudyAnswerRequest, signal: AbortSignal): Promise<StudyResult<StudyArtifactReceipt>>
+
+/**
+ * Remove this plugin's draft while retaining its original sources and retry receipt.
+ * @param request - existing plugin-owned identity and stable removal identity.
+ * @returns historical deletion receipt.
+ */
+@Remote({ name: 'removeArtifact' }) removeArtifact(request: RemoveStudyArtifactRequest): Promise<StudyResult<StudyArtifactReceipt>>
+
+/**
+ * Export actual saved content and its recorded references.
+ * @param request - existing saved draft.
+ * @returns portable Markdown as data; the client chooses an explicit export destination.
+ */
+@Remote({ name: 'exportMarkdown' }) exportMarkdown(request: { id: StudyArtifactId }): Promise<StudyResult<{ filename: string; markdown: string }>>
+```
+
+Source: [`packages/research/research-study/src/index.ts`](../../packages/research/research-study/src/index.ts)
 <!-- END GENERATED cordis-surface -->

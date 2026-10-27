@@ -33,6 +33,31 @@ function chip(shell: SessionInputShell): void {
 }
 
 describe('reference submission', () => {
+  it('captures the admission destination before asynchronous reference expansion', async () => {
+    let finish: ((text: string) => void) | undefined
+    let origin = 'direction A / material A'
+    const delivered: string[] = []
+    const shell = new SessionInputShell({
+      actx: {} as Context,
+      defaultSink: vi.fn(),
+      captureDefaultSink: () => {
+        const captured = origin
+        return async () => { delivered.push(captured); return { kind: 'success' } }
+      },
+      inputTriggers: () => ({
+        serializeReference: () => new Promise<string>((resolve) => { finish = resolve }),
+        track: vi.fn(), lexicon: { getSnapshot: () => new Map(), subscribe: () => () => {} },
+      }) as unknown as InputTriggerController,
+      commandAttachments,
+    })
+    chip(shell)
+    shell.submit()
+    await vi.waitFor(() => { expect(finish).toBeDefined() })
+    origin = 'direction B / material B'
+    finish?.(mention)
+    await vi.waitFor(() => { expect(delivered).toEqual(['direction A / material A']) })
+  })
+
   it('mirrors canonical reference text so a persisted draft remains resolvable after remount', async () => {
     const mirror = vi.fn()
     const first = new SessionInputShell({

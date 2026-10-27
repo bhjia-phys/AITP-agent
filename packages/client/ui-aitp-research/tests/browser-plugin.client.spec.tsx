@@ -5,16 +5,20 @@
  * loaded, the research protocols read through the real resource service; and
  * unloading either plugin removes exactly what it added.
  */
+import { act, within } from '@testing-library/react'
 import { expect, vi } from 'vitest'
 import { ClientRoster, createClientTest, webApp, type TestClient } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { noteAddress, topicAddress, topicsAddress } from '../src/client/protocol.ts'
-import { ResearchPanel, type ResearchPanelFace } from '../src/client/ResearchPanel.tsx'
+import { ResearchPanel } from '../src/client/ResearchPanel.tsx'
 import { WorkspaceSidebar } from '../src/client/WorkspaceSidebar.tsx'
 import { workspaceProjectAddress } from '../src/client/workspace-resources.ts'
 import { apply as nodeApply } from '../src/index.ts'
+import type { ResearchChangeReader } from '../src/client/research-change-model.ts'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
 const RESEARCH = '@deepseek-ai/dsh-client-ui-aitp-research'
 const FIXTURES = '@deepseek-ai/dsh-client-ui-aitp-fixtures'
@@ -27,20 +31,12 @@ const it = createClientTest({ roster: ClientRoster.of([
     inject: [
       '@deepseek-ai/dsh-client-ui-renderer', '@deepseek-ai/dsh-client-ui-sidebar', '@deepseek-ai/dsh-client-ui-sidebar-right',
       '@deepseek-ai/dsh-client-ui-workspace', '@deepseek-ai/dsh-client-resources', '@deepseek-ai/dsh-client-locale',
+      '@deepseek-ai/dsh-api-session-controller', '@deepseek-ai/dsh-client-ui-conversation', '@deepseek-ai/dsh-client-ui-chat',
     ],
     immediately: false,
   },
   { name: FIXTURES, inject: ['@deepseek-ai/dsh-client-resources'], immediately: false },
-]) })
-
-/**
- * Narrow a registration's inject face to the panel's navigation face.
- * @param face - what the entry's inject returned.
- * @returns whether it carries both navigation callbacks.
- */
-function isPanelFace(face: Record<string, unknown> | undefined): face is Record<string, unknown> & ResearchPanelFace {
-  return typeof face?.['openSession'] === 'function' && typeof face['startDraft'] === 'function'
-}
+]) }, { mount: true })
 
 /**
  * Hold one address open until its first settled frame.
@@ -59,6 +55,87 @@ async function read(client: TestClient, address: string): Promise<ResourceSnapsh
   }
 }
 
+async function reloadChangeReader(client: TestClient): Promise<ResearchChangeReader['read']> {
+  const registrations = vi.spyOn(client.ctx.slots, 'registerFactory')
+  try {
+    await client.reload(RESEARCH)
+    await client.flush()
+    const definition = registrations.mock.calls.findLast(([options]) => options.name === 'aitp.research.change-notice')?.[0]
+    if (definition?.inject === undefined) throw new Error('The change notice has no registration-owned reader.')
+    // This registration's factory ignores Session arguments and supplies only its reader capability.
+    const inject = definition.inject as () => { readonly latestResearchChange: ResearchChangeReader['read'] }
+    return inject().latestResearchChange
+  } finally {
+    registrations.mockRestore()
+  }
+}
+
+it('replaces change observations on real plugin reload and releases them on unload', async ({ start }) => {
+  const first = await start()
+  const nodes = [{ kind: 'tool-call', data: { root: {
+    kind: 'tool-result', name: 'research_apply_change', seq: 1, isError: false,
+    meta: { researchWrite: { operationId: 'owned-change', state: 'applied' } }, subCalls: [],
+  } } }]
+  const readFirst = await reloadChangeReader(first)
+  const pointer = readFirst(nodes)
+  expect(pointer).not.toBeNull()
+  expect(readFirst(nodes)).toBe(pointer)
+  const readReloaded = await reloadChangeReader(first)
+  expect(readFirst(nodes)).toBeNull()
+  const reloaded = readReloaded(nodes)
+  expect(reloaded).toEqual(pointer)
+  expect(reloaded).not.toBe(pointer)
+  expect(readReloaded(nodes)).toBe(reloaded)
+  await first.unload(RESEARCH)
+  await first.flush()
+  expect(readReloaded(nodes)).toBeNull()
+}, 60_000)
+
+it('waits for admitted discussion creation before real plugin unload completes', async ({ start }) => {
+  const client = await start()
+  const discussions = client.ctx.researchDiscussions
+  const scope = { workspaceId: WS, topicId: 'topic' }
+  const listing = Promise.withResolvers<undefined>()
+  const aborted = Promise.withResolvers<undefined>()
+  const creating = Promise.withResolvers<undefined>()
+  const created = Promise.withResolvers<SessionId>()
+  const list = vi.spyOn(client.ctx.researchWorkspaces, 'listDiscussions').mockImplementation((_workspace, _query, options) => {
+    const reply = Promise.withResolvers<Awaited<ReturnType<typeof client.ctx.researchWorkspaces.listDiscussions>>>()
+    options?.signal?.addEventListener('abort', () => {
+      aborted.resolve(undefined)
+      reply.reject(options.signal?.reason)
+    }, { once: true })
+    listing.resolve(undefined)
+    return reply.promise
+  })
+  const create = vi.spyOn(client.ctx.sessions, 'create').mockImplementation(() => {
+    creating.resolve(undefined)
+    return created.promise
+  })
+  const retain = vi.spyOn(client.ctx.sessions, 'retain')
+  const reading = discussions.open(scope)
+  const opening = discussions.newDiscussion({ ...scope, topicId: 'other' })
+  await Promise.all([listing.promise, creating.promise])
+  let unloaded = false
+  const removing = client.unload(RESEARCH).then(() => { unloaded = true })
+  try {
+    await aborted.promise
+    await discussions.newDiscussion(scope)
+    await client.flush()
+    expect(create).toHaveBeenCalledOnce()
+    expect(unloaded).toBe(false)
+  } finally {
+    created.resolve('admitted-before-unload' as SessionId)
+    await Promise.all([reading, opening, removing])
+    try {
+      expect(retain.mock.calls.some(([id]) => id === 'admitted-before-unload')).toBe(false)
+      expect(client.ctx.get('researchDiscussions')).toBeUndefined()
+    } finally {
+      list.mockRestore(); create.mockRestore(); retain.mockRestore()
+    }
+  }
+}, 60_000)
+
 it('registers the panel, its sidebar entry and the note tab type, and removes them on unload', async ({ start }) => {
   const client = await start()
   const panelEntry = client.ctx.slots.entries('main').find(entry => entry.component === ResearchPanel)
@@ -73,20 +150,18 @@ it('registers the panel, its sidebar entry and the note tab type, and removes th
   expect(client.ctx.sidebarRightTabs.get('aitp-note')?.title(address)).toBe('research.md')
   expect(client.ctx.sidebarRightTabs.candidates('dsh-resource://aitp-topic/workspace/w1/topic/x')).toEqual([])
   expect(client.ctx.sidebarRightTabs.get('aitp-note')?.title('elsewhere')).toBe('Note')
-  const openSession = vi.spyOn(client.ctx.uiWorkspace, 'openSession').mockImplementation(() => undefined)
-  const startSession = vi.spyOn(client.ctx.uiWorkspace, 'startSession').mockImplementation(() => undefined)
-  const face = client.ctx.slots.entries('main').find(item => item.component === ResearchPanel)?.inject?.()
-  if (!isPanelFace(face)) throw new Error('the Research panel entry carries no navigation face')
-  face.openSession('s1' as never)
-  face.startDraft(WS, 'Working on @research.md: ')
-  expect(openSession).toHaveBeenCalledWith('s1')
-  expect(startSession).toHaveBeenCalledWith(WS, { prompt: 'Working on @research.md: ' })
+  // Render the real main slot so its inject callback receives the framework-owned actions.
+  act(() => { client.ctx.layout.selectPanel('aitp-research' as MainPanelId) })
+  await client.flush()
+  expect(within(client.container!).getByRole('region', { name: 'Research' })).toBeDefined()
+  expect(client.ctx.researchDiscussions).toBeDefined()
   expect(client.ctx.locale.bind('aitp.research')('panel')).toBe('Research')
   await client.unload(RESEARCH)
   await client.flush()
   expect(client.ctx.slots.entries('main').filter(entry => entry.component === ResearchPanel)).toHaveLength(0)
   expect(client.ctx.slots.entries('sidebar.panellist').map(entry => entry.options.id)).not.toContain('aitp-research')
   expect(client.ctx.sidebarRightTabs.get('aitp-note')).toBeUndefined()
+  expect(client.ctx.get('researchDiscussions')).toBeUndefined()
   expect(() => { nodeApply() }).not.toThrow()
 }, 60_000)
 

@@ -2634,13 +2634,80 @@ export interface Config {
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-repeat-tool-reminder -->
 
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-research-code -->
+<a id="deepseek-aidsh-research-code"></a>
+
+## `@deepseek-ai/dsh-research-code`
+
+- `inject`: `researchResources`
+- `source`: [`packages/research/research-code/src/index.ts:10`](../packages/research/research-code/src/index.ts)
+
+```ts config-catalog
+/** Local Git executable and bounds, supplied to every observation without shell interpolation. */
+export interface Config {
+  /** Local Git executable invoked directly without a shell. */
+  readonly gitExecutable: string
+  /** Maximum elapsed milliseconds for one readonly Git process. */
+  readonly gitTimeoutMs: number
+  /** Maximum complete stdout bytes from one Git observation. */
+  readonly maxGitOutputBytes: number
+  /** Maximum history entries requested from the local checkout. */
+  readonly maxHistoryEntries: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-research-code -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-research-knowledge -->
+<a id="deepseek-aidsh-research-knowledge"></a>
+
+## `@deepseek-ai/dsh-research-knowledge`
+
+- `inject`: `researchResources`
+- `source`: [`packages/research/research-knowledge/src/index.ts:10`](../packages/research/research-knowledge/src/index.ts)
+
+```ts config-catalog
+/** Existing index locations relative to each admitted root; no scientific files are created. */
+export interface Config {
+  /** Existing root-relative index entry points; absent files are never created. */
+  readonly indexPaths: string[]
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-research-knowledge -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-research-literature -->
+<a id="deepseek-aidsh-research-literature"></a>
+
+## `@deepseek-ai/dsh-research-literature`
+
+- `inject`: `researchResources`
+- `source`: [`packages/research/research-literature/src/index.ts:11`](../packages/research/research-literature/src/index.ts)
+
+```ts config-catalog
+/** Existing reading entry points and bounded PDF extraction; all reads still obey shared root limits. */
+export interface Config {
+  /** Existing root-relative Markdown reading-index entry points. */
+  readonly readingIndexPaths: string[]
+  /** Maximum explicitly linked reading notes inspected per admitted root. */
+  readonly maxReadingNotes: number
+  /** Maximum original PDF bytes accepted before page extraction. */
+  readonly maxPdfBytes: number
+  /** Maximum physical pages extracted for an unlocated initial reading. */
+  readonly initialPdfPages: number
+  /** Maximum complete page-text characters retained by one PDF reading. */
+  readonly maxPdfTextCharacters: number
+  /** Maximum original PDF bytes offered for any inline visual preview. */
+  readonly maxInlinePdfBytes: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-research-literature -->
+
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-research-memory -->
 <a id="deepseek-aidsh-research-memory"></a>
 
 ## `@deepseek-ai/dsh-research-memory`
 
 - `inject`: `typert` · `agents` · `sessions` · `systemPrompt` · `tools` · `sessionProjections`
-- `source`: [`packages/research/research-memory/src/index.ts:64`](../packages/research/research-memory/src/index.ts)
+- `source`: [`packages/research/research-memory/src/index.ts:76`](../packages/research/research-memory/src/index.ts)
 
 ```ts config-catalog
 /** Explicit host access and bounds for configured research roots. */
@@ -2688,6 +2755,104 @@ export interface Config {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-research-memory -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-research-resources -->
+<a id="deepseek-aidsh-research-resources"></a>
+
+## `@deepseek-ai/dsh-research-resources`
+
+- `inject`: `typert`
+- `source`: [`packages/research/research-resources/src/index.ts:33`](../packages/research/research-resources/src/index.ts)
+
+```ts config-catalog
+/** Configured local roots and complete reading/catalog bounds; none authorizes source writes. */
+export interface Config {
+  /** Explicit local read grants; an empty list admits no scientific directory. */
+  roots?: {
+    /** Stable Host-chosen source-root identity. */
+    id: string
+    /** Existing absolute local directory; registration never authorizes source writes. */
+    path: string
+    /** Optional human-facing collection title. */
+    title?: string
+    /** Optional actual Harness Workspace associated with this configured grant. */
+    workspaceId?: string
+    /** Catalog domains offered to providers; omission offers every installed domain. */
+    domains?: ResourceDomain[] | undefined
+  }[]
+  /** Maximum discovered directory entries per root, including directories. */
+  maxFiles?: number
+  /** Maximum UTF-8 bytes in one complete source-text reading. */
+  maxFileBytes?: number
+  /** Maximum bytes in one complete source-binary reading. */
+  maxBinaryBytes?: number
+  /** Maximum projected catalog entries per root and local-link pairs per Host batch. */
+  maxCatalogEntries?: number
+  /** Maximum entries returned in one catalog or saved-source-set summary page. */
+  maxPageSize?: number
+  /** Maximum characters in a complete serialized read result, including metadata. */
+  maxResultCharacters?: number
+  /** Maximum characters in a study question or catalog search. */
+  maxQuestionCharacters?: number
+  /** Maximum explicitly selected sources submitted to one ordinary study conversation. */
+  maxSelections?: number
+  /** Maximum UTF-8 bytes in the complete operational connection and source-set store. */
+  maxStateBytes?: number
+  /** Maximum saved source sets; reaching the limit retains existing sets. */
+  maxSourceSets?: number
+  /** Maximum retained source-set operation receipts; prior retry identities are never evicted automatically. */
+  maxStateOperations?: number
+  /** Maximum characters in one complete normalized source-set save payload. */
+  maxSourceSetCharacters?: number
+  /** Maximum characters in each explicitly selected quotation, including located text and PDF quotes. */
+  maxSelectionCharacters?: number
+  /** Maximum source selections retained in one saved operational set. */
+  maxSourceSetSelections?: number
+  /** Maximum characters in a saved source set's single-line title. */
+  maxSourceSetTitleCharacters?: number
+}
+
+/** Independently composed research-library domains. */
+export type ResourceDomain = 'knowledge' | 'literature' | 'code'
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-research-resources -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-research-study -->
+<a id="deepseek-aidsh-research-study"></a>
+
+## `@deepseek-ai/dsh-research-study`
+
+- `inject`: `typert`
+- `source`: [`packages/research/research-study/src/index.ts:26`](../packages/research/research-study/src/index.ts)
+
+```ts config-catalog
+/** Complete local limits; the operational path is always the Host-owned research-study child. */
+export interface Config extends Partial<StudyStoreLimits> {
+  /** Maximum canonical Session events inspected for one explicit answer capture. */
+  readonly maxCaptureEvents?: number
+  /** Offer saved drafts through shared research sources when that service is installed. */
+  readonly exposeSources?: boolean
+}
+
+/** Deployment bounds for complete draft content and preserved operation identities. */
+export interface StudyStoreLimits {
+  /** Maximum UTF-8 bytes in the complete operational state file. */
+  readonly maxStateBytes: number
+  /** Maximum retained drafts; reaching the limit never prunes existing content. */
+  readonly maxArtifacts: number
+  /** Maximum retained operation receipts needed for unchanged retries. */
+  readonly maxOperations: number
+  /** Maximum complete draft characters, including preserved source context. */
+  readonly maxArtifactCharacters: number
+  /** Maximum characters in one single-line draft title. */
+  readonly maxTitleCharacters: number
+  /** Maximum summaries returned in one list page. */
+  readonly maxPageSize: number
+  /** Maximum milliseconds spent acquiring the cooperative operation-store lock. */
+  readonly lockWaitMs: number
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-research-study -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-sandbox-local -->
 <a id="deepseek-aidsh-sandbox-local"></a>
@@ -4658,9 +4823,14 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-resources` | — | [`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-agent-preset` | — | [`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-backend` | — | [`packages/client/ui-aitp-backend/src/index.ts`](../packages/client/ui-aitp-backend/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-code` | — | [`packages/client/ui-aitp-code/src/index.ts`](../packages/client/ui-aitp-code/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-fixtures` | — | [`packages/client/ui-aitp-fixtures/src/index.ts`](../packages/client/ui-aitp-fixtures/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-knowledge` | — | [`packages/client/ui-aitp-knowledge/src/index.ts`](../packages/client/ui-aitp-knowledge/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-literature` | — | [`packages/client/ui-aitp-literature/src/index.ts`](../packages/client/ui-aitp-literature/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-materials` | — | [`packages/client/ui-aitp-materials/src/index.ts`](../packages/client/ui-aitp-materials/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-research` | — | [`packages/client/ui-aitp-research/src/index.ts`](../packages/client/ui-aitp-research/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-session` | — | [`packages/client/ui-aitp-session/src/index.ts`](../packages/client/ui-aitp-session/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-study` | — | [`packages/client/ui-aitp-study/src/index.ts`](../packages/client/ui-aitp-study/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-attachment` | — | [`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-brand-aitp` | — | [`packages/client/ui-brand-aitp/src/index.ts`](../packages/client/ui-brand-aitp/src/index.ts) |

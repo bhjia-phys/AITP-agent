@@ -1,0 +1,39 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../../vendor/schemastery"
+    },
+    {
+      "path": "../research-resources"
+    },
+    {
+      "path": "../research-literature"
+    },
+    {
+      "path": "../research-code"
+    },
+    {
+      "path": "../../test-support/loader-smoke"
+    },
+    {
+      "path": "../../typert/registry"
+    },
+    {
+      "path": "../../../vendor/loader"
+    },
+    {
+      "path": "../../../vendor/include"
+    }
+  ]
+}

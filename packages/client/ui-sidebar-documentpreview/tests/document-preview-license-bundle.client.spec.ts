@@ -44,6 +44,17 @@ function runPnpm(args: string[], cwd: string, timeout: number): string {
 }
 
 describe('published document preview licenses', () => {
+  it.skipIf(!existsSync(bundlePath))('keeps both PDF readers in one self-contained lazy chunk', () => {
+    const client = readFileSync(bundlePath, 'utf8')
+    const pdf = readFileSync(pdfChunkPath, 'utf8')
+    const lazy = [...new Set([...client.matchAll(/require\.async\("(\.\/client[^"/]*\.js)"\)/gu)].map(match => match[1]))]
+    expect(lazy.sort()).toEqual(['./client.excel.js', './client.frontmatter-fields.js', './client.pdf.js'])
+    expect(client).not.toMatch(/\brequire\("\.\/client[^"/]*\.js"\)/u)
+    expect(pdf).not.toMatch(/\brequire\("\.\/client[^"/]*\.js"\)/u)
+    expect(pdf).toContain('SourcePdfPage')
+    expect(pdf).toContain('PdfBody')
+  })
+
   it.skipIf(!existsSync(bundlePath))('keeps bundled licenses in the packed lazy chunks', ({ task }) => {
     expect(existsSync(pdfChunkPath)).toBe(true)
     const output = mkdtempSync(join(tmpdir(), 'dsh-document-preview-pack-'))
@@ -58,8 +69,8 @@ describe('published document preview licenses', () => {
 
       const client = run('tar', ['-xOf', resolve(packageRoot, packed.filename), 'package/lib/client.js'], packageRoot, task.timeout)
       const pdf = run('tar', ['-xOf', resolve(packageRoot, packed.filename), 'package/lib/client.pdf.js'], packageRoot, task.timeout)
-      expect([...client.matchAll(/require\.async\("(\.\/client[^"/]*\.js)"\)/gu)].map(match => match[1]))
-        .toEqual(['./client.frontmatter-fields.js', './client.pdf.js', './client.excel.js'])
+      expect([...new Set([...client.matchAll(/require\.async\("(\.\/client[^"/]*\.js)"\)/gu)].map(match => match[1]))].sort())
+        .toEqual(['./client.excel.js', './client.frontmatter-fields.js', './client.pdf.js'])
       expect(client).not.toMatch(/\brequire\("\.\/client[^"/]*\.js"\)/u)
       expect([...pdf.matchAll(/require\("(\.\/client[^"/]*\.js)"\)/gu)].map(match => match[1]))
         .toEqual([])
