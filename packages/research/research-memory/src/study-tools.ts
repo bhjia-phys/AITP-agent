@@ -3,7 +3,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ResearchResources } from '@deepseek-ai/dsh-research-resources'
 import { materialSourceAddress, parseMaterialLocator } from '@deepseek-ai/dsh-research-resources/protocol'
-import { resolveStudyTextPassage } from './study-context.ts'
+import { resolveStudyPassages } from './study-context.ts'
 
 function boundedWindow(header: string, text: string, offset: number, bound: number): string {
   if (JSON.stringify({ text: header }).length > bound) throw new Error('The source locator exceeds the complete read-result bound; use a smaller location.')
@@ -54,8 +54,9 @@ export function installStudyTools(ctx: Context, resources: Pick<ResearchResource
       if (reading.body.kind === 'image') {
         throw new Error('This source is an image preview; no image content, OCR text or visual interpretation was delivered by the text source reader.')
       }
-      const text = reading.body.kind === 'text' ? resolveStudyTextPassage(reading, { ref: selected.ref,
-        ...(locator === undefined ? {} : { locator }) }).text
+      const text = reading.body.kind === 'text' || locator?.kind === 'pdf-page' && locator.quote !== undefined
+        ? resolveStudyPassages(reading, { ref: selected.ref,
+          ...(locator === undefined ? {} : { locator }) }).map(passage => passage.text).join('\n\n')
         : reading.body.pages.map(page => `PDF physical page ${page.page}${page.printedPage === undefined ? '' : `; printed page ${page.printedPage}`}\n${page.text}`).join('\n\n')
       if (offset > text.length) throw new Error('The read offset is beyond the current source reading.')
       const header = `Selected source ${args.sourceIndex}: ${reading.resource.title}\n`

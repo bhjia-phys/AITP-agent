@@ -6,7 +6,7 @@
  * unloading either plugin removes exactly what it added.
  */
 import { act, within } from '@testing-library/react'
-import { expect } from 'vitest'
+import { expect, vi } from 'vitest'
 import { ClientRoster, createClientTest, webApp, type TestClient } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
@@ -17,6 +17,7 @@ import { ResearchPanel } from '../src/client/ResearchPanel.tsx'
 import { WorkspaceSidebar } from '../src/client/WorkspaceSidebar.tsx'
 import { workspaceProjectAddress } from '../src/client/workspace-resources.ts'
 import { apply as nodeApply } from '../src/index.ts'
+import type { ResearchChangeReader } from '../src/client/research-change-model.ts'
 
 const RESEARCH = '@deepseek-ai/dsh-client-ui-aitp-research'
 const FIXTURES = '@deepseek-ai/dsh-client-ui-aitp-fixtures'
@@ -52,6 +53,42 @@ async function read(client: TestClient, address: string): Promise<ResourceSnapsh
     release()
   }
 }
+
+async function reloadChangeReader(client: TestClient): Promise<ResearchChangeReader['read']> {
+  const registrations = vi.spyOn(client.ctx.slots, 'registerFactory')
+  try {
+    await client.reload(RESEARCH)
+    await client.flush()
+    const definition = registrations.mock.calls.findLast(([options]) => options.name === 'aitp.research.change-notice')?.[0]
+    if (definition?.inject === undefined) throw new Error('The change notice has no registration-owned reader.')
+    // This registration's factory ignores Session arguments and supplies only its reader capability.
+    const inject = definition.inject as () => { readonly latestResearchChange: ResearchChangeReader['read'] }
+    return inject().latestResearchChange
+  } finally {
+    registrations.mockRestore()
+  }
+}
+
+it('replaces change observations on real plugin reload and releases them on unload', async ({ start }) => {
+  const first = await start()
+  const nodes = [{ kind: 'tool-call', data: { root: {
+    kind: 'tool-result', name: 'research_apply_change', seq: 1, isError: false,
+    meta: { researchWrite: { operationId: 'owned-change', state: 'applied' } }, subCalls: [],
+  } } }]
+  const readFirst = await reloadChangeReader(first)
+  const pointer = readFirst(nodes)
+  expect(pointer).not.toBeNull()
+  expect(readFirst(nodes)).toBe(pointer)
+  const readReloaded = await reloadChangeReader(first)
+  expect(readFirst(nodes)).toBeNull()
+  const reloaded = readReloaded(nodes)
+  expect(reloaded).toEqual(pointer)
+  expect(reloaded).not.toBe(pointer)
+  expect(readReloaded(nodes)).toBe(reloaded)
+  await first.unload(RESEARCH)
+  await first.flush()
+  expect(readReloaded(nodes)).toBeNull()
+}, 60_000)
 
 it('registers the panel, its sidebar entry and the note tab type, and removes them on unload', async ({ start }) => {
   const client = await start()

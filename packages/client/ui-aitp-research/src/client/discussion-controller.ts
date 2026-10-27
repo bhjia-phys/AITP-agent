@@ -122,7 +122,6 @@ export class ResearchDiscussionController implements ResearchDiscussions {
         const id = listed.value.items[0]?.sessionId
         await this.adopt(scope, id ?? await this.ctx.sessions.create({ workspaceId: scope.workspaceId }), id === undefined)
       }
-      if (origin !== undefined) this.setSource(scope, origin)
       const selected = this.selection(scope)
       if (prompt !== undefined && selected !== undefined) {
         const result = this.ctx.conversation.input.requestDraftInitialization(selected.reference.binding, { prompt })
@@ -167,10 +166,10 @@ export class ResearchDiscussionController implements ResearchDiscussions {
   }
   private async adopt(scope: ResearchDiscussionScope, sessionId: SessionId, draft: boolean): Promise<void> {
     if (this.disposed) return
+    const previous = discussionView(this.views.getSnapshot(), scope)
     let owned = this.owned.get(sessionId)
     if (owned === undefined) {
       const reference = this.ctx.sessions.retain(sessionId, { source: 'researchDiscussion' })
-      const previous = discussionView(this.views.getSnapshot(), scope)
       const initial = draft || previous.reference === undefined ? previous.origin : undefined
       const releaseSubmission = this.ctx.conversation.submissions.register(sessionId, () => this.capture(sessionId))
       const releaseNavigation = this.ctx.uiChatNavigation.register(sessionId, (address, params) => {
@@ -184,6 +183,9 @@ export class ResearchDiscussionController implements ResearchDiscussions {
       this.owned.set(sessionId, owned)
     }
     await owned.reference.ready
+    const latest = discussionView(this.views.getSnapshot(), scope).origin
+    // Source choices made while loading win; otherwise each Session retains its own source.
+    if (latest !== previous.origin) owned.origin = sourceFor(scope, latest)
     this.update(scope, { reference: owned.reference, origin: owned.origin, draft: owned.draft })
   }
   setSource(scope: ResearchDiscussionScope, origin: ResearchOrigin): void {

@@ -32,11 +32,18 @@ function validEntry(value: unknown): value is SourceSetAttempt {
   if (scope['title'] !== undefined && typeof scope['title'] !== 'string') return false
   if (!text(request['operationId'], 256) || !text(request['title'], 2000) || request['id'] !== undefined && !text(request['id'])) return false
   const sources = request['selections']
-  if (!Array.isArray(sources) || sources.length === 0 || sources.length > 50 || !sources.every(selection)) return false
+  if (!Array.isArray(sources) || sources.length === 0 || !sources.every(selection)) return false
   if (request['topics'] !== undefined && (!Array.isArray(request['topics']) || request['topics'].length > 64
     || !request['topics'].every(topic => record(topic) && text(topic['workspaceId']) && text(topic['topicId'])))) return false
   return value['labels'].length === sources.length && value['labels'].every(label => record(label)
     && typeof label['title'] === 'string' && ['literature', 'knowledge', 'code'].includes(String(label['domain'])))
+}
+
+function validEntries(value: unknown): value is SourceSetAttempt[] {
+  if (!Array.isArray(value) || value.length > 16 || !value.every(validEntry)) return false
+  const scopes = value.map(entry => JSON.stringify([entry.scope.workspaceId ?? null, entry.scope.topicId ?? null]))
+  return new Set(scopes).size === value.length
+    && new Set(value.map(entry => entry.request.operationId)).size === value.length
 }
 
 /**
@@ -55,16 +62,10 @@ export function createSourceSetJournal(storage: Pick<Storage, 'getItem' | 'setIt
         const raw = storage.getItem(KEY)
         if (raw === null) return { entries: [], problem: null }
         const value: unknown = new TextEncoder().encode(raw).byteLength <= MAX_BYTES ? JSON.parse(raw) : null
-        if (!record(value) || value['version'] !== 1 || !Array.isArray(value['entries']) || value['entries'].length > 16
-          || !value['entries'].every(validEntry)) { corrupted = true; return { entries: [], problem: messages.invalid } }
-        const entries = value['entries']
-        const scopes = entries.map(entry => JSON.stringify([entry.scope.workspaceId ?? null, entry.scope.topicId ?? null]))
-        if (new Set(scopes).size !== entries.length
-          || new Set(entries.map(entry => entry.request.operationId)).size !== entries.length) {
-          corrupted = true
-          return { entries: [], problem: messages.invalid }
+        if (!record(value) || value['version'] !== 1 || !validEntries(value['entries'])) {
+          corrupted = true; return { entries: [], problem: messages.invalid }
         }
-        return { entries, problem: null }
+        return { entries: value['entries'], problem: null }
       } catch { corrupted = true; return { entries: [], problem: messages.invalid } }
     },
     write: (entries) => {
@@ -72,8 +73,9 @@ export function createSourceSetJournal(storage: Pick<Storage, 'getItem' | 'setIt
       if (storage === undefined) return entries.length === 0 ? null : messages.unavailable
       try {
         if (entries.length === 0) { storage.removeItem(KEY); return null }
+        if (!validEntries(entries)) return messages.unavailable
         const raw = JSON.stringify({ version: 1, entries })
-        if (entries.length > 16 || new TextEncoder().encode(raw).byteLength > MAX_BYTES) return messages.unavailable
+        if (new TextEncoder().encode(raw).byteLength > MAX_BYTES) return messages.unavailable
         storage.setItem(KEY, raw)
         return null
       } catch { return messages.unavailable }

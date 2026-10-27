@@ -8,8 +8,31 @@ export interface ResearchChangePointer {
   readonly seq: number
 }
 
-const cache = new WeakMap<object, ResearchChangePointer | null>()
 const WRITER_TOOLS = new Set(['research_prepare_change', 'research_apply_change', 'research_recover_change'])
+
+/** One registration's memoized observation of immutable native tool trees. */
+export interface ResearchChangeReader {
+  /**
+   * Find the latest writer result without parsing model prose or generic file tools.
+   * @param nodes - Conversation-owned Chat nodes, narrowed at this consumer boundary.
+   * @returns a stable pointer within this lifetime, or null after disposal or without a writer result.
+   */
+  readonly read: (nodes: readonly { readonly kind: string; readonly data: unknown }[]) => ResearchChangePointer | null
+  /** Release cached observations and make subsequent reads return null. */
+  readonly dispose: () => void
+}
+
+/**
+ * Allocate a change reader for one plugin registration lifetime.
+ * @returns the reader and its owner-invoked disposal operation; separate readers never share pointers.
+ */
+export function createResearchChangeReader(): ResearchChangeReader {
+  let cache: WeakMap<object, ResearchChangePointer | null> | undefined = new WeakMap()
+  return {
+    read(nodes) { return cache === undefined ? null : latestResearchChange(nodes, cache) },
+    dispose() { cache = undefined },
+  }
+}
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -21,7 +44,7 @@ function writeState(value: unknown): ResearchChangeView['state'] | undefined {
     default: return undefined
   }
 }
-function newestInCall(value: unknown): ResearchChangePointer | null {
+function newestInCall(value: unknown, cache: WeakMap<object, ResearchChangePointer | null>): ResearchChangePointer | null {
   if (!record(value)) return null
   const found = cache.get(value)
   if (found !== undefined) return found
@@ -37,7 +60,7 @@ function newestInCall(value: unknown): ResearchChangePointer | null {
   }
   if (Array.isArray(value.subCalls)) {
     for (const child of value.subCalls) {
-      const candidate = newestInCall(child)
+      const candidate = newestInCall(child, cache)
       if (candidate !== null && (latest === null || candidate.seq > latest.seq)) latest = candidate
     }
   }
@@ -46,16 +69,12 @@ function newestInCall(value: unknown): ResearchChangePointer | null {
   return latest
 }
 
-/**
- * Find a writer result in the loaded native transcript, without parsing model prose or generic file tools.
- * @param nodes - Conversation-owned Chat nodes; arbitrary node payloads are narrowed at this consumer boundary.
- * @returns the latest native writer result, with stable identity across unrelated streaming updates.
- */
-export function latestResearchChange(nodes: readonly { readonly kind: string; readonly data: unknown }[]): ResearchChangePointer | null {
+function latestResearchChange(nodes: readonly { readonly kind: string; readonly data: unknown }[],
+  cache: WeakMap<object, ResearchChangePointer | null>): ResearchChangePointer | null {
   let latest: ResearchChangePointer | null = null
   for (const node of nodes) {
     if (node.kind !== 'tool-call' || !record(node.data)) continue
-    const candidate = newestInCall(node.data.root)
+    const candidate = newestInCall(node.data.root, cache)
     if (candidate !== null && (latest === null || candidate.seq > latest.seq)) latest = candidate
   }
   return latest

@@ -12,6 +12,7 @@ import { SessionId } from '@deepseek-ai/dsh-session'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import ResearchResources, { resourceEntryId, sourceIdForPath, sourceRootId } from '@deepseek-ai/dsh-research-resources'
 import type { ResourceResult, SourceLocator, SourceSelection, StudyRequest } from '@deepseek-ai/dsh-research-resources/types'
+import { materialSourceAddress } from '@deepseek-ai/dsh-research-resources/protocol'
 import ResearchMemory from '../src/index.ts'
 import { promptAdmission } from './fixtures/admission.ts'
 import ExactSessionQuery from './fixtures/runtime/query-plugin.ts'
@@ -90,6 +91,22 @@ async function fixture(readSecond = false) {
   return { path, ctx, resources, memory, selections, create, model, ask }
 }
 
+async function pdfFixture() {
+  const source = await fixture()
+  const firstQuote = 'FIRST_PAGE_SELECTED_QUOTE'
+  const quote = 'The TAIL_PDF_CONDITION requires convention D.\nOnly the finite-system argument is established.'
+  const pages = [{ page: 1, text: firstQuote }, { page: 2,
+    text: 'PAGE_TWO_INTRO_ONLY: unrelated background.\n'.repeat(800) + quote + '\nPAGE_TWO_AFTER_QUOTE' }]
+  source.resources.registerProvider({ id: 'pdf-tool-fixture', domain: 'literature', list: async context => context.paths.map((path) => {
+    const ref = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
+    return { id: resourceEntryId(ref), ref, title: path, domain: 'literature', kind: 'literature', providerId: 'pdf-tool-fixture',
+      metadata: {}, links: [], topics: [] }
+  }), read: async (_context, _ref, locator) => locator?.kind !== 'pdf-page' ? undefined
+    // The actual PDF provider validates a quote but returns its complete extracted page for native reading.
+    : { kind: 'pdf', pageCount: pages.length, pages: pages.filter(page => page.page === locator.page) } })
+  return { ...source, firstQuote, quote, locator: { kind: 'pdf-page' as const, page: 2, quote } }
+}
+
 it('delivers two same-named cross-root sources to a genuine Global scope and permits bounded follow-up source reads', async () => {
   const { ask, selections, model, ctx, create } = await fixture(true)
   const agent = await ask({ question: '请保留两份材料各自的条件，对比这些约定。', selections })
@@ -165,6 +182,44 @@ it.each(['anchor', 'text'] as const)('reads a late %s passage before applying fo
   const beyond = await ctx.tools.execute({ name: 'research_read_source',
     arguments: { sourceIndex: 1, location: JSON.stringify(locator), offset: expected.length + 1 }, agent,
     callId: ToolCallId(`late-${kind}-beyond`), signal: signal() })
+  expect(beyond.isError).toBe(true)
+  expect(JSON.stringify(beyond.content)).toContain('offset is beyond the current source reading')
+})
+
+it.each(['selected', 'requested'] as const)('reads a late %s PDF quote before applying follow-up character offsets', async (location) => {
+  const { ask, selections, ctx, quote, firstQuote, locator } = await pdfFixture()
+  const selected = selections[0]!
+  const agent = await ask({ question: 'Keep this source selected for later reading.', selections: [{ ...selected,
+    ...(location === 'selected' ? { locator } : { locator: { kind: 'pdf-page' as const, page: 1 }, selectedText: firstQuote }) }] })
+  for (const offset of [0, 23]) {
+    const result = await ctx.tools.execute({ name: 'research_read_source',
+      arguments: { sourceIndex: 1, ...(location === 'selected' ? {} : { location: JSON.stringify(locator) }), offset }, agent,
+      callId: ToolCallId(`late-pdf-${location}-${offset}`), signal: signal() })
+    expect(result.isError).not.toBe(true)
+    const delivered = result.content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')
+    expect(delivered).toContain(`Current reading: ${materialSourceAddress(selected.ref, locator)}`)
+    expect(delivered).toContain(`window starts at character ${offset} of ${quote.length}`)
+    expect(delivered.endsWith(quote.slice(offset))).toBe(true)
+    expect(delivered).not.toContain('PAGE_TWO_INTRO_ONLY')
+    expect(delivered).not.toContain('PAGE_TWO_AFTER_QUOTE')
+    expect(delivered).not.toContain(firstQuote)
+    expect(JSON.stringify({ text: delivered }).length).toBeLessThanOrEqual(12_000)
+  }
+  // Follow-up reads may still request the full page explicitly, without inheriting a previous quote.
+  const wholePage = await ctx.tools.execute({ name: 'research_read_source',
+    arguments: { sourceIndex: 1, location: JSON.stringify({ kind: 'pdf-page', page: 2 }) }, agent,
+    callId: ToolCallId(`whole-pdf-${location}`), signal: signal() })
+  expect(wholePage.isError).not.toBe(true)
+  expect(JSON.stringify(wholePage.content)).toContain('PDF physical page 2')
+  expect(JSON.stringify(wholePage.content)).toContain('PAGE_TWO_INTRO_ONLY')
+})
+
+it('rejects a follow-up offset beyond the PDF quote even when it remains inside the full page', async () => {
+  const { ask, selections, ctx, quote, locator } = await pdfFixture()
+  const agent = await ask({ question: 'Retain this exact PDF quote.', selections: [{ ...selections[0]!, locator }] })
+  const beyond = await ctx.tools.execute({ name: 'research_read_source',
+    arguments: { sourceIndex: 1, offset: quote.length + 1 }, agent,
+    callId: ToolCallId('late-pdf-beyond'), signal: signal() })
   expect(beyond.isError).toBe(true)
   expect(JSON.stringify(beyond.content)).toContain('offset is beyond the current source reading')
 })

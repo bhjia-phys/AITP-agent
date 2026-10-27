@@ -10,7 +10,7 @@ import type { StudyArtifact, StudyArtifactId, StudyArtifactVersion } from '@deep
 import { StudyPanel, type StudyFace, type StudyPanelProps } from '../src/client/StudyPanel.tsx'
 import { StudyTasks, CaptureAction, type CaptureActionProps, type StudyTasksProps } from '../src/client/StudyActions.tsx'
 import { createStudyStore } from '../src/client/store.ts'
-import { STUDY_SETUP, studyArtifactAddress } from '../src/client/resources.ts'
+import { STUDY_SETUP, studyArtifactAddress, studyListAddress } from '../src/client/resources.ts'
 import { en } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -114,4 +114,30 @@ it('offers the retained note draft after returning to the list and resumes all t
   fireEvent.click(screen.getByRole('button', { name: 'Continue draft' }))
   expect(screen.getByRole('textbox', { name: 'Title' }).getAttribute('value')).toBe('待完成的中文笔记')
   expect(store.getSnapshot().draft?.markdown).toBe('保留已写内容与未解问题。')
+})
+
+it('continues an unsaved note after removing a different saved artifact from the list', () => {
+  const { store, face } = panel({
+    [STUDY_SETUP]: live({ canSave: true, canCapture: true, asSources: true }),
+    [studyListAddress({})]: live({ items: [artifact], nextCursor: null }),
+    [studyArtifactAddress(artifact.id)]: live(artifact),
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'New note' }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'Keep this note' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Note text (Markdown)' }), { target: { value: 'Unfinished independent observations.' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Back to study notes' }))
+  fireEvent.click(screen.getByRole('button', { name: artifact.title }))
+  fireEvent.click(screen.getByText('Remove draft', { selector: 'summary' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Remove draft' }))
+  const operation = vi.mocked(face.execute).mock.calls[0]?.[0]
+  if (operation?.kind !== 'remove') throw new Error('The reading action must remove its saved artifact.')
+  expect(operation.request.id).toBe(artifact.id)
+  act(() => {
+    store.actions.pending(operation, true)
+    store.actions.acknowledged({ operationId: operation.request.operationId, id: artifact.id,
+      version: 'v2' as StudyArtifactVersion, state: 'removed', committedAt: 'now' })
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Continue draft' }))
+  expect(screen.getByRole('textbox', { name: 'Title' }).getAttribute('value')).toBe('Keep this note')
+  expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Note text (Markdown)' }).value).toBe('Unfinished independent observations.')
 })

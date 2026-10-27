@@ -3,7 +3,7 @@ import { expect, it } from 'vitest'
 import type { SaveSourceSetRequest, SourceId, SourceRootId, SourceSetId, SourceTopicId } from '@deepseek-ai/dsh-research-resources/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { createMaterialsStore, materialsScopeKey } from '../src/client/store.ts'
-import { createSourceSetJournal } from '../src/client/source-set-journal.ts'
+import { createSourceSetJournal, type SourceSetAttempt } from '../src/client/source-set-journal.ts'
 
 const messages = { unavailable: 'Tab recovery unavailable', invalid: 'Unreadable recovery record preserved' }
 function tabStorage(initial: string | null = null) {
@@ -15,6 +15,41 @@ const selected = { ref: { rootId: 'papers' as SourceRootId, sourceId: 'source:pa
   title: 'Paper', domain: 'literature' as const, locator: { kind: 'pdf-page' as const, page: 7 }, selectedText: '只在 A 下成立' }
 const request: SaveSourceSetRequest = { operationId: 'save-original-once', title: '对照资料',
   selections: [{ ref: selected.ref, locator: selected.locator, selectedText: selected.selectedText }], topics: [scope] }
+
+function attempt(count: number): SourceSetAttempt {
+  return { scope, request: { ...request, selections: Array.from({ length: count }, (_, index) => ({
+    ...request.selections[0], ref: { rootId: selected.ref.rootId, sourceId: `source:paper-${index}.pdf` as SourceId },
+  })) }, labels: Array.from({ length: count }, (_, index) => ({ title: `Paper ${index}`, domain: 'literature' })) }
+}
+
+it.each([51, 64, 128])('round-trips all %i sources without imposing a second Host selection limit', (count) => {
+  const storage = tabStorage()
+  const entry = attempt(count)
+  expect(createSourceSetJournal(storage, messages).write([entry])).toBeNull()
+  expect(createSourceSetJournal(storage, messages).read()).toEqual({ entries: [entry], problem: null })
+  const restored = createMaterialsStore(createSourceSetJournal(storage, messages)).create()
+  expect(restored.getSnapshot().drafts[materialsScopeKey(scope)]).toMatchObject({ pendingSave: entry.request, saving: false })
+  expect(restored.getSnapshot().drafts[materialsScopeKey(scope)]?.selections).toHaveLength(count)
+})
+
+it('refuses journal bounds before replacing a recoverable operation', () => {
+  const storage = tabStorage()
+  const journal = createSourceSetJournal(storage, messages)
+  const original = attempt(1)
+  expect(journal.write([original])).toBeNull()
+  const raw = storage.getItem()
+  const tooMany = Array.from({ length: 17 }, (_, index) => ({ ...original,
+    scope: { workspaceId: `workspace-${index}` as WorkspaceId },
+    request: { ...original.request, operationId: `operation-${index}` },
+  }))
+  const tooLarge = { ...original, labels: [{ title: '中文'.repeat(100_000), domain: 'literature' as const }] }
+  const unreadable = { ...original, request: { ...original.request, title: 'x'.repeat(2001) } }
+  for (const entries of [tooMany, [tooLarge], [unreadable]]) {
+    expect(journal.write(entries)).toBe(messages.unavailable)
+    expect(storage.getItem()).toBe(raw)
+    expect(createSourceSetJournal(storage, messages).read()).toEqual({ entries: [original], problem: null })
+  }
+})
 
 it('restores a dispatched save as uncertain after a new store is created, preserves its scope and clears only after acknowledgement', () => {
   const storage = tabStorage()

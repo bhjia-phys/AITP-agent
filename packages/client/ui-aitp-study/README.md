@@ -28,6 +28,8 @@ The completed-answer action obtains the currently displayed durable assistant se
 
 Saved note source references are supplied by the Host. Opening one goes through the shared material reader, where it can be explicitly selected for a new question. Markdown export includes the saved note and its source attribution. Removing a draft retains original sources and Session events.
 
+Removing a saved artifact clears only an editor draft for that artifact. An unrelated unfinished note remains available through “Continue draft”.
+
 Mutations use one stable operation identity. Unknown acknowledgements retain the original request and lock draft changes until the explicit check confirms that operation. Navigation, local editing and merely opening a source send no model request.
 
 A bounded same-tab journal preserves pending save, capture and removal requests across a page reload. Restoration marks them uncertain, retains the original operation identity and does not replay them. Acknowledgement clears the journal. Failed storage and unreadable recovery records remain visible and do not replace the Host's saved artifacts.

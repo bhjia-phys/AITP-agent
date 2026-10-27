@@ -145,6 +145,79 @@ describe('reading-side discussions', () => {
     expect(discussionView(fixture.controller.views.getSnapshot(), scope).draft).toBe(false)
   })
 
+  it.each([
+    ['list', 'setSource'], ['list', 'open'], ['list', 'clear'],
+    ['ready', 'setSource'], ['ready', 'open'], ['ready', 'clear'],
+  ] as const)('keeps the latest source from %s pending through %s', async (phase, change) => {
+    const fixture = await setup()
+    const waiting = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    if (phase === 'list') {
+      fixture.list.mockImplementationOnce(async () => {
+        waiting.resolve(undefined)
+        await release.promise
+        return { ok: true, value: { items: [], completeness: 'complete', issues: [] } }
+      })
+    } else {
+      const retain = fixture.runtime.ctx.sessions.retain.bind(fixture.runtime.ctx.sessions)
+      vi.spyOn(fixture.runtime.ctx.sessions, 'retain').mockImplementationOnce((id, options) => {
+        const reference = retain(id, options)
+        return {
+          sessionId: reference.sessionId,
+          get binding() { return reference.binding },
+          ready: reference.ready.then(async (binding) => {
+            waiting.resolve(undefined)
+            await release.promise
+            return binding
+          }),
+          release: () => { reference.release() },
+          [Symbol.dispose]: () => { reference.release() },
+        }
+      })
+    }
+    const opening = fixture.controller.open(scope, { resourceId: 'first.md', selectedText: 'first' }, 'Retained draft')
+    await waiting.promise
+    expect(discussionView(fixture.controller.views.getSnapshot(), scope)).toMatchObject({ loading: true })
+    expect(discussionView(fixture.controller.views.getSnapshot(), scope).reference).toBeUndefined()
+    const latest: ResearchOrigin = change === 'clear' ? {} : { resourceId: 'second.md', selectedText: 'second' }
+    let reopened: Promise<void> | undefined
+    try {
+      if (change === 'open') reopened = fixture.controller.open(scope, latest, 'Do not replace the draft')
+      else fixture.controller.setSource(scope, latest)
+    } finally { release.resolve(undefined) }
+    await Promise.all([opening, reopened])
+    const view = discussionView(fixture.controller.views.getSnapshot(), scope)
+    expect(view.origin).toEqual({ ...latest, workspaceId: scope.workspaceId, topicId: scope.topicId })
+    expect(view).toMatchObject({ loading: false, visible: true, draft: true })
+    const id = view.reference!.sessionId
+    expect(fixture.create).toHaveBeenCalledOnce()
+    expect(fixture.list).toHaveBeenCalledExactlyOnceWith(scope.workspaceId, { topicId: scope.topicId })
+    expect(fixture.draft(id).snapshot.draft).toBe('Retained draft')
+    expect(fixture.ask).not.toHaveBeenCalled()
+    expect(await fixture.capture(id)(request(id), undefined)).toEqual({ ok: true, value: { accepted: true } })
+    const submitted = fixture.ask.mock.calls[0]![0]
+    expect(submitted).toMatchObject({ workspaceId: scope.workspaceId, topicId: scope.topicId, sessionId: id })
+    expect(submitted.resourceId).toBe(latest.resourceId)
+    expect(submitted.selectedText).toBe(latest.selectedText)
+  })
+
+  it('restores each Session source and native draft when switching without a new source selection', async () => {
+    const fixture = await setup()
+    await fixture.controller.open(scope, { resourceId: 'first.md' }, 'First draft')
+    const first = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+    await fixture.controller.newDiscussion(scope)
+    await fixture.controller.open(scope, { resourceId: 'second.md' }, 'Second draft')
+    const second = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+    await fixture.controller.select(scope, first)
+    expect(discussionView(fixture.controller.views.getSnapshot(), scope).origin?.resourceId).toBe('first.md')
+    expect(fixture.draft(first).snapshot.draft).toBe('First draft')
+    await fixture.controller.select(scope, second)
+    expect(discussionView(fixture.controller.views.getSnapshot(), scope).origin?.resourceId).toBe('second.md')
+    expect(fixture.draft(second).snapshot.draft).toBe('Second draft')
+    expect(fixture.create).toHaveBeenCalledTimes(2)
+    expect(fixture.ask).not.toHaveBeenCalled()
+  })
+
   it('keeps separate Sessions for different directions and refuses a mismatched selection', async () => {
     const fixture = await setup()
     await fixture.controller.newDiscussion(scope)

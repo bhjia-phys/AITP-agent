@@ -144,7 +144,7 @@
 
 材料入口现在优先使用资源记录的 ownerTopicId：从父课题打开子课题正文后按子课题提问，返回仍保留原父级阅读位置；共享材料保持当前课题。旧代码在父页及地图摘要入口均产生错配，修复后的界面回归覆盖提问、路径和返回。
 
-本地资料的模型追读现在先解析指定章节或原文区间，再计算该片段内的字符偏移；不能把长文开头误标为后部章节。PR 24 审阅发现的反例及修复回归见[发布验证记录](agent/notes/harness-integration.md#native-library-dock)，工具语义由[科研记忆服务](packages/research/research-memory/README.md#selected-local-sources)维护。
+本地资料的模型追读现在先解析指定章节、原文区间或 PDF 引文，再计算该片段内的字符偏移；不能把长文开头误标为后部章节或页面尾部引文。PR 24 审阅发现的反例及修复回归见[发布验证记录](agent/notes/harness-integration.md#native-library-dock)，工具语义由[科研记忆服务](packages/research/research-memory/README.md#selected-local-sources)维护。
 
 研究页内嵌讨论的任务卡现可直接打开“来源与记忆”：先进入该讨论已有的会话，再在原生侧栏显示其真实来源和历史记录。首次挂载侧栏时会等待对应会话的状态就绪，不创建额外会话。此入口及当前文件与历史快照分离已有[实际浏览器验证](agent/notes/harness-integration.md#native-library-dock)。
 

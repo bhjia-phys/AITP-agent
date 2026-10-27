@@ -54,7 +54,13 @@ export function resolveStudyTextPassage(reading: ResourceReading, selection: Sou
   return { text, locator: { kind: 'text', start, end, quote: text } }
 }
 
-function passages(reading: ResourceReading, selection: SourceSelection): Passage[] {
+/**
+ * Resolve selected text or PDF passages against the current authorized reading.
+ * @param reading - observed source body before retrieval or result-size truncation.
+ * @param selection - requested source location and optional exact quotation.
+ * @returns the matching passages, retaining their exact source locations.
+ */
+export function resolveStudyPassages(reading: ResourceReading, selection: SourceSelection): Passage[] {
   if (reading.body.kind === 'unavailable') throw new Error(reading.body.detail)
   if (reading.body.kind === 'image') {
     throw new Error('This source is an image preview; no image content, OCR text or visual interpretation was delivered by the text source reader.')
@@ -144,7 +150,7 @@ export async function readStudyContext(resources: Pick<ResearchResources, 'readR
       if (observed.status === 'rejected') throw observed.reason
       if (!observed.value.ok) throw new Error(observed.value.error.message)
       const reading = observed.value.value
-      const sourcePassages = passages(reading, selection)
+      const sourcePassages = resolveStudyPassages(reading, selection)
       if (sourcePassages.length === 0) throw new Error('No extractable text is available; an image-only PDF needs a transcription provider.')
       const entryFor = (passage: Passage): ResearchContextRead['entries'][number] => ({
         label: `${reading.resource.title} (source ${index + 1})`, text: passage.text,

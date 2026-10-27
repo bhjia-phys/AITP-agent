@@ -5,7 +5,7 @@ import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {} from './research-change-locales.ts'
-import { latestResearchChange, type ResearchChangePointer } from './research-change-model.ts'
+import type { ResearchChangePointer, ResearchChangeReader } from './research-change-model.ts'
 import { workspaceChangeAddress } from './workspace-resources.ts'
 import type { ResearchChangeView } from './workspace-contract.ts'
 import css from './ResearchChangeNotice.module.css'
@@ -16,6 +16,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
       scope: 'session'
       props: { readonly workspaceId: WorkspaceId }
       locale: 'aitp.research.change'
+      inject: { readonly latestResearchChange: ResearchChangeReader['read'] }
     }
   }
 }
@@ -23,7 +24,7 @@ type Props = FactoryComponentPropsOf<'aitp.research.change-notice'>
 
 /** Show only results supplied by the research writer; an assistant's success claim is not a receipt. */
 export function ResearchChangeNotice(props: Props) {
-  const latest = props.useChat(snapshot => latestResearchChange(snapshot.nodes.values()))
+  const latest = props.useChat(snapshot => props.latestResearchChange(snapshot.nodes.values()))
   return latest === null ? null : <NoticeBody key={`${props.sessionId}:${latest.operationId}`} {...props} change={latest} />
 }
 
