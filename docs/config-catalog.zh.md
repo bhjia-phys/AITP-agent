@@ -2709,7 +2709,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-research-memory`
 
 - `inject`: `typert` · `agents` · `sessions` · `systemPrompt` · `tools` · `sessionProjections`
-- `source`: [`packages/research/research-memory/src/index.ts:71`](../packages/research/research-memory/src/index.ts)
+- `source`: [`packages/research/research-memory/src/index.ts:76`](../packages/research/research-memory/src/index.ts)
 
 ```ts config-catalog
 /** Explicit host access and bounds for configured research roots. */
@@ -2764,7 +2764,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-research-resources`
 
 - `inject`: `typert`
-- `source`: [`packages/research/research-resources/src/index.ts:32`](../packages/research/research-resources/src/index.ts)
+- `source`: [`packages/research/research-resources/src/index.ts:33`](../packages/research/research-resources/src/index.ts)
 
 ```ts config-catalog
 /** Configured local roots and complete reading/catalog bounds; none authorizes source writes. */

@@ -26,7 +26,7 @@ The global Study notes entry uses the existing main panel and sidebar footprint.
 
 The completed-answer action obtains the currently displayed durable assistant sequence and submits only Session and event identity. The Host restores the answer text and source attribution; the browser cannot manufacture a model-captured answer by uploading text. Editing a captured answer retains that origin. Chosen sources, recorded context and recorded source reads remain different citation bases. Every artifact remains provisional and saving it does not write `research.md` or create a knowledge atom.
 
-Saved note source references are supplied by the Host. Opening one goes through the shared material reader, where it can be explicitly selected for a new question. Markdown export includes the saved note and its provenance. Removing a draft retains original sources and Session events.
+Saved note source references are supplied by the Host. Opening one goes through the shared material reader, where it can be explicitly selected for a new question. Markdown export includes the saved note and its source attribution. Removing a draft retains original sources and Session events.
 
 Mutations use one stable operation identity. Unknown acknowledgements retain the original request and lock draft changes until the explicit check confirms that operation. Navigation, local editing and merely opening a source send no model request.
 

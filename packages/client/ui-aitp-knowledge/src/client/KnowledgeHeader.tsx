@@ -1,4 +1,4 @@
-/** The article's recorded provenance stays separate from its argument. */
+/** The article's recorded sources stay separate from its argument. */
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-aitp-materials/client'
 import { knowledgeKind, knowledgeFact } from './presentation.ts'

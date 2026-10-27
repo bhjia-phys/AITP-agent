@@ -32,14 +32,26 @@ export class SidebarRightRoots {
   private readonly pins = new Map<string, Map<TabId, AbortController>>()
   private readonly rooms = new Map<string, (paneId: PaneId) => boolean>()
   private readonly source = createSnapshotStore<Readonly<Record<string, SidebarRightRootView>>>({})
+  /** Current reading scope, expansion and active document for each global panel. */
   readonly views: ObservableSnapshot<Readonly<Record<string, SidebarRightRootView>>> = this.source
 
-  /** @param tabs - native tab resolver. @param pin - source retention for an open tab's lifetime. */
+  /**
+   * Create global document navigation over the native tab resolver and resource owner.
+   * @param tabs - native tab resolver.
+   * @param pin - retain each open resource for its tab's lifetime.
+   * @param currentPanel - read the currently displayed global panel, or null for an ordinary Conversation.
+   * @param focusOpened - restore focus after navigation or a keyboard command changes the document pane.
+   */
   constructor(private readonly tabs: SidebarRightTabRegistry, private readonly pin: PinResource,
     private readonly currentPanel: () => MainPanelId | null = () => null,
     private readonly focusOpened: (panelId: MainPanelId, scopeKey: string) => void = () => {}) {}
 
-  /** Native shortcut adapter; a captured command cannot operate on a later scope. */
+  /**
+   * Capture a native shortcut for the current panel; execution cannot act on a later reading scope.
+   * @param kind - native panel or document operation to resolve.
+   * @param element - focused element; null is accepted only by the panel-wide toggle operation.
+   * @returns the captured operation, or undefined when its panel, document, focus or split space is unavailable.
+   */
   command(kind: 'toggle' | 'split' | 'fullscreen' | 'close', element: Element | null): (() => void) | undefined {
     const panelId = this.currentPanel()
     const store = this.store
@@ -75,27 +87,48 @@ export class SidebarRightRoots {
     }
   }
 
-  /** @param panelId - measured panel. @param scopeKey - reading scope. @param canSplitPane - the native kit's width verdict. */
+  /**
+   * Record the native docking kit's measured split eligibility for one reading scope.
+   * @param panelId - global panel whose document panes were measured.
+   * @param scopeKey - reading scope that owns the measured panes.
+   * @param canSplitPane - the native kit's current width verdict for a pane.
+   */
   measure(panelId: MainPanelId, scopeKey: string, canSplitPane: (paneId: PaneId) => boolean): void {
     this.rooms.set(rootSurfaceKey(panelId, scopeKey), canSplitPane)
   }
 
-  /** @param panelId - global panel. @param scopeKey - explicit scope to restore, never a Session id. */
+  /**
+   * Select a panel's reading scope while retaining the other scopes' documents and viewing state.
+   * @param panelId - global panel whose scope is selected.
+   * @param scopeKey - explicit reading scope to restore, never a Session id.
+   */
   selectScope(panelId: MainPanelId, scopeKey: string): void {
     this.run((store) => { store.actions.selectScope(panelId, scopeKey) })
   }
 
-  /** @param panelId - source-owning panel. @param address - registered resource address. @param options - navigation and placement. */
+  /**
+   * Open or reveal a resource in the panel's selected scope, queuing the request until its root store is available.
+   * @param panelId - source-owning global panel.
+   * @param address - registered dsh-resource address whose provider retains read authority.
+   * @param options - native tab placement, source navigation parameters and optional observed title.
+   */
   openResource(panelId: MainPanelId, address: string, options: SidebarRightRootOpenOptions = {}): void {
     this.run((store) => { this.openIn(panelId, store.getSnapshot().selectedScopes[panelId] ?? '', address, options) })
   }
 
-  /** @param panelId - owning panel. @param tabId - tab in its currently selected scope. */
+  /**
+   * Close a document in the selected reading scope and release its resource retention.
+   * @param panelId - global panel that owns the selected scope.
+   * @param tabId - document tab to close; an already absent tab is unchanged.
+   */
   close(panelId: MainPanelId, tabId: TabId): void {
     this.run((store) => { store.actions.gesture(panelId, store.getSnapshot().selectedScopes[panelId] ?? '', { type: 'closeTab', tabId }) })
   }
 
-  /** @param panelId - global panel whose retained document surface should reopen or collapse. */
+  /**
+   * Reopen or collapse the selected reading scope without discarding its document tabs.
+   * @param panelId - global panel whose retained documents should reopen or collapse.
+   */
   toggleExpanded(panelId: MainPanelId): void {
     this.run((store) => {
       const scopeKey = store.getSnapshot().selectedScopes[panelId] ?? ''
@@ -104,12 +137,23 @@ export class SidebarRightRoots {
     })
   }
 
-  /** @param panelId - global panel. @param expanded - whether to show its current reading scope. */
+  /**
+   * Set the selected reading scope's presentation; an empty scope cannot be expanded.
+   * @param panelId - global panel whose document presentation changes.
+   * @param expanded - whether to show the current reading scope's docked documents.
+   */
   setExpanded(panelId: MainPanelId, expanded: boolean): void {
     this.run((store) => { store.actions.setExpanded(panelId, store.getSnapshot().selectedScopes[panelId] ?? '', expanded) })
   }
 
-  /** Explicit captured-scope navigation for a retained tab; it never changes another topic's tabs. */
+  /**
+   * Open a resource in an explicitly captured scope without selecting or changing another topic's scope.
+   * @param panelId - global panel that owns the document.
+   * @param scopeKey - captured reading scope in which the resource should open.
+   * @param address - registered dsh-resource address whose provider retains read authority.
+   * @param options - native tab placement, source navigation parameters and optional observed title.
+   * @throws when the address is outside dsh-resource or no registered tab type accepts it.
+   */
   openIn(panelId: MainPanelId, scopeKey: string, address: string, options: SidebarRightRootOpenOptions = {}): void {
     if (!address.startsWith('dsh-resource://')) throw new Error('sidebarRightRoots: expected a resource address')
     const claim = this.tabs.claim(address, options.kind)
@@ -122,7 +166,11 @@ export class SidebarRightRoots {
     })
   }
 
-  /** @param store - framework-owned root state. @returns release for this adoption. */
+  /**
+   * Adopt the framework-created root viewing store, reconcile resource retention and replay queued commands.
+   * @param store - framework-owned root state and its declared actions.
+   * @returns a disposer that removes this adoption's subscription without releasing a newer adoption.
+   */
   adopt(store: SidebarRightRootStoreInstance): () => void {
     this.store = store
     const unsubscribe = store.subscribe(() => { this.sync(store.getSnapshot()) })

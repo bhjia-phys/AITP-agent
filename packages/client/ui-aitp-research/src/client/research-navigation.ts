@@ -53,7 +53,10 @@ export class ResearchNavigationController {
 
   constructor(private readonly ctx: Context, private readonly panelId: MainPanelId) {}
 
-  /** @param actions - the shared store's framework-baked mutation interface. */
+  /**
+   * Connect the mounted Research store and replay any pending source navigation.
+   * @param actions - the shared store's framework-baked mutation interface.
+   */
   bind(actions: BoundActions<ReturnType<typeof createResearchPanelStore>>): void {
     this.actions = actions
     const pending = this.pending
@@ -63,6 +66,7 @@ export class ResearchNavigationController {
   }
 
   /**
+   * Open a research-owned citation in the existing Research reading surface.
    * @param scope - current discussion's scientific scope.
    * @param address - an owned research or Workspace file address.
    * @param leave - current reading position when its owner is mounted.

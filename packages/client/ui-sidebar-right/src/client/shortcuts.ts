@@ -13,6 +13,7 @@ import type { SidebarRightRoots } from './root-service.ts'
  * @param sidebar - current Session and page owner.
  * @param t - current localized command and unavailable labels.
  * @param closeWindow - private native close operation using the current configuration revision.
+ * @param roots - optional global-panel document controller, resolved before ordinary Session commands.
  * @returns release callback for the commands.
  */
 export function registerSidebarShortcuts(shortcuts: Pick<Shortcuts, 'register' | 'runtime'>, sidebar: SidebarRightController,

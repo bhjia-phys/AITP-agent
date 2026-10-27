@@ -22,4 +22,5 @@ export const topicSectionLabels = {
 
 /** Legacy adapter absence messages are UI copy, not researcher-authored qualifications. */
 export const absentTopicScope = 'Scope is not separately stated; inspect the full source account.'
+/** Legacy adapter message for qualifications not separately stated in the source account. */
 export const absentTopicQualification = 'The source does not separately state qualifications; inspect the complete account.'

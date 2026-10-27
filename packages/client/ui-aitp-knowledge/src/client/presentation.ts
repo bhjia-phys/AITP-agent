@@ -1,7 +1,12 @@
 /** Human-readable names for the provider's explicitly observed entry kinds. */
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 
-/** Preserve unrecognized authored classifications verbatim. */
+/**
+ * Localize recognized entry kinds while preserving unrecognized authored classifications verbatim.
+ * @param kind - observed entry kind, or undefined when none was recorded.
+ * @param t - knowledge library's localized labels.
+ * @returns a localized known kind, the generic entry label when absent, or the original classification.
+ */
 export function knowledgeKind(kind: string | undefined, t: PropsLocale<'aitp.materials.knowledge'>['t']): string {
   switch (kind) {
     case 'index': return t('kindIndex')
@@ -15,7 +20,13 @@ export function knowledgeKind(kind: string | undefined, t: PropsLocale<'aitp.mat
   }
 }
 
-/** Present recognized source metadata without inferring a review or evidence claim. */
+/**
+ * Present recognized source metadata without inferring a review or evidence claim.
+ * @param field - metadata category whose known values may be localized.
+ * @param value - authored value, or undefined when none was recorded.
+ * @param t - knowledge library's localized labels.
+ * @returns a localized known value or the unchanged authored value, preserving absence.
+ */
 export function knowledgeFact(field: 'support' | 'review', value: string | undefined, t: PropsLocale<'aitp.materials.knowledge'>['t']): string | undefined {
   if (field === 'support') {
     if (value === 'source') return t('supportSource')

@@ -15,6 +15,7 @@ export const changeEn = {
   wrap: 'Wrap lines', unwrap: 'Do not wrap lines', collapse: 'Collapse', expand: 'Show {count} more lines',
 } as const
 
+/** Chinese copy for research change receipts and their bounded file previews. */
 export const changeZh: Record<keyof typeof changeEn, string> = {
   applied: '课题记录已更新', partial: '仅部分修改已保存', unknown: '保存结果尚不确定',
   'not-applied': '修改未保存', prepared: '已拟定修改，尚未保存', pending: '修改有待决策',

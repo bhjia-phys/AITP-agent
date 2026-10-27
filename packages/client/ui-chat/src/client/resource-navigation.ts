@@ -6,11 +6,19 @@ export type ChatResourceNavigation = (address: string, params?: Readonly<Record<
 
 /** One presentation owner can override resource navigation for its retained Session. */
 export interface ChatNavigation {
-  /** @param sessionId - displayed Session. @param open - presentation-owned navigation. @returns registration release. */
+  /**
+   * Assign a retained Session's resource navigation to its presentation owner.
+   * @param sessionId - displayed Session.
+   * @param open - presentation-owned navigation.
+   * @returns a callback releasing this registration.
+   */
   register(sessionId: SessionId, open: ChatResourceNavigation): () => void
   /**
-   * @param sessionId - originating Session. @param address - exact resource.
-   * @param params - optional locator. @returns whether handled.
+   * Dispatch a resource link to the Session's registered presentation owner.
+   * @param sessionId - originating Session.
+   * @param address - exact resource.
+   * @param params - optional locator.
+   * @returns whether the registered owner handled the resource link.
    */
   open(sessionId: SessionId, address: string, params?: Readonly<Record<string, unknown>>): boolean
 }

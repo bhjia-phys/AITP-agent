@@ -1,5 +1,5 @@
 /** Native document docking state for global panels, independent of Session state and authority. */
-import { defineStore } from '@deepseek-ai/dsh-client-store'
+import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-store'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { DockMode, DockZone, FloatRect, LayoutOp, LayoutState, Mint, PaneId, SplitId, TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import {
@@ -24,7 +24,12 @@ export interface SidebarRightRootState {
   surfaces: Record<string, RootSurfaceState>
 }
 
-/** @param panelId - global panel. @param scopeKey - its chosen research/browsing scope. @returns an unambiguous viewing identity. */
+/**
+ * Compose the viewing identity of a global panel and one of its reading scopes.
+ * @param panelId - global panel.
+ * @param scopeKey - its chosen research or browsing scope.
+ * @returns an unambiguous key for that panel and scope pair.
+ */
 export function rootSurfaceKey(panelId: MainPanelId, scopeKey: string): string { return JSON.stringify([panelId, scopeKey]) }
 
 /** Gestures emitted by the shared native docking kit. */
@@ -38,6 +43,16 @@ export type RootDockGesture =
   | { type: 'moveFloat'; paneId: PaneId; x: number; y: number }
   | { type: 'resizeFloat'; paneId: PaneId; rect: FloatRect }
   | { type: 'resizeSplit'; splitId: SplitId; sizes: readonly number[] }
+
+/** Complete mutation interface of the framework-owned global document viewing store. */
+type SidebarRightRootActions = {
+  selectScope: (draft: SidebarRightRootState, panelId: MainPanelId, scopeKey: string) => void
+  open: (draft: SidebarRightRootState, panelId: MainPanelId, scopeKey: string,
+    claim: SidebarRightTabClaim, options: SidebarRightRootOpenOptions) => void
+  setExpanded: (draft: SidebarRightRootState, panelId: MainPanelId, scopeKey: string, expanded: boolean) => void
+  setMode: (draft: SidebarRightRootState, panelId: MainPanelId, scopeKey: string, mode: DockMode) => void
+  gesture: (draft: SidebarRightRootState, panelId: MainPanelId, scopeKey: string, gesture: RootDockGesture) => void
+}
 
 function changed(draft: SidebarRightRootState, panelId: MainPanelId, scopeKey: string,
   update: (surface: RootSurfaceState) => RootSurfaceState): void {
@@ -91,9 +106,12 @@ function gesturePlan(state: LayoutState, mint: Mint, gesture: RootDockGesture): 
   }
 }
 
-/** @returns the framework-owned global document viewing store. */
-export function createSidebarRightRootStore() {
-  return defineStore({
+/**
+ * Declare global document viewing state and its native docking actions for framework-managed instances.
+ * @returns the root store handle shared by the document Sidebar and its header expand control.
+ */
+export function createSidebarRightRootStore(): EngineStoreHandle<SidebarRightRootState, SidebarRightRootActions> {
+  return defineStore<SidebarRightRootState, SidebarRightRootActions>({
     init: (): SidebarRightRootState => ({ selectedScopes: {}, surfaces: {} }),
     actions: {
       selectScope(d: SidebarRightRootState, panelId: MainPanelId, scopeKey: string) {

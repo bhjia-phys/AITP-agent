@@ -8,6 +8,7 @@ import type { ResearchWorkspaceRegistry } from './workspace-service.ts'
 import { registerResearchChangeNotice } from './research-change-registration.ts'
 
 /**
+ * Register the shared discussion controller, presentation factories and change feedback.
  * @param ctx - browser plugin owner.
  * @param workspaces - existing async workspace adapter registry.
  * @param navigation - Research-owned centre reader fallback.

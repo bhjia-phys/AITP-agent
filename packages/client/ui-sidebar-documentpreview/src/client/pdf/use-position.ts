@@ -1,5 +1,5 @@
 /** Retained reading position without treating adjacent raster prefetch as page navigation. */
-import { useCallback, useEffect, useRef, useState, type RefCallback } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefCallback, type RefObject } from 'react'
 import { visiblePdfPage } from './position.ts'
 
 interface PositionInput {
@@ -25,8 +25,16 @@ interface Position {
   explicitViewport: { readonly scrollTop: number; readonly height: number; readonly contentHeight: number } | undefined
 }
 
-/** Bind the native scrollport and page-render notifications to the caller's retained position. */
-export function usePdfPosition(input: PositionInput) {
+/**
+ * Bind the native scrollport and page-render notifications to the caller's retained position.
+ * @param input - document identity, requested position and viewport observation callbacks.
+ * @returns the viewport body reference, scrollport binding and page-render callback.
+ */
+export function usePdfPosition(input: PositionInput): {
+  readonly body: RefObject<HTMLElement>
+  readonly bindScrollport: RefCallback<HTMLElement>
+  readonly pageReady: () => void
+} {
   const body = useRef<HTMLElement>(null)
   const [scrollport, setScrollport] = useState<HTMLElement | null>(null)
   const [layout, setLayout] = useState(0)

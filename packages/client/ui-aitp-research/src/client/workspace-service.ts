@@ -173,6 +173,7 @@ export class ResearchWorkspaceRegistry {
   /**
    * Submit a human question with its displayed topic and material selection.
    * @param question - submitted words and current Workspace/topic/material origin.
+   * @param options - optional cancellation signal passed to the provider.
    * @returns the normal Session identity or a typed connection/unsupported failure.
    */
   async ask(question: Omit<ResearchQuestion, 'topicId'> & { readonly topicId?: string },

@@ -17,6 +17,7 @@ export const discussionEn = {
   changed: 'This discussion belongs to another research direction.',
 } as const
 
+/** Chinese copy for the shared research discussion controls and feedback. */
 export const discussionZh: Record<keyof typeof discussionEn, string> = {
   backToLibrary: '返回资料列表',
   listFailed: '未能读取会话列表，请刷新项目后重试',

@@ -2,10 +2,18 @@
 import { materialSourcePath } from '@deepseek-ai/dsh-research-resources/protocol'
 import type { ResourceSummary, SourceSelection } from '@deepseek-ai/dsh-research-resources/types'
 
+/** Observed source with its repository path and label for the current directory or search. */
 export interface CodeFile { readonly path: string; readonly name: string; readonly resource: ResourceSummary }
+/** Directory represented by a descendant in the returned source page. */
 export interface CodeFolder { readonly path: string; readonly name: string }
 
-/** Derive only directories represented by the currently returned source page. */
+/**
+ * Derive only directories represented by the currently returned source page.
+ * @param items - provider observations, which may cover only part of the repository.
+ * @param folder - current repository-relative directory, or an empty string for its root.
+ * @param searching - whether to show matching files with their full paths instead of grouping directories.
+ * @returns sorted visible folders and files without inferring undiscovered entries.
+ */
 export function codeDirectory(items: readonly ResourceSummary[], folder: string, searching: boolean): {
   readonly folders: readonly CodeFolder[]
   readonly files: readonly CodeFile[]
@@ -27,12 +35,20 @@ export function codeDirectory(items: readonly ResourceSummary[], folder: string,
     files: files.sort((a, b) => a.path.localeCompare(b.path)) }
 }
 
-/** Preserve a provider's precise location when a catalog entry is opened. */
+/**
+ * Preserve a provider's precise location when a catalog entry is opened.
+ * @param resource - observed source and its optional locator.
+ * @returns the source reference with the provider's locator when present.
+ */
 export function codeSelection(resource: ResourceSummary): SourceSelection {
   return { ref: resource.ref, ...resource.locator === undefined ? {} : { locator: resource.locator } }
 }
 
-/** Git XY state remains visible alongside its human-readable category. */
+/**
+ * Classify an observed Git XY status without replacing the original code.
+ * @param code - provider-supplied Git status code.
+ * @returns the display category, with a generic changed label for unrecognized states.
+ */
 export function codeStatus(code: string): 'modified' | 'added' | 'deleted' | 'renamed' | 'untracked' | 'conflict' | 'changed' {
   if (code === '??') return 'untracked'
   if (code.includes('U') || code === 'AA' || code === 'DD') return 'conflict'
@@ -42,9 +58,14 @@ export function codeStatus(code: string): 'modified' | 'added' | 'deleted' | 're
   return code.includes('M') ? 'modified' : 'changed'
 }
 
+/** Observed Git change retaining its raw status and any recorded previous path. */
 export interface ChangedFile { readonly path: string; readonly code: string; readonly previousPath?: string }
 
-/** Accept the provider's real status result, falling back to verbatim text for unknown data. */
+/**
+ * Read the provider's structured status result without guessing malformed entries.
+ * @param text - serialized provider response containing the observed status list.
+ * @returns the complete validated list, or undefined so the caller can retain the original text.
+ */
 export function codeChanges(text: string): readonly ChangedFile[] | undefined {
   let value: unknown
   try { value = JSON.parse(text) } catch { return undefined }
@@ -61,9 +82,14 @@ export function codeChanges(text: string): readonly ChangedFile[] | undefined {
   return files
 }
 
+/** Observed commit identity, date and verbatim subject from the bounded Git history. */
 export interface CodeCommit { readonly revision: string; readonly date: string; readonly subject: string }
 
-/** Parse only the bounded, tab-separated Git history contract, retaining commit subjects verbatim. */
+/**
+ * Parse only the bounded, tab-separated Git history contract, retaining commit subjects verbatim.
+ * @param text - provider output with revision, date and subject separated by tabs on each line.
+ * @returns validated history rows, an empty list for blank output, or undefined for malformed history.
+ */
 export function codeHistory(text: string): readonly CodeCommit[] | undefined {
   if (text.trim() === '') return []
   const rows: CodeCommit[] = []

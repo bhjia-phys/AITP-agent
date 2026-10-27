@@ -75,7 +75,10 @@ export class MaterialsController implements MaterialsLibraryService {
     })
   }
 
-  /** @param snapshot - framework-owned viewing state used only when a navigation command occurs. */
+  /**
+   * Bind the current framework-owned viewing state for navigation without copying it into this controller.
+   * @param snapshot - getter evaluated when a navigation command needs the current scope.
+   */
   observeState(snapshot: () => MaterialsState): void { this.snapshot = snapshot }
 
   private showCatalogue(scope: MaterialsScope): void {
@@ -88,7 +91,11 @@ export class MaterialsController implements MaterialsLibraryService {
     else discussion.collapse({ ...scope, workspaceId: scope.workspaceId })
   }
 
-  /** @param domain - source provider domain. @returns that library's localized metadata fields. */
+  /**
+   * Resolve metadata labels from the registered library owner.
+   * @param domain - source provider domain.
+   * @returns the library's localized fields, or an empty list when it is not registered.
+   */
   fields(domain: ResourceDomain): readonly MaterialField[] { return this.modules.get(domain)?.labels().fields ?? [] }
 
   /**

@@ -7,7 +7,11 @@ const IMAGE_MEDIA_TYPES: Readonly<Record<string, ResourceImageMediaType>> = {
   bmp: 'image/bmp', ico: 'image/x-icon', svg: 'image/svg+xml',
 }
 
-/** @param path - normalized source path. @returns its native preview type, without granting read authority. */
+/**
+ * Identify a supported native preview type from the filename without inspecting content or granting read authority.
+ * @param path - normalized source path.
+ * @returns the preview MIME type, or undefined for an unsupported extension.
+ */
 export function previewMediaType(path: string): ResourceBytes['mediaType'] | undefined {
   const extension = path.split('.').at(-1)?.toLowerCase()
   return extension === 'pdf' ? 'application/pdf'

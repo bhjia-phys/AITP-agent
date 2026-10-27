@@ -47,11 +47,20 @@ interface OwnedDiscussion {
 }
 const EMPTY: DiscussionView = { visible: false, expanded: false, loading: false, draft: false }
 
-/** @param scope - scientific reading location. @returns collision-free scope identity. */
+/**
+ * Identify a discussion scope independently of its presentation title.
+ * @param scope - scientific reading location.
+ * @returns collision-free scope identity.
+ */
 export function discussionScopeKey(scope: ResearchDiscussionScope): string {
   return JSON.stringify([scope.workspaceId, scope.topicId ?? null])
 }
-/** @param views - owned snapshots. @param scope - scientific location. @returns stable absent or current selection. */
+/**
+ * Read the retained presentation state for one discussion scope.
+ * @param views - owned snapshots.
+ * @param scope - scientific location.
+ * @returns stable absent or current selection.
+ */
 export function discussionView(views: DiscussionViews, scope: ResearchDiscussionScope): DiscussionView {
   return views[discussionScopeKey(scope)] ?? EMPTY
 }
@@ -67,6 +76,7 @@ declare module '@deepseek-ai/dsh-api-session-controller/client' {
 
 /** Holds only explicit native discussions, without creating a Session merely to browse research. */
 export class ResearchDiscussionController implements ResearchDiscussions {
+  /** Retained discussion presentation state keyed by scientific scope. */
   readonly views = createSnapshotStore<DiscussionViews>({})
   private readonly owned = new Map<SessionId, OwnedDiscussion>()
   private readonly pending = new Map<string, Promise<void>>()
@@ -138,7 +148,13 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     })
   }
   async showSession(scope: ResearchDiscussionScope, sessionId: SessionId): Promise<void> { await this.select(scope, sessionId) }
-  /** Rename the retained native Session; its title projection and the authoritative discussion list own the result. */
+  /**
+   * Rename the retained native Session and refresh the authoritative discussion list.
+   * @param scope - scientific scope owning the retained discussion.
+   * @param sessionId - retained native Session to rename.
+   * @param title - requested discussion title.
+   * @returns completion of the rename and refresh request.
+   */
   async renameDiscussion(scope: ResearchDiscussionScope, sessionId: SessionId, title: string): Promise<void> {
     const owned = this.owned.get(sessionId)
     if (this.disposed || owned === undefined || discussionScopeKey(owned.scope) !== discussionScopeKey(scope)) {
@@ -182,9 +198,20 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     this.collapse(scope)
     return () => { if (previous.visible) this.update(scope, { visible: true, expanded: previous.expanded }) }
   }
+  /**
+   * Toggle the selected discussion's expanded presentation.
+   * @param scope - scientific scope whose presentation should change.
+   */
   expand(scope: ResearchDiscussionScope): void {
     this.update(scope, { expanded: !discussionView(this.views.getSnapshot(), scope).expanded })
   }
+  /**
+   * Bind the mounted discussion presentation's navigation and return destination.
+   * @param scope - scientific scope displayed by this presentation.
+   * @param open - optional presentation-owned source navigation.
+   * @param returnTo - optional action returning to the surrounding reading surface.
+   * @returns a callback releasing this presentation if it is still current.
+   */
   mount(scope: ResearchDiscussionScope, open?: DiscussionResourceNavigation, returnTo?: () => void): () => void {
     const key = discussionScopeKey(scope)
     if (scope.title !== undefined && discussionView(this.views.getSnapshot(), scope).title !== scope.title) {

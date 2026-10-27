@@ -26,31 +26,64 @@ export type DiscussionStudyAdmission = (origin: ResearchOrigin, request: Session
   | { readonly ok: false; readonly error: { readonly code: string; readonly message: string } }
 >
 
-/** Shared right-hand discussion used by topic and scoped-library pages. */
+/** Shared discussion used by topic and scoped-library pages. */
 export interface ResearchDiscussions {
   /**
-   * @param scope - selected scientific scope. @param origin - optional explicitly selected sources.
-   * @param prompt - optional suggested draft; existing drafts are retained. @returns pane readiness.
+   * Open or resume the selected scope's discussion without submitting a message.
+   * @param scope - selected scientific scope.
+   * @param origin - optional explicitly selected sources.
+   * @param prompt - optional suggested draft; existing drafts are retained.
+   * @returns completion of the pane-opening attempt.
    */
   open(scope: ResearchDiscussionScope, origin?: ResearchOrigin, prompt?: string): Promise<void>
-  /** @param scope - selected scientific scope. @param sessionId - existing matching discussion. @returns pane readiness. */
+  /**
+   * Display an existing discussion belonging to the selected scope.
+   * @param scope - selected scientific scope.
+   * @param sessionId - existing matching discussion.
+   * @returns completion of the discussion-selection attempt.
+   */
   select(scope: ResearchDiscussionScope, sessionId: SessionId): Promise<void>
-  /** @param scope - selected scientific scope. @returns a new blank discussion, created only for this explicit action. */
+  /**
+   * Create a blank discussion for an explicit new-conversation action.
+   * @param scope - selected scientific scope.
+   * @returns completion of the discussion-creation attempt.
+   */
   newDiscussion(scope: ResearchDiscussionScope): Promise<void>
-  /** @param scope - selected scientific scope. @param sessionId - newly admitted matching discussion. @returns pane readiness. */
+  /**
+   * Show a newly admitted discussion after checking its scope membership.
+   * @param scope - selected scientific scope.
+   * @param sessionId - newly admitted matching discussion.
+   * @returns completion of the discussion-selection attempt.
+   */
   showSession(scope: ResearchDiscussionScope, sessionId: SessionId): Promise<void>
   /**
+   * Prepare the source selection used by the next message.
    * @param scope - explicit selected scope.
    * @param origin - source selection for a later submission; never changes an in-flight request.
    */
   setSource(scope: ResearchDiscussionScope, origin: ResearchOrigin): void
-  /** @param scope - location whose right pane should close while retaining its discussion and draft. */
+  /**
+   * Hide a discussion while retaining its Session and draft.
+   * @param scope - location whose discussion presentation should close.
+   */
   collapse(scope: ResearchDiscussionScope): void
-  /** @param scope - discussion temporarily covered by a catalogue. @returns restores its prior presentation without opening a Session. */
+  /**
+   * Temporarily hide a discussion while its catalogue is shown.
+   * @param scope - discussion temporarily covered by a catalogue.
+   * @returns a callback restoring its prior presentation without opening a Session.
+   */
   suspend(scope: ResearchDiscussionScope): () => void
-  /** @param submit - the installed library's immutable per-message admission. @returns registration release. */
+  /**
+   * Register the installed library's selected-source submission handler.
+   * @param submit - the installed library's immutable per-message admission.
+   * @returns a callback releasing this registration.
+   */
   registerStudySubmission(submit: DiscussionStudyAdmission): () => void
-  /** @param open - one independently installed reader's navigation. @returns registration release. */
+  /**
+   * Register a reader's handling of its own source addresses.
+   * @param open - one independently installed reader's navigation.
+   * @returns a callback releasing this registration.
+   */
   registerResourceNavigation(open: DiscussionReaderNavigation): () => void
 }
 

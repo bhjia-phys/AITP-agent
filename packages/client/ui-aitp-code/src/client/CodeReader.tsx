@@ -12,7 +12,7 @@ import css from './code.module.css'
 type HeaderProps = PropsRuntime<'aitp.materials.reader.header'> & PropsLocale<'aitp.materials.code'>
 type BodyProps = PropsRuntime<'aitp.materials.reader.body'> & PropsLocale<'aitp.materials.code'> & PropsRenderFactories
 
-/** Keep file identity and observed branch visible; expand detailed provenance on demand. */
+/** Keep file identity and observed branch visible; expand source details on demand. */
 export function CodeHeader({ reading, fields, t }: HeaderProps) {
   const { resource } = reading
   const path = materialSourcePath(resource.ref.sourceId)
