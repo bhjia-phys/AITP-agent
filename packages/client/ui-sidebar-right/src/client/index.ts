@@ -142,7 +142,7 @@ export function apply(ctx: ClientContext): void {
   // The automatic fullscreen rule as the seats last rendered it: the frame
   // hands them its width as owner props, and every seat reports the same rule.
   let autoFullscreen = false
-  const { controller, adopt, forget, show, measure } = createSidebarRightController(
+  const { controller, adopt, forget, dispose, show, measure } = createSidebarRightController(
     tabs,
     (address, signal) => { ctx.resources.pin(address, signal) },
     {
@@ -177,7 +177,7 @@ export function apply(ctx: ClientContext): void {
   // teardown is synchronous fire-and-forget, matching ui-layout's root entry.
   // Unloading aborts every tab occurrence, which releases every pin.
   ctx.effect(() => () => {
-    controller.tabDomain.dispose()
+    dispose()
     roots.dispose()
     void disposeRoots()
     void disposeService()

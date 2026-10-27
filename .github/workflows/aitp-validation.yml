@@ -65,6 +65,8 @@ jobs:
           packages/client/ui-aitp-research/tests
           packages/client/ui-aitp-session/tests
           packages/client/ui-aitp-fixtures/tests
+          packages/client/ui-sidebar-right/tests/service.client.spec.ts
+          packages/client/ui-sidebar-right/tests/apply.client.spec.ts
       - name: Install Chromium
         run: pnpm --filter @deepseek-ai/dsh-web-frontend exec playwright install --with-deps chromium
       - name: Check built research workspace and production backend in Chromium
@@ -75,6 +77,11 @@ jobs:
           apps/web/tests/aitp-workspace.e2e.ts
           apps/web/tests/aitp-memory.e2e.ts
           apps/web/tests/aitp-onboarding.e2e.ts
+          apps/web/tests/native-dock.e2e.ts
+          apps/web/tests/library-ui.e2e.ts
+          apps/web/tests/native-sources.e2e.ts
+          apps/web/tests/workbench.e2e.ts
+          apps/web/tests/workbench-ui.e2e.ts
       - name: Run keyless GPT reliability regressions
         run: >-
           pnpm exec vitest run --maxWorkers=1

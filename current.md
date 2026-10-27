@@ -146,6 +146,8 @@
 
 本地资料的模型追读现在先解析指定章节或原文区间，再计算该片段内的字符偏移；不能把长文开头误标为后部章节。PR 24 审阅发现的反例及修复回归见[发布验证记录](agent/notes/harness-integration.md#native-library-dock)，工具语义由[科研记忆服务](packages/research/research-memory/README.md#selected-local-sources)维护。
 
+研究页内嵌讨论的任务卡现可直接打开“来源与记忆”：先进入该讨论已有的会话，再在原生侧栏显示其真实来源和历史记录。首次挂载侧栏时会等待对应会话的状态就绪，不创建额外会话。此入口及当前文件与历史快照分离已有[实际浏览器验证](agent/notes/harness-integration.md#native-library-dock)。
+
 文件监听失败时，原先每次续页重扫都会生成新修订号，使未变化来源的旧游标立即失效。fallback 仍逐次真实扫描，但只有发现内容、路径或完整性等实际变化才撤销该分页身份；显式 refresh 仍失效旧游标。
 
 **当前 Harness 覆盖：** 任务卡和 Sources & memory 已通过真实 `aitp-session` 资源读取现有 Session 接受事件、原始输入和具名请求快照；打开来源另读当前文件，不替换历史快照。浏览器验证覆盖最初为空随后提交科研输入的订阅竞态。逐文件链接的交付状态仍保持未知，不从上下文正文推断规则已采用；规则／Skill 和更广泛笔记投影仍未接通。证据归[原有记录](agent/notes/harness-integration.md#research-memory-backend)。

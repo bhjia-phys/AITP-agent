@@ -10,6 +10,8 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { en, zh, type AitpSessionKey } from './locales.ts'
 import { MemoryPage, MemoryPageTitle } from './MemoryPage.tsx'
 import { OriginAction } from './OriginAction.tsx'
@@ -41,7 +43,7 @@ const MEMORY_KIND = 'aitp-memory'
 const MEMORY_TAB_ID = '@deepseek-ai/dsh-client-ui-aitp-session/memory'
 
 /** Services read by the registrations. */
-export const inject = ['slots', 'locale', 'sidebarRightTabs', 'sidebarRight']
+export const inject = ['slots', 'locale', 'sidebarRightTabs', 'sidebarRight', 'uiWorkspace']
 
 /**
  * Contribute the header action, the task card and the Sources & memory page.
@@ -50,17 +52,24 @@ export const inject = ['slots', 'locale', 'sidebarRightTabs', 'sidebarRight']
 export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-aitp-session: dictionaries')
   const t = ctx.locale.bind(NS)
-  const face: MemoryActionsFace = {
-    openMemory: () => { ctx.sidebarRight.openTab(MEMORY_KIND) },
-    openNote: (address) => { ctx.sidebarRight.openResource(address) },
-  }
+  let cancelMemoryOpen = (): void => {}
+  ctx.effect(() => () => { cancelMemoryOpen() }, 'ui-aitp-session: memory navigation')
+  const openNote = (address: string): void => { ctx.sidebarRight.openResource(address) }
+  const face = (sessionId: SessionId): MemoryActionsFace => ({
+    openMemory: () => {
+      cancelMemoryOpen()
+      ctx.uiWorkspace.openSession(sessionId)
+      cancelMemoryOpen = ctx.sidebarRight.requestOpenTab(sessionId, MEMORY_KIND)
+    },
+    openNote,
+  })
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions',
     id: 'aitp-memory',
     // After the preset label and background work in the header actions band.
     order: 40,
     locale: NS,
-    inject: () => face,
+    inject: face,
   }, OriginAction))
   ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
     name: 'conversation.input.dock',
@@ -68,7 +77,7 @@ export function apply(ctx: ClientContext): void {
     // Ahead of Todo (0) and Goal (10): the task frames everything below it.
     order: -10,
     locale: NS,
-    inject: () => face,
+    inject: face,
   }, TaskCard))
   ctx.effect(() => ctx.sidebarRightTabs.register({
     id: MEMORY_TAB_ID,
@@ -77,7 +86,7 @@ export function apply(ctx: ClientContext): void {
     title: () => t('memory'),
   }), 'ui-aitp-session: memory page type')
   ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register(
-    { name: 'sidebar.right.pane.tab', key: MEMORY_TAB_ID, locale: NS, inject: () => ({ openNote: face.openNote }) },
+    { name: 'sidebar.right.pane.tab', key: MEMORY_TAB_ID, locale: NS, inject: () => ({ openNote }) },
     MemoryPage,
   ))
   ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register(

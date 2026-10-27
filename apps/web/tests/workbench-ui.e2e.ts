@@ -15,6 +15,15 @@ const ARTIFACTS = fileURLToPath(new URL('../../../.artifacts/', import.meta.url)
 const TITLE = '中文研读笔记：明确假设与长标题的阅读边界 / isolated UI acceptance'
 const BODY = '# Conditions\n\n' + 'Keep this finite observation separate from a general conclusion. 中文长正文与来源位置。\n\n'.repeat(36)
 
+/** Wait for the frame tracks and native sidebar to reach their actual viewing geometry. */
+async function waitForNativeLayout(page: Page): Promise<void> {
+  await expect.poll(() => page.locator('[style*="grid-template-columns"]').first().evaluate(frame =>
+    frame.hasAttribute('data-animating') || frame.getAnimations({ subtree: true }).some(animation =>
+      'transitionProperty' in animation
+      && ['grid-template-columns', 'transform', 'visibility'].includes(String(animation.transitionProperty))
+      && animation.playState !== 'finished' && animation.playState !== 'idle'))).toBe(false)
+}
+
 it('retains a real note draft, saves only inside the fixture and distinguishes a failed read from empty content', async () => {
   const world = await mkdtemp(join(tmpdir(), 'aitp-workbench-ui-'))
   const model = new LibraryModel()
@@ -92,6 +101,8 @@ it('retains a real note draft, saves only inside the fixture and distinguishes a
   await materialReading(page).getByRole('heading', { name: 'Conditional explanation', exact: true }).waitFor()
   await materialDock(page).locator('[data-sidebar-right-toggle]').click()
   await materialDock(page).waitFor({ state: 'hidden' })
+  // The open attribute disappears before the frame and sidebar finish their transitions.
+  await waitForNativeLayout(page)
   const list = knowledge.locator('[data-material-ready]').first().locator('../..')
   const entry = knowledge.getByRole('button', { name: '长列表-15', exact: true }).first()
   await entry.scrollIntoViewIfNeeded()
@@ -99,8 +110,10 @@ it('retains a real note draft, saves only inside the fixture and distinguishes a
   expect(departure).toBeGreaterThan(100)
   await entry.click()
   await materialReading(page).getByRole('heading', { name: '长列表-15', exact: true }).first().waitFor()
+  await waitForNativeLayout(page)
   await materialDock(page).locator('[data-sidebar-right-toggle]').click()
   await materialDock(page).waitFor({ state: 'hidden' })
+  await waitForNativeLayout(page)
   await expect.poll(() => list.evaluate(element => element.scrollTop)).toBeCloseTo(departure, 0)
   await page.screenshot({ animations: 'disabled', path: join(ARTIFACTS, 'aitp-workbench-long-list-return.png') })
   expect(model.requests).toHaveLength(0)

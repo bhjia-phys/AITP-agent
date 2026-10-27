@@ -1,6 +1,7 @@
 - region "Research":
   - heading "Research" [level=1]
   - text: workspace
+  - button "Discuss this research"
   - paragraph:
     - strong: Demo workspace
     - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
@@ -35,9 +36,4 @@
       - listitem:
         - paragraph: Boundary conditions as a variable
         - paragraph: Every current answer assumes open boundaries; a periodic comparison may change several of them.
-  - paragraph: Read Oct 23, {{clock}} AM
-  - text: Ask about this research
-  - textbox "Ask about this research":
-    - /placeholder: What is still unclear, or what should we investigate next?
-  - paragraph: Continue with the research context from this page.
-  - button "Ask in a new conversation" [disabled]
+  - group: Source and reading details

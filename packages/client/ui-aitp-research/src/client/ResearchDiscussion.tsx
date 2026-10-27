@@ -49,7 +49,7 @@ export function ResearchDiscussion(props: FactoryComponentPropsOf<'aitp.research
     </details>}
     {view.error && <div role="alert" className={css.notice}>{view.error}<Button variant="ghost" size="sm" onClick={() => { void props.openDiscussion(props.scope) }}>{props.t('retry')}</Button></div>}
     {view.loading && <div className={css.loading} role="status" aria-label={props.t('loading')}><StateDot state="ongoing" /></div>}
-    <div className={css.conversation}>
+    <div className={css.conversation} aria-busy={view.loading} {...{ inert: view.loading ? '' : undefined }}>
       {view.reference !== undefined && <props.SessionProvider session={view.reference}>
         {props.renderSlot('aitp.research.discussion.conversation', { workspaceId: props.scope.workspaceId })}
       </props.SessionProvider>}

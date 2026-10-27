@@ -9,8 +9,8 @@
  *
  * The plugin also names the Session on screen — the selected Session while the
  * Conversation fills the main column — from the selection and the main panel,
- * before React renders either change, and publishes it as `mounted`. Every
- * command on the public face acts on that Session through its adopted store; a
+ * before React renders either change, and publishes it as `mounted`. The immediate
+ * on-screen navigation commands act on that Session through its adopted store; a
  * command with no Session on screen, or with one whose store the runtime has not
  * minted, has nothing to act on and fails loudly rather than writing into a
  * surface nobody is drawing. The seats never publish which Session they draw:
@@ -22,13 +22,14 @@
  * fired after the user switched sessions still lands where its tab is, and they
  * do nothing for a session whose store was never minted.
  *
- * `openResource` and `openTab` are the navigation controller, and every way
- * into the column is a call to one of them: the conversation's file links, a
+ * `openResource` and `openTab` navigate the on-screen Session: the conversation's file links, a
  * tool row's line reference, the strip's add control, a guide entry box, a file
  * tree's rows. A resource is claimed through the registry by address; a page is
  * named by kind and recorded at the address this package composes for it. Both
  * hand the store one settled intent and record the navigation in the Tab
  * domain. Placement is the caller's option, never a type's property.
+ * `requestOpenTab` instead captures an existing Session and waits for its own
+ * store adoption when necessary; it never creates or selects the Session.
  *
  * The registration adopts Session stores, names the on-screen Session, and
  * forwards the seats' reports; callers use the service's navigation methods.
@@ -77,6 +78,8 @@ interface SidebarRightSessions {
   readonly onScreen: ObservableSnapshot<SessionId | undefined>
   /** Open tab metadata across saved and adopted Sessions. */
   readonly openTabs: SidebarTabInventory['source']
+  /** Explicit page requests waiting for their own Session's first adopted store. */
+  readonly pendingTabs: Map<SessionId, Set<() => void>>
 }
 
 /**
@@ -85,12 +88,13 @@ interface SidebarRightSessions {
  * @param tabs - registered tab types.
  * @param pin - resource retention for an occurrence's lifetime.
  * @param host - the viewport rule and focus continuity the commands use.
- * @returns the controller; store adoption and scope removal; naming the on-screen Session; and recording a seat's room rule.
+ * @returns the controller; store adoption, scope removal and disposal; naming the on-screen Session; and recording a seat's room rule.
  */
 export function createSidebarRightController(tabs: SidebarRightTabRegistry, pin: PinResource, host: SidebarRightHost): {
   controller: SidebarRightController
   adopt: (sessionId: SessionId, store: SidebarRightSurfaceStore) => () => void
   forget: (sessionId: SessionId) => void
+  dispose: () => void
   show: (sessionId: SessionId | undefined) => void
   measure: (sessionId: SessionId, canSplitPane: RoomRule) => void
 } {
@@ -98,12 +102,20 @@ export function createSidebarRightController(tabs: SidebarRightTabRegistry, pin:
   const rooms = new Map<SessionId, RoomRule>()
   const onScreen = createSnapshotStore<SessionId | undefined>(undefined)
   const inventory = new SidebarTabInventory()
-  const controller = new SidebarRightController(tabs, pin, host, { adopted, rooms, onScreen, openTabs: inventory.source })
+  const pendingTabs = new Map<SessionId, Set<() => void>>()
+  const controller = new SidebarRightController(tabs, pin, host, { adopted, rooms, onScreen, openTabs: inventory.source, pendingTabs })
   return {
     controller,
     forget: (sessionId) => {
       inventory.remove(sessionId)
       rooms.delete(sessionId)
+      pendingTabs.get(sessionId)?.clear()
+      pendingTabs.delete(sessionId)
+    },
+    dispose: () => {
+      for (const requests of pendingTabs.values()) requests.clear()
+      pendingTabs.clear()
+      controller.tabDomain.dispose()
     },
     show: (sessionId) => { if (onScreen.getSnapshot() !== sessionId) onScreen.set(sessionId) },
     measure: (sessionId, canSplitPane) => { rooms.set(sessionId, canSplitPane) },
@@ -117,6 +129,11 @@ export function createSidebarRightController(tabs: SidebarRightTabRegistry, pin:
       const adoption: Adoption = { store, unsubscribe: store.subscribe(sync) }
       adopted.set(sessionId, adoption)
       sync()
+      const requests = pendingTabs.get(sessionId)
+      if (requests !== undefined) {
+        pendingTabs.delete(sessionId)
+        for (const open of requests) { requests.delete(open); open() }
+      }
       return () => {
         adoption.unsubscribe()
         if (adopted.get(sessionId) === adoption) adopted.delete(sessionId)
@@ -215,6 +232,16 @@ export interface ISidebarRight {
    */
   openTab<K extends string>(kind: K, options?: SidebarRightOpenTabOptions<K>): void
   /**
+   * Open a page in the named Session now, or once its own store is adopted.
+   * The caller selects or mounts that existing Session; this request never creates or selects one.
+   * Pending requests are discarded when their scope is forgotten or the plugin unloads.
+   * @param sessionId - existing Session whose page should open, independent of the on-screen Session.
+   * @param kind - registered page type's kind.
+   * @param options - placement and navigation parameters; omitted options use the Session's active docked pane.
+   * @returns a disposer that cancels only this request while pending; an executed open is not reversed.
+   */
+  requestOpenTab<K extends string>(sessionId: SessionId, kind: K, options?: SidebarRightOpenTabOptions<K>): () => void
+  /**
    * Close one tab of the on-screen Session; the sole docked guide remains open.
    * @param tabId - the tab to close.
    */
@@ -266,6 +293,7 @@ export class SidebarRightController implements ISidebarRight {
   readonly mounted: ObservableSnapshot<SessionId | undefined>
   private readonly adopted: ReadonlyMap<SessionId, Adoption>
   private readonly rooms: ReadonlyMap<SessionId, RoomRule>
+  private readonly pendingTabs: SidebarRightSessions['pendingTabs']
   private readonly closeHandlers = new Map<string, SidebarRightCloseHandler>()
 
   /**
@@ -290,7 +318,7 @@ export class SidebarRightController implements ISidebarRight {
    * @param tabs - the tab-type registry consulted to claim an address.
    * @param pin - `ctx.resources.pin`, which the Tab domain holds addresses with.
    * @param host - the viewport rule and focus continuity the commands use.
-   * @param sessions - plugin-owned adopted stores, room rules, on-screen Session, and open tab metadata.
+   * @param sessions - plugin-owned adopted stores, room rules, on-screen Session, open tab metadata and pending page requests.
    */
   constructor(
     private readonly tabs: SidebarRightTabRegistry,
@@ -302,6 +330,7 @@ export class SidebarRightController implements ISidebarRight {
     this.rooms = sessions.rooms
     this.mounted = sessions.onScreen
     this.openTabs = sessions.openTabs
+    this.pendingTabs = sessions.pendingTabs
     this.tabDomain = new TabDomain(this, pin)
   }
 
@@ -332,6 +361,29 @@ export class SidebarRightController implements ISidebarRight {
   openTab<K extends string>(kind: K, options: SidebarRightOpenTabOptions<K> = {}): void {
     const { sessionId, actions } = this.require()
     this.placeTab(sessionId, actions, kind, options)
+  }
+
+  /**
+   * Open a page in its named Session, waiting for that Session's store when necessary.
+   * @param sessionId - existing Session to receive the page, independent of the on-screen selection.
+   * @param kind - registered page type's kind.
+   * @param options - placement and navigation parameters; omission uses ordinary page placement.
+   * @returns cancellation of this pending request only; an executed open remains in its Session.
+   */
+  requestOpenTab<K extends string>(sessionId: SessionId, kind: K, options: SidebarRightOpenTabOptions<K> = {}): () => void {
+    const actions = this.actionsFor(sessionId)
+    if (actions !== undefined) {
+      this.placeTab(sessionId, actions, kind, options)
+      return () => {}
+    }
+    const requests = this.pendingTabs.get(sessionId) ?? new Set<() => void>()
+    this.pendingTabs.set(sessionId, requests)
+    const open = (): void => { this.openTabIn(sessionId, kind, options) }
+    requests.add(open)
+    return () => {
+      requests.delete(open)
+      if (requests.size === 0 && this.pendingTabs.get(sessionId) === requests) this.pendingTabs.delete(sessionId)
+    }
   }
 
   /**

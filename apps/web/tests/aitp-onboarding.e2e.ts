@@ -9,7 +9,7 @@ import { LlmAdapter, type GenerateOptions, type StreamChunk } from '@deepseek-ai
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type { CreateTopicReceipt, Result } from '@deepseek-ai/dsh-research-memory/types'
 import { launchWebScaffold, watchConsole, webSnapshotMode, type WebScaffold } from './scaffold.ts'
-import { newEnglishPage, saveFailureShot } from './support.ts'
+import { newEnglishPage, saveFailureShot, writeComposerDraft } from './support.ts'
 
 const TITLE = 'Boundary conditions and the finite bound'
 const PROBLEM = 'Does the finite control depend on periodic boundary conditions?'
@@ -77,6 +77,8 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: native research onboar
     const page = await newEnglishPage(browser)
     const console = watchConsole(page)
     const panel = page.locator('section[aria-label="Research"]')
+    const discussion = page.locator('[data-research-discussion]').filter({ visible: true })
+    const composer = discussion.locator('[data-composer-input][contenteditable="true"]')
     const horizontalOverflow = (): Promise<number> => page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth)
     const openResearch = async (): Promise<void> => {
@@ -125,18 +127,25 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: native research onboar
     }
     const topic = await create()
     await panel.getByRole('heading', { name: TITLE, exact: true, level: 2 }).waitFor()
-    const composer = panel.getByRole('textbox', { name: 'Ask about this research', exact: true })
-    await expect.poll(() => composer.evaluate(element => element.ownerDocument.activeElement === element)).toBe(true)
+    await discussion.getByText(TITLE, { exact: true }).waitFor()
+    await composer.waitFor()
+    expect(await composer.textContent()).toBe('')
+    await discussion.getByText('Not sent yet', { exact: true }).waitFor()
     const topicPath = decodeURIComponent(topic.resourceId.slice('resource:'.length))
     const source = await readFile(join(root, topicPath), 'utf8')
     expect(source).toContain(PROBLEM)
     expect(source).toContain(SCOPE)
     expect(await readFile(join(root, 'research.md'), 'utf8')).toContain(topicPath)
     expect(capture.requests).toHaveLength(0)
+    const management = panel.locator('details').filter({ has: page.getByText('Manage topics', { exact: true }) })
+    if (await management.getAttribute('open') === null) await management.locator('summary').click()
     await panel.getByRole('button', { name: 'New subdirection', exact: true }).click()
     await fillTopic(form, BRANCH, BRANCH_PROBLEM, BRANCH_SCOPE)
     const child = await create()
     await panel.getByRole('heading', { name: BRANCH, exact: true, level: 2 }).waitFor()
+    await discussion.getByText(BRANCH, { exact: true }).waitFor()
+    await composer.waitFor()
+    expect(await composer.textContent()).toBe('')
     const childPath = decodeURIComponent(child.resourceId.slice('resource:'.length))
     const childSource = await readFile(join(root, childPath), 'utf8')
     expect(childSource).toContain(BRANCH_PROBLEM)
@@ -158,11 +167,14 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: native research onboar
     await page.screenshot({ path: join(evidence, 'aitp-onboarding-created-mobile.png'),
       fullPage: true, animations: 'disabled' })
     await page.setViewportSize({ width: 1440, height: 1000 })
-    await composer.fill(FOLLOWUP)
+    await panel.getByRole('button', { name: 'Ask about this topic', exact: true }).click()
+    await discussion.getByText(BRANCH, { exact: true }).waitFor()
+    await writeComposerDraft(page, composer, FOLLOWUP)
+    expect(await composer.textContent()).toBe(FOLLOWUP)
     const settled = scaffold.whenTurnSettled()
-    await panel.getByRole('button', { name: 'Ask in a new conversation', exact: true }).click()
+    await composer.press('Enter')
     await settled
-    await page.locator('[data-slot="conversation.chat.flow"]').getByText(REPLY, { exact: true }).waitFor()
+    await discussion.locator('[data-slot="conversation.chat.flow"]').getByText(REPLY, { exact: true }).waitFor()
     expect(capture.requests).toHaveLength(1)
     const request = capture.requests[0]
     if (request === undefined) throw new Error('The created direction never reached a model request.')

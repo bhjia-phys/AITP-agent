@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { chromium, type Browser, type Locator, type Page } from 'playwright'
+import { chromium, type APIResponse, type Browser, type Locator, type Page } from 'playwright'
 import { expect, it, onTestFinished } from 'vitest'
 import type { WorkspaceCreateValue } from '@deepseek-ai/dsh-api-workspace-controller/types'
 import type { DiscussionPage, Result } from '@deepseek-ai/dsh-research-memory/types'
@@ -24,6 +24,11 @@ function research(page: Page): Locator { return page.locator('section[aria-label
 function discussion(page: Page): Locator { return page.locator('[data-research-discussion]').filter({ visible: true }) }
 function input(page: Page): Locator { return discussion(page).locator('[data-composer-input]') }
 
+async function waitForDiscussion(page: Page, sessionId: string): Promise<void> {
+  const conversation = discussion(page).locator(`[data-conversation-session="${sessionId}"]`)
+  await conversation.locator('[data-composer-input][contenteditable="true"]:not([inert] *)').waitFor()
+}
+
 async function openTopic(page: Page, title: string): Promise<void> {
   const panel = research(page)
   await panel.waitFor()
@@ -43,13 +48,14 @@ async function reply(page: Page, number: number): Promise<void> {
   await discussion(page).getByText(`Workbench reply ${number}. The stated conditions remain in force.`, { exact: false }).waitFor({ timeout: 30_000 })
 }
 
-async function chooseDiscussion(page: Page, title: string): Promise<void> {
+async function chooseDiscussion(page: Page, title: string, sessionId: string): Promise<void> {
   const picker = discussion(page).getByRole('button', { name: 'Discussions in this direction', exact: true })
   await picker.focus()
   await picker.press('Enter')
   const item = page.getByRole('menuitem', { name: title, exact: true })
   await item.focus()
   await item.press('Enter')
+  await waitForDiscussion(page, sessionId)
 }
 
 async function shot(page: Page, name: string): Promise<void> {
@@ -131,19 +137,65 @@ it('keeps two directions, multiple native discussions, source navigation and rea
   expect(model.requests[0]).not.toContain(BETA_SCOPE)
   const alphaFirst = (await list('a')).items[0]
   if (alphaFirst === undefined) throw new Error('The admitted Alpha discussion was not discoverable.')
-  await discussion(page).getByRole('button', { name: 'New', exact: true }).click()
+  const draftBeforeNew = 'ALPHA_DRAFT_RETAINED_DURING_NEW'
+  await writeComposerDraft(page, input(page), draftBeforeNew)
+  const creation = Promise.withResolvers<string>()
+  const releaseCreation = Promise.withResolvers<undefined>()
+  let createdSessionId: string
+  try {
+    // The Host still creates a real Session; hold only its response to expose the previous composer deterministically.
+    await page.route(url => url.pathname === '/api/session/create', async (route) => {
+      let response: APIResponse | undefined
+      try {
+        response = await route.fetch()
+        expect(response.status()).toBe(200)
+        const body: unknown = await response.json()
+        const result = body !== null && typeof body === 'object' && 'result' in body ? body.result : undefined
+        expect(result).toMatchObject({ ok: true })
+        const value = result !== null && typeof result === 'object' && 'value' in result ? result.value : undefined
+        if (value === null || typeof value !== 'object' || !('sessionId' in value) || typeof value.sessionId !== 'string') {
+          throw new Error('The created Session response omitted its identity.')
+        }
+        creation.resolve(value.sessionId)
+        await releaseCreation.promise
+        await route.fulfill({ response })
+      } catch (error) {
+        creation.reject(error)
+        throw error
+      } finally {
+        await response?.dispose()
+      }
+    }, { times: 1 })
+    await discussion(page).getByRole('button', { name: 'New', exact: true }).click()
+    createdSessionId = await creation.promise
+    await discussion(page).getByRole('status', { name: 'Opening discussion…', exact: true }).waitFor()
+    const previousInput = discussion(page).locator(`[data-conversation-session="${alphaFirst.sessionId}"] [data-composer-input]`)
+    expect(await previousInput.innerText()).toBe(draftBeforeNew)
+    await previousInput.focus()
+    expect(await previousInput.evaluate(element => element.ownerDocument.activeElement === element)).toBe(false)
+    await page.keyboard.type('MUST_NOT_ENTER_THE_PREVIOUS_DISCUSSION')
+    await page.keyboard.press('Enter')
+    expect(await previousInput.innerText()).toBe(draftBeforeNew)
+    expect(model.requests).toHaveLength(1)
+  } finally {
+    releaseCreation.resolve(undefined)
+    await page.unrouteAll({ behavior: 'wait' })
+  }
+  await waitForDiscussion(page, createdSessionId)
   await send(page, 'ALPHA_SECOND_QUESTION')
   await reply(page, 2)
   const alphaRows = (await list('a')).items
   expect(alphaRows).toHaveLength(2)
   const alphaSecond = alphaRows.find(item => item.sessionId !== alphaFirst.sessionId)
   if (alphaSecond === undefined) throw new Error('Explicit New reused the first nonblank discussion.')
+  expect(alphaSecond.sessionId).toBe(createdSessionId)
   await writeComposerDraft(page, input(page), 'ALPHA_SECOND_UNSENT_DRAFT')
-  await chooseDiscussion(page, alphaFirst.title)
+  await chooseDiscussion(page, alphaFirst.title, alphaFirst.sessionId)
+  expect(await input(page).innerText()).toBe(draftBeforeNew)
   await writeComposerDraft(page, input(page), 'ALPHA_FIRST_UNSENT_DRAFT')
-  await chooseDiscussion(page, alphaSecond.title)
+  await chooseDiscussion(page, alphaSecond.title, alphaSecond.sessionId)
   await expect.poll(() => input(page).innerText()).toBe('ALPHA_SECOND_UNSENT_DRAFT')
-  await chooseDiscussion(page, alphaFirst.title)
+  await chooseDiscussion(page, alphaFirst.title, alphaFirst.sessionId)
   await expect.poll(() => input(page).innerText()).toBe('ALPHA_FIRST_UNSENT_DRAFT')
   const actions = discussion(page).getByRole('button', { name: 'Discussion actions', exact: true })
   await actions.focus()
