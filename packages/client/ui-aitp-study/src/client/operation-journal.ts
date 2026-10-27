@@ -30,7 +30,7 @@ function valid(value: unknown): value is StudyAttempt {
   if (operation['kind'] !== 'save' || typeof request['markdown'] !== 'string'
     || request['id'] !== undefined && !text(request['id']) || value['origin'] === 'captured-answer' && request['id'] === undefined) return false
   if (request['citations'] === undefined) return true
-  if (!Array.isArray(request['citations']) || request['citations'].length > 50) return false
+  if (!Array.isArray(request['citations'])) return false
   return request['citations'].every((source: unknown) => {
     if (!record(source) || !record(source['ref']) || !text(source['ref']['rootId']) || !text(source['ref']['sourceId'])) return false
     if (source['selectedText'] !== undefined && typeof source['selectedText'] !== 'string') return false
@@ -64,6 +64,7 @@ export function createStudyJournal(storage: Pick<Storage, 'getItem' | 'setItem' 
       if (storage === undefined) return entry === undefined ? null : messages.unavailable
       try {
         if (entry === undefined) { storage.removeItem(KEY); return null }
+        if (!valid(entry)) return messages.unavailable
         const raw = JSON.stringify({ version: 1, entry })
         if (new TextEncoder().encode(raw).byteLength > MAX_BYTES) return messages.unavailable
         storage.setItem(KEY, raw)

@@ -36,6 +36,8 @@ Mutations use one stable operation identity. Unknown acknowledgements retain the
 
 A bounded same-tab journal preserves pending save, capture and removal requests across a page reload. Restoration marks them uncertain, retains the original operation identity and does not replay them. Acknowledgement clears the journal. Failed storage and unreadable recovery records remain visible and do not replace the Host's saved artifacts.
 
+Journal writes and reloads use the same record validation and 512 KiB UTF-8 budget, without a separate citation-count limit. Invalid or oversized replacements leave the previous recovery record intact and report unavailable recovery. Host limits on saved artifacts remain independently configurable.
+
 ## Dev Note
 
 Client declarations and module contributions remain reversible. Package tests cover the shared transport, source locations, explicit scope and failure recovery; the independent study surface also checks genuine answer coordinates and source-grounded task preparation. Real provider and browser validation are tracked by the implementation plan.

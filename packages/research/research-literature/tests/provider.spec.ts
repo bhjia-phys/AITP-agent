@@ -99,6 +99,7 @@ describe('local literature records', () => {
     const native = value(await service.readSourceBytes({ ref }, signal()))
     expect(Buffer.from(native.data).equals(Buffer.from(bytes))).toBe(true)
     expect(JSON.stringify(reading).length).toBeLessThan(4096)
-    expect(await readFile(join(root, 'large.pdf'))).toEqual(Buffer.from(bytes))
+    // Compare every byte without the assertion library enumerating a multi-megabyte Buffer.
+    expect((await readFile(join(root, 'large.pdf'))).equals(Buffer.from(bytes))).toBe(true)
   })
 })
