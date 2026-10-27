@@ -48,6 +48,33 @@ it('does not relocate an old exact selection after its source offsets change', a
   expect(result.invalidSelections[0]).toContain('offsets no longer match')
 })
 
+it.each([['Appendix', 'appendix'], ['附录 条件', '附录-条件']])('locates a later H1 %s with its nested sections and original offsets', async (heading, anchor) => {
+  const source = ref('first')
+  const introduction = '---\r\ntitle: 原文\r\n---\r\n# Introduction\r\n\r\nINTRO_ONLY\r\n\r\n'
+  const passage = `# ${heading}\r\n\r\n所选条件。\r\n\r\n## Detail\r\n\r\nNESTED_CONDITION\r\n\r\n`
+  const text = introduction + passage + '# Following\r\n\r\nFOLLOWING_ONLY\r\n'
+  const readResource = vi.fn(async () => ({ ok: true as const,
+    value: reading(source, { kind: 'text', format: 'markdown', text }) }))
+  const result = await readStudyContext({ readResource }, [{ ref: source,
+    locator: { kind: 'anchor', anchor } }], '条件', 24000, signal())
+  expect(result.invalidSelections).toEqual([])
+  expect(result.entries).toHaveLength(1)
+  expect(result.entries[0]?.text).toBe(passage)
+  expect(parseMaterialSource(result.entries[0]!.source.target)?.locator).toEqual({ kind: 'text',
+    start: introduction.length, end: introduction.length + passage.length, quote: passage })
+})
+
+it.each(['#', '##'])('rejects repeated %s anchors instead of choosing a heading occurrence', async (level) => {
+  const source = ref('first')
+  const text = `${level} 条件\n\nFIRST_CONDITION\n\n${level} 条件\n\nSECOND_CONDITION\n`
+  const readResource = vi.fn(async () => ({ ok: true as const,
+    value: reading(source, { kind: 'text', format: 'markdown', text }) }))
+  const result = await readStudyContext({ readResource }, [{ ref: source,
+    locator: { kind: 'anchor', anchor: '条件' } }], '条件', 24000, signal())
+  expect(result.entries).toEqual([])
+  expect(result.invalidSelections).toEqual(['first/source:notes.md: The selected source anchor is missing or ambiguous.'])
+})
+
 it('keeps repeated Markdown passages ambiguous until an exact original interval is selected', async () => {
   const source = ref('first'), quote = '同一句条件。'
   const text = `# 对照\n${quote}\n${quote}`

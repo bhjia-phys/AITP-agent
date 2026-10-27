@@ -205,6 +205,17 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     if (selected !== undefined) selected.origin = source
     this.update(scope, { origin: source })
   }
+  /**
+   * Follow ordinary reading navigation while preserving an explicitly selected bundle or passage.
+   * @param scope - destination reading's scientific scope.
+   * @param origin - current reading source used only when no explicit selection takes precedence.
+   */
+  setReadingSource(scope: ResearchDiscussionScope, origin: ResearchOrigin): void {
+    const current = discussionView(this.views.getSnapshot(), scope).origin
+    if (current?.selections !== undefined || current?.selectedText !== undefined
+      || current?.selectedRange !== undefined || current?.anchor !== undefined) return
+    this.setSource(scope, origin)
+  }
   collapse(scope: ResearchDiscussionScope): void { this.update(scope, { visible: false, expanded: false }) }
   suspend(scope: ResearchDiscussionScope): () => void {
     const previous = discussionView(this.views.getSnapshot(), scope)

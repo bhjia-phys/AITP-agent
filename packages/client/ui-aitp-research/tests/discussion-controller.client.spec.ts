@@ -366,6 +366,25 @@ describe('reading-side discussions', () => {
     expect(fixture.ask).not.toHaveBeenCalled()
   })
 
+  it('uses a loaded replacement source set for the next native message without opening another discussion', async () => {
+    const fixture = await setup()
+    const first = { ref: { rootId: brandString<SourceRef['rootId']>('root-a'), sourceId: brandString<SourceRef['sourceId']>('paper-a') } }
+    const second = { ref: { rootId: brandString<SourceRef['rootId']>('root-b'), sourceId: brandString<SourceRef['sourceId']>('paper-b') },
+      locator: { kind: 'pdf-page' as const, page: 7 }, selectedText: 'Loaded collection B' }
+    await fixture.controller.open(scope, { selections: [first] })
+    const id = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+    const study = vi.fn(async () => ({ ok: true as const, value: { sessionId: id } }))
+    fixture.controller.registerStudySubmission(study)
+    fixture.controller.setSource(scope, { ...scope, selections: [second] })
+    expect(study).not.toHaveBeenCalled()
+    const submitted = request(id)
+    const signal = new AbortController().signal
+    expect(await fixture.capture(id)(submitted, signal)).toEqual({ ok: true, value: { accepted: true } })
+    expect(study).toHaveBeenCalledExactlyOnceWith({ ...scope, selections: [second] }, submitted, signal)
+    expect(fixture.create).toHaveBeenCalledOnce()
+    expect(fixture.ask).not.toHaveBeenCalled()
+  })
+
   it('does not reopen a pane that the researcher collapsed while the native Session was being created', async () => {
     const fixture = await setup()
     const creating = Promise.withResolvers<undefined>()

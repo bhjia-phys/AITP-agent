@@ -4,13 +4,13 @@ import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { bindSnapshotSelector, makeTranslate, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
-import type { ResourceEntryId, ResourcePage, ResourceReading, ResourceSummary, SaveSourceSetRequest, SourceId, SourceRootId, SourceSetId, SourceTopicId } from '@deepseek-ai/dsh-research-resources/types'
+import type { ResourceEntryId, ResourcePage, ResourceReading, ResourceSummary, SaveSourceSetRequest, SourceId, SourceRootId, SourceSelection, SourceSetId, SourceTopicId } from '@deepseek-ai/dsh-research-resources/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { createSidebarRightRootStore } from '../../ui-sidebar-right/src/client/root-store.ts'
 import { RootExpandButton } from '../../ui-sidebar-right/src/client/shell/RootExpandButton.tsx'
-import { MaterialsPanel, type MaterialsPanelFace, type MaterialsPanelProps } from '../src/client/MaterialsPanel.tsx'
+import { MaterialsPanel, type MaterialsManagementFace, type MaterialsPanelFace, type MaterialsPanelProps } from '../src/client/MaterialsPanel.tsx'
 import { MaterialsCatalog } from '../src/client/MaterialsCatalog.tsx'
 import { MaterialReader } from '../src/client/MaterialReader.tsx'
 import { MaterialMarkdown } from '../src/client/MaterialMarkdown.tsx'
@@ -360,4 +360,81 @@ it('reopens cross-library saved references without changing the question scope t
   expect(store.getSnapshot().drafts[materialsScopeKey({})]?.sourceSetTopics).toEqual([topic])
   expect(store.getSnapshot().drafts[materialsScopeKey({})]?.selections[0]).toMatchObject({ ref: first.ref, domain: 'literature', unavailable: 'Original file moved' })
   expect(screen.getByText(/Original file moved/)).toBeDefined()
+})
+
+async function loadingSourceSet() {
+  const topic = { workspaceId: 'project' as WorkspaceId, topicId: 'branch' as SourceTopicId }
+  const other = { ...topic, topicId: 'another-branch' as SourceTopicId }
+  const selection: SourceSelection = { ref: second.ref, locator: { kind: 'text', start: 0, end: 5, quote: 'Proof' }, selectedText: 'Proof' }
+  const sourceSet = { id: 'saved-b' as SourceSetId, title: 'Saved collection B', selectionCount: 1,
+    topics: [other], selections: [selection], createdAt: 'then', updatedAt: 'now' }
+  const result = { ok: true as const, value: { sourceSet,
+    selections: [{ ...selection, title: second.title, domain: second.domain }] } }
+  const reply = Promise.withResolvers<Awaited<ReturnType<MaterialsManagementFace['load']>>>()
+  const management: MaterialsManagementFace = { save: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), load: vi.fn(() => reply.promise) }
+  const discussion = { open: vi.fn(), setSources: vi.fn() }
+  const fixture = await panel({ management, discussion }, {
+    [MATERIAL_SETUP]: live({ canConnect: false, canSaveSourceSets: true }),
+    [materialSourceSetsAddress({ topic })]: live({ items: [sourceSet], nextCursor: null }),
+    [materialListAddress({ domain: 'knowledge', topic })]: live(page),
+    [materialListAddress({ domain: 'knowledge', topic: other })]: live(page),
+  })
+  act(() => { fixture.store.actions.setScope(topic) })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Use “文献中的归一化” for this question' }))
+  expect(discussion.setSources).toHaveBeenLastCalledWith(topic, [{ ref: first.ref }])
+  fireEvent.click(screen.getByText('Source sets and folders'))
+  fireEvent.click(screen.getByRole('button', { name: sourceSet.title }))
+  expect(management.load).toHaveBeenCalledExactlyOnceWith(sourceSet.id)
+  discussion.setSources.mockClear()
+  const finish = async () => { await act(async () => { reply.resolve(result); await reply.promise }) }
+  return { ...fixture, topic, other, selection, sourceSet, discussion, finish }
+}
+
+it('replaces the next discussion sources when the saved collection finishes loading without another Discuss click', async () => {
+  const fixture = await loadingSourceSet()
+  await fixture.finish()
+  expect(fixture.store.getSnapshot().drafts[materialsScopeKey(fixture.topic)]).toMatchObject({
+    sourceSetId: fixture.sourceSet.id, selections: [{ ...fixture.selection, title: second.title, domain: second.domain }],
+  })
+  expect(fixture.discussion.setSources).toHaveBeenCalledExactlyOnceWith(fixture.topic, [fixture.selection])
+  expect(fixture.discussion.open).not.toHaveBeenCalled()
+  expect(fixture.face.ask).not.toHaveBeenCalled()
+})
+
+it('finishes in the captured topic without changing the sources chosen in another topic', async () => {
+  const fixture = await loadingSourceSet()
+  act(() => { fixture.store.actions.setScope(fixture.other) })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Use “文献中的归一化” for this question' }))
+  fixture.discussion.setSources.mockClear()
+  await fixture.finish()
+  expect(fixture.store.getSnapshot().scope).toEqual(fixture.other)
+  expect(fixture.store.getSnapshot().drafts[materialsScopeKey(fixture.other)]?.selections.map(item => item.ref)).toEqual([first.ref])
+  expect(fixture.discussion.setSources).toHaveBeenCalledExactlyOnceWith(fixture.topic, [fixture.selection])
+})
+
+it('keeps an edited question while the selected saved collection loads', async () => {
+  const fixture = await loadingSourceSet()
+  act(() => { fixture.store.actions.question('Keep the question being prepared.') })
+  await fixture.finish()
+  expect(fixture.store.getSnapshot().drafts[materialsScopeKey(fixture.topic)]).toMatchObject({
+    sourceSetId: fixture.sourceSet.id, question: 'Keep the question being prepared.',
+  })
+  expect(fixture.discussion.setSources).toHaveBeenCalledExactlyOnceWith(fixture.topic, [fixture.selection])
+})
+
+it.each(['selection', 'title', 'topic', 'pending-save', 'sending'] as const)('does not replace a newer %s action with a late source-set load', async (change) => {
+  const fixture = await loadingSourceSet()
+  const key = materialsScopeKey(fixture.topic)
+  if (change === 'selection') fireEvent.click(screen.getByRole('checkbox', { name: 'Use “已有推导” for this question' }))
+  else act(() => {
+    if (change === 'title') fixture.store.actions.sourceSetTitle('A newer collection title')
+    else if (change === 'topic') fixture.store.actions.sourceSetTopic(fixture.other, true)
+    else if (change === 'sending') fixture.store.actions.sending(key, true)
+    else fixture.store.actions.pendingSave(key, { operationId: 'save-a', title: 'Keep A', selections: [{ ref: first.ref }] }, true)
+  })
+  const current = fixture.store.getSnapshot().drafts[key]
+  fixture.discussion.setSources.mockClear()
+  await fixture.finish()
+  expect(fixture.store.getSnapshot().drafts[key]).toEqual(current)
+  expect(fixture.discussion.setSources).not.toHaveBeenCalled()
 })

@@ -18,13 +18,17 @@ type TrailProps = WorkspaceViewProps & { mode: 'map' | 'topic' }
  * @param props - view reads, the current location and whether Back has history.
  * @returns the trail, or nothing at the overview without history.
  */
-export function ResearchTrail(props: WorkspaceViewProps & { location: ResearchLocation; canGoBack: boolean }): ReactNode {
+export function ResearchTrail(props: WorkspaceViewProps & {
+  location: ResearchLocation
+  canGoBack: boolean
+  goBack: () => void
+}): ReactNode {
   const { t, location } = props
   const atOverview = location.kind === 'map' && location.focusId === null
   if (atOverview && !props.canGoBack) return null
   return (
     <nav className={css.trail} aria-label={t('workspace.breadcrumb')}>
-      {props.canGoBack && <Button variant="ghost" size="sm" onClick={() => { props.actions.goBack(props.workspaceId) }}>
+      {props.canGoBack && <Button variant="ghost" size="sm" onClick={props.goBack}>
         <IconChevronLeftOutlineRegular size={14} />{t('reader.back')}
       </Button>}
       {!atOverview && <ol className={css.trailList}>

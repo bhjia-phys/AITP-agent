@@ -2,7 +2,7 @@
 /** User paths over adapter snapshots; backend and transport semantics have their own suites. */
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { bindSnapshotSelector, makeTranslate, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -14,6 +14,15 @@ import { createResearchPanelStore } from '../src/client/store.ts'
 import { workspaceEditKey } from '../src/client/workspace-edit-state.ts'
 import type { ApplyReceipt, ChangePreview, Project, ReadEnvelope, ResearchProvider, Resource, ResourceId, Result, Revision, Topic, TopicId, TopicPage, WorkspaceRead } from '../src/client/workspace-contract.ts'
 import { workspaceActivityAddress, workspaceProjectAddress, workspaceResourceAddress, workspaceSetupAddress, workspaceTopicAddress, workspaceTopicsAddress } from '../src/client/workspace-resources.ts'
+import { ConversationController } from '../../ui-conversation/src/client/service.ts'
+import { InputHub } from '../../ui-conversation/src/client/input/hub.ts'
+import { ComposerBlockRegistry } from '../../ui-conversation/src/client/input/blocks.ts'
+import { ChatNavigationRegistry } from '../../ui-chat/src/client/resource-navigation.ts'
+import { ResearchDiscussionController, discussionView } from '../src/client/discussion-controller.ts'
+import { ResearchWorkspaceRegistry } from '../src/client/workspace-service.ts'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { SourceRootId, SourceId } from '@deepseek-ai/dsh-research-resources/types'
 
 afterEach(cleanup)
 
@@ -111,6 +120,57 @@ const trail = (): HTMLElement => screen.getByRole('navigation', { name: 'Researc
 const section = (name: string): HTMLElement => screen.getByRole('button', { name: new RegExp(`^${name}`) })
 
 describe('research discussion entry', () => {
+  it.each(['automatic', 'source set', 'passage'] as const)('returns from material reading with the correct %s source in native admission', async (choice) => {
+    const runtime = await SlotTestRuntime.create()
+    const input = new InputHub(runtime.ctx, makeTranslate())
+    const conversation = new ConversationController(runtime.ctx, {
+      input, blocks: new ComposerBlockRegistry(), maxConcurrentFileUploads: 1,
+    })
+    runtime.ctx.reflect.provide('uiChatNavigation', new ChatNavigationRegistry())
+    const sessionId = brandString<SessionId>(`back-source-${choice}`)
+    const create = vi.fn(async () => runtime.sessions.add({ id: sessionId, snapshot: { blank: true } }))
+    runtime.sessions.stubCreate(create)
+    const registry = new ResearchWorkspaceRegistry(runtime.ctx)
+    vi.spyOn(registry, 'listDiscussions').mockResolvedValue({ ok: true, value: { items: [], completeness: 'complete', issues: [] } })
+    const ask = vi.spyOn(registry, 'ask').mockResolvedValue({ ok: true, value: { sessionId } })
+    const controller = new ResearchDiscussionController(runtime.ctx, registry, () => false, makeTranslate())
+    const study = vi.fn(async () => ({ ok: true as const, value: { sessionId } }))
+    controller.registerStudySubmission(study)
+    const scope = { workspaceId: WS, topicId: CHILD }
+    const selections = [{ ref: { rootId: brandString<SourceRootId>('root'), sourceId: brandString<SourceId>('selected.md') } }]
+    try {
+      const { store } = panel(resources(), {
+        beginDiscussion: (selectedScope, origin) => { void controller.open(selectedScope, origin) },
+        updateDiscussionSource: (selectedScope, origin) => { controller.setReadingSource(selectedScope, origin) },
+      })
+      openChild()
+      await controller.open(scope, undefined, 'Keep this native draft')
+      const original = discussionView(controller.views.getSnapshot(), scope).reference!
+      fireEvent.click(screen.getByRole('button', { name: /Reference paper/ }))
+      expect(store.getSnapshot().location).toEqual({ kind: 'resource', topicId: CHILD, resourceId: PDF })
+      expect(discussionView(controller.views.getSnapshot(), scope).origin?.resourceId).toBe(PDF)
+      if (choice === 'source set') controller.setSource(scope, { selections })
+      if (choice === 'passage') controller.setSource(scope, { resourceId: NOTE, selectedText: 'Exact chosen passage' })
+      fireEvent.click(within(trail()).getByRole('button', { name: 'Back' }))
+      expect(store.getSnapshot().location).toEqual({ kind: 'topic', topicId: CHILD })
+      expect(discussionView(controller.views.getSnapshot(), scope).reference).toBe(original)
+      expect(input.shellFor(original.binding).snapshot.draft).toBe('Keep this native draft')
+      expect(create).toHaveBeenCalledOnce()
+      const captured = conversation.submissions.capture(sessionId)!
+      expect(await captured({ sessionId, requestId: brandString<SessionRequestId>('back-source-question'),
+        content: [{ type: 'text', text: 'Question after returning' }], mode: 'steer' }, new AbortController().signal))
+        .toEqual({ ok: true, value: { accepted: true } })
+      if (choice === 'source set') {
+        expect(study).toHaveBeenCalledWith(expect.objectContaining({ selections }), expect.anything(), expect.anything())
+        expect(ask).not.toHaveBeenCalled()
+      } else {
+        const submitted = ask.mock.calls[0]?.[0]
+        expect(submitted?.resourceId).toBe(choice === 'automatic' ? undefined : NOTE)
+        expect(submitted?.selectedText).toBe(choice === 'passage' ? 'Exact chosen passage' : undefined)
+      }
+    } finally { cleanup(); await controller.dispose(); await runtime.dispose() }
+  })
+
   it('opens the native discussion for the displayed topic without submitting or replacing the main panel', () => {
     const beginDiscussion = vi.fn<NonNullable<ResearchPanelFace['beginDiscussion']>>()
     const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>()

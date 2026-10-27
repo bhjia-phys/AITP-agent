@@ -91,7 +91,7 @@ export function apply(ctx: ClientContext): void {
   const discussions = registerResearchDiscussions(ctx, workspaces, (scope, address) => navigation.open(scope, address))
   const face: ResearchPanelFace = {
     beginDiscussion: (scope, origin) => { void discussions.open(scope, origin) },
-    updateDiscussionSource: (scope, origin) => { discussions.setSource(scope, origin) },
+    updateDiscussionSource: (scope, origin) => { discussions.setReadingSource(scope, origin) },
     openDiscussionResource: (scope, address, leave) => navigation.open(scope, address, leave),
     showResearch: () => { ctx.layout.selectPanel(PANEL_ID) },
     showWorkspaces: () => { ctx.layout.selectPanel(null) },

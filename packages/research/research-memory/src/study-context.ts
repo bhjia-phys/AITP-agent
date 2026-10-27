@@ -1,8 +1,8 @@
 /** Fresh selected-source observations for normal Harness research conversations. */
 import type { ResearchResources } from '@deepseek-ai/dsh-research-resources'
 import type { ResourceReading, SourceLocator, SourceSelection } from '@deepseek-ai/dsh-research-resources/types'
+import { parseSourceMarkup } from '@deepseek-ai/dsh-research-resources/markup'
 import { materialSourceAddress } from '@deepseek-ai/dsh-research-resources/protocol'
-import { parseMarkdown } from './markdown-model.ts'
 import type { ResearchContextRead } from './working-types.ts'
 
 interface Passage {
@@ -37,8 +37,8 @@ export function resolveStudyTextPassage(reading: ResourceReading, selection: Sou
     start = locator.start
     end = locator.end
   } else if (locator?.kind === 'anchor') {
-    const sections = parseMarkdown('source.md', raw).anchors.get(locator.anchor)
-    if (sections?.length !== 1 || sections[0] === undefined) throw new Error('The selected source anchor is missing or ambiguous.')
+    const sections = parseSourceMarkup(raw).anchors.filter(section => section.anchor === locator.anchor)
+    if (sections.length !== 1 || sections[0] === undefined) throw new Error('The selected source anchor is missing or ambiguous.')
     start = sections[0].start
     end = sections[0].end
   }

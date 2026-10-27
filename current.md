@@ -144,7 +144,7 @@
 
 材料入口现在优先使用资源记录的 ownerTopicId：从父课题打开子课题正文后按子课题提问，返回仍保留原父级阅读位置；共享材料保持当前课题。旧代码在父页及地图摘要入口均产生错配，修复后的界面回归覆盖提问、路径和返回。
 
-本地资料的模型追读现在先解析指定章节、原文区间或 PDF 引文，再计算该片段内的字符偏移；不能把长文开头误标为后部章节或页面尾部引文。PR 24 审阅发现的反例及修复回归见[发布验证记录](agent/notes/harness-integration.md#native-library-dock)，工具语义由[科研记忆服务](packages/research/research-memory/README.md#selected-local-sources)维护。
+本地资料的模型追读现在先解析指定章节、原文区间或 PDF 引文，再计算该片段内的字符偏移；不能把长文开头误标为后部章节或页面尾部引文。章节锚点与阅读器共用来源解析，覆盖后续一级标题并拒绝重名锚点。载入资料集会同步已有会话的下一条消息来源；Research 前进与返回只更新自动阅读来源，明确选中的资料集和引文保持优先。PR 24 审阅发现的反例及修复回归见[发布验证记录](agent/notes/harness-integration.md#native-library-dock)，工具语义由[科研记忆服务](packages/research/research-memory/README.md#selected-local-sources)维护。
 
 本地 PDF 链接中的有效 `#page=N` 已映射到物理页定位。研读回答保存时，PTC 嵌套追读只有在成功调用链及模型实际保留的父级输出中找到完整片段，才记录为已交付来源；没有返回、截断或改写的片段不推定为交付。此边界的 Session 事件与 observer 回归已通过，尚未以真实 PTC VM 验收；详情仍归上述发布验证记录。
 

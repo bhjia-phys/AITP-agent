@@ -31,7 +31,7 @@ import page from './workspace.module.css'
 export interface ResearchPanelFace {
   /** Open the shared native composer with this explicit scientific location and source. */
   beginDiscussion?: (scope: ResearchDiscussionScope, origin: ResearchOrigin) => void
-  /** Update only the sources of the next message; admitted messages retain their original context. */
+  /** Stage the current reading for the next message without replacing explicitly selected sources. */
   updateDiscussionSource?: (scope: ResearchDiscussionScope, origin: ResearchOrigin) => void
   /** Open a research-owned source in the centre reader. */
   openDiscussionResource?: (scope: ResearchDiscussionScope, address: string, leave?: ResearchReturnPoint) => boolean
@@ -117,7 +117,8 @@ function WorkspaceReading(props: ResearchPanelProps & { workspaceId: WorkspaceId
   const location = props.useStore(state => workspaceLocation(state, props.workspaceId))
   const arrival = props.useStore(state => state.workspaceId === props.workspaceId ? state.arrival : NO_ARRIVAL)
   const visit = props.useStore(state => state.visit)
-  const canGoBack = props.useStore(state => state.workspaceId === props.workspaceId && state.back.length > 0)
+  const previous = props.useStore(state => state.workspaceId === props.workspaceId ? state.back.at(-1)?.location : undefined)
+  const canGoBack = previous !== undefined
   const reading = useRef<HTMLDivElement>(null)
   const questionArrival = useRef<TopicId | null>(null)
   const initializeResearch = props.initializeResearch
@@ -135,11 +136,19 @@ function WorkspaceReading(props: ResearchPanelProps & { workspaceId: WorkspaceId
     }
     return stop
   }, [visit, readingReady])
-  const navigate = (next: ResearchLocation): void => {
-    props.actions.open(props.workspaceId, next, returnPoint(reading.current))
+  const stageReading = (next: ResearchLocation): void => {
     const topic = next.kind === 'map' ? next.focusId : next.topicId
     const scope: ResearchDiscussionScope = { workspaceId: props.workspaceId, ...topic === null ? {} : { topicId: topic } }
     props.updateDiscussionSource?.(scope, { ...scope, ...next.kind === 'resource' ? { resourceId: next.resourceId } : {} })
+  }
+  const navigate = (next: ResearchLocation): void => {
+    props.actions.open(props.workspaceId, next, returnPoint(reading.current))
+    stageReading(next)
+  }
+  const goBack = (): void => {
+    if (previous === undefined) return
+    props.actions.goBack(props.workspaceId)
+    stageReading(previous)
   }
   const initialize = initializeResearch === undefined ? undefined
     : (request: ResearchInitializeRequest) => initializeResearch(props.workspaceId, request)
@@ -148,7 +157,7 @@ function WorkspaceReading(props: ResearchPanelProps & { workspaceId: WorkspaceId
       loading={setup.status === 'loading'} unavailable={setup.status === 'failed'} retry={() => { props.retry(props.workspaceId) }} />
   </div>
   const topicId = location.kind === 'map' ? location.focusId : location.topicId
-  return <WorkspaceContent {...props} location={location} visit={visit} canGoBack={canGoBack}
+  return <WorkspaceContent {...props} location={location} visit={visit} canGoBack={canGoBack} goBack={goBack}
     reading={reading} navigate={navigate} questionArrival={questionArrival} setup={setup.value} initialize={initialize} topicId={topicId} />
 }
 
@@ -157,6 +166,7 @@ function WorkspaceContent(props: ResearchPanelProps & {
   location: ResearchLocation
   visit: number
   canGoBack: boolean
+  goBack: () => void
   reading: RefObject<HTMLDivElement>
   navigate: (next: ResearchLocation) => void
   questionArrival: MutableRefObject<TopicId | null>

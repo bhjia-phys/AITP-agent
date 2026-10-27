@@ -1,5 +1,5 @@
 /** Small operational controls; the Host owns grants and durable source sets. */
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SaveSourceSetRequest, SourceSetId } from '@deepseek-ai/dsh-research-resources/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -19,7 +19,13 @@ export function LibraryManagement(props: ManagedProps): ReactNode {
   const { t } = props
   const scope = props.useStore(state => state.scope)
   const key = materialsScopeKey(scope)
-  const draft = props.useStore(state => state.drafts[key])
+  const drafts = props.useStore(state => state.drafts)
+  const draft = drafts[key]
+  const latestDrafts = useRef<typeof drafts>()
+  useLayoutEffect(() => {
+    latestDrafts.current = drafts
+    return () => { latestDrafts.current = undefined }
+  }, [drafts])
   const setup = props.useResource<'aitp-material-setup'>(MATERIAL_SETUP)
   const roots = props.useResource<'aitp-material-roots'>(MATERIAL_ROOTS)
   const workspaces = props.useWorkspaces(state => state.items)
@@ -37,8 +43,18 @@ export function LibraryManagement(props: ManagedProps): ReactNode {
   const load = async (id: SourceSetId): Promise<void> => {
     setStatus({ key, busy: true })
     const result = await props.management.load(id)
-    if (result.ok) props.actions.loadSourceSet(key, result.value.sourceSet.id,
-      result.value.sourceSet.title, result.value.selections, result.value.sourceSet.topics, scope)
+    if (latestDrafts.current === undefined || props.management.isCurrent?.() === false) return
+    const current = latestDrafts.current[key]
+    if (result.ok && !current?.sending && current?.pendingSave == null
+      && current?.selections === draft?.selections && current?.sourceSetId === draft?.sourceSetId
+      && current?.sourceSetTitle === draft?.sourceSetTitle && current?.sourceSetTopics === draft?.sourceSetTopics) {
+      props.actions.loadSourceSet(key, result.value.sourceSet.id,
+        result.value.sourceSet.title, result.value.selections, result.value.sourceSet.topics, scope)
+      if (scope.workspaceId !== undefined) props.discussion?.setSources({ ...scope, workspaceId: scope.workspaceId },
+        result.value.selections.map(({ ref, locator, selectedText }) => ({ ref,
+          ...locator === undefined ? {} : { locator }, ...selectedText === undefined ? {} : { selectedText },
+        })))
+    }
     setStatus({ key, busy: false, ...result.ok ? {} : { message: result.error.message } })
   }
   const attach = async (id: WorkspaceId, disconnect = false): Promise<void> => {
