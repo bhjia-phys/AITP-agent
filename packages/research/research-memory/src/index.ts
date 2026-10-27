@@ -258,7 +258,8 @@ export class ResearchMemory extends TypertRemoteService {
                   if (target === undefined) return []
                   const topic = { workspaceId: observed.workspaceId, topicId: link.topicId, reason: link.reason }
                   const root = registered.value.find(item => item.id === target.ref.rootId)
-                  const checkout = root?.domains?.includes('code') === true && target.ref.sourceId.startsWith('source:')
+                  const checkout = root !== undefined && (root.domains === undefined || root.domains.includes('code'))
+                    && target.ref.sourceId.startsWith('source:')
                     ? [{ ref: { rootId: target.ref.rootId, sourceId: 'git:checkout' as SourceId }, topic }] : []
                   return [{ ref: target.ref, topic }, ...checkout]
                 })

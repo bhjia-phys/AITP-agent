@@ -342,12 +342,12 @@ it('keeps explicit Workspace-root material questions in root research rather tha
   expect(create).toHaveBeenCalledTimes(1)
 })
 
-it('associates an explicitly linked source with its configured code checkout without claiming unrelated topics', async () => {
+it.each([undefined, ['code'] as const])('associates an explicitly linked source with its code checkout for domains %s without claiming unrelated topics', async (domains) => {
   const { path, resources, memory } = await fixture()
   const repo = join(path, 'repo')
   await mkdir(join(repo, 'src'), { recursive: true })
   await writeFile(join(repo, 'src/driver.cpp'), 'int driver = 1;\n')
-  const checkout = await resources.registerRoot({ id: 'code-checkout', path: repo, domains: ['code'] })
+  const checkout = await resources.registerRoot({ id: 'code-checkout', path: repo, ...(domains === undefined ? {} : { domains }) })
   resources.registerProvider({ id: 'code-checkout-test', domain: 'code', list: async (context) => {
     const ref = { rootId: context.root.id, sourceId: 'git:checkout' as SourceSelection['ref']['sourceId'] }
     return [{ id: resourceEntryId(ref), ref, title: 'Checkout', domain: 'code', kind: 'code',

@@ -239,7 +239,7 @@ export function MaterialUnavailable(props: Pick<MaterialsPanelProps, 't' | 'refr
   if (props.snapshot.status === 'loading' && props.list) return <div className={css.skeleton} role="status" aria-label={props.t('loading')}>
     {[0, 1, 2, 3].map(row => <div key={row} aria-hidden="true"><span /><span /></div>)}
   </div>
-  if (props.snapshot.status === 'loading') return <div className={css.loading} role="status">
+  if (props.snapshot.status === 'loading') return <div className={css.loading} role="status" aria-label={props.t('loadingSource')}>
     <IconLoadingOutlineRegular size={24} /><span>{props.t('loadingSource')}</span>
   </div>
   const failure = props.snapshot.failure

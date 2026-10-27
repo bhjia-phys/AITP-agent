@@ -207,7 +207,7 @@ it('presents literature, knowledge and code through real data while preserving s
   try {
     await knowledge.getByRole('button', { name: EMPTY, exact: true }).first().click()
     await expect.poll(() => delayed, { timeout: 10_000 }).toBe(true)
-    await reader.getByRole('status', { name: 'Loading materials…', exact: true }).first().waitFor()
+    await reader.getByRole('status', { name: 'Reading the source… The first scan of a large project may take longer.', exact: true }).first().waitFor()
     await shot(page, 'knowledge-loading')
   } finally { gate.resolve(undefined) }
   await reader.getByRole('button', { name: 'Use this source', exact: true }).waitFor()
