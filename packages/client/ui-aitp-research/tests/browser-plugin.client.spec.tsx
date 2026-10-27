@@ -18,6 +18,7 @@ import { WorkspaceSidebar } from '../src/client/WorkspaceSidebar.tsx'
 import { workspaceProjectAddress } from '../src/client/workspace-resources.ts'
 import { apply as nodeApply } from '../src/index.ts'
 import type { ResearchChangeReader } from '../src/client/research-change-model.ts'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 
 const RESEARCH = '@deepseek-ai/dsh-client-ui-aitp-research'
 const FIXTURES = '@deepseek-ai/dsh-client-ui-aitp-fixtures'
@@ -88,6 +89,51 @@ it('replaces change observations on real plugin reload and releases them on unlo
   await first.unload(RESEARCH)
   await first.flush()
   expect(readReloaded(nodes)).toBeNull()
+}, 60_000)
+
+it('waits for admitted discussion creation before real plugin unload completes', async ({ start }) => {
+  const client = await start()
+  const discussions = client.ctx.researchDiscussions
+  const scope = { workspaceId: WS, topicId: 'topic' }
+  const listing = Promise.withResolvers<undefined>()
+  const aborted = Promise.withResolvers<undefined>()
+  const creating = Promise.withResolvers<undefined>()
+  const created = Promise.withResolvers<SessionId>()
+  const list = vi.spyOn(client.ctx.researchWorkspaces, 'listDiscussions').mockImplementation((_workspace, _query, options) => {
+    const reply = Promise.withResolvers<Awaited<ReturnType<typeof client.ctx.researchWorkspaces.listDiscussions>>>()
+    options?.signal?.addEventListener('abort', () => {
+      aborted.resolve(undefined)
+      reply.reject(options.signal?.reason)
+    }, { once: true })
+    listing.resolve(undefined)
+    return reply.promise
+  })
+  const create = vi.spyOn(client.ctx.sessions, 'create').mockImplementation(() => {
+    creating.resolve(undefined)
+    return created.promise
+  })
+  const retain = vi.spyOn(client.ctx.sessions, 'retain')
+  const reading = discussions.open(scope)
+  const opening = discussions.newDiscussion({ ...scope, topicId: 'other' })
+  await Promise.all([listing.promise, creating.promise])
+  let unloaded = false
+  const removing = client.unload(RESEARCH).then(() => { unloaded = true })
+  try {
+    await aborted.promise
+    await discussions.newDiscussion(scope)
+    await client.flush()
+    expect(create).toHaveBeenCalledOnce()
+    expect(unloaded).toBe(false)
+  } finally {
+    created.resolve('admitted-before-unload' as SessionId)
+    await Promise.all([reading, opening, removing])
+    try {
+      expect(retain.mock.calls.some(([id]) => id === 'admitted-before-unload')).toBe(false)
+      expect(client.ctx.get('researchDiscussions')).toBeUndefined()
+    } finally {
+      list.mockRestore(); create.mockRestore(); retain.mockRestore()
+    }
+  }
 }, 60_000)
 
 it('registers the panel, its sidebar entry and the note tab type, and removes them on unload', async ({ start }) => {

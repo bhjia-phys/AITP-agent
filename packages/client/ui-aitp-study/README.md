@@ -30,6 +30,8 @@ Saved note source references are supplied by the Host. Opening one goes through 
 
 Removing a saved artifact clears only an editor draft for that artifact. An unrelated unfinished note remains available through “Continue draft”.
 
+After a confirmed save, capture or removal, the next list view starts at its first page while retaining the selected kind filter. The previous page cursor belongs to the earlier list revision and cannot be reused after that mutation.
+
 Mutations use one stable operation identity. Unknown acknowledgements retain the original request and lock draft changes until the explicit check confirms that operation. Navigation, local editing and merely opening a source send no model request.
 
 A bounded same-tab journal preserves pending save, capture and removal requests across a page reload. Restoration marks them uncertain, retains the original operation identity and does not replay them. Acknowledgement clears the journal. Failed storage and unreadable recovery records remain visible and do not replace the Host's saved artifacts.

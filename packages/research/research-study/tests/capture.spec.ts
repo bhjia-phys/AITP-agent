@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { SessionSeq } from '@deepseek-ai/dsh-session'
 import { captureCompletedAnswer } from '../src/capture.ts'
-import { answerFixture } from './fixture.ts'
+import { answerFixture, ptcAnswerFixture } from './fixture.ts'
 
 it('saves the actual answer, selected quotes and recorded request context with separate evidence labels', () => {
   const f = answerFixture()
@@ -34,4 +34,39 @@ it('does not label failed source reads or projected-away context as captured evi
   const answer = captureCompletedAnswer(f.session.id, f.events, f.answer.seq, f.projections, 100)
   expect(answer.capture.contexts).toEqual([])
   expect(answer.citations.map(item => item.basis)).toEqual(['selected'])
+})
+
+it('captures the retained direct result without restoring projected-away source text or citations', () => {
+  const f = answerFixture({ projectRead: true })
+  const answer = captureCompletedAnswer(f.session.id, f.events, f.answer.seq, f.projections, 100)
+  expect(answer.capture.contexts.find(item => item.name === 'research_read_source'))
+    .toEqual({ seq: f.read.seq, name: 'research_read_source', text: 'Context projected away.' })
+  expect(answer.citations.filter(item => item.basis === 'recorded-source-read')).toEqual([])
+})
+
+it.each([false, true])('captures a returned PTC source read from the visible parent result (nested=%s)', (nested) => {
+  const f = ptcAnswerFixture({ nested })
+  const answer = captureCompletedAnswer(f.session.id, f.events, f.answer.seq, f.projections, 100)
+  expect(f.session.deriveMessages().filter(message => message.role === 'tool').map(message => message.content))
+    .toEqual([[{ type: 'text', text: f.output }]])
+  expect(answer.capture.contexts).toEqual([{ seq: f.result!.seq, name: 'research_read_source', text: f.text }])
+  expect(answer.citations).toEqual([{ selection: f.selection, basis: 'recorded-source-read', sessionId: f.session.id, seq: f.result!.seq }])
+})
+
+it('recognizes the exact JSON string encoding returned by a PTC program', () => {
+  const f = ptcAnswerFixture({ nested: true, output: 'json' })
+  const answer = captureCompletedAnswer(f.session.id, f.events, f.answer.seq, f.projections, 100)
+  expect(answer.capture.contexts).toEqual([{ seq: f.result!.seq, name: 'research_read_source', text: f.text }])
+  expect(answer.citations).toHaveLength(1)
+})
+
+it.each([
+  { output: 'undelivered' }, { output: 'truncated' }, { output: 'missing' }, { projectOutput: true },
+  { failedRead: true }, { failedParent: true }, { failedIntermediate: true }, { previousTurn: true },
+  { missingStart: true }, { missingParent: true },
+] as const)('does not attribute unverified PTC source delivery: %j', (control) => {
+  const f = ptcAnswerFixture({ nested: true, ...control })
+  const answer = captureCompletedAnswer(f.session.id, f.events, f.answer.seq, f.projections, 100)
+  expect(answer.capture.contexts).toEqual([])
+  expect(answer.citations).toEqual([])
 })

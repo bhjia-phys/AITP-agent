@@ -380,6 +380,34 @@ it('batch-resolves links with one authority observation and projects only explic
   expect(value(await service.listResources({ topic: { workspaceId, topicId } }, signal())).items).toEqual([])
 })
 
+it('resolves only valid PDF page fragments while preserving other anchors and current root authority', async () => {
+  const { service, a, b } = await fixture()
+  const first = await service.registerRoot({ id: 'notes', path: a })
+  let authorized = true
+  const papers = await service.registerRoot({ id: 'papers', path: b, isAuthorized: () => authorized })
+  const from = { rootId: first.rootId, sourceId: sourceIdForPath('note.md') }
+  const path = '文献 乙.PDF'
+  const href = `../b/${encodeURIComponent(path)}`
+  const target = { rootId: papers.rootId, sourceId: sourceIdForPath(path) }
+  for (const page of ['1', '2', '02', String(Number.MAX_SAFE_INTEGER)]) {
+    expect(await service.resolveLocalLink({ from, href: `${href}#page=${page}` }, signal()))
+      .toEqual({ ref: target, locator: { kind: 'pdf-page', page: Number(page) } })
+  }
+  for (const fragment of ['page=0', 'page=-1', 'page=1.5', 'page=2e0', 'page=', 'page=9007199254740992', 'page=2&zoom=100', 'named-destination']) {
+    expect(await service.resolveLocalLink({ from, href: `${href}#${fragment}` }, signal()))
+      .toEqual({ ref: target, locator: { kind: 'anchor', anchor: fragment } })
+  }
+  for (const anchor of ['page=2', '定义']) {
+    expect(await service.resolveLocalLink({ from, href: `note.md#${encodeURIComponent(anchor)}` }, signal()))
+      .toEqual({ ref: from, locator: { kind: 'anchor', anchor } })
+  }
+  for (const rejected of ['../missing/paper.pdf#page=2', 'https://example.com/paper.pdf#page=2', `${href}#page=%ZZ`]) {
+    expect(await service.resolveLocalLink({ from, href: rejected }, signal())).toBeUndefined()
+  }
+  authorized = false
+  expect(await service.resolveLocalLink({ from, href: `${href}#page=2` }, signal())).toBeUndefined()
+})
+
 it('keeps independent explicit associations when another contributor fails and removes a disposed in-flight contribution', async () => {
   const { service, a } = await fixture()
   const root = await service.registerRoot({ id: 'a', path: a })

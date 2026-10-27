@@ -8,7 +8,7 @@ import ResearchResources from '@deepseek-ai/dsh-research-resources'
 import { afterEach, expect, it } from 'vitest'
 import ResearchStudy from '../src/index.ts'
 import type { StudyResult } from '../src/types.ts'
-import { answerFixture } from './fixture.ts'
+import { answerFixture, ptcAnswerFixture } from './fixture.ts'
 
 class Query extends SessionQueryEngine {
   override async searchSessions(): Promise<never> { throw new Error('Capture does not perform corpus search') }
@@ -70,6 +70,18 @@ it('offers saved drafts as explicitly provisional sources and withdraws a remove
   expect(read).toMatchObject({ ok: true, value: { resource: { kind: 'note', metadata: { support: 'provisional', generated: 'false' } }, body: { kind: 'text' } } })
   value(await f.service.removeArtifact({ operationId: 'remove-source', id: saved.id }))
   expect(await resources.readResource({ ref: note.source.ref }, signal())).toMatchObject({ ok: false, error: { code: 'not-found' } })
+})
+
+it('saves verified nested PTC delivery through the existing Session observer', async () => {
+  const f = await fixture(), answer = ptcAnswerFixture({ nested: true, output: 'json' })
+  f.sessions.enter(answer.session)
+  const receipt = value(await f.service.captureAnswer({ operationId: 'capture-ptc', title: 'Returned condition', kind: 'note',
+    sessionId: answer.session.id, seq: answer.answer.seq }, signal()))
+  const saved = value(await f.service.getArtifact({ id: receipt.id }))
+  expect(saved.capture?.contexts).toEqual([{ seq: answer.result!.seq, name: 'research_read_source', text: answer.text }])
+  expect(saved.citations).toEqual([{ selection: answer.selection, basis: 'recorded-source-read',
+    sessionId: answer.session.id, seq: answer.result!.seq }])
+  expect(answer.session.deriveMessages().filter(message => message.role === 'tool')).toHaveLength(1)
 })
 
 it('reports absent Host storage and absent Session observation explicitly', async () => {

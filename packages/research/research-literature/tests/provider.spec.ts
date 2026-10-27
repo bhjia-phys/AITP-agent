@@ -59,6 +59,33 @@ describe('local literature records', () => {
     expect(page.issues.some(issue => issue.reason.includes('traversal reached its configured bound'))).toBe(true)
   })
 
+  it('opens an authored encoded PDF page link through the real resolver and page reader', async () => {
+    const { root, service, sourceRoot } = await fixture()
+    const path = '论文 甲.PDF'
+    const href = `${encodeURIComponent(path)}#page=2`
+    const note = `# Reading\n\n[Page two](${href})\n`
+    await copyFile(new URL('./fixtures/two-pages.pdf', import.meta.url), join(root, path))
+    await writeFile(join(root, 'index.md'), note)
+    service.registerProvider(createLiteratureProvider(Config({ initialPdfPages: 1 })))
+    const from = { rootId: sourceRoot, sourceId: sourceIdForPath('index.md') }
+    const source = value(await service.readResource({ ref: from }, signal()))
+    const link = source.resource.links.find(link => link.label === 'Page two')
+    if (link?.target === undefined) throw new Error('The authored PDF link was not resolved.')
+    const reading = value(await service.readResource({ ref: link.target,
+      ...(link.locator === undefined ? {} : { locator: link.locator }) }, signal()))
+    expect(reading.body).toMatchObject({ kind: 'pdf', pageCount: 2, pages: [{ page: 2, text: 'Page two exact text' }] })
+    expect(reading.locator).toEqual({ kind: 'pdf-page', page: 2 })
+    expect(link.href).toBe(href)
+    for (const page of ['0', '3']) {
+      const located = await service.resolveLocalLink({ from, href: `${encodeURIComponent(path)}#page=${page}` }, signal())
+      if (located === undefined) throw new Error('The local source reference was not retained.')
+      expect(value(await service.readResource(located, signal())).body)
+        .toMatchObject({ kind: 'unavailable', reason: page === '0' ? 'unsupported' : 'missing' })
+    }
+    expect(await readFile(join(root, 'index.md'), 'utf8')).toBe(note)
+    expect(await readFile(join(root, path))).toEqual(await readFile(new URL('./fixtures/two-pages.pdf', import.meta.url)))
+  })
+
   it.each([1024 * 1024, 4 * 1024 * 1024])('omits embedding at limit %i without losing native bytes or reporting a false warning', async (maxInlinePdfBytes) => {
     const { root, service, sourceRoot } = await fixture({ maxResultCharacters: 4096 })
     const bytes = paddedPdf(await readFile(new URL('./fixtures/two-pages.pdf', import.meta.url)), 2 * 1024 * 1024)

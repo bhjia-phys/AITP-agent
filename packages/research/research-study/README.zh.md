@@ -54,7 +54,7 @@ kind: "package-reference"
 
 一个有界 `state.json` 保存草稿与不变操作的回执。复用已有原子写入器和文件锁，串行发布协作 owner 的修改；本地队列在卸载时等待已接纳保存结束。原子替换支持进程重启，断电 fsync 持久性沿用已有 atomic-write 实现。不另存 Markdown 镜像，也不复制科研来源。
 
-捕获保存真实 assistant 的 Session ID、序号、message ID、provider 和 model。人选择的来源仍是 `selected`；保留的具名运行上下文中的资料引用是 `recorded-context`；配对成功的 `research_read_source` 结果是 `recorded-source-read`。失败读取和文字已被投影移除的上下文不产生这些证据。这些标记不表示整篇资料已经读完，也不表示科学结论已验证。编辑保留原始回答引用，并将草稿标为已编辑。
+捕获保存真实 assistant 的 Session ID、序号、message ID、provider 和 model。人选择的来源仍是 `selected`；保留的具名运行上下文中的资料引用是 `recorded-context`；配对成功的 `research_read_source` 结果是 `recorded-source-read`。直接读取使用投影后保留的工具结果。PTC 子调用事件本身不能证明模型收到内容：嵌套读取还须有完整配对且成功的父调用链，其日志文本须完整出现在保留的 `run_code` 结果中，形式为原文或精确的 JSON 字符串编码；捕获序号指向该父结果。缺失、未返回、仅部分保留或转述的子调用文本不据此推断为已交付。失败读取和文字已被投影移除的上下文不产生这些证据。这些标记不表示模型已经理解内容、整篇资料已经读完或科学结论已验证。编辑保留原始回答引用，并将草稿标为已编辑。
 
 可选 provider 在知识域投影 `kind: note`，明确标注 `study-draft`、模型生成或手写及临时状态。读取仍来自同一个操作存储，精确选段会校验原文，已删除草稿明确不可用；卸载会撤销自己的 provider 与狭窄根租约。文献、知识和代码插件仍可独立使用。
 

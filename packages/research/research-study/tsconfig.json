@@ -12,6 +12,7 @@
     { "path": "../../boot/app-boot" },
     { "path": "../../core/session" },
     { "path": "../../core/agent-loop" },
+    { "path": "../../core/tools" },
     { "path": "../../api/session-controller/tsconfig.host.json" },
     { "path": "../../session-query/session-query" },
     { "path": "../../llm/llm" },

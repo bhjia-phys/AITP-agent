@@ -109,7 +109,7 @@ export function createStudyStore(journal?: StudyJournal): EngineStoreHandle<Stud
         state.recoveryProblem = journal?.write(undefined) ?? null
       },
       acknowledged: (state, receipt: StudyArtifactReceipt) => {
-        state.pending = null; state.saving = false; state.failure = null
+        state.pending = null; state.saving = false; state.failure = null; state.cursor = null
         if (receipt.state === 'saved' || state.draft?.id === receipt.id) state.draft = null
         state.location = receipt.state === 'removed' ? { kind: 'list' } : { kind: 'artifact', id: receipt.id }
         state.recoveryProblem = journal?.write(undefined) ?? null

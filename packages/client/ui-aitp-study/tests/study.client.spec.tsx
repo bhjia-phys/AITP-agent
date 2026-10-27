@@ -3,6 +3,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { bindSnapshotSelector, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import type { SessionId, SessionSeq } from '@deepseek-ai/dsh-session/types'
 import type { SourceId, SourceRootId, SourceSelection } from '@deepseek-ai/dsh-research-resources/types'
@@ -31,10 +32,11 @@ function panel(values: Record<string, ResourceSnapshot<unknown>> = {}) {
   const face: StudyFace = { refresh: vi.fn(), execute: vi.fn(async () => {}), openSession: vi.fn(), openSource: vi.fn(async () => false),
     exportArtifact: vi.fn<StudyFace['exportArtifact']>(async () => ({ ok: false, error: { code: 'unsupported', message: 'Export unavailable', retryable: false } })),
   }
+  const read = vi.fn((address: string) => values[address] ?? none)
   const props = { ...face, t, useStore: bindSnapshotSelector(store), actions: store.actions,
-    useResource: (address: string) => values[address] ?? none } as StudyPanelProps
+    useResource: read } as StudyPanelProps
   render(<StudyPanel {...props} />)
-  return { store, face }
+  return { store, face, read }
 }
 
 it('submits a handwritten note with human-linked references and no fabricated captured-answer identity', () => {
@@ -140,4 +142,45 @@ it('continues an unsaved note after removing a different saved artifact from the
   fireEvent.click(screen.getByRole('button', { name: 'Continue draft' }))
   expect(screen.getByRole('textbox', { name: 'Title' }).getAttribute('value')).toBe('Keep this note')
   expect(screen.getByRole<HTMLTextAreaElement>('textbox', { name: 'Note text (Markdown)' }).value).toBe('Unfinished independent observations.')
+})
+
+it.each(['save', 'remove'] as const)('returns to a readable first page after %s invalidates the second-page cursor', (kind) => {
+  const second: StudyArtifact = { ...artifact, id: 'draft-b' as StudyArtifactId, title: 'Second-page note' }
+  const cursor = 'previous-revision-page'
+  const oldPage = studyListAddress({ cursor })
+  const values: Record<string, ResourceSnapshot<unknown>> = {
+    [STUDY_SETUP]: live({ canSave: true, canCapture: true, asSources: true }),
+    [studyListAddress({})]: live({ items: [artifact], nextCursor: cursor }),
+    [oldPage]: live({ items: [second], nextCursor: null }),
+    [studyArtifactAddress(second.id)]: live(second),
+  }
+  const { store, face, read } = panel(values)
+  fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+  expect(screen.getByRole('button', { name: 'First page' })).toBeDefined()
+  fireEvent.click(screen.getByRole('button', { name: second.title }))
+  if (kind === 'save') {
+    fireEvent.click(screen.getByRole('button', { name: 'Edit note' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Note text (Markdown)' }), { target: { value: 'Revised observation.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }))
+  } else {
+    fireEvent.click(screen.getByText('Remove draft', { selector: 'summary' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove draft' }))
+  }
+  const operation = vi.mocked(face.execute).mock.calls[0]?.[0]
+  if (operation === undefined || operation.kind !== kind) throw new Error('The reading action must submit its selected mutation.')
+  expect(operation.request).toMatchObject({ id: second.id })
+  act(() => {
+    store.actions.pending(operation, true)
+    values[oldPage] = { status: 'failed', value: undefined, failure: new RemoteError('aitp/study',
+      'The study list changed; reopen its first page.', { code: 'invalid-request', message: 'The study list changed; reopen its first page.', retryable: true }) }
+    values[studyListAddress({})] = live({ items: [artifact], nextCursor: kind === 'save' ? 'current-revision-page' : null })
+    read.mockClear()
+    store.actions.acknowledged({ operationId: operation.request.operationId, id: second.id,
+      version: 'v2' as StudyArtifactVersion, state: kind === 'save' ? 'saved' : 'removed', committedAt: 'now' })
+  })
+  if (kind === 'save') fireEvent.click(screen.getByRole('button', { name: 'Back to study notes' }))
+  expect(screen.getByRole('button', { name: artifact.title })).toBeDefined()
+  expect(screen.queryByRole('button', { name: 'First page' })).toBeNull()
+  expect(read).toHaveBeenCalledWith(studyListAddress({}))
+  expect(read).not.toHaveBeenCalledWith(oldPage)
 })

@@ -86,7 +86,10 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     returnTo: (() => void) | undefined
   }>()
   private study: DiscussionStudyAdmission | undefined
-  private disposed = false
+  private readonly lifetime = new AbortController()
+  private disposal: Promise<void> | undefined
+
+  private get disposed(): boolean { return this.lifetime.signal.aborted }
 
   constructor(private readonly ctx: Context, private readonly workspaces: ResearchWorkspaceRegistry,
     private readonly fallback: DiscussionReaderNavigation, private readonly t: TranslateNS<'aitp.research.discussion'>) {}
@@ -102,11 +105,13 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     return id === undefined ? undefined : this.owned.get(id)
   }
   private async perform(scope: ResearchDiscussionScope, run: () => Promise<void>): Promise<void> {
+    if (this.disposed) return
     const key = discussionScopeKey(scope)
     const existing = this.pending.get(key)
     if (existing !== undefined) return existing
     this.update(scope, { visible: true, loading: true, error: undefined })
-    const task = run().catch((error: unknown) => { this.update(scope, { error: error instanceof Error ? error.message : String(error) }) })
+    const task = Promise.resolve().then(async () => { if (!this.disposed) await run() })
+      .catch((error: unknown) => { this.update(scope, { error: error instanceof Error ? error.message : String(error) }) })
       .finally(() => { this.pending.delete(key); this.update(scope, { loading: false }) })
     this.pending.set(key, task)
     await task
@@ -117,11 +122,13 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     await this.perform(scope, async () => {
       if (this.selection(scope) === undefined) {
         const listed = await this.workspaces.listDiscussions(scope.workspaceId,
-          scope.topicId === undefined ? {} : { topicId: scope.topicId })
+          scope.topicId === undefined ? {} : { topicId: scope.topicId }, { signal: this.lifetime.signal })
+        this.lifetime.signal.throwIfAborted()
         if (!listed.ok) throw new Error(listed.error.message)
         const id = listed.value.items[0]?.sessionId
         await this.adopt(scope, id ?? await this.ctx.sessions.create({ workspaceId: scope.workspaceId }), id === undefined)
       }
+      this.lifetime.signal.throwIfAborted()
       const selected = this.selection(scope)
       if (prompt !== undefined && selected !== undefined) {
         const result = this.ctx.conversation.input.requestDraftInitialization(selected.reference.binding, { prompt })
@@ -131,6 +138,7 @@ export class ResearchDiscussionController implements ResearchDiscussions {
   }
   async newDiscussion(scope: ResearchDiscussionScope): Promise<void> {
     await this.perform(scope, async () => {
+      this.lifetime.signal.throwIfAborted()
       await this.adopt(scope, await this.ctx.sessions.create({ workspaceId: scope.workspaceId }), true)
     })
   }
@@ -139,7 +147,8 @@ export class ResearchDiscussionController implements ResearchDiscussions {
       const known = this.owned.get(sessionId)
       if (known === undefined) {
         const listed = await this.workspaces.listDiscussions(scope.workspaceId,
-          scope.topicId === undefined ? {} : { topicId: scope.topicId })
+          scope.topicId === undefined ? {} : { topicId: scope.topicId }, { signal: this.lifetime.signal })
+        this.lifetime.signal.throwIfAborted()
         if (!listed.ok) throw new Error(listed.error.message)
         if (!listed.value.items.some(item => item.sessionId === sessionId)) throw new Error(this.t('changed'))
       } else if (discussionScopeKey(known.scope) !== discussionScopeKey(scope)) throw new Error(this.t('changed'))
@@ -169,7 +178,7 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     const previous = discussionView(this.views.getSnapshot(), scope)
     let owned = this.owned.get(sessionId)
     if (owned === undefined) {
-      const reference = this.ctx.sessions.retain(sessionId, { source: 'researchDiscussion' })
+      const reference = this.ctx.sessions.retain(sessionId, { source: 'researchDiscussion', signal: this.lifetime.signal })
       const initial = draft || previous.reference === undefined ? previous.origin : undefined
       const releaseSubmission = this.ctx.conversation.submissions.register(sessionId, () => this.capture(sessionId))
       const releaseNavigation = this.ctx.uiChatNavigation.register(sessionId, (address, params) => {
@@ -183,12 +192,14 @@ export class ResearchDiscussionController implements ResearchDiscussions {
       this.owned.set(sessionId, owned)
     }
     await owned.reference.ready
+    this.lifetime.signal.throwIfAborted()
     const latest = discussionView(this.views.getSnapshot(), scope).origin
     // Source choices made while loading win; otherwise each Session retains its own source.
     if (latest !== previous.origin) owned.origin = sourceFor(scope, latest)
     this.update(scope, { reference: owned.reference, origin: owned.origin, draft: owned.draft })
   }
   setSource(scope: ResearchDiscussionScope, origin: ResearchOrigin): void {
+    if (this.disposed) return
     const source = sourceFor(scope, origin)
     const selected = this.selection(scope)
     if (selected !== undefined) selected.origin = source
@@ -277,10 +288,18 @@ export class ResearchDiscussionController implements ResearchDiscussions {
       }
     }
   }
-  /** Release retained generations and their submission/navigation registrations together. */
-  dispose(): void {
-    this.disposed = true
-    for (const owned of this.owned.values()) owned.release()
-    this.owned.clear(); this.readers.clear(); this.presentations.clear(); this.study = undefined
+  /**
+   * Close admission, cancel reads and drain admitted openings before releasing retained generations.
+   * Native Session creation already sent to the Host is awaited, not rolled back.
+   * @returns completion of pending openings and release of their submission/navigation registrations.
+   */
+  dispose(): Promise<void> {
+    if (this.disposal !== undefined) return this.disposal
+    this.disposal = Promise.allSettled(this.pending.values()).then(() => {
+      for (const owned of this.owned.values()) owned.release()
+      this.owned.clear(); this.readers.clear(); this.presentations.clear(); this.study = undefined
+    })
+    this.lifetime.abort()
+    return this.disposal
   }
 }

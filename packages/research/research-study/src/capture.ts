@@ -4,6 +4,7 @@ import type { SessionEvent, SessionId, SessionMessageProjection, SessionSeq } fr
 import type { SourceSelection } from '@deepseek-ai/dsh-research-resources/types'
 import { parseMaterialSource } from '@deepseek-ai/dsh-research-resources/protocol'
 import type {} from '@deepseek-ai/dsh-agent-loop'
+import type {} from '@deepseek-ai/dsh-tools/types'
 import { z } from 'zod'
 import type { StudyAnswerCapture, StudyCitation } from './types.ts'
 import { StudyError, selectionSchema } from './store.ts'
@@ -74,14 +75,56 @@ export function captureCompletedAnswer(sessionId: SessionId, events: readonly Se
       refs.push(...citations(section.text, 'recorded-context', sessionId, context.seq))
     }
   }
-  const reads = new Set(prefix.flatMap(event => event.type === 'tool/call' && event.data.name === 'research_read_source'
-    && event.data.turn === target.data.turn ? [event.data.callId] : []))
+  const calls = new Map(prefix.flatMap(event => event.type === 'tool/call' && event.data.turn === target.data.turn
+    ? [[event.data.callId, event] as const] : []))
+  const starts = new Map(prefix.flatMap(event => event.type === 'tool/ptc-dispatch-start'
+    ? [[event.data.subCallId, event] as const] : []))
+  const dispatches = new Map(prefix.flatMap(event => event.type === 'tool/ptc-dispatch'
+    ? [[event.data.subCallId, event] as const] : []))
+  const nestedReads = new Map<SessionEvent<'tool/call'>['data']['callId'], SessionEvent<'tool/ptc-dispatch'>[]>()
+  for (const event of dispatches.values()) {
+    if (event.data.name !== 'research_read_source' || event.data.isError) continue
+    const reads = nestedReads.get(event.data.rootCallId) ?? []
+    reads.push(event)
+    nestedReads.set(event.data.rootCallId, reads)
+  }
+  const pairedStart = (event: SessionEvent<'tool/ptc-dispatch'>): SessionEvent<'tool/ptc-dispatch-start'> | undefined => {
+    const start = starts.get(event.data.subCallId)
+    return start !== undefined && start.seq < event.seq && start.data.name === event.data.name
+      && start.data.rootCallId === event.data.rootCallId && start.data.parentCallId === event.data.parentCallId ? start : undefined
+  }
+  const recordRead = (text: string, seq: SessionSeq): void => {
+    if (contexts.some(context => context.seq === seq && context.name === 'research_read_source' && context.text === text)) return
+    contexts.push({ seq, name: 'research_read_source', text })
+    refs.push(...citations(text, 'recorded-source-read', sessionId, seq))
+  }
   for (const event of prefix) {
-    if (event.type !== 'tool/result' || event.data.message.isError || !reads.has(event.data.message.toolCallId)
-      || !visible.has(event.seq)) continue
-    const text = event.data.message.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
-    contexts.push({ seq: event.seq, name: 'research_read_source', text })
-    refs.push(...citations(text, 'recorded-source-read', sessionId, event.seq))
+    if (event.type !== 'tool/result' || event.data.message.isError || event.data.turn !== target.data.turn || !visible.has(event.seq)) continue
+    const call = calls.get(event.data.message.toolCallId)
+    if (call === undefined || call.seq >= event.seq) continue
+    const retained = deriveEventMessage(event, surface.projectedMessages)
+    if (retained?.role !== 'tool' || retained.isError || retained.toolCallId !== call.data.callId) continue
+    const text = retained.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
+    if (call.data.name === 'research_read_source') { recordRead(text, event.seq); continue }
+    if (call.data.name !== 'run_code') continue
+    for (const read of nestedReads.get(call.data.callId) ?? []) {
+      let child = read
+      let start = pairedStart(child)
+      if (start === undefined || child.seq >= event.seq) continue
+      // Log-only dispatches require a complete enclosing chain and evidence in the model-visible root result.
+      while (child.data.parentCallId !== call.data.callId) {
+        const parent = dispatches.get(child.data.parentCallId)
+        const parentStart = parent === undefined ? undefined : pairedStart(parent)
+        if (parent === undefined || parentStart === undefined || parent.data.isError
+          || parent.data.rootCallId !== call.data.callId || parent.seq <= child.seq || parent.seq >= event.seq
+          || parentStart.seq >= start.seq) { start = undefined; break }
+        child = parent
+        start = parentStart
+      }
+      if (start === undefined || start.seq <= call.seq) continue
+      const passage = read.data.content.filter(block => block.type === 'text').map(block => block.text).join('\n')
+      if (passage.trim() && (text.includes(passage) || text.includes(JSON.stringify(passage)))) recordRead(passage, event.seq)
+    }
   }
   return { markdown, citations: refs.filter((item, index, array) =>
     array.findIndex(other => JSON.stringify(other) === JSON.stringify(item)) === index),

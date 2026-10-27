@@ -120,7 +120,7 @@ describe('reading-side discussions', () => {
     expect(fixture.create).toHaveBeenCalledTimes(1)
     expect(fixture.draft(first!.sessionId).snapshot.draft).toBe('First draft')
     expect(fixture.draft(first!.sessionId).notices.getSnapshot()).toMatchObject({ level: 'info', text: 'draftPreserved' })
-    fixture.controller.dispose()
+    await fixture.controller.dispose()
     expect(fixture.runtime.ctx.sessions.retainInfo(first!.sessionId).getSnapshot().referenceCount).toBe(0)
     expect(fixture.conversation.submissions.capture(first!.sessionId)).toBeUndefined()
     expect(fixture.navigation.open(first!.sessionId, 'dsh-resource://source/paper')).toBe(false)
@@ -143,6 +143,119 @@ describe('reading-side discussions', () => {
     }), { signal })
     expect(discussionView(fixture.controller.views.getSnapshot(), scope).origin?.resourceId).toBe('second.md')
     expect(discussionView(fixture.controller.views.getSnapshot(), scope).draft).toBe(false)
+  })
+
+  it('does not create a Session when a pending discussion list arrives after disposal', async () => {
+    const fixture = await setup()
+    const entered = Promise.withResolvers<undefined>()
+    const reply = Promise.withResolvers<Awaited<ReturnType<ResearchWorkspaceRegistry['listDiscussions']>>>()
+    fixture.list.mockImplementationOnce(() => {
+      entered.resolve(undefined)
+      return reply.promise
+    })
+    const opening = fixture.controller.open(scope, { resourceId: 'paper.md' }, 'Unsent draft')
+    await entered.promise
+    const closing = fixture.controller.dispose()
+    reply.resolve({ ok: true, value: { items: [], completeness: 'complete', issues: [] } })
+    await Promise.all([opening, closing])
+    expect(fixture.create).not.toHaveBeenCalled()
+    expect(fixture.ask).not.toHaveBeenCalled()
+    expect(discussionView(fixture.controller.views.getSnapshot(), scope).reference).toBeUndefined()
+  })
+
+  it('rejects new discussion work after disposal without creating or listing Sessions', async () => {
+    const fixture = await setup()
+    await fixture.controller.dispose()
+    await fixture.controller.open(scope)
+    await fixture.controller.newDiscussion(scope)
+    await fixture.controller.select(scope, brandString<SessionId>('unopened'))
+    expect(fixture.create).not.toHaveBeenCalled()
+    expect(fixture.list).not.toHaveBeenCalled()
+    expect(fixture.ask).not.toHaveBeenCalled()
+  })
+
+  it('closes queued admission before any lookup or creation begins', async () => {
+    const fixture = await setup()
+    const opening = fixture.controller.open(scope)
+    await Promise.all([opening, fixture.controller.dispose()])
+    expect(fixture.list).not.toHaveBeenCalled()
+    expect(fixture.create).not.toHaveBeenCalled()
+  })
+
+  it('aborts reads and drains an admitted create before releasing the retained Session', async () => {
+    const fixture = await setup()
+    await fixture.controller.open(scope, { resourceId: 'paper.md' }, 'Keep this draft')
+    const reference = discussionView(fixture.controller.views.getSnapshot(), scope).reference!
+    const draft = fixture.draft(reference.sessionId)
+    const creating = Promise.withResolvers<undefined>()
+    const created = Promise.withResolvers<SessionId>()
+    fixture.create.mockImplementationOnce(() => {
+      creating.resolve(undefined)
+      return created.promise
+    })
+    const listing = Promise.withResolvers<undefined>()
+    const listed = Promise.withResolvers<Awaited<ReturnType<ResearchWorkspaceRegistry['listDiscussions']>>>()
+    let signal: AbortSignal | undefined
+    fixture.list.mockImplementationOnce((_workspace, _query, options) => {
+      signal = options?.signal
+      listing.resolve(undefined)
+      return listed.promise
+    })
+    const opening = fixture.controller.newDiscussion(scope)
+    const reading = fixture.controller.open({ ...scope, topicId: 'other' })
+    await Promise.all([creating.promise, listing.promise])
+    let settled = false
+    let reentered: Promise<void> | undefined
+    signal?.addEventListener('abort', () => { reentered = fixture.controller.dispose() }, { once: true })
+    const disposal = fixture.controller.dispose()
+    const closing = disposal.then(() => { settled = true })
+    try {
+      expect(signal?.aborted).toBe(true)
+      expect(reentered).toBe(disposal)
+      await fixture.controller.newDiscussion(scope)
+      expect(settled).toBe(false)
+      expect(fixture.runtime.ctx.sessions.retainInfo(reference.sessionId).getSnapshot().referenceCount).toBe(1)
+      expect(draft.snapshot.draft).toBe('Keep this draft')
+      expect(discussionView(fixture.controller.views.getSnapshot(), scope).origin?.resourceId).toBe('paper.md')
+    } finally {
+      listed.resolve({ ok: true, value: { items: [], completeness: 'complete', issues: [] } })
+      created.resolve(brandString<SessionId>('already-admitted'))
+      await Promise.all([opening, reading, closing])
+    }
+    expect(fixture.create).toHaveBeenCalledTimes(2)
+    expect(fixture.runtime.ctx.sessions.retainInfo(reference.sessionId).getSnapshot().referenceCount).toBe(0)
+    expect(fixture.runtime.ctx.sessions.retainInfo(brandString<SessionId>('already-admitted')).getSnapshot().referenceCount).toBe(0)
+    expect(fixture.ask).not.toHaveBeenCalled()
+  })
+
+  it('cancels its pending readiness without releasing another owner of the same Session', async () => {
+    const fixture = await setup()
+    const entered = Promise.withResolvers<undefined>()
+    const loaded = Promise.withResolvers<undefined>()
+    const id = brandString<SessionId>('pending-native-opening')
+    let openingSignal: AbortSignal | undefined
+    fixture.create.mockImplementationOnce(() => fixture.runtime.sessions.add({ id, snapshot: { blank: true },
+      initialOpen: (signal) => {
+        openingSignal = signal
+        entered.resolve(undefined)
+        return loaded.promise
+      },
+    }))
+    const opening = fixture.controller.open(scope, { resourceId: 'paper.md' }, 'Do not initialize after unload')
+    await entered.promise
+    const survivor = fixture.runtime.ctx.sessions.retain(id, { source: 'researchDiscussion' })
+    try {
+      await Promise.all([opening, fixture.controller.dispose()])
+      expect(fixture.runtime.ctx.sessions.retainInfo(id).getSnapshot().referenceCount).toBe(1)
+      expect(openingSignal?.aborted).toBe(false)
+      expect(fixture.draft(id).snapshot.draft).toBe('')
+      expect(discussionView(fixture.controller.views.getSnapshot(), scope).reference).toBeUndefined()
+      expect(fixture.ask).not.toHaveBeenCalled()
+    } finally {
+      loaded.resolve(undefined)
+      await survivor.ready
+      survivor.release()
+    }
   })
 
   it.each([
@@ -191,7 +304,11 @@ describe('reading-side discussions', () => {
     expect(view).toMatchObject({ loading: false, visible: true, draft: true })
     const id = view.reference!.sessionId
     expect(fixture.create).toHaveBeenCalledOnce()
-    expect(fixture.list).toHaveBeenCalledExactlyOnceWith(scope.workspaceId, { topicId: scope.topicId })
+    expect(fixture.list).toHaveBeenCalledOnce()
+    const [workspace, query, options] = fixture.list.mock.calls[0]!
+    expect(workspace).toBe(scope.workspaceId)
+    expect(query).toEqual({ topicId: scope.topicId })
+    expect(options?.signal).toBeInstanceOf(AbortSignal)
     expect(fixture.draft(id).snapshot.draft).toBe('Retained draft')
     expect(fixture.ask).not.toHaveBeenCalled()
     expect(await fixture.capture(id)(request(id), undefined)).toEqual({ ok: true, value: { accepted: true } })
@@ -251,12 +368,15 @@ describe('reading-side discussions', () => {
 
   it('does not reopen a pane that the researcher collapsed while the native Session was being created', async () => {
     const fixture = await setup()
+    const creating = Promise.withResolvers<undefined>()
     let finish: ((id: SessionId) => void) | undefined
     fixture.create.mockImplementationOnce(async () => {
+      creating.resolve(undefined)
       const id = await new Promise<SessionId>((resolve) => { finish = resolve })
       return fixture.runtime.sessions.add({ id, snapshot: { blank: true } })
     })
     const opening = fixture.controller.newDiscussion(scope)
+    await creating.promise
     expect(discussionView(fixture.controller.views.getSnapshot(), scope).loading).toBe(true)
     fixture.controller.collapse(scope)
     finish?.(brandString<SessionId>('late-session'))

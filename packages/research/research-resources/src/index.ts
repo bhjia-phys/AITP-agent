@@ -458,8 +458,12 @@ export class ResearchResources extends TypertRemoteService {
         .sort((a, b) => b.path.length - a.path.length)[0]
       if (target === undefined) return undefined
       const path = relative(target.path, absolute).split(sep).join('/')
+      const pageDigits = /\.pdf$/i.test(path) ? /^page=(\d+)$/.exec(anchor ?? '')?.[1] : undefined
+      const page = pageDigits === undefined ? undefined : Number(pageDigits)
+      const locator: SourceLocator | undefined = page !== undefined && Number.isSafeInteger(page) && page > 0
+        ? { kind: 'pdf-page', page } : anchor ? { kind: 'anchor', anchor } : undefined
       return { ref: { rootId: target.id, sourceId: sourceIdForPath(path) },
-        ...(anchor ? { locator: { kind: 'anchor', anchor } } : {}) }
+        ...(locator === undefined ? {} : { locator }) }
     } catch (error) {
       // Malformed or unregistered links stay authored hrefs, never guessed sources.
       void error

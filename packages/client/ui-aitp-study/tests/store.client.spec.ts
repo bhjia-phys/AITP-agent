@@ -4,6 +4,8 @@ import { createStudyStore, type StudyOperation } from '../src/client/store.ts'
 
 it('retains an unacknowledged original mutation across view changes and does not mint a replacement', () => {
   const store = createStudyStore().create()
+  store.actions.filter('note')
+  store.actions.page('previous-revision-page')
   store.actions.create()
   store.actions.change('title', 'Original note')
   const operation: StudyOperation = { kind: 'save', request: { operationId: 'save-once', title: 'Original note', kind: 'note', markdown: 'Original text' } }
@@ -11,9 +13,10 @@ it('retains an unacknowledged original mutation across view changes and does not
   store.actions.change('title', 'Must not replace the pending operation')
   store.actions.create()
   store.actions.list()
-  expect(store.getSnapshot()).toMatchObject({ location: { kind: 'draft' }, draft: { title: 'Original note' }, pending: operation, saving: false })
+  expect(store.getSnapshot()).toMatchObject({ location: { kind: 'draft' }, draft: { title: 'Original note' }, pending: operation, saving: false,
+    cursor: 'previous-revision-page' })
   store.actions.acknowledged({ operationId: 'save-once', id: 'note-a' as StudyArtifactId, version: 'v1' as StudyArtifactVersion, state: 'saved', committedAt: 'now' })
-  expect(store.getSnapshot()).toMatchObject({ location: { kind: 'artifact', id: 'note-a' }, draft: null, pending: null })
+  expect(store.getSnapshot()).toMatchObject({ location: { kind: 'artifact', id: 'note-a' }, draft: null, pending: null, cursor: null, filter: 'note' })
 })
 
 it.each([undefined, 'another-note', 'removed-note'])('clears only an editor draft belonging to the removed artifact (%s)', (draftId) => {
@@ -29,11 +32,12 @@ it.each([undefined, 'another-note', 'removed-note'])('clears only an editor draf
   store.actions.change('markdown', 'Keep my unsaved observations.')
   const draft = store.getSnapshot().draft
   store.actions.list()
+  store.actions.page('previous-revision-page')
   const id = 'removed-note' as StudyArtifactId
   store.actions.open(id)
   store.actions.pending({ kind: 'remove', request: { operationId: 'remove-once', id } }, true)
   store.actions.acknowledged({ operationId: 'remove-once', id, version: 'v2' as StudyArtifactVersion, state: 'removed', committedAt: 'now' })
-  expect(store.getSnapshot()).toMatchObject({ location: { kind: 'list' }, pending: null, saving: false, failure: null,
+  expect(store.getSnapshot()).toMatchObject({ location: { kind: 'list' }, pending: null, saving: false, failure: null, cursor: null,
     draft: draftId === id ? null : draft })
   store.actions.resume()
   expect(store.getSnapshot().location.kind).toBe(draftId === id ? 'list' : 'draft')

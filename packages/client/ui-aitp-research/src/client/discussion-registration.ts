@@ -21,7 +21,7 @@ export function registerResearchDiscussions(ctx: Context, workspaces: ResearchWo
   ctx.effect(() => ctx.locale.register(namespace, { en: discussionEn, zh: discussionZh }), 'research: discussion dictionaries')
   const controller = new ResearchDiscussionController(ctx, workspaces, navigation, ctx.locale.bind(namespace))
   const release = ctx.reflect.provide('researchDiscussions', controller)
-  ctx.effect(() => () => { controller.dispose(); void release() }, 'research: discussions')
+  ctx.effect(() => async () => { await controller.dispose(); await release() }, 'research: discussions')
   const face: DiscussionFace = {
     hooks: { discussionViews: controller.views },
     selectDiscussion: (scope, sessionId) => controller.select(scope, sessionId),
