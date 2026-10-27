@@ -77,10 +77,11 @@ function ArtifactList(props: StudyPanelProps): ReactNode {
       </li>)}</ul>
       {items.length === 0 && <div className={css.empty}><p>{props.t(query ? 'noMatches' : filter === null ? 'empty' : 'emptyKind')}</p>
         <p className={css.muted}>{props.t('emptyHelp')}</p></div>}
-      {cursor !== null && <Button size="sm" variant="ghost" onClick={() => { props.actions.page(null) }}>{props.t('first')}</Button>}
-      {page.value.nextCursor !== null && <Button size="sm" variant="ghost"
-        onClick={() => { props.actions.page(page.value?.nextCursor ?? null) }}>{props.t('next')}</Button>}
       </>}
+    {cursor !== null && (page.value !== undefined || page.status === 'failed')
+      && <Button size="sm" variant="ghost" onClick={() => { props.actions.page(null) }}>{props.t('first')}</Button>}
+    {page.value !== undefined && page.value.nextCursor !== null && <Button size="sm" variant="ghost"
+      onClick={() => { props.actions.page(page.value?.nextCursor ?? null) }}>{props.t('next')}</Button>}
     {page.value !== undefined && page.status === 'failed' && <p role="alert">{props.t('unavailable')} {page.failure?.message}</p>}
   </>
 }

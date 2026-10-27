@@ -30,7 +30,7 @@ Saved note source references are supplied by the Host. Opening one goes through 
 
 Removing a saved artifact clears only an editor draft for that artifact. An unrelated unfinished note remains available through “Continue draft”.
 
-After a confirmed save, capture or removal, the next list view starts at its first page while retaining the selected kind filter. The previous page cursor belongs to the earlier list revision and cannot be reused after that mutation.
+After a confirmed save, capture or removal, the next list view starts at its first page while retaining the selected kind filter. The previous page cursor belongs to the earlier list revision and cannot be reused after that mutation. If a later page fails after an external change, “First page” remains available to restart the list explicitly without clearing the kind filter.
 
 Mutations use one stable operation identity. Unknown acknowledgements retain the original request and lock draft changes until the explicit check confirms that operation. Navigation, local editing and merely opening a source send no model request.
 

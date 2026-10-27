@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, expect, it, onTestFinished, vi } from 'vitest'
 import { bindSnapshotSelector, makeTranslate, SlotTestRuntime } from '@deepseek-ai/dsh-client-test-runtime'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
@@ -8,6 +8,7 @@ import type { ResourceEntryId, ResourcePage, ResourceReading, ResourceSummary, S
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
+import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { createSidebarRightRootStore } from '../../ui-sidebar-right/src/client/root-store.ts'
 import { RootExpandButton } from '../../ui-sidebar-right/src/client/shell/RootExpandButton.tsx'
 import { MaterialsPanel, type MaterialsManagementFace, type MaterialsPanelFace, type MaterialsPanelProps } from '../src/client/MaterialsPanel.tsx'
@@ -111,6 +112,42 @@ it('browses globally, keeps equal filenames distinct and submits only the explic
   fireEvent.click(screen.getByRole('button', { name: 'Ask in a new conversation' }))
   await waitFor(() => { expect(face.openSession).toHaveBeenCalledWith({ sessionId: 'ordinary-session' }) })
   expect(face.ask).toHaveBeenCalledExactlyOnceWith({ question: '比较两种约定。', selections: [{ ref: first.ref }, { ref: second.ref }] })
+})
+
+it('recovers an expired later-page cursor without cached rows while retaining search and source-folder filters', async () => {
+  const query = '归一'
+  const rootId = 'papers' as SourceRootId
+  const cursor = 'previous-revision-page'
+  const filtered = { domain: 'knowledge' as const, query, rootId }
+  const error = { code: 'invalid-request' as const, message: 'The source page cursor expired or belongs to another query.', retryable: false }
+  const initial = live({ ...page, items: [first], nextCursor: cursor })
+  const values: Record<string, ResourceSnapshot<unknown>> = {
+    [MATERIAL_ROOTS]: live([{ id: rootId, title: 'Papers', displayPath: '/papers' }]),
+    [materialListAddress({ domain: 'knowledge' })]: initial,
+    [materialListAddress({ domain: 'knowledge', query })]: initial,
+    [materialListAddress(filtered)]: initial,
+    [materialListAddress({ ...filtered, cursor })]: { status: 'failed', value: undefined,
+      failure: new RemoteError('aitp/materials', error.message, error) },
+  }
+  const { store, face } = await panel({}, values)
+  fireEvent.change(screen.getByRole('textbox', { name: 'Search this library' }), { target: { value: query } })
+  fireEvent.change(screen.getByRole('combobox', { name: 'Source folders' }), { target: { value: rootId } })
+  fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+  expect(screen.getByRole('alert')).toBeDefined()
+  expect(store.getSnapshot().views.knowledge.cursor).toBe(cursor)
+  fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Refresh' }))
+  expect(face.refresh).toHaveBeenCalledOnce()
+  expect(store.getSnapshot().views.knowledge.cursor).toBe(cursor)
+
+  const refreshed = source('papers', '更新后的归一化')
+  values[materialListAddress(filtered)] = live({ ...page, items: [refreshed], nextCursor: null })
+  fireEvent.click(screen.getByRole('button', { name: 'First page' }))
+  expect(screen.getByRole('button', { name: refreshed.title })).toBeDefined()
+  expect(screen.queryByRole('alert')).toBeNull()
+  expect(screen.queryByRole('button', { name: 'First page' })).toBeNull()
+  expect(store.getSnapshot().views.knowledge).toMatchObject({ query, rootId, cursor: null })
+  expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Search this library' }).value).toBe(query)
+  expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Source folders' }).value).toBe(rootId)
 })
 
 it('keeps a scoped discussion beside the library and stages source changes without creating another Session', async () => {

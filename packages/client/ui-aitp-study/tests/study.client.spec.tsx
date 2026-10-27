@@ -184,3 +184,35 @@ it.each(['save', 'remove'] as const)('returns to a readable first page after %s 
   expect(read).toHaveBeenCalledWith(studyListAddress({}))
   expect(read).not.toHaveBeenCalledWith(oldPage)
 })
+
+it('offers an explicit first-page recovery when an external change invalidates the remounted filtered list', () => {
+  const second: StudyArtifact = { ...artifact, id: 'draft-b' as StudyArtifactId, title: 'Second-page note' }
+  const cursor = 'previous-revision-page'
+  const firstPage = studyListAddress({ kind: 'comparison' })
+  const oldPage = studyListAddress({ kind: 'comparison', cursor })
+  const values: Record<string, ResourceSnapshot<unknown>> = {
+    [firstPage]: live({ items: [artifact], nextCursor: cursor }),
+    [oldPage]: live({ items: [second], nextCursor: null }),
+    [studyArtifactAddress(second.id)]: live(second),
+  }
+  const { store, face, read } = panel(values)
+  fireEvent.change(screen.getByRole('combobox', { name: 'Product' }), { target: { value: 'comparison' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Next page' }))
+  fireEvent.click(screen.getByRole('button', { name: second.title }))
+  values[oldPage] = { status: 'failed', value: undefined, failure: new RemoteError('aitp/study',
+    'The study list changed; reopen its first page.', { code: 'invalid-request', message: 'The study list changed; reopen its first page.', retryable: true }) }
+  values[firstPage] = live({ items: [artifact], nextCursor: 'current-revision-page' })
+  fireEvent.click(screen.getByRole('button', { name: 'Back to study notes' }))
+  expect(screen.getByRole('alert')).toBeDefined()
+  expect(store.getSnapshot()).toMatchObject({ cursor, filter: 'comparison' })
+  expect(screen.queryByRole('button', { name: 'Next page' })).toBeNull()
+  read.mockClear()
+  fireEvent.click(screen.getByRole('button', { name: 'First page' }))
+  expect(store.getSnapshot()).toMatchObject({ cursor: null, filter: 'comparison' })
+  expect(read).toHaveBeenCalledWith(firstPage)
+  expect(read).not.toHaveBeenCalledWith(oldPage)
+  expect(screen.getByRole('button', { name: artifact.title })).toBeDefined()
+  expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Product' }).value).toBe('comparison')
+  expect(screen.queryByRole('button', { name: 'First page' })).toBeNull()
+  expect(face.execute).not.toHaveBeenCalled()
+})

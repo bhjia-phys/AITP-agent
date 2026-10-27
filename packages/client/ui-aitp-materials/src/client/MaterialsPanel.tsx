@@ -162,7 +162,10 @@ function LibraryRows(props: MaterialsPanelProps & { reading: ResourceSnapshot<Re
   const cursor = view.cursor
   const roots = props.useResource<'aitp-material-roots'>(MATERIAL_ROOTS)
   const page = reading.value
-  if (page === undefined) return <MaterialUnavailable {...props} snapshot={reading} list />
+  const firstPage = cursor !== null && <Button variant="ghost" size="sm"
+    onClick={() => { props.actions.nextPage(domain, null) }}>{t('first')}</Button>
+  if (page === undefined) return <><MaterialUnavailable {...props} snapshot={reading} list />
+    {reading.status === 'failed' && firstPage && <div className={css.toolbar}>{firstPage}</div>}</>
   return <>
     {reading.status === 'failed' && <p role="alert" className={css.notice}>{t('disconnected')}</p>}
     {page.completeness === 'partial' && <p role="note" className={css.notice}>{t('partial')}</p>}
@@ -186,7 +189,7 @@ function LibraryRows(props: MaterialsPanelProps & { reading: ResourceSnapshot<Re
         onFolder: (path) => { props.actions.setFolder(domain, path) },
       })}
     <div className={css.toolbar}>
-      {cursor !== null && <Button variant="ghost" size="sm" onClick={() => { props.actions.nextPage(domain, null) }}>{t('first')}</Button>}
+      {firstPage}
       {page.nextCursor !== null && <Button variant="outline" size="sm" onClick={() => { props.actions.nextPage(domain, page.nextCursor) }}>{t('next')}</Button>}
     </div>
     <details className={css.observation}><summary>{t('readingInfo')}</summary><p className={css.muted}>{t('observed', { time: page.observedAt })}</p></details>
