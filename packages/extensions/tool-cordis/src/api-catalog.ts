@@ -7323,7 +7323,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ResourceQuery',
-    declaration: 'export interface ResourceQuery {\n    readonly domain?: ResourceDomain;\n    readonly rootId?: SourceRootId;\n    readonly query?: string;\n    readonly cursor?: string;\n    readonly limit?: number;\n    readonly topic?: {\n        readonly workspaceId: WorkspaceId;\n        readonly topicId: SourceTopicId;\n    };\n}',
+    declaration: 'export interface ResourceQuery {\n    readonly domain?: ResourceDomain;\n    readonly rootId?: SourceRootId;\n    readonly folder?: string;\n    readonly query?: string;\n    readonly cursor?: string;\n    readonly limit?: number;\n    readonly topic?: {\n        readonly workspaceId: WorkspaceId;\n        readonly topicId: SourceTopicId;\n    };\n}',
   },
   {
     name: 'ResourceReadError',

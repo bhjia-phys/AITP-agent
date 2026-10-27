@@ -11,10 +11,11 @@ import { Remote, RemoteError, principalOf, TypertRemoteService } from '@deepseek
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type {} from '@deepseek-ai/dsh-app-boot'
-import { GuardedFiles, normalizedPath, SourceError, sourceFailure } from './files.ts'
+import { BoundedSourceWatcher, GuardedFiles, normalizedPath, SourceError, sourceFailure } from './files.ts'
 import { pathForSourceId, resourceEntryId, sourceIdForPath, sourceRootId } from './identity.ts'
 import { parseSourceMarkup } from './markup.ts'
 import { checkedPreviewMediaType, previewMediaType } from './preview.ts'
+import { MATERIAL_WATCH_UNAVAILABLE } from './protocol.ts'
 import { OperationalOutcomeUnknown, ResourceState, type StoredConnection } from './state.ts'
 import type {
   ResourceBody, ResourceBytes, ResourceDomain, ResourceEvent, ResourceIssue, ResourcePage, ResourceProvider,
@@ -44,8 +45,14 @@ export interface Config {
     /** Catalog domains offered to providers; omission offers every installed domain. */
     domains?: ResourceDomain[] | undefined
   }[]
+  /** Whether unclassified Workspace grants appear in library catalogs; their read authority remains intact. */
+  workspaceRootsInCatalog?: boolean
   /** Maximum discovered directory entries per root, including directories. */
   maxFiles?: number
+  /** Enable source-change notifications; false rescans on each catalog read instead. */
+  watchSources?: boolean
+  /** Use bounded directory watches rather than a recursive whole-tree watch. */
+  watchMode?: 'recursive' | 'bounded'
   /** Maximum UTF-8 bytes in one complete source-text reading. */
   maxFileBytes?: number
   /** Maximum bytes in one complete source-binary reading. */
@@ -84,7 +91,8 @@ interface RootEntry {
   readonly grants: Map<object, SourceRootRegistration>
   readonly files: GuardedFiles
   readonly lifetime: AbortController
-  watcher: FSWatcher | undefined
+  watcher: FSWatcher | BoundedSourceWatcher | undefined
+  watchFailure: boolean
   dirty: boolean
   snapshot: CatalogSnapshot | undefined
   refreshing: Promise<CatalogSnapshot> | undefined
@@ -129,7 +137,10 @@ export class ResearchResources extends TypertRemoteService {
   static Config: z<Config, ResolvedConfig> = z.object({
     roots: z.array(z.object({ id: z.string().required(), path: z.string().required(), title: z.string(),
       workspaceId: z.string(), domains: (z.array(z.union(['knowledge', 'literature', 'code'])) as z<ResourceDomain[] | undefined>).default(undefined) })).default([]),
+    workspaceRootsInCatalog: z.boolean().default(true),
     maxFiles: z.natural().min(1).default(2000),
+    watchSources: z.boolean().default(true),
+    watchMode: (z.union(['recursive', 'bounded']) as z<'recursive' | 'bounded'>).default('recursive'),
     maxFileBytes: z.natural().min(1).default(1_048_576),
     maxBinaryBytes: z.natural().min(1).default(20_971_520),
     maxCatalogEntries: z.natural().min(1).default(5000),
@@ -236,19 +247,25 @@ export class ResearchResources extends TypertRemoteService {
     if (entry === undefined) {
       entry = { id: requestedId, path, aliases: new Set(), grants: new Map(),
         files: new GuardedFiles(path, this.config.maxFiles, this.config.maxFileBytes, this.config.maxBinaryBytes),
-        lifetime: new AbortController(), watcher: undefined, dirty: true, snapshot: undefined, refreshing: undefined }
+        lifetime: new AbortController(), watcher: undefined, watchFailure: false, dirty: true, snapshot: undefined, refreshing: undefined }
       this.canonicalRoots.set(path, entry)
       const observed = entry
-      try {
-        observed.watcher = watch(path, { recursive: true }, () => { this.invalidate(observed) })
-        observed.watcher.on('error', () => {
-          observed.watcher?.close()
-          observed.watcher = undefined
-          this.invalidate(observed)
-        })
-      } catch (error) {
-        // Unsupported watches use a fresh bounded scan on every read instead.
-        void error
+      if (this.config.watchSources) {
+        try {
+          observed.watcher = this.config.watchMode === 'bounded'
+            ? new BoundedSourceWatcher(path, Math.min(this.config.maxFiles, 1024), () => { this.invalidate(observed) })
+            : watch(path, { recursive: true }, () => { this.invalidate(observed) })
+          observed.watcher.on('error', () => {
+            observed.watchFailure = true
+            observed.watcher?.close()
+            observed.watcher = undefined
+            this.invalidate(observed)
+          })
+        } catch (error) {
+          // Unsupported watches use a fresh bounded scan on every read instead.
+          observed.watchFailure = true
+          void error
+        }
       }
     }
     entry.aliases.add(requestedId)
@@ -351,6 +368,12 @@ export class ResearchResources extends TypertRemoteService {
     })
   }
 
+  private watchOpenedSource(root: RootEntry, path: string): void {
+    if (!(root.watcher instanceof BoundedSourceWatcher)) return
+    try { root.watcher.includeFile(path) }
+    catch (error) { root.watchFailure = true; root.watcher.close(); root.watcher = undefined; this.invalidate(root); void error }
+  }
+
   private invalidate(root: RootEntry): void {
     root.dirty = true
     this.revision++
@@ -366,8 +389,10 @@ export class ResearchResources extends TypertRemoteService {
   private rootMetadata(entry: RootEntry, grants: readonly SourceRootRegistration[]): SourceRoot {
     const title = grants.find(grant => grant.title?.trim())?.title ?? (basename(entry.path) || entry.path)
     const workspaces = [...new Set(grants.flatMap(grant => grant.workspaceId === undefined ? [] : [grant.workspaceId]))]
-    const domains = grants.some(grant => grant.domains === undefined) ? undefined
-      : [...new Set(grants.flatMap(grant => grant.domains ?? []))]
+    const catalogGrants = grants.filter(grant => this.config.workspaceRootsInCatalog
+      || grant.workspaceId === undefined || grant.grantKind === 'configured' || grant.domains !== undefined)
+    const domains = catalogGrants.some(grant => grant.domains === undefined) ? undefined
+      : [...new Set(catalogGrants.flatMap(grant => grant.domains ?? []))]
     const workspaceId = workspaces.length === 1 ? workspaces[0] : undefined
     return { id: entry.id, title, displayPath: entry.path,
       grants: grants.map(grant => ({ kind: grant.grantKind ?? 'host',
@@ -485,6 +510,10 @@ export class ResearchResources extends TypertRemoteService {
       entry.dirty = false
       entry.refreshing = (async () => {
         const scan = await entry.files.scan(shared)
+        if (entry.watcher instanceof BoundedSourceWatcher) {
+          try { entry.watcher.sync(scan.directories ?? ['']) }
+          catch (error) { entry.watchFailure = true; entry.watcher.close(); entry.watcher = undefined; this.invalidate(entry); void error }
+        }
         const issues: ResourceIssue[] = scan.issues.map(issue => ({ rootId: entry.id, ...issue }))
         const items: ResourceSummary[] = []
         const base = { root: current, rootPath: entry.path, paths: scan.paths, issues: scan.issues,
@@ -709,7 +738,7 @@ export class ResearchResources extends TypertRemoteService {
     })
   }
 
-  private async catalog(signal: AbortSignal): Promise<{
+  private async catalog(signal: AbortSignal, selection?: Pick<ResourceQuery, 'domain' | 'rootId'>): Promise<{
     items: ResourceSummary[]
     issues: ResourceIssue[]
     observedAt: string
@@ -717,7 +746,10 @@ export class ResearchResources extends TypertRemoteService {
     snapshots: ReadonlyMap<RootEntry, CatalogSnapshot>
   }> {
     const items: ResourceSummary[] = []
-    const issues: ResourceIssue[] = [...this.startupIssues]
+    const selectedRoot = selection?.rootId === undefined ? undefined : this.roots.get(selection.rootId)
+    if (selection?.rootId !== undefined && selectedRoot === undefined) throw new SourceError('permission-denied', 'The requested catalog root is not registered.')
+    const issues: ResourceIssue[] = this.startupIssues.filter(issue => selectedRoot === undefined
+      || issue.rootId === undefined || this.roots.get(issue.rootId) === selectedRoot)
     const authorized: { root: RootEntry; metadata: SourceRoot }[] = []
     const snapshots = new Map<RootEntry, CatalogSnapshot>()
     for (const root of this.canonicalRoots.values()) {
@@ -731,6 +763,9 @@ export class ResearchResources extends TypertRemoteService {
     }
     const linkRoots = authorized.map(item => item.root)
     for (const { root, metadata } of authorized) {
+      if (selectedRoot !== undefined && root !== selectedRoot) continue
+      if (metadata.domains?.length === 0 || selection?.domain !== undefined
+        && metadata.domains !== undefined && !metadata.domains.includes(selection.domain)) continue
       try {
         const snapshot = await this.snapshot(root, signal, metadata, linkRoots)
         snapshots.set(root, snapshot)
@@ -808,6 +843,56 @@ export class ResearchResources extends TypertRemoteService {
     })
   }
 
+  private async directoryPage(request: ResourceQuery, signal: AbortSignal): Promise<ResourcePage> {
+    if (request.domain !== 'code' || request.rootId === undefined || request.folder === undefined
+      || request.query !== undefined || request.topic !== undefined) {
+      throw new SourceError('invalid-request', 'A directory view requires one code root and no search or topic filter.')
+    }
+    const root = this.roots.get(request.rootId)
+    if (root === undefined) throw new SourceError('permission-denied', 'The requested catalog root is not registered.')
+    const metadata = await this.authorizedMetadata(root, signal)
+    if (metadata.domains !== undefined && !metadata.domains.includes('code')) {
+      throw new SourceError('permission-denied', 'The selected source root is not a code catalog.')
+    }
+    const provider = [...this.providers.values()].find(candidate => candidate.domain === 'code' && candidate.listDirectory !== undefined)
+    if (provider?.listDirectory === undefined) throw new SourceError('unsupported', 'No code directory reader is connected.')
+    const limit = request.limit ?? this.config.maxPageSize
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > this.config.maxPageSize) {
+      throw new SourceError('invalid-request', 'The requested source page exceeds the configured page limit.')
+    }
+    const folder = request.folder === '' ? '' : normalizedPath(request.folder)
+    const issues: ResourceIssue[] = []
+    const roots: RootEntry[] = []
+    for (const entry of this.canonicalRoots.values()) {
+      try { await this.authorizedMetadata(entry, signal); roots.push(entry) }
+      catch (error) { signal.throwIfAborted(); void error }
+    }
+    const context: SourceProviderContext = { root: metadata, rootPath: root.path, paths: [], issues: [], partial: false,
+      observedAt: new Date().toISOString(), files: root.files,
+      reportIssue: (path, reason) => { issues.push({ rootId: root.id, providerId: provider.id, path, reason }) },
+      resolveLink: (basePath, href) => this.resolveLink(root, basePath, href, roots),
+    }
+    const items = await provider.listDirectory(context, folder, signal)
+    this.watchOpenedSource(root, folder === '' ? '_directory_' : `${folder}/_directory_`)
+    await this.authorizedMetadata(root, signal)
+    if (root.watchFailure) issues.push({ rootId: root.id, reason: MATERIAL_WATCH_UNAVAILABLE })
+    const key = JSON.stringify(['directory', root.id, folder, limit])
+    let offset = 0
+    if (request.cursor !== undefined) {
+      if (request.cursor.length > this.config.maxQuestionCharacters * 4) throw new SourceError('invalid-request', 'The source page cursor exceeds its configured size bound.')
+      let cursor: unknown
+      try { cursor = JSON.parse(Buffer.from(request.cursor, 'base64url').toString()) }
+      catch { throw new SourceError('invalid-request', 'The source page cursor is invalid.') }
+      if (!Array.isArray(cursor) || cursor.length !== 3 || cursor[0] !== this.revision || cursor[1] !== key
+        || !Number.isSafeInteger(cursor[2]) || cursor[2] < 0) throw new SourceError('invalid-request', 'The source page cursor expired or belongs to another query.')
+      offset = cursor[2] as number
+    }
+    const next = offset + limit
+    return { items: items.slice(offset, next),
+      nextCursor: next < items.length ? Buffer.from(JSON.stringify([this.revision, key, next])).toString('base64url') : null,
+      completeness: issues.length === 0 ? 'complete' : 'partial', issues, observedAt: context.observedAt }
+  }
+
   /**
    * Browse a bounded domain catalog with explicit missing discovery coverage.
    * @param request - source/root/topic filters and an opaque page cursor.
@@ -818,7 +903,8 @@ export class ResearchResources extends TypertRemoteService {
   async listResources(request: ResourceQuery, signal: AbortSignal): Promise<ResourceResult<ResourcePage>> {
     this.requireOwner()
     return this.attempt(signal, async (observed) => {
-      const catalog = await this.catalog(observed)
+      if (request.folder !== undefined) return this.directoryPage(request, observed)
+      const catalog = await this.catalog(observed, request)
       if (request.rootId !== undefined && !this.roots.has(request.rootId)) throw new SourceError('permission-denied', 'The requested catalog root is not registered.')
       if (request.domain !== undefined && ![...this.providers.values()].some(provider => provider.domain === request.domain)) {
         throw new SourceError('unavailable', 'The requested library source provider is not connected.')
@@ -879,6 +965,7 @@ export class ResearchResources extends TypertRemoteService {
       const path = pathForSourceId(request.ref.sourceId)
       if (previewMediaType(path) === undefined) throw new SourceError('unsupported', 'Native source bytes support PDF and registered image formats only.')
       if (!await root.files.discoverable(path, sourceSignal)) throw new SourceError('not-found', 'The selected source is not a readable regular file.')
+      this.watchOpenedSource(root, path)
       const bytes = await root.files.readBytes(path, sourceSignal)
       const mediaType = checkedPreviewMediaType(path, bytes)
       await this.authorizedMetadata(root, sourceSignal)
@@ -903,13 +990,13 @@ export class ResearchResources extends TypertRemoteService {
       await this.authorizedMetadata(root, observed)
       const reference = { ...request.ref, rootId: root.id }
       const sourcePath = reference.sourceId.startsWith('source:') ? pathForSourceId(reference.sourceId) : undefined
-      const catalog = await this.catalog(observed)
       const locatedDomain = request.locator?.kind === 'code' || request.locator?.kind === 'git' ? 'code'
         : request.locator?.kind === 'pdf-page' ? 'literature' : undefined
       if (request.domain !== undefined && locatedDomain !== undefined && request.domain !== locatedDomain) {
         throw new SourceError('invalid-request', 'The requested library does not match the specialized source location.')
       }
       const domain = request.domain ?? locatedDomain
+      const catalog = await this.catalog(observed, domain === undefined ? undefined : { domain })
       const projections = catalog.items.filter(item => sameReference(item.ref, reference)
         && (domain === undefined || item.domain === domain))
       const existing = projections.find(item => request.locator === undefined
@@ -930,6 +1017,7 @@ export class ResearchResources extends TypertRemoteService {
         else if (!await root.files.discoverable(sourcePath, observed)) {
           throw new SourceError('not-found', 'The selected source is not a readable regular file.')
         }
+        if (!revisionRead) this.watchOpenedSource(root, sourcePath)
       }
       const snapshot = catalog.snapshots.get(root) ?? await this.snapshot(root, observed, undefined, catalog.roots)
       let body: ResourceBody | undefined
@@ -1022,7 +1110,8 @@ export class ResearchResources extends TypertRemoteService {
       }
       const reading: ResourceReading = { resource, body, ...(locator === undefined ? {} : { locator }),
         observedAt: new Date().toISOString(),
-        issues: [...catalog.issues.filter(issue => issue.rootId === root.id).map(issue => issue.reason), ...readingIssues] }
+        issues: [...catalog.issues.filter(issue => issue.rootId === root.id).map(issue => issue.reason),
+          ...root.watchFailure ? [MATERIAL_WATCH_UNAVAILABLE] : [], ...readingIssues] }
       if (body.kind === 'pdf' && body.dataBase64 !== undefined && JSON.stringify(reading).length > this.config.maxResultCharacters) {
         const { dataBase64: _preview, ...pages } = body
         return { ...reading, body: pages }

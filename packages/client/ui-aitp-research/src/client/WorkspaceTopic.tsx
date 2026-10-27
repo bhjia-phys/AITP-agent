@@ -13,7 +13,7 @@ import { ListingStatus, TopicListingView } from './TopicListing.tsx'
 import type { Statement, Topic, TopicId } from './workspace-contract.ts'
 import { workspaceActivityAddress, workspaceTopicAddress } from './workspace-resources.ts'
 import {
-  ContributionNote, materialLocator, QualifiedAnswerView, ReadAt, unavailableCopy, WorkspaceReadingMeta,
+  ContributionNote, materialLocator, openTopicResource, QualifiedAnswerView, ReadAt, unavailableCopy, WorkspaceReadingMeta,
   WorkspaceUnavailable, WorkStateLabel, type WorkspaceViewProps,
 } from './WorkspaceViews.tsx'
 import { WorkspaceEditor } from './WorkspaceEditor.tsx'
@@ -113,7 +113,7 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
         <section className={topicCss.understanding} aria-label={t('workspace.answer')}>
           <div className={topicCss.sectionHead}><h3>{t('workspace.answer')}</h3>
             {accountResourceId !== undefined && <Button variant="outline" size="sm"
-              onClick={() => { props.navigate({ kind: 'resource', topicId: topic.id, resourceId: accountResourceId }) }}>
+              onClick={() => { openTopicResource(props, topic.id, accountResourceId, topic.resources) }}>
               {t('workspace.readAccount')}
             </Button>}</div>
           <QualifiedAnswerView t={t} answer={answer} topicId={topic.id}
@@ -145,7 +145,7 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
           })}</div>
           {materials.length === 0 ? <p className={topicCss.empty}>{t('workspace.noMaterials')}</p>
             : <ul className={topicCss.materials}>{materials.map(resource => <li key={resource.id}>
-              <button type="button" className={topicCss.material} onClick={() => { props.navigate({ kind: 'resource', topicId: topic.id, resourceId: resource.id }) }}>
+              <button type="button" className={topicCss.material} onClick={() => { if (props.openMaterialReference === undefined) props.navigate({ kind: 'resource', topicId: topic.id, resourceId: resource.id }); else props.openMaterialReference(resource, topic.id) }}>
                 <span className={topicCss.fileIcon}><FileTypeIcon path={materialLocator(resource)} size={20} /></span>
                 <span className={topicCss.materialBody}><strong>{resource.title}</strong>
                   <PathLabel path={materialLocator(resource)} /></span>
@@ -280,7 +280,7 @@ function TopicStatement(props: WorkspaceViewProps & { topic: Topic; statement: S
     {statement.qualification !== '' && <div className={css.qualification}><MarkdownText text={statement.qualification} labels={markdownLabels(t)} /></div>}
     {statement.checks.map(check => <div key={`${check.kind}:${check.scope}`} className={css.check}>
       <p><strong>{t(`workspace.check.${check.outcome}`)}</strong> · {check.scope}</p>
-      {check.resourceIds.map(resourceId => <button key={resourceId} type="button" className={css.linkButton} onClick={() => { props.navigate({ kind: 'resource', topicId: props.topic.id, resourceId }) }}>{props.topic.resources.find(resource => resource.id === resourceId)?.title ?? resourceId}</button>)}
+      {check.resourceIds.map(resourceId => <button key={resourceId} type="button" className={css.linkButton} onClick={() => { openTopicResource(props, props.topic.id, resourceId, props.topic.resources) }}>{props.topic.resources.find(resource => resource.id === resourceId)?.title ?? resourceId}</button>)}
     </div>)}
   </article>
 }

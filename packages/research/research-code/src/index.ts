@@ -80,6 +80,34 @@ export function createCodeProvider(config: Config): ResourceProvider {
       }
       return summaries
     },
+    async listDirectory(context, folder, signal) {
+      const directory = await context.files.listDirectory(folder, signal)
+      for (const issue of directory.issues) context.reportIssue(issue.path, issue.reason)
+      let checkout: CheckoutObservation | undefined
+      try { checkout = await (await reader(context, config).initialize(signal)).inspect(signal) }
+      catch (error) {
+        if (signal.aborted) throw error
+        if (!(error instanceof GitReadError) || error.kind !== 'not-a-checkout') {
+          context.reportIssue('', error instanceof GitReadError ? error.message : 'The local checkout could not be inspected.')
+        }
+      }
+      const status = new Map(checkout?.status.map(item => [item.path, item.code]))
+      const items: ResourceSummary[] = directory.entries.map((entry) => {
+        const ref: SourceRef = { rootId: context.root.id, sourceId: sourceIdForPath(entry.path) }
+        const fileStatus = status.get(entry.path)
+        return { id: resourceEntryId(ref), ref, title: entry.path, kind: 'code', domain: 'code', providerId: name,
+          metadata: { ...metadata(checkout, context.root.displayPath), entryKind: entry.kind === 'directory' ? 'source-folder' : 'source-file',
+            ...fileStatus === undefined ? {} : { fileStatus } }, links: [], topics: [] }
+      })
+      if (folder === '') {
+        const ref: SourceRef = { rootId: context.root.id, sourceId: CHECKOUT_SOURCE }
+        items.unshift({ id: resourceEntryId(ref), ref, locator: { kind: 'git', view: 'status' }, title: context.root.title,
+          kind: 'code', domain: 'code', providerId: name, metadata: { ...metadata(checkout, context.root.displayPath),
+            entryKind: 'checkout', ...checkout === undefined ? {} : { status: JSON.stringify(checkout.status) }, attribution: 'unknown' },
+          links: [], topics: [] })
+      }
+      return items
+    },
     async read(context, reference, locator, signal) {
       if (reference.sourceId === CHECKOUT_SOURCE || locator?.kind === 'git') {
         try {

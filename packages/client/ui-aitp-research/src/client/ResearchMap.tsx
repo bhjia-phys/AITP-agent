@@ -14,7 +14,7 @@ import { ListingStatus, TopicListingView, type TopicListing } from './TopicListi
 import type { Project, Topic, TopicId, TopicSummary, WorkspaceRead } from './workspace-contract.ts'
 import { workspaceProjectAddress, workspaceTopicAddress, workspaceTopicsAddress } from './workspace-resources.ts'
 import {
-  ContributionNote, MaterialLinks, QualifiedAnswerView, ReadAt, unavailableCopy, WorkspaceReadingMeta,
+  ContributionNote, MaterialLinks, openTopicResource, QualifiedAnswerView, ReadAt, unavailableCopy, WorkspaceReadingMeta,
   WorkspaceUnavailable, WorkStateLabel, type WorkspaceViewProps,
 } from './WorkspaceViews.tsx'
 import css from './workspace.module.css'
@@ -198,12 +198,13 @@ function MapFocus(props: WorkspaceViewProps & { project: Project; topicId: Topic
         {topic.work.nextAction !== undefined && <div><h3 className={css.label}>{t('workspace.next')}</h3><p>{topic.work.nextAction}</p></div>}
         {topic.resources.length > 0 && <div>
           <h3 className={css.label}>{t('workspace.section.materials')}</h3>
-          <MaterialLinks t={t} navigate={props.navigate} topicId={topic.id} resources={topic.resources} showLocator={false} />
+          <MaterialLinks t={t} navigate={props.navigate} openMaterialReference={props.openMaterialReference}
+            topicId={topic.id} resources={topic.resources} showLocator={false} />
         </div>}
         <div className={css.actions}>
           <Button variant="primary" size="sm" onClick={() => { props.navigate({ kind: 'topic', topicId: topic.id }) }}>{t('map.openTopic')}</Button>
           {accountResourceId !== undefined && <Button variant="outline" size="sm"
-            onClick={() => { props.navigate({ kind: 'resource', topicId: topic.id, resourceId: accountResourceId }) }}>{t('workspace.readAccount')}</Button>}
+            onClick={() => { openTopicResource(props, topic.id, accountResourceId, topic.resources) }}>{t('workspace.readAccount')}</Button>}
         </div>
       </aside>
       <section className={css.focusBranches} aria-label={t('map.branches', { title: topic.shortTitle ?? topic.title })}>

@@ -312,6 +312,12 @@ Each process measures cold scoped context preparation, then the median of seven 
 
 The run overlaps normal workstation activity. Earlier exploration gave different cold timings; no controlled cold speedup or measured token/model-latency improvement is claimed. Fresh source reads remain mandatory before parsed-text reuse. Session-history recovery is a separate path: its existing metadata API is not paginated and a cold observation may load a complete log before AITP limits projection work.
 
+Recursive source watching could traverse directories beyond the configured discovery limit. Both source owners support watchSources: false for fresh reads without recursive watches; unchanged pagination identity is retained and open pages report when manual refresh is needed. Bounded observation below supplies an opt-in automatic-update alternative.
+
+Research material rows, full-account actions and evidence links can open the native library reader through a unique authorized Workspace connection. If the bridge or connection is absent, Research retains its existing route. A newer selection supersedes pending navigation, and the selected source is staged through the priority-aware discussion reading path. Component and browser regressions cover this navigation without claiming live-model acceptance.
+
+Both owners support opt-in bounded source observation: non-recursive watches cover directories reached by bounded discovery and ancestors of explicitly opened sources, capped at the smaller of the entry limit and 1,024 directories per root per service. Failure or an exhausted cap falls back to fresh reads with an explicit notice; undiscovered and unopened directories are outside automatic coverage. Unchanged catalogs are reused between notifications, while source bytes are reread on request. Bounded-watch, source-growth and client regressions cover these paths.
+
 
 <a id="native-topic-onboarding"></a>
 ## Native project setup and topic creation (2026-10-24)
@@ -606,3 +612,12 @@ The complete source-staging correction passes all seven artifact gates (255.01 s
 Failed paginated catalog and study-list reads now keep their existing First page action available when a retained cursor has expired and the previous value was released. Errors remain visible; Retry does not silently reset pagination. Explicit First page clears only the cursor and preserves catalog query/root or study kind. Both new controls fail before correction; the materials and study owner files then pass 26 and 10 tests respectively. Scoped lint and an independent read-only review pass (`/tmp/aitp-pr24-material-cursor-` and `/tmp/aitp-study-cursor-recovery-` logs). This changes recovery controls only, with no automatic retries, writes or Host protocol changes.
 
 The pagination recovery correction passes seven artifact gates (39.80 s), both complete type programs, all 712 research/UI tests in 70 files (104.94 s), and three actual library/study browser scenarios in two files (40.83 s). Final local logs use `/tmp/aitp-pr24-pagination-`; the exact-head hosted and merge results remain in PR 24.
+
+<a id="shared-library-roots"></a>
+### Shared library roots and on-demand checkouts
+
+Shared literature and knowledge can use explicitly configured roots outside topic workspaces without moving source files. Git checkouts are associated with a topic only through an authored source link, not a directory-name guess. An uncategorized Workspace grant remains readable while omitted from global catalogs. Domain/root filtering and one-directory code pages avoid a full cross-domain scan for checkout navigation.
+
+Focused service and client tests cover catalog scope, explicit associations, bounded directory listing, PDF filtering and native source navigation. An isolated real-data Host and browser exercise the shared roots, actual Git observations, native Markdown and PDF reading, and the preservation of Workspace grants. These checks do not establish complete bibliography or scientific-model quality.
+
+This is not a Zotero synchronization or a complete bibliographic catalog: records without confirmed titles, authors, years or reading state remain unknown. Only explicitly configured repositories with authored references acquire topic associations. Discovery limits and symbolic-link exclusions remain visible.

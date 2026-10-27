@@ -1357,3 +1357,72 @@ it('keeps a provider observation warning visible with readable source content', 
   expect(screen.getByText('Automatic source watching is unavailable; refresh to reread.')).toBeDefined()
   expect(screen.getByRole('heading', { name: 'Research programme' })).toBeDefined()
 })
+
+it('explains manual refresh in the current locale when source notifications are unavailable', () => {
+  const values = resources()
+  values[workspaceProjectAddress(WS)] = live({ ...read(project), origin: 'runtime', provider: {
+    ...provider, origin: 'runtime', notice: 'File watcher limit reached.',
+    capabilities: { ...provider.capabilities, read: true, changeEvents: false },
+  } })
+  const view = panel(values)
+  const notice = screen.getByText(en['workspace.manualUpdates']).closest('[role="note"]')
+  if (notice === null) throw new Error('Manual update notice is absent')
+  fireEvent.click(within(notice as HTMLElement).getByRole('button', { name: 'Read again' }))
+  expect(view.face.retry).toHaveBeenCalledWith(WS)
+  expect(screen.getByText('File watcher limit reached.').closest('details')).not.toBeNull()
+})
+
+it('opens a workspace material in the native reader without leaving its research topic', async () => {
+  const values = resources()
+  const localPaper = { ...child.resources[1]!, target: { kind: 'workspace-path' as const, path: 'papers/current.pdf' } }
+  values[workspaceTopicAddress(WS, CHILD)] = live(read({ ...child, resources: [child.resources[0]!, localPaper] }))
+  const openMaterial = vi.fn(async () => true)
+  const updateDiscussionSource = vi.fn()
+  const beginDiscussion = vi.fn()
+  panel(values, { openMaterial, updateDiscussionSource, beginDiscussion })
+  openChild()
+  fireEvent.click(screen.getByRole('button', { name: /Reference paper/ }))
+  await waitFor(() => { expect(openMaterial).toHaveBeenCalledWith({ workspaceId: WS, topicId: CHILD, title: child.title }, localPaper) })
+  expect(updateDiscussionSource).toHaveBeenCalledWith(
+    { workspaceId: WS, topicId: CHILD, title: child.title },
+    { workspaceId: WS, topicId: CHILD, title: child.title, resourceId: PDF },
+  )
+  expect(screen.getByRole('heading', { name: 'Controlled limit' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Ask about this topic' }))
+  expect(beginDiscussion).toHaveBeenCalledWith({ workspaceId: WS, topicId: CHILD, title: child.title }, undefined)
+})
+
+it('does not let a superseded material open move the research location', async () => {
+  const values = resources()
+  const first = { ...child.resources[1]!, title: 'First paper', target: { kind: 'workspace-path' as const, path: 'first.pdf' } }
+  const second = { ...first, id: 'second' as ResourceId, title: 'Second paper', target: { kind: 'workspace-path' as const, path: 'second.pdf' } }
+  values[workspaceTopicAddress(WS, CHILD)] = live(read({ ...child, resources: [first, second] }))
+  const pending: ((opened: boolean) => void)[] = []
+  panel(values, { openMaterial: () => new Promise((resolve) => { pending.push(resolve) }) })
+  openChild()
+  fireEvent.click(screen.getByRole('button', { name: /First paper/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Second paper/ }))
+  await act(async () => { pending[0]?.(false); pending[1]?.(true) })
+  expect(screen.getByRole('heading', { name: 'Controlled limit' })).toBeTruthy()
+})
+
+it('opens the topic account through the same native material bridge when its reference is available', async () => {
+  const openMaterial = vi.fn(async () => true)
+  panel(resources(), { openMaterial })
+  openChild()
+  fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
+  await waitFor(() => {
+    expect(openMaterial).toHaveBeenCalledWith({ workspaceId: WS, topicId: CHILD, title: child.title }, child.resources[0])
+  })
+  expect(screen.getByRole('heading', { name: 'Controlled limit' })).toBeTruthy()
+})
+
+it('explains the bounded coverage of automatic source updates', async () => {
+  const { WorkspaceReadingMeta } = await import('../src/client/WorkspaceViews.tsx')
+  render(<WorkspaceReadingMeta t={t} stale={false} retry={vi.fn()} read={{ origin: 'runtime', provider: {
+    capabilities: { read: true, changeEvents: true },
+    notice: 'Automatic updates cover discovered folders and opened sources; undiscovered folders require refresh.',
+  } }} />)
+  expect(screen.getByText(en['workspace.partialUpdates'])).toBeTruthy()
+  expect(screen.queryByText(en['workspace.manualUpdates'])).toBeNull()
+})

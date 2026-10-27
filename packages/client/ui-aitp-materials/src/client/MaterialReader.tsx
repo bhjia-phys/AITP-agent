@@ -2,6 +2,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { Button, CodeBlock, languageForPath, extractMarkdownPlainText, IconNewChatOutlineRegular, IconPlusOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
+import { MATERIAL_WATCH_UNAVAILABLE } from '@deepseek-ai/dsh-research-resources/protocol'
 import { materialRefKey, materialsScopeKey } from './store.ts'
 import { ImageMaterialReader } from './ImageMaterialReader.tsx'
 import { PdfMaterialReader } from './PdfMaterialReader.tsx'
@@ -98,6 +99,7 @@ function TextMaterialReader(props: FactoryComponentPropsOf<'aitp.materials.reade
             ? <CodeBlock code={body.text} lang={languageForPath(path)} copyLabel={t('copy')} copiedLabel={t('copied')} /> : <pre>{body.text}</pre>,
           })}
     </section>
+    {reading.issues.includes(MATERIAL_WATCH_UNAVAILABLE) && <p role="status" className={css.notice}>{t('watchUnavailable')}</p>}
     {!dock && reading.issues.length > 0 && <ul className={css.notice}>{reading.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
     {!dock && <MaterialReaderLinks {...props} onFailure={() => { setFailure(t('unresolved')) }} />}
     <details className={css.observation}><summary>{t('readingInfo')}</summary>

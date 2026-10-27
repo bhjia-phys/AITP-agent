@@ -151,3 +151,30 @@ it('admits selected sources through the existing Session transport and releases 
     expect(readers.size).toBe(0)
   } finally { await release() }
 }, 60_000)
+
+it('maps a research reference only through its authorized workspace root and opens the native panel dock', async ({ mock, start }) => {
+  const client = await start()
+  const workspaceId = 'project' as WorkspaceId
+  const rootId = 'authorized-root' as SourceRootId
+  mock.unary('researchResources/listRoots', ok({ ok: true, value: [
+    { id: rootId, title: 'Project', displayPath: '/project', grants: [{ kind: 'workspace-connection', workspaceId }] },
+  ] }))
+  vi.spyOn(client.ctx.layout.panelInfo, 'getSnapshot').mockReturnValue({
+    ...client.ctx.layout.panelInfo.getSnapshot(), activePanelId: 'aitp-research' as never,
+  })
+  const open = vi.spyOn(client.ctx.sidebarRightRoots, 'openIn').mockImplementation(() => {})
+  const select = vi.spyOn(client.ctx.sidebarRightRoots, 'selectScope').mockImplementation(() => {})
+  const scope = { workspaceId, topicId: 'topic' }
+  const material = { id: 'paper' as import('@deepseek-ai/dsh-research-memory/types').ResourceId,
+    ownerTopicId: null, title: 'Paper', kind: 'paper' as const,
+    target: { kind: 'workspace-path' as const, path: '中文/current.pdf' } }
+  expect(await client.ctx.researchMaterialNavigation.open(scope, material)).toBe(true)
+  expect(select).toHaveBeenCalledWith('aitp-research', JSON.stringify(['project', 'topic']))
+  expect(open).toHaveBeenCalledWith('aitp-research', JSON.stringify(['project', 'topic']),
+    materialSourceAddress({ rootId, sourceId: 'source:%E4%B8%AD%E6%96%87%2Fcurrent.pdf' as SourceId }, undefined, 'literature'),
+    { params: { scope, libraryDomain: 'literature' } })
+  expect(await client.ctx.researchMaterialNavigation.open(scope, { ...material, target: { kind: 'workspace-path', path: '../outside.pdf' } })).toBe(false)
+  mock.unary('researchResources/listRoots', ok({ ok: true, value: [] }))
+  expect(await client.ctx.researchMaterialNavigation.open(scope, material)).toBe(false)
+  expect(open).toHaveBeenCalledTimes(1)
+}, 60_000)

@@ -3,7 +3,7 @@ import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Button, Tooltip, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconChevronLeftOutlineRegular, IconRefreshOutlineRegular, IconSearchOutlineRegular, IconCloseOutlineRegular, IconNewChatOutlineRegular, IconLoadingOutlineRegular, IconFolderOpenOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore, PropsRenderFactories, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
-import type { ResourceDomain, ResourceLink, ResourcePage, ResourceReading, ResourceResult, RootConnection, SaveSourceSetRequest, SourceRootId, SourceSelection, SourceSet, SourceSetId, SourceSetReceipt, StudyReceipt, StudyRequest } from '@deepseek-ai/dsh-research-resources/types'
+import type { ResourceDomain, ResourceLink, ResourcePage, ResourceReading, ResourceResult, RootConnection, SaveSourceSetRequest, SourceRoot, SourceRootId, SourceSelection, SourceSet, SourceSetId, SourceSetReceipt, StudyReceipt, StudyRequest } from '@deepseek-ai/dsh-research-resources/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-aitp-research/client'
@@ -90,12 +90,8 @@ export function MaterialsPanel(props: MaterialsPanelProps): ReactNode {
       : t(scope.topicId === undefined ? 'workspaceScope' : 'topicScope', { title: scope.title })
   const roots = props.useResource<'aitp-material-roots'>(MATERIAL_ROOTS)
   const availableRoots = roots.value?.filter(root => root.domains === undefined || root.domains.includes(domain))
-  const list = props.useResource<'aitp-material-list'>(materialListAddress({ domain,
-    ...current.rootId === null ? {} : { rootId: current.rootId as SourceRootId },
-    ...current.query ? { query: current.query } : {}, ...current.cursor === null ? {} : { cursor: current.cursor },
-    ...scope.workspaceId === undefined || scope.topicId === undefined ? {}
-      : { topic: { workspaceId: scope.workspaceId, topicId: scope.topicId } },
-  }))
+  const codeRootOverview = domain === 'code' && current.rootId === null && !current.query
+    && scope.workspaceId === undefined
   return <section className={css.panel} aria-label={labels.title}>
     <header className={css.header}><h1>{labels.title}</h1><div className={css.scope} data-scoped={scope.workspaceId !== undefined}>
       <span className={css.scopeLabel}>{scopeLabel}</span>
@@ -124,7 +120,10 @@ export function MaterialsPanel(props: MaterialsPanelProps): ReactNode {
           </div>
           <p className={css.intro}>{labels.description}</p>
           {availableRoots?.length === 0 && <p className={css.notice}>{t('noRoots')}</p>}
-          {availableRoots?.length !== 0 && <LibraryRows {...props} reading={list} />}
+          {availableRoots?.length !== 0 && (codeRootOverview
+            ? availableRoots === undefined ? <MaterialUnavailable {...props} snapshot={roots} list />
+              : <CodeRootOverview {...props} roots={availableRoots} />
+            : <LibraryResults {...props} />)}
           {props.management !== undefined && <LibraryManagement {...props} management={props.management} />}
         </>
       </div></div>
@@ -150,6 +149,40 @@ function PendingSourceSets(props: MaterialsPanelProps): ReactNode {
   </>
 }
 
+/** Open the code root list without first traversing any checkout. */
+function CodeRootOverview(props: MaterialsPanelProps & { roots: readonly SourceRoot[] }): ReactNode {
+  const scope = props.useStore(state => state.scope)
+  const selected = props.useStore(state => state.drafts[materialsScopeKey(scope)]?.selections) ?? []
+  const sending = props.useStore((state) => {
+    const draft = state.drafts[materialsScopeKey(scope)]
+    return draft?.sending === true || draft?.pendingSave != null
+  })
+  return props.renderFactorySlot('aitp.materials.catalog', {
+    domain: 'code', items: [], roots: props.roots, rootId: null, folderPath: '', query: '', selected, disabled: sending,
+    isSelected: resource => selected.some(item => materialSelectionKey(item) === materialSelectionKey({ ref: resource.ref,
+      ...resource.locator === undefined ? {} : { locator: resource.locator } })),
+    onOpen: (selection) => { stageCurrentSource(props, scope, selected, selection); props.preview(selection, scope) },
+    onSelect: (resource, checked) => { updateSelection(props, scope, selected, { ref: resource.ref, title: resource.title,
+      domain: resource.domain, ...resource.locator === undefined ? {} : { locator: resource.locator } }, checked) },
+    onRoot: (id) => { props.actions.setRoot('code', id) },
+    onFolder: (path) => { props.actions.setFolder('code', path) },
+  })
+}
+
+/** Observe only the requested library page after the person selects a source or search. */
+function LibraryResults(props: MaterialsPanelProps): ReactNode {
+  const scope = props.useStore(state => state.scope)
+  const current = props.useStore(state => state.views[props.domain])
+  const list = props.useResource<'aitp-material-list'>(materialListAddress({ domain: props.domain,
+    ...current.rootId === null ? {} : { rootId: current.rootId as SourceRootId },
+    ...props.domain === 'code' && current.rootId !== null && !current.query ? { folder: current.folderPath } : {},
+    ...current.query ? { query: current.query } : {}, ...current.cursor === null ? {} : { cursor: current.cursor },
+    ...scope.workspaceId === undefined || scope.topicId === undefined || props.domain === 'code' && current.rootId !== null ? {}
+      : { topic: { workspaceId: scope.workspaceId, topicId: scope.topicId } },
+  }))
+  return <LibraryRows {...props} reading={list} />
+}
+
 function LibraryRows(props: MaterialsPanelProps & { reading: ResourceSnapshot<ResourcePage> }): ReactNode {
   const { reading, t, domain } = props
   const scope = props.useStore(state => state.scope)
@@ -173,7 +206,8 @@ function LibraryRows(props: MaterialsPanelProps & { reading: ResourceSnapshot<Re
     {page.items.length === 0 ? <div className={css.empty}><IconFolderOpenOutlineRegular size={28} /><p>{t('empty')}</p></div>
       : props.renderFactorySlot('aitp.materials.catalog', {
         domain, items: page.items, roots: roots.value ?? [], rootId: view.rootId, folderPath: view.folderPath,
-        query: view.query, selected: selected ?? [], disabled: sending,
+        query: view.query, ...domain === 'code' && view.rootId === null && scope.topicId !== undefined ? { topicFiltered: true } : {},
+        selected: selected ?? [], disabled: sending,
         isSelected: resource => selected?.some(item => materialSelectionKey(item) === materialSelectionKey({ ref: resource.ref,
           ...resource.locator === undefined ? {} : { locator: resource.locator },
         })) ?? false,
@@ -205,7 +239,9 @@ export function MaterialUnavailable(props: Pick<MaterialsPanelProps, 't' | 'refr
   if (props.snapshot.status === 'loading' && props.list) return <div className={css.skeleton} role="status" aria-label={props.t('loading')}>
     {[0, 1, 2, 3].map(row => <div key={row} aria-hidden="true"><span /><span /></div>)}
   </div>
-  if (props.snapshot.status === 'loading') return <div className={css.loading} role="status" aria-label={props.t('loading')}><IconLoadingOutlineRegular size={24} /></div>
+  if (props.snapshot.status === 'loading') return <div className={css.loading} role="status">
+    <IconLoadingOutlineRegular size={24} /><span>{props.t('loadingSource')}</span>
+  </div>
   const failure = props.snapshot.failure
   const code = failure?.code === 'aitp/materials' ? failure.details.code : undefined
   const message = code === 'permission-denied' ? 'denied' : code === 'not-found' ? 'missing'

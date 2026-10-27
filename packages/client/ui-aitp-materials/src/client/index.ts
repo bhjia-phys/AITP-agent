@@ -6,15 +6,16 @@ import type {} from '@deepseek-ai/dsh-client-resources/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
-import type { ResourceEvent, ResourceResult, SourceTopicId } from '@deepseek-ai/dsh-research-resources/types'
+import type { ResourceEvent, ResourceResult, SourceId, SourceTopicId } from '@deepseek-ai/dsh-research-resources/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
-import type {} from '@deepseek-ai/dsh-client-ui-aitp-research/client'
+import type { ResearchMaterialNavigation } from '@deepseek-ai/dsh-client-ui-aitp-research/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import resourcesRemote from '@deepseek-ai/dsh-research-resources/remote'
 import { materialSourceAddress, materialSourcePath, parseMaterialSource } from '@deepseek-ai/dsh-research-resources/protocol'
 import type { MaterialReaderInput, MaterialMarkdownInput, MaterialStudyTaskOwner, MaterialsCatalogInput } from './contracts.ts'
 import type { MaterialsStore } from './store.ts'
-import { createMaterialsStore } from './store.ts'
+import { createMaterialsStore, materialsScopeKey } from './store.ts'
 import { MaterialsConnection } from './connection.ts'
 import { MaterialsController } from './controller.ts'
 import { en, zh } from './locales.ts'
@@ -78,6 +79,34 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     return instance
   } }
   const controller = new MaterialsController(ctx, store, connection)
+  const researchNavigation: ResearchMaterialNavigation = {
+    async open(scope, resource) {
+      if (resource.target.kind !== 'workspace-path') return false
+      const sourceId = `source:${encodeURIComponent(resource.target.path)}` as SourceId
+      if (materialSourcePath(sourceId) === undefined) return false
+      const signal = AbortSignal.any([ctx.layout.beginNavigation(), controller.lifetime.signal])
+      const roots = await connection.run(transport => transport.listRoots(signal))
+      if (!roots.ok || signal.aborted || ctx.layout.panelInfo.getSnapshot().activePanelId !== 'aitp-research') return false
+      const matches = roots.value.filter(root => root.grants?.some(grant =>
+        grant.kind === 'workspace-connection' && grant.workspaceId === scope.workspaceId))
+      if (matches.length !== 1) return false
+      const root = matches[0]
+      if (root === undefined) return false
+      const ref = { rootId: root.id, sourceId }
+      const domain = resource.kind === 'paper' ? 'literature' : resource.kind === 'code' ? 'code' : 'knowledge'
+      const locator = resource.target.anchor === undefined ? undefined : { kind: 'anchor' as const, anchor: resource.target.anchor }
+      const panel = 'aitp-research' as MainPanelId
+      const materialScope = { workspaceId: scope.workspaceId, ...scope.title === undefined ? {} : { title: scope.title },
+        ...scope.topicId === undefined ? {} : { topicId: scope.topicId as SourceTopicId } }
+      const key = materialsScopeKey(materialScope)
+      ctx.sidebarRightRoots.selectScope(panel, key)
+      ctx.sidebarRightRoots.openIn(panel, key, materialSourceAddress(ref, locator, domain),
+        { params: { scope: materialScope, libraryDomain: domain } })
+      return true
+    },
+  }
+  const releaseResearchNavigation = ctx.reflect.provide('researchMaterialNavigation', researchNavigation)
+  ctx.effect(() => () => { void releaseResearchNavigation() })
   const release = ctx.reflect.provide('researchMaterials', controller)
   ctx.effect(() => () => { controller.dispose(); void release() })
   registerMaterialResources(ctx, connection)

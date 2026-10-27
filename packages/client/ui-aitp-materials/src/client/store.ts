@@ -186,7 +186,9 @@ export function createMaterialsStore(journal?: SourceSetJournal): EngineStoreHan
       },
       setQuery: (draft, domain: ResourceDomain, query: string) => { draft.views[domain].query = query; draft.views[domain].cursor = null; draft.views[domain].location = { kind: 'list' } },
       setRoot: (draft, domain: ResourceDomain, rootId: string | null) => { draft.views[domain].rootId = rootId; draft.views[domain].folderPath = ''; draft.views[domain].cursor = null; draft.views[domain].location = { kind: 'list' } },
-      setFolder: (draft, domain: ResourceDomain, path: string) => { draft.views[domain].folderPath = path },
+      setFolder: (draft, domain: ResourceDomain, path: string) => {
+        draft.views[domain].folderPath = path; draft.views[domain].cursor = null
+      },
       open: (draft, domain: ResourceDomain, location: MaterialLocation) => {
         const current = draft.views[domain]
         current.back.push(current.location)

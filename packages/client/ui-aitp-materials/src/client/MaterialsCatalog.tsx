@@ -10,8 +10,9 @@ import css from './materials.module.css'
  * @returns the installed domain view or an accessible plain source list.
  */
 export function MaterialsCatalog(props: FactoryComponentPropsOf<'aitp.materials.catalog'>): ReactNode {
-  const { domain, items, roots, rootId, folderPath, query, selected, disabled, isSelected, onOpen, onSelect, onRoot, onFolder } = props
-  return props.renderSlot('aitp.materials.catalog.body', { domain, items, roots, rootId, folderPath, query, selected, disabled, isSelected, onOpen, onSelect, onRoot, onFolder }, { entryKey: props.domain,
+  const { domain, items, roots, rootId, folderPath, query, topicFiltered, selected, disabled,
+    isSelected, onOpen, onSelect, onRoot, onFolder } = props
+  return props.renderSlot('aitp.materials.catalog.body', { domain, items, roots, rootId, folderPath, query, ...topicFiltered === undefined ? {} : { topicFiltered }, selected, disabled, isSelected, onOpen, onSelect, onRoot, onFolder }, { entryKey: props.domain,
     fallback: <ul className={css.list}>{props.items.map((resource) => {
       const selection = { ref: resource.ref, ...resource.locator === undefined ? {} : { locator: resource.locator } }
       return <li key={resource.id} className={css.row}>

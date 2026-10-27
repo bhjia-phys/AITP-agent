@@ -15,8 +15,10 @@ import type {} from '@deepseek-ai/dsh-app-boot'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { SourceRootLease, StudyRequest, StudyReceipt, ResourceResult, TopicAssociationProvider } from '@deepseek-ai/dsh-research-resources/types'
+import type { SourceId, SourceRootLease, StudyRequest, StudyReceipt, ResourceResult, TopicAssociationProvider } from '@deepseek-ai/dsh-research-resources/types'
 import { sourceIdForPath } from '@deepseek-ai/dsh-research-resources/identity'
+import { BoundedSourceWatcher } from '@deepseek-ai/dsh-research-resources/files'
+import { pathForResourceId, pathForTopicId } from './markdown-files.ts'
 import { MarkdownWorkspace, resourceIdForPath } from './markdown.ts'
 import { ResearchChanges } from './changes.ts'
 import { ResearchOnboarding } from './onboarding.ts'
@@ -51,8 +53,9 @@ interface SourceObservation {
   dirty: boolean
   forceNewRevision: boolean
   refreshing: Promise<void> | undefined
-  watcher: FSWatcher | undefined
+  watcher: FSWatcher | BoundedSourceWatcher | undefined
   watchFailure: string | undefined
+  partialCoverage: boolean
 }
 
 /** One caller may stop waiting without cancelling the refresh shared by other readers. */
@@ -87,6 +90,10 @@ export interface Config {
   }[]
   /** Maximum directory entries inspected by discovery, including directories. */
   maxFiles?: number
+  /** Enable source-change notifications; false rescans on each read instead. */
+  watchSources?: boolean
+  /** Use bounded directory watches rather than a recursive whole-tree watch. */
+  watchMode?: 'recursive' | 'bounded'
   /** Maximum UTF-8 bytes read from one source file. */
   maxFileBytes?: number
   /** Maximum complete research-context characters, including labels and omissions. */
@@ -130,6 +137,8 @@ export class ResearchMemory extends TypertRemoteService {
       path: z.string().required(), id: z.string(), writable: z.boolean().default(false), stateDirectory: z.string(),
     })).default([]),
     maxFiles: z.natural().min(1).default(2000),
+    watchSources: z.boolean().default(true),
+    watchMode: (z.union(['recursive', 'bounded']) as z<'recursive' | 'bounded'>).default('recursive'),
     maxFileBytes: z.natural().min(1).default(1_048_576),
     maxContextCharacters: z.natural().min(1024).default(24_000),
     maxWorkingItems: z.natural().min(1).default(32),
@@ -230,7 +239,7 @@ export class ResearchMemory extends TypertRemoteService {
         read: async (signal, reportIssue) => {
           const registered = await resources.listRoots({}, signal)
           if (!registered.ok) throw new Error(registered.error.message)
-          const rootKey = JSON.stringify(registered.value.map(root => [root.id, root.displayPath]).sort())
+          const rootKey = JSON.stringify(registered.value.map(root => [root.id, root.displayPath, root.domains]).sort())
           const result: Awaited<ReturnType<TopicAssociationProvider['read']>>[number][] = []
           for (const observed of [...this.readers.values()]) {
             try {
@@ -246,9 +255,12 @@ export class ResearchMemory extends TypertRemoteService {
                 })) }, signal)
                 const values = authored.links.flatMap((link, index) => {
                   const target = resolved[index]
-                  return target === undefined ? [] : [{ ref: target.ref, topic: {
-                    workspaceId: observed.workspaceId, topicId: link.topicId, reason: link.reason,
-                  } }]
+                  if (target === undefined) return []
+                  const topic = { workspaceId: observed.workspaceId, topicId: link.topicId, reason: link.reason }
+                  const root = registered.value.find(item => item.id === target.ref.rootId)
+                  const checkout = root?.domains?.includes('code') === true && target.ref.sourceId.startsWith('source:')
+                    ? [{ ref: { rootId: target.ref.rootId, sourceId: 'git:checkout' as SourceId }, topic }] : []
+                  return [{ ref: target.ref, topic }, ...checkout]
                 })
                 cached = { key, values }
                 materialUses.set(reader.root, cached)
@@ -287,6 +299,14 @@ export class ResearchMemory extends TypertRemoteService {
     const observed = this.readers.get(root)
     if (observed !== undefined) observed.dirty = true
     this.notifications.emit(root)
+  }
+
+  private watchOpenedSource(root: string, path: string): void {
+    const observed = this.readers.get(root)
+    if (!(observed?.watcher instanceof BoundedSourceWatcher)) return
+    try { observed.watcher.includeFile(path) }
+    catch (error) { observed.watchFailure = 'Bounded source notifications are unavailable; sources are rescanned on each read.'
+      observed.watcher.close(); observed.watcher = undefined; this.markDirty(root); void error }
   }
 
   private admitOnboarding(): Disposable | undefined {
@@ -333,9 +353,18 @@ export class ResearchMemory extends TypertRemoteService {
     if (observed === undefined) {
       observed = {
         reader: new MarkdownWorkspace({ root, maxFiles: this.config.maxFiles,
-          maxFileBytes: this.config.maxFileBytes, maxContextCharacters: this.config.maxContextCharacters }),
+          maxFileBytes: this.config.maxFileBytes, maxContextCharacters: this.config.maxContextCharacters,
+          onDirectories: (directories, partial) => {
+            const current = this.readers.get(root)
+            if (!(current?.watcher instanceof BoundedSourceWatcher)) return
+            current.partialCoverage = partial
+            try { current.watcher.sync(directories) }
+            catch (error) { current.watchFailure = 'Bounded source notifications are unavailable; sources are rescanned on each read.'
+              current.watcher.close(); current.watcher = undefined; this.markDirty(root); void error }
+          },
+        }),
         workspaceId,
-        dirty: true, forceNewRevision: false, refreshing: undefined, watcher: undefined, watchFailure: undefined,
+        dirty: true, forceNewRevision: false, refreshing: undefined, watcher: undefined, watchFailure: undefined, partialCoverage: false,
       }
       this.readers.set(root, observed)
       const owner = observed
@@ -345,10 +374,14 @@ export class ResearchMemory extends TypertRemoteService {
         owner.watcher = undefined
         this.markDirty(root)
       }
-      try {
-        owner.watcher = watch(root, { recursive: true }, () => { this.markDirty(root) })
-        owner.watcher.on('error', failed)
-      } catch (error: unknown) { failed(error) }
+      if (this.config.watchSources) {
+        try {
+          owner.watcher = this.config.watchMode === 'bounded'
+            ? new BoundedSourceWatcher(root, Math.min(this.config.maxFiles, 1024), () => { this.markDirty(root) })
+            : watch(root, { recursive: true }, () => { this.markDirty(root) })
+          owner.watcher.on('error', failed)
+        } catch (error: unknown) { failed(error) }
+      } else owner.watchFailure = 'Automatic source notifications are disabled. Sources are rescanned on each read.'
     }
     if (refresh) observed.forceNewRevision = true
     if (refresh || observed.watcher === undefined) observed.dirty = true
@@ -499,8 +532,10 @@ export class ResearchMemory extends TypertRemoteService {
     const writable = principalOf(this.ctx.invocation) === undefined
       && configured.some(item => item.writable && item.stateDirectory !== undefined)
     const observed = this.readers.get(reader.root)
+    const notice = observed?.watchFailure ?? (observed?.watcher instanceof BoundedSourceWatcher && observed.partialCoverage
+      ? 'Automatic updates cover discovered folders and opened sources; undiscovered folders require refresh.' : undefined)
     return { id: 'aitp-markdown', origin: 'runtime',
-      ...(observed?.watchFailure === undefined ? {} : { notice: observed.watchFailure }), capabilities: {
+      ...(notice === undefined ? {} : { notice }), capabilities: {
         read: true, readContext: true, readActivity: false, previewChanges: writable,
         applyChanges: writable, changeEvents: observed?.watcher !== undefined, commands: writable ? ['update-scope', 'record-answer'] : [],
       } }
@@ -537,7 +572,10 @@ export class ResearchMemory extends TypertRemoteService {
    */
   @Remote({ name: 'getTopic', resources: { workspace: addressedWorkspace } })
   async getTopic(request: { workspaceId: WorkspaceId; topicId: TopicId }, signal: AbortSignal): Promise<Result<ReadEnvelope<Topic>>> {
-    return (await this.reader(request.workspaceId, signal)).getTopic(request.topicId, { signal })
+    const reader = await this.reader(request.workspaceId, signal)
+    const result = await reader.getTopic(request.topicId, { signal })
+    if (result.ok) this.watchOpenedSource(reader.root, pathForTopicId(request.topicId))
+    return result
   }
 
   /**
@@ -549,7 +587,10 @@ export class ResearchMemory extends TypertRemoteService {
   @Remote({ name: 'getResource', resources: { workspace: addressedWorkspace } })
   async getResource(request: { workspaceId: WorkspaceId; resourceId: ResourceId },
     signal: AbortSignal): Promise<Result<ReadEnvelope<Resource>>> {
-    return (await this.reader(request.workspaceId, signal)).getResource(request.resourceId, { signal })
+    const reader = await this.reader(request.workspaceId, signal)
+    const result = await reader.getResource(request.resourceId, { signal })
+    if (result.ok && result.value.value.content.kind !== 'unavailable') this.watchOpenedSource(reader.root, pathForResourceId(request.resourceId))
+    return result
   }
 
   /**

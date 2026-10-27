@@ -206,6 +206,8 @@ export interface ResourceIssue {
 export interface ResourceQuery {
   readonly domain?: ResourceDomain
   readonly rootId?: SourceRootId
+  /** Request one immediate code directory; empty string addresses the root. */
+  readonly folder?: string
   readonly query?: string
   readonly cursor?: string
   readonly limit?: number
@@ -245,6 +247,8 @@ export interface ResourceProvider {
   readonly domain: ResourceDomain
   /** Project source observations into this domain's catalog. */
   list(context: SourceProviderContext, signal: AbortSignal): Promise<readonly ResourceSummary[]>
+  /** Optionally list one immediate directory using the same authorized source context. */
+  listDirectory?(context: SourceProviderContext, folder: string, signal: AbortSignal): Promise<readonly ResourceSummary[]>
   /** Read a known source or return undefined when this provider has no specialized reader. */
   read?(context: SourceProviderContext, reference: SourceRef,
     locator: SourceLocator | undefined, signal: AbortSignal): Promise<ResourceBody | undefined>

@@ -25,6 +25,10 @@ export function codeDirectory(items: readonly ResourceSummary[], folder: string,
     const path = materialSourcePath(resource.ref.sourceId)
     if (path === undefined || (!searching && !path.startsWith(prefix))) continue
     const relative = searching ? path : path.slice(prefix.length)
+    if (!searching && resource.metadata['entryKind'] === 'source-folder' && !relative.includes('/')) {
+      folders.set(relative, { name: relative, path })
+      continue
+    }
     const slash = relative.indexOf('/')
     if (!searching && slash !== -1) {
       const name = relative.slice(0, slash)

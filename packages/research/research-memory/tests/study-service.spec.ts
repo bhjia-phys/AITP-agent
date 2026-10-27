@@ -341,3 +341,25 @@ it('keeps explicit Workspace-root material questions in root research rather tha
   expect(ctx.sessionProjections.stateOf(agent.session, 'researchWorking')?.origin).not.toHaveProperty('scope')
   expect(create).toHaveBeenCalledTimes(1)
 })
+
+it('associates an explicitly linked source with its configured code checkout without claiming unrelated topics', async () => {
+  const { path, resources, memory } = await fixture()
+  const repo = join(path, 'repo')
+  await mkdir(join(repo, 'src'), { recursive: true })
+  await writeFile(join(repo, 'src/driver.cpp'), 'int driver = 1;\n')
+  const checkout = await resources.registerRoot({ id: 'code-checkout', path: repo, domains: ['code'] })
+  resources.registerProvider({ id: 'code-checkout-test', domain: 'code', list: async (context) => {
+    const ref = { rootId: context.root.id, sourceId: 'git:checkout' as SourceSelection['ref']['sourceId'] }
+    return [{ id: resourceEntryId(ref), ref, title: 'Checkout', domain: 'code', kind: 'code',
+      providerId: 'code-checkout-test', metadata: {}, links: [], topics: [] }]
+  } })
+  await writeFile(join(path, 'project/a/research.md'), '# Alpha\n\n[Driver](../../repo/src/driver.cpp) is the cited implementation.\n')
+  await memory.refresh({ workspaceId }, signal())
+  const alpha = value(await resources.listResources({ domain: 'code', rootId: checkout.rootId,
+    topic: { workspaceId, topicId: topicIdForPath('a/research.md') } }, signal()))
+  expect(alpha.items.map(item => item.ref)).toContainEqual({ rootId: checkout.rootId, sourceId: 'git:checkout' })
+  expect(alpha.items[0]?.topics[0]?.reason).toContain('cited implementation')
+  const beta = value(await resources.listResources({ domain: 'code', rootId: checkout.rootId,
+    topic: { workspaceId, topicId: topicIdForPath('b/research.md') } }, signal()))
+  expect(beta.items).toEqual([])
+})

@@ -1,9 +1,10 @@
 import { Context } from '@deepseek-ai/cordis'
 import ResearchResources, { sourceIdForPath } from '@deepseek-ai/dsh-research-resources'
 import type { ResourceResult } from '@deepseek-ai/dsh-research-resources'
-import { readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { GuardedFiles } from '@deepseek-ai/dsh-research-resources/files'
 import { Config, createCodeProvider } from '../src/index.ts'
 import { createCheckoutFixture } from './fixture.ts'
 
@@ -129,4 +130,52 @@ describe('checkout source readings', () => {
     expect(reading.locator).toEqual({ kind: 'code', startLine: 1, endLine: 2, revision })
     expect(reading.resource).toMatchObject({ domain: 'code', providerId: 'research-code', title: 'model.py' })
   })
+})
+
+it('lists only one chosen checkout directory with current Git status and without a recursive catalog scan', async () => {
+  const { service, root, sourceRoot } = await fixture()
+  await mkdir(join(root, 'src/nested'), { recursive: true })
+  await writeFile(join(root, 'src/nested/deep.cpp'), 'int x;\n')
+  await writeFile(join(root, 'model.py'), 'modified working copy\n')
+  const scans = vi.spyOn(GuardedFiles.prototype, 'scan')
+  try {
+    const top = value(await service.listResources({ domain: 'code', rootId: sourceRoot, folder: '' }, signal()))
+    expect(scans).not.toHaveBeenCalled()
+    expect(top.items.find(item => item.title === 'src')?.metadata.entryKind).toBe('source-folder')
+    expect(top.items.find(item => item.title === 'model.py')?.metadata.fileStatus).toContain('M')
+    expect(top.items.some(item => item.title.includes('deep.cpp'))).toBe(false)
+    expect(top.items.some(item => item.metadata.entryKind === 'checkout')).toBe(true)
+    const nested = value(await service.listResources({ domain: 'code', rootId: sourceRoot, folder: 'src/nested' }, signal()))
+    expect(nested.items.map(item => item.title)).toEqual(['src/nested/deep.cpp'])
+    expect(await service.listResources({ domain: 'code', rootId: sourceRoot, folder: '../outside' }, signal()))
+      .toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+  } finally { scans.mockRestore() }
+})
+
+it('paginates one directory and rejects another folder cursor', async () => {
+  const { service, root, sourceRoot } = await fixture()
+  await mkdir(join(root, 'src'))
+  await writeFile(join(root, 'a.cpp'), 'a\n')
+  await writeFile(join(root, 'b.cpp'), 'b\n')
+  const first = value(await service.listResources({ domain: 'code', rootId: sourceRoot, folder: '', limit: 2 }, signal()))
+  expect(first.items).toHaveLength(2)
+  expect(first.nextCursor).not.toBeNull()
+  const cursor = first.nextCursor
+  if (cursor === null) throw new Error('expected a next page')
+  const second = value(await service.listResources({ domain: 'code', rootId: sourceRoot, folder: '', limit: 2,
+    cursor }, signal()))
+  expect(second.items.length).toBeGreaterThan(0)
+  expect(await service.listResources({ domain: 'code', rootId: sourceRoot, folder: 'src', limit: 2,
+    cursor }, signal())).toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+})
+
+// Windows symlink creation commonly requires privileges unavailable to CI workers.
+it.skipIf(process.platform === 'win32')('does not follow a symbolic link when browsing a checkout', async () => {
+  const { service, root, sourceRoot } = await fixture()
+  await symlink('/tmp', join(root, 'link'))
+  const page = value(await service.listResources({ domain: 'code', rootId: sourceRoot, folder: '' }, signal()))
+  expect(page.completeness).toBe('partial')
+  expect(page.issues.some(issue => issue.reason.includes('Symbolic links'))).toBe(true)
+  expect(await service.listResources({ domain: 'code', rootId: sourceRoot, folder: 'link' }, signal()))
+    .toMatchObject({ ok: false, error: { code: 'permission-denied' } })
 })

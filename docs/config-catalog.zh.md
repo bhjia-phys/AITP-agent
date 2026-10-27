@@ -2687,6 +2687,8 @@ export interface Config {
 ```ts config-catalog
 /** Existing reading entry points and bounded PDF extraction; all reads still obey shared root limits. */
 export interface Config {
+  /** Show primary PDF artifacts and omit extracted source/figure files from the global paper catalog. */
+  readonly primaryPdfOnly: boolean
   /** Existing root-relative Markdown reading-index entry points. */
   readonly readingIndexPaths: string[]
   /** Maximum explicitly linked reading notes inspected per admitted root. */
@@ -2709,7 +2711,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-research-memory`
 
 - `inject`: `typert` · `agents` · `sessions` · `systemPrompt` · `tools` · `sessionProjections`
-- `source`: [`packages/research/research-memory/src/index.ts:76`](../packages/research/research-memory/src/index.ts)
+- `source`: [`packages/research/research-memory/src/index.ts:79`](../packages/research/research-memory/src/index.ts)
 
 ```ts config-catalog
 /** Explicit host access and bounds for configured research roots. */
@@ -2727,6 +2729,10 @@ export interface Config {
   }[]
   /** Maximum directory entries inspected by discovery, including directories. */
   maxFiles?: number
+  /** Enable source-change notifications; false rescans on each read instead. */
+  watchSources?: boolean
+  /** Use bounded directory watches rather than a recursive whole-tree watch. */
+  watchMode?: 'recursive' | 'bounded'
   /** Maximum UTF-8 bytes read from one source file. */
   maxFileBytes?: number
   /** Maximum complete research-context characters, including labels and omissions. */
@@ -2764,7 +2770,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-research-resources`
 
 - `inject`: `typert`
-- `source`: [`packages/research/research-resources/src/index.ts:33`](../packages/research/research-resources/src/index.ts)
+- `source`: [`packages/research/research-resources/src/index.ts:34`](../packages/research/research-resources/src/index.ts)
 
 ```ts config-catalog
 /** Configured local roots and complete reading/catalog bounds; none authorizes source writes. */
@@ -2782,8 +2788,14 @@ export interface Config {
     /** Catalog domains offered to providers; omission offers every installed domain. */
     domains?: ResourceDomain[] | undefined
   }[]
+  /** Whether unclassified Workspace grants appear in library catalogs; their read authority remains intact. */
+  workspaceRootsInCatalog?: boolean
   /** Maximum discovered directory entries per root, including directories. */
   maxFiles?: number
+  /** Enable source-change notifications; false rescans on each catalog read instead. */
+  watchSources?: boolean
+  /** Use bounded directory watches rather than a recursive whole-tree watch. */
+  watchMode?: 'recursive' | 'bounded'
   /** Maximum UTF-8 bytes in one complete source-text reading. */
   maxFileBytes?: number
   /** Maximum bytes in one complete source-binary reading. */

@@ -21,6 +21,8 @@ import { selectionSource } from './workspace-selection.ts'
 export type WorkspaceViewProps = ResearchPanelProps & {
   workspaceId: WorkspaceId
   navigate: (location: ResearchLocation) => void
+  /** Open a local source in the installed native reader, retaining its topic. */
+  openMaterialReference?: ((resource: ResourceReference, topicId: TopicId) => void) | undefined
   /** Capture the current reading point before opening a library, then restore it when that library returns. */
   libraryNavigation?: { readonly onLeave: () => void; readonly returnTo: () => void }
   /** Open the shared discussion, or focus the compatibility composer supplied by an older host. */
@@ -83,16 +85,24 @@ export function WorkspaceUnavailable({ snapshot, t, retry }: {
  */
 export function WorkspaceReadingMeta({ t, read, stale, retry }: {
   t: T
-  read: Pick<ReadEnvelope<unknown>, 'origin'> & { provider?: { notice?: string } }
+  read: Pick<ReadEnvelope<unknown>, 'origin'> & {
+    provider?: { notice?: string; capabilities?: { read: boolean; changeEvents: boolean } }
+  }
   stale: boolean
   retry: () => void
 }): ReactNode {
-  if (read.origin !== 'fixture' && !stale && read.provider?.notice === undefined) return null
+  const manualUpdates = read.origin === 'runtime' && read.provider?.capabilities?.read === true
+    && !read.provider.capabilities.changeEvents
+  const partialUpdates = read.provider?.notice === 'Automatic updates cover discovered folders and opened sources; undiscovered folders require refresh.'
+  if (read.origin !== 'fixture' && !stale && read.provider?.notice === undefined && !manualUpdates) return null
   return (
     <div className={css.readingMeta}>
       {read.origin === 'fixture' && <p className={css.fixtureLabel}><strong>{t('workspace.fixture')}</strong> · {t('workspace.fixture.detail')}</p>}
       {stale && <Notice>{t('workspace.retained')} <button type="button" className={css.linkButton} onClick={retry}>{t('workspace.retry')}</button></Notice>}
-      {read.provider?.notice !== undefined && <Notice>{read.provider.notice}</Notice>}
+      {manualUpdates && <Notice>{t('workspace.manualUpdates')} <button type="button" className={css.linkButton} onClick={retry}>{t('workspace.retry')}</button></Notice>}
+      {read.provider?.notice !== undefined && (manualUpdates
+        ? <details><summary>{t('workspace.updateDetails')}</summary><p>{read.provider.notice}</p></details>
+        : <Notice>{partialUpdates ? t('workspace.partialUpdates') : read.provider.notice}</Notice>)}
     </div>
   )
 }
@@ -177,19 +187,27 @@ export function materialLocator(resource: Pick<ResourceReference, 'target'>): st
   return target.kind === 'workspace-path' ? target.path : target.kind === 'uri' ? target.uri : target.reason
 }
 
+/** Open a known topic reference in the native dock, retaining the legacy route for unknown identities. */
+export function openTopicResource(props: Pick<WorkspaceViewProps, 'navigate' | 'openMaterialReference'>,
+  topicId: TopicId, resourceId: ResourceId, resources: readonly ResourceReference[]): void {
+  const resource = resources.find(item => item.id === resourceId)
+  if (resource !== undefined && props.openMaterialReference !== undefined) props.openMaterialReference(resource, topicId)
+  else props.navigate({ kind: 'resource', topicId, resourceId })
+}
+
 /**
  * Materials of one topic, each opening its reader with that topic's question scope.
  * @param props - view callbacks, the current topic and its material references.
  * @returns the material rows, or the explicit absence of materials.
  */
-export function MaterialLinks(props: Pick<WorkspaceViewProps, 't' | 'navigate'> & {
+export function MaterialLinks(props: Pick<WorkspaceViewProps, 't' | 'navigate' | 'openMaterialReference'> & {
   topicId: TopicId
   resources: readonly ResourceReference[]
   showLocator: boolean
 }): ReactNode {
   if (props.resources.length === 0) return <p className={css.note}>{props.t('workspace.noMaterials')}</p>
   return <ul className={css.materials}>{props.resources.map(resource => <li key={resource.id}>
-    <button type="button" className={css.materialLink} onClick={() => { props.navigate({ kind: 'resource', resourceId: resource.id, topicId: props.topicId }) }}>
+    <button type="button" className={css.materialLink} onClick={() => { if (props.openMaterialReference === undefined) props.navigate({ kind: 'resource', resourceId: resource.id, topicId: props.topicId }); else props.openMaterialReference(resource, props.topicId) }}>
       <span className={css.materialKind}>{props.t(`workspace.material.${resource.kind}`)}</span><strong>{resource.title}</strong>
       {props.showLocator && <span className={css.materialPath}>{materialLocator(resource)}</span>}
     </button>

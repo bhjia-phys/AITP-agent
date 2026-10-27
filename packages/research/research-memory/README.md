@@ -31,6 +31,8 @@ AITP_RESEARCH_ROOT=/absolute/path/to/scratch-research \
 | --- | --- | --- |
 | `roots` | `[]` | Explicit source access; no filesystem discovery outside these roots |
 | `maxFiles` | 2000 | Discovery-entry and retained selected-source bounds; discovery counts directories |
+| `watchSources` | `true` | Set to `false` to avoid recursive watches; each read rescans and external changes require refresh |
+| `watchMode` | `recursive` | `bounded` watches discovered directories and parents of opened sources without recursive traversal; discovery limits still apply |
 | `maxFileBytes` | 1048576 | Complete source read byte bound |
 | `maxContextCharacters` | 24000 | Complete research-context bound, including scope and omissions |
 | `maxWorkingItems` / `maxItemCharacters` | 32 / 2000 | Provisional model working-item bounds |
