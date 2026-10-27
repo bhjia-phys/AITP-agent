@@ -1,5 +1,5 @@
 /** Bounded real directory watching keeps active sources fresh without recursive traversal. */
-import { mkdtemp, mkdir, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rename, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, it, vi } from 'vitest'
@@ -40,6 +40,34 @@ it('replaces an obsolete watch before allocating a renamed directory at the limi
     await rename(join(root, 'old'), join(root, 'new'))
     expect(() => observer?.sync(['', 'new'])).not.toThrow()
     expect(observer.count).toBe(2)
+  } finally { observer?.close(); await rm(root, { recursive: true, force: true }) }
+})
+
+it('drops vanished opened-source directories without losing watches for the rest of the root', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'aitp-opened-watch-rename-'))
+  let observer: BoundedSourceWatcher | undefined
+  try {
+    await mkdir(join(root, 'old'))
+    observer = new BoundedSourceWatcher(root, 4, () => {})
+    observer.includeFile('old/note.md')
+    await rename(join(root, 'old'), join(root, 'new'))
+    expect(() => observer?.sync(['', 'new'])).not.toThrow()
+    expect(observer.count).toBe(2)
+  } finally { observer?.close(); await rm(root, { recursive: true, force: true }) }
+})
+
+// Windows symlink creation commonly requires privileges unavailable to CI workers.
+it.skipIf(process.platform === 'win32')('does not retain opened descendants through a replacement symlink', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'aitp-watch-symlink-'))
+  let observer: BoundedSourceWatcher | undefined
+  try {
+    await mkdir(join(root, 'old', 'nested'), { recursive: true })
+    observer = new BoundedSourceWatcher(root, 10, () => {})
+    observer.includeFile('old/nested/note.md')
+    await rename(join(root, 'old'), join(root, 'moved'))
+    await symlink(join(root, 'moved'), join(root, 'old'))
+    observer.sync([''])
+    expect(observer.count).toBe(1)
   } finally { observer?.close(); await rm(root, { recursive: true, force: true }) }
 })
 

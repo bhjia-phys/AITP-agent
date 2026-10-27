@@ -108,6 +108,21 @@ export class BoundedSourceWatcher extends EventEmitter {
    * @param directories - root-relative discovered directories.
    */
   sync(directories: readonly string[]): void {
+    const removed = new Set<string>()
+    for (const path of this.selected) {
+      const parent = dirname(path).replaceAll('\\', '/')
+      if (removed.has(parent)) { this.selected.delete(path); removed.add(path); continue }
+      try {
+        const info = lstatSync(resolve(this.root, path))
+        if (!info.isDirectory() || info.isSymbolicLink()) { this.selected.delete(path); removed.add(path) }
+      }
+      catch (error) {
+        if (error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
+          this.selected.delete(path); removed.add(path)
+        }
+        else throw error
+      }
+    }
     const desired = new Set(['', ...directories, ...this.selected])
     if (desired.size > this.limit) throw new SourceError('unavailable', 'The bounded source watch limit was reached.')
     for (const [path, watcher] of this.watchers) if (!desired.has(path)) {
