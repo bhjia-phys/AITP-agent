@@ -94,7 +94,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
       },
     ],
     ownerProps: [
-      '/** Domain-owned catalog presentation; transport, selection and navigation remain shared. */\nexport interface MaterialsCatalogInput {\n  readonly domain: ResourceDomain\n  readonly items: readonly ResourceSummary[]\n  readonly roots: readonly SourceRoot[]\n  readonly rootId: string | null\n  readonly folderPath: string\n  readonly query: string\n  readonly selected: readonly SourceSelection[]\n  readonly disabled: boolean\n  readonly isSelected: (resource: ResourceSummary) => boolean\n  readonly onOpen: (selection: SourceSelection) => void\n  readonly onSelect: (resource: ResourceSummary, checked: boolean) => void\n  readonly onRoot: (id: SourceRootId | null) => void\n  readonly onFolder: (path: string) => void\n}',
+      '/** Domain-owned catalog presentation; transport, selection and navigation remain shared. */\nexport interface MaterialsCatalogInput {\n  readonly domain: ResourceDomain\n  readonly items: readonly ResourceSummary[]\n  readonly roots: readonly SourceRoot[]\n  readonly rootId: string | null\n  readonly folderPath: string\n  readonly query: string\n  /** The overview is restricted to explicitly linked sources of one topic. */\n  readonly topicFiltered?: boolean\n  readonly selected: readonly SourceSelection[]\n  readonly disabled: boolean\n  readonly isSelected: (resource: ResourceSummary) => boolean\n  readonly onOpen: (selection: SourceSelection) => void\n  readonly onSelect: (resource: ResourceSummary, checked: boolean) => void\n  readonly onRoot: (id: SourceRootId | null) => void\n  readonly onFolder: (path: string) => void\n}',
     ],
     ownerPropsReferences: [
       'Domain',
@@ -126,7 +126,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'aitp.materials.catalog.body\', () => ctx.slots.register(\n      { name: \'aitp.materials.catalog.body\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-aitp-materials/src/client/contracts.ts:152',
+    source: 'packages/client/ui-aitp-materials/src/client/contracts.ts:154',
   },
   {
     key: 'aitp.materials.reader.body',
@@ -171,7 +171,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'aitp.materials.reader.body\', () => ctx.slots.register(\n      { name: \'aitp.materials.reader.body\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-aitp-materials/src/client/contracts.ts:162',
+    source: 'packages/client/ui-aitp-materials/src/client/contracts.ts:164',
   },
   {
     key: 'aitp.materials.reader.header',
@@ -216,7 +216,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'aitp.materials.reader.header\', () => ctx.slots.register(\n      { name: \'aitp.materials.reader.header\', key: \'<one key the owner dispatches>\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-aitp-materials/src/client/contracts.ts:157',
+    source: 'packages/client/ui-aitp-materials/src/client/contracts.ts:159',
   },
   {
     key: 'aitp.materials.tasks',
@@ -270,7 +270,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'none',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'aitp.materials.tasks\', () => ctx.slots.register(\n      { name: \'aitp.materials.tasks\', id: \'my-entry\', order: 100, label: \'My entry\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-aitp-materials/src/client/contracts.ts:164',
+    source: 'packages/client/ui-aitp-materials/src/client/contracts.ts:166',
   },
   {
     key: 'aitp.research.discussion.conversation',
@@ -310,7 +310,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'aitp.research.discussion.conversation\', () => ctx.slots.register(\n      { name: \'aitp.research.discussion.conversation\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-aitp-research/src/client/discussion-contract.ts:126',
+    source: 'packages/client/ui-aitp-research/src/client/discussion-contract.ts:140',
   },
   {
     key: 'aitp.research.topic.libraries',

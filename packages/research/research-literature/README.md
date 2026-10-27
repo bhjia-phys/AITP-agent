@@ -27,6 +27,7 @@ Mount `@deepseek-ai/dsh-research-literature` beside [shared research sources](..
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `readingIndexPaths` | `["index.md", "README.md"]` | Existing root-relative reading entry points. |
+| `primaryPdfOnly` | `false` | Opt into a PDF-only catalog, excluding extracted `source` directories; canonical `arxiv/<id>/paper.pdf` uses its actual local arXiv identifier as the display title. |
 | `maxReadingNotes` | `256` | Maximum distinct linked Markdown readings inspected in one catalog projection. |
 | `maxPdfBytes` | `33554432` | Requested PDF-byte bound, further limited by shared source access. |
 | `initialPdfPages` | `4` | Physical pages extracted when no page is explicitly selected. |

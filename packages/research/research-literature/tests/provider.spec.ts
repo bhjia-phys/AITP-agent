@@ -103,3 +103,17 @@ describe('local literature records', () => {
     expect((await readFile(join(root, 'large.pdf'))).equals(Buffer.from(bytes))).toBe(true)
   })
 })
+
+it('can catalog the existing shared paper collection without treating extracted figure PDFs as papers', async () => {
+  const { root, service } = await fixture()
+  await mkdir(join(root, 'arxiv/2112.11614v5/source'), { recursive: true })
+  await mkdir(join(root, 'ren-xinguo'), { recursive: true })
+  await writeFile(join(root, 'arxiv/2112.11614v5/paper.pdf'), 'paper')
+  await writeFile(join(root, 'arxiv/2112.11614v5/source/figure.pdf'), 'figure')
+  await writeFile(join(root, 'arxiv/2112.11614v5/source/paper.tex'), 'source')
+  await writeFile(join(root, 'ren-xinguo/review.pdf'), 'review')
+  service.registerProvider(createLiteratureProvider(Config({ primaryPdfOnly: true })))
+  const page = value(await service.listResources({ domain: 'literature' }, signal()))
+  expect(page.items.map(item => item.title).sort()).toEqual(['arXiv 2112.11614v5', 'review.pdf'].sort())
+  expect(page.items.find(item => item.title.startsWith('arXiv'))?.metadata.arxiv).toBe('2112.11614v5')
+})

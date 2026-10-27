@@ -137,3 +137,23 @@ it('keeps malformed provider observations verbatim instead of inventing empty st
   expect(codeHistory('not a commit')).toBeUndefined()
   expect(codeHistory('')).toEqual([])
 })
+
+it('shows only checkouts with explicit topic associations in the topic-filtered overview', async () => {
+  const runtime = await setup()
+  const otherRoot = { id: brandString<SourceRootId>('unrelated'), title: 'Unrelated', displayPath: '/other', domains: ['code'] as const }
+  const checkout: ResourceSummary = { ...source, ref: { rootId, sourceId: brandString<SourceId>('git:checkout') },
+    metadata: { entryKind: 'checkout', checkoutState: 'git' } }
+  const input: MaterialsCatalogInput = { domain: 'code', items: [checkout], roots: [root, otherRoot], rootId: null,
+    folderPath: '', query: '', topicFiltered: true, selected: [], isSelected: () => false, disabled: false,
+    onRoot: vi.fn(), onFolder: vi.fn(), onOpen: vi.fn(), onSelect: vi.fn() }
+  const output = runtime.renderSlot('aitp.materials.catalog.body', input, { entryKey: 'code' })
+  expect(output.view.getByRole('button', { name: 'Simulation' })).toBeTruthy()
+  expect(output.view.queryByRole('button', { name: 'Unrelated' })).toBeNull()
+})
+
+it('renders an immediate directory entry as a folder instead of a source file', () => {
+  const directory = { ...file('src'), metadata: { entryKind: 'source-folder' } }
+  const listing = codeDirectory([directory, file('README.md')], '', false)
+  expect(listing.folders).toEqual([{ name: 'src', path: 'src' }])
+  expect(listing.files.map(item => item.path)).toEqual(['README.md'])
+})

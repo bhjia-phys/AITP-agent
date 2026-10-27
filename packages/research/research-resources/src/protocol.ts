@@ -3,6 +3,9 @@ import type { ResourceDomain, ResourceReadRequest, SourceLocator, SourceRef, Sou
 
 const enc = encodeURIComponent
 
+/** An observed source watcher failure, carried to reading surfaces without implying missing content. */
+export const MATERIAL_WATCH_UNAVAILABLE = 'Automatic source updates are unavailable; refresh to see external changes.'
+
 /**
  * Display a path identity as a readable relative path without granting file access.
  * @param id - provider-owned source identity; virtual drafts and Git views are not paths.

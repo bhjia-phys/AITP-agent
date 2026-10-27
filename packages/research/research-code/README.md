@@ -40,6 +40,8 @@ Code lines are one-based. Revision names resolve to actual commit IDs before sou
 
 The provider consumes the shared file scan and guarded source reader. Local Git commands disable optional locks, fsmonitor, hooks, configured clean/process filters, external diff and textconv. Output and time limits apply before presenting an observation as complete. Committed source reads reject symlinks and submodules. [The domain-composition test](../research-knowledge/tests/libraries-loader.spec.ts) boots actual plugins together, reads a dirty diff and verifies independent unloading without changing the source or Git index.
 
+With bounded source watching, an observed checkout also watches up to five Git-owned metadata directories for changes to HEAD, the current branch reference, the index or packed references. Git resolves the metadata locations for ordinary checkouts and worktrees; the watcher does not expose those directories as readable sources. Changes invalidate the observation and a subsequent read reattaches the watches. If a watch cannot be established, the shared service reports that manual refresh is required.
+
 </details>
 
 ## Further Exploration

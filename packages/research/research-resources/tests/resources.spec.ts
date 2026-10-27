@@ -744,3 +744,30 @@ it('keeps binary reads complete and bounded independently of text decoding', asy
   await expect(files.read('image.bin')).rejects.toThrow()
   await expect(files.readBytes('image.bin', AbortSignal.abort())).rejects.toThrow()
 })
+
+it('keeps project sources readable without listing them as shared libraries', async () => {
+  const { service, a } = await fixture({ workspaceRootsInCatalog: false })
+  const workspaceId = 'project' as WorkspaceId
+  const project = await service.registerRoot({ id: 'project', path: a, workspaceId, grantKind: 'workspace-connection' })
+  const host = await service.registerRoot({ id: 'project-memory', path: a, workspaceId, grantKind: 'host' })
+  service.registerProvider(provider())
+  const roots = value(await service.listRoots({}, signal()))
+  expect(roots[0]?.domains).toEqual([])
+  expect(value(await service.listResources({ domain: 'knowledge' }, signal())).items).toEqual([])
+  expect(bodyText(value(await service.readResource({ ref: { rootId: project.rootId, sourceId: sourceIdForPath('note.md') } }, signal())).body))
+    .toContain('Finite-size')
+  host.dispose()
+})
+
+it('only builds catalog projections belonging to the requested root and domain', async () => {
+  const { service, a, b } = await fixture()
+  const code = await service.registerRoot({ id: 'code', path: a, domains: ['code'] })
+  await service.registerRoot({ id: 'knowledge', path: b, domains: ['knowledge'] })
+  const codeList = vi.fn(async (context: SourceProviderContext) => context.paths.map(path => ({ ...row(context, path), domain: 'code' as const, kind: 'code' as const })))
+  const knowledgeList = vi.fn(async (context: SourceProviderContext) => context.paths.map(path => row(context, path)))
+  service.registerProvider({ id: 'code', domain: 'code', list: codeList })
+  service.registerProvider(provider(knowledgeList))
+  expect(value(await service.listResources({ domain: 'code', rootId: code.rootId }, signal())).items).toHaveLength(1)
+  expect(codeList).toHaveBeenCalledTimes(1)
+  expect(knowledgeList).not.toHaveBeenCalled()
+})

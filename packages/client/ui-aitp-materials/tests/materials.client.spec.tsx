@@ -74,7 +74,7 @@ async function panel(overrides: Partial<MaterialsPanelFace> = {}, values: Record
   }
   const props = { ...face, t, useStore: bindSnapshotSelector(store), actions: store.actions,
     useWorkspaces: (select: (value: { items: readonly unknown[] }) => unknown) => select({ items: [] }),
-    useResource: (address: string) => values[address] ?? none, renderFactorySlot: vi.fn(() => null) } as MaterialsPanelProps
+    useResource: vi.fn((address: string) => values[address] ?? none), renderFactorySlot: vi.fn(() => null) } as MaterialsPanelProps
   const runtime = await SlotTestRuntime.create()
   onTestFinished(() => runtime.dispose())
   const locale = { revision: 0 }
@@ -99,6 +99,19 @@ async function panel(overrides: Partial<MaterialsPanelFace> = {}, values: Record
   runtime.renderRoot()
   return { store, face, props }
 }
+
+it('keeps the code catalog mounted for an empty directory so its parent navigation remains available', async () => {
+  const rootId = 'repo' as SourceRootId
+  const values = {
+    [MATERIAL_ROOTS]: live([{ id: rootId, title: 'Repository', displayPath: '/repo', domains: ['code'] }]),
+    [materialListAddress({ domain: 'code', rootId, folder: 'empty' })]: live({ ...page, items: [] }),
+  }
+  const { store, props } = await panel({ domain: 'code' }, values)
+  act(() => { store.actions.setRoot('code', rootId); store.actions.setFolder('code', 'empty') })
+  await waitFor(() => { expect(props.renderFactorySlot).toHaveBeenCalledWith('aitp.materials.catalog', expect.objectContaining({
+    domain: 'code', rootId, folderPath: 'empty', items: [],
+  })) })
+})
 
 it('browses globally, keeps equal filenames distinct and submits only the explicitly selected sources', async () => {
   const { face } = await panel()
@@ -474,4 +487,29 @@ it.each(['selection', 'title', 'topic', 'pending-save', 'sending'] as const)('do
   await fixture.finish()
   expect(fixture.store.getSnapshot().drafts[key]).toEqual(current)
   expect(fixture.discussion.setSources).not.toHaveBeenCalled()
+})
+
+it('explains a slow first source read and reports a failed source watcher without hiding content', async () => {
+  const { MaterialUnavailable } = await import('../src/client/MaterialsPanel.tsx')
+  const { MATERIAL_WATCH_UNAVAILABLE } = await import('@deepseek-ai/dsh-research-resources/protocol')
+  const loading: ResourceSnapshot<never> = { status: 'loading', value: undefined, failure: undefined }
+  const view = render(<MaterialUnavailable t={t} refresh={vi.fn()} snapshot={loading} />)
+  expect(screen.getByRole('status').textContent).toContain(en.loadingSource)
+  view.unmount()
+  const reading: ResourceReading = { resource: first, body: { kind: 'text', format: 'plain-text', text: 'Still readable' },
+    issues: [MATERIAL_WATCH_UNAVAILABLE], observedAt: 'now' }
+  const props = readerProps({ reading, presentation: 'dock', fields: [], onLink: vi.fn(() => true) })
+  props.renderFactorySlot = (() => <pre>Still readable</pre>) as typeof props.renderFactorySlot
+  render(<MaterialReader {...props} />)
+  expect(screen.getByRole('status').textContent).toContain(en.watchUnavailable)
+  expect(screen.getByText('Still readable')).toBeTruthy()
+})
+
+it('shows the available code roots without requesting a whole-code catalog on first entry', async () => {
+  const roots = [{ id: 'repo' as SourceRootId, title: 'LibRPA', displayPath: '/repo', domains: ['code'] as const }]
+  const view = await panel({ domain: 'code', panelId: 'aitp-code' as MaterialsPanelFace['panelId'] }, {
+    [MATERIAL_ROOTS]: live(roots),
+  })
+  expect(view.props.useResource).not.toHaveBeenCalledWith(materialListAddress({ domain: 'code' }))
+  expect(view.props.renderFactorySlot).toHaveBeenCalledWith('aitp.materials.catalog', expect.objectContaining({ domain: 'code', items: [], roots }))
 })

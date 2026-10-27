@@ -175,6 +175,7 @@ export const SERVICE_PAGE: Record<string, string> = {
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
   researchWorkspaces: 'Client-only adapter registry; packages/client/ui-aitp-research/README.md owns its registration and lifecycle API.',
   researchDiscussions: 'Client-only scoped discussion controller; packages/client/ui-aitp-research/README.md owns its Session and navigation API.',
+  researchMaterialNavigation: 'Client-only optional navigation bridge; packages/client/ui-aitp-research/README.md owns its workspace-to-library navigation API.',
   researchMaterials: 'Client-only library registry; packages/client/ui-aitp-materials/README.md owns its module, source and lifecycle API.',
   invocation: 'not a service: per-call accessor (RemoteInvocation | undefined) the Gateway derives for each Remote call — packages/api/gateway/README.md owns the contract',
   webTerminals: 'client-side terminal view models — packages/api/terminal-controller/README.md owns the API',

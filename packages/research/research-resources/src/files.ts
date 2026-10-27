@@ -1,7 +1,8 @@
 /** Shared bounded local reads; root authorization belongs to the source service. */
-import { constants } from 'node:fs'
-import { lstat, open, readdir, realpath, stat } from 'node:fs/promises'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { constants, lstatSync, watch, type FSWatcher } from 'node:fs'
+import { EventEmitter } from 'node:events'
+import { lstat, open, opendir, readdir, realpath, stat } from 'node:fs/promises'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import type { ResourceReadError } from './types.ts'
 
 /** Expected source rejection carrying the workspace error code used by the adapter boundary. */
@@ -44,11 +45,132 @@ export function normalizedPath(path: string): string {
 /** A skipped relative path or discovery limit; an empty path denotes the root-wide limit. */
 export interface ScanIssue { readonly path: string; readonly reason: string }
 /** Bounded regular-file discovery with omissions kept explicit; paths alone assert no topic relationships. */
-export interface SourceScan { readonly paths: readonly string[]; readonly issues: readonly ScanIssue[]; readonly partial: boolean }
+export interface SourceScan {
+  readonly paths: readonly string[]
+  /** Directories actually visited; older external scan providers may omit this detail. */
+  readonly directories?: readonly string[]
+  readonly issues: readonly ScanIssue[]
+  readonly partial: boolean
+}
 
 function internalDirectory(name: string): boolean {
   const normalized = name.toLowerCase()
   return normalized === '.git' || normalized === 'node_modules' || normalized === '.research-memory'
+}
+
+/** Read a complete file with room to detect growth beyond its original stat and configured bound. */
+async function readBounded(handle: Awaited<ReturnType<typeof open>>, initialSize: number, bound: number,
+  signal?: AbortSignal): Promise<Buffer> {
+  let bytes = Buffer.alloc(Math.min(bound + 1, Math.max(1, initialSize + 1)))
+  let length = 0
+  while (true) {
+    signal?.throwIfAborted()
+    if (length === bytes.length) {
+      if (length > bound) throw new SourceError('unavailable', 'The source grew beyond the configured byte limit; no truncated reading was returned.')
+      const grown = Buffer.alloc(Math.min(bound + 1, Math.max(length + 1, length * 2)))
+      bytes.copy(grown, 0, 0, length)
+      bytes = grown
+    }
+    const read = await handle.read(bytes, length, bytes.length - length, length)
+    if (read.bytesRead === 0) break
+    length += read.bytesRead
+    if (length > bound) throw new SourceError('unavailable', 'The source grew beyond the configured byte limit; no truncated reading was returned.')
+  }
+  return bytes.subarray(0, length)
+}
+
+/** One validated immediate child of a directory. */
+export interface SourceDirectoryEntry { readonly path: string; readonly kind: 'file' | 'directory' }
+/** A bounded immediate directory listing, preserving skipped entries as explicit issues. */
+export interface SourceDirectory {
+  readonly entries: readonly SourceDirectoryEntry[]
+  readonly issues: readonly ScanIssue[]
+  readonly partial: boolean
+}
+
+/** Non-recursive watches for bounded discovery and explicitly opened sources. */
+export class BoundedSourceWatcher extends EventEmitter {
+  private readonly watchers = new Map<string, FSWatcher>()
+  private readonly identities = new Map<string, string>()
+  private readonly selected = new Set<string>()
+  private timer: ReturnType<typeof setTimeout> | undefined
+  private stopped = false
+
+  /** @param root - admitted root. @param limit - maximum watched directories. @param changed - coalesced invalidation. */
+  constructor(private readonly root: string, private readonly limit: number, private readonly changed: () => void) {
+    super()
+    this.add('')
+  }
+  /** Number of active directory watches, never greater than the configured bound. */
+  get count(): number { return this.watchers.size }
+  /**
+   * Watch discovered directories, retaining parents of explicitly opened files.
+   * @param directories - root-relative discovered directories.
+   */
+  sync(directories: readonly string[]): void {
+    const removed = new Set<string>()
+    for (const path of this.selected) {
+      const parent = dirname(path).replaceAll('\\', '/')
+      if (removed.has(parent)) { this.selected.delete(path); removed.add(path); continue }
+      try {
+        const info = lstatSync(resolve(this.root, path))
+        if (!info.isDirectory() || info.isSymbolicLink()) { this.selected.delete(path); removed.add(path) }
+      }
+      catch (error) {
+        if (error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
+          this.selected.delete(path); removed.add(path)
+        }
+        else throw error
+      }
+    }
+    const desired = new Set(['', ...directories, ...this.selected])
+    if (desired.size > this.limit) throw new SourceError('unavailable', 'The bounded source watch limit was reached.')
+    for (const [path, watcher] of this.watchers) if (!desired.has(path)) {
+      watcher.close(); this.watchers.delete(path); this.identities.delete(path)
+    }
+    for (const path of desired) this.add(path)
+  }
+  /**
+   * Retain one separately validated opened file's parent even when discovery was partial.
+   * @param path - root-relative path of the opened source.
+   */
+  includeFile(path: string): void {
+    const parent = dirname(normalizedPath(path)).replaceAll('\\', '/')
+    const parts = parent === '.' ? [] : parent.split('/')
+    const directories = parts.map((_part, index) => parts.slice(0, index + 1).join('/'))
+    const additions = directories.filter(directory => !this.watchers.has(directory))
+    if (this.watchers.size + additions.length > this.limit) throw new SourceError('unavailable', 'The bounded source watch limit was reached.')
+    for (const directory of directories) { this.add(directory); this.selected.add(directory) }
+  }
+  /** Release all OS watches and pending notifications. */
+  close(): void {
+    this.stopped = true
+    if (this.timer !== undefined) clearTimeout(this.timer)
+    this.timer = undefined
+    for (const watcher of this.watchers.values()) watcher.close()
+    this.watchers.clear()
+    this.identities.clear()
+  }
+  private add(directory: string): void {
+    if (this.stopped) return
+    if (directory !== '') normalizedPath(directory)
+    const fullPath = directory === '' ? this.root : resolve(this.root, directory)
+    const info = lstatSync(fullPath)
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new SourceError('permission-denied', 'The watched source directory is unavailable.')
+    const identity = `${info.dev}:${info.ino}`
+    const existing = this.watchers.get(directory)
+    if (existing !== undefined && this.identities.get(directory) === identity) return
+    if (existing !== undefined) { existing.close(); this.watchers.delete(directory); this.identities.delete(directory) }
+    if (this.watchers.size >= this.limit) throw new SourceError('unavailable', 'The bounded source watch limit was reached.')
+    const watcher = watch(fullPath, { recursive: false, persistent: false }, () => {
+      if (this.timer !== undefined) clearTimeout(this.timer)
+      this.timer = setTimeout(() => { this.timer = undefined; if (!this.stopped) this.changed() }, 150)
+      this.timer.unref()
+    })
+    watcher.on('error', (error) => { if (!this.stopped) this.emit('error', error) })
+    this.watchers.set(directory, watcher)
+    this.identities.set(directory, identity)
+  }
 }
 
 /** One configured root; realpath checks apply again to each fresh source read. */
@@ -102,6 +224,44 @@ export class GuardedFiles {
   }
 
   /**
+   * Read one directory without traversing descendants or admitting symbolic links.
+   * @param path - root-relative directory; empty for the source root.
+   * @param signal - cancels the observation.
+   * @returns Immediate entries and any discovery issues.
+   */
+  async listDirectory(path: string, signal?: AbortSignal): Promise<SourceDirectory> {
+    const root = await realpath(this.root)
+    let directory = root
+    if (path !== '') {
+      for (const part of normalizedPath(path).split('/')) {
+        signal?.throwIfAborted()
+        if (internalDirectory(part)) throw new SourceError('permission-denied', 'This internal directory is not a source location.')
+        directory = resolve(directory, part)
+        const info = await lstat(directory)
+        if (info.isSymbolicLink()) throw new SourceError('permission-denied', 'Symbolic links are not admitted by source discovery.')
+        if (!info.isDirectory()) throw new SourceError('not-found', 'The selected location is not a directory.')
+      }
+    }
+    signal?.throwIfAborted()
+    const entries: SourceDirectoryEntry[] = []
+    const issues: ScanIssue[] = []
+    let visited = 0
+    let partial = false
+    const stream = await opendir(directory)
+    for await (const item of stream) {
+      signal?.throwIfAborted()
+      if (internalDirectory(item.name)) continue
+      if (visited++ >= this.maxFiles) { partial = true; issues.push({ path, reason: 'The directory entry limit was reached.' }); break }
+      const child = path ? `${path}/${item.name}` : item.name
+      if (item.isSymbolicLink()) { partial = true; issues.push({ path: child, reason: 'Symbolic links are not traversed by discovery.' }) }
+      else if (item.isDirectory()) entries.push({ path: child, kind: 'directory' })
+      else if (item.isFile()) entries.push({ path: child, kind: 'file' })
+    }
+    entries.sort((left, right) => Number(right.kind === 'directory') - Number(left.kind === 'directory') || left.path.localeCompare(right.path))
+    return { entries, issues, partial }
+  }
+
+  /**
    * Read a complete current UTF-8 file after resolving its containment in this root.
    * @param path - normalized relative source path; directories and escaped symlink targets are rejected.
    * @param signal - optional cancellation checked before access and between bounded reads.
@@ -116,16 +276,8 @@ export class GuardedFiles {
       const info = await handle.stat()
       if (!info.isFile()) throw new SourceError('invalid-request', 'The selected source is not a regular file.')
       if (info.size > this.maxFileBytes) throw new SourceError('unavailable', 'The source exceeds the configured byte limit; no truncated reading was returned.')
-      const bytes = Buffer.alloc(this.maxFileBytes + 1)
-      let length = 0
-      while (length < bytes.length) {
-        signal?.throwIfAborted()
-        const result = await handle.read(bytes, length, bytes.length - length, length)
-        if (result.bytesRead === 0) break
-        length += result.bytesRead
-      }
-      if (length > this.maxFileBytes) throw new SourceError('unavailable', 'The source grew beyond the configured byte limit; no truncated reading was returned.')
-      return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes.subarray(0, length))
+      const bytes = await readBounded(handle, info.size, this.maxFileBytes, signal)
+      return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
     } finally { await handle.close() }
   }
 
@@ -146,16 +298,7 @@ export class GuardedFiles {
       const info = await handle.stat()
       if (!info.isFile()) throw new SourceError('invalid-request', 'The selected source is not a regular file.')
       if (info.size > bound) throw new SourceError('unavailable', 'The source exceeds the configured byte limit; no truncated reading was returned.')
-      const bytes = Buffer.alloc(bound + 1)
-      let length = 0
-      while (length < bytes.length) {
-        signal?.throwIfAborted()
-        const result = await handle.read(bytes, length, bytes.length - length, length)
-        if (result.bytesRead === 0) break
-        length += result.bytesRead
-      }
-      if (length > bound) throw new SourceError('unavailable', 'The source grew beyond the configured byte limit; no truncated reading was returned.')
-      return bytes.subarray(0, length)
+      return await readBounded(handle, info.size, bound, signal)
     } finally { await handle.close() }
   }
 
@@ -176,6 +319,7 @@ export class GuardedFiles {
     const canonicalRoot = await realpath(this.root)
     if (!(await stat(canonicalRoot)).isDirectory()) throw new SourceError('invalid-request', 'The configured research root is not a directory.')
     const paths: string[] = []
+    const directories: string[] = []
     const issues: ScanIssue[] = []
     const queue = ['']
     let visited = 0
@@ -187,6 +331,7 @@ export class GuardedFiles {
       let entries
       try { entries = await readdir(directory ? await this.contained(directory) : canonicalRoot, { withFileTypes: true }) }
       catch (error) { issues.push({ path: directory, reason: sourceFailure(error).message }); partial = true; continue }
+      directories.push(directory)
       entries.sort((a, b) => a.name.localeCompare(b.name))
       let stopped = false
       for (const entry of entries) {
@@ -204,7 +349,7 @@ export class GuardedFiles {
         break
       }
     }
-    return { paths, issues, partial }
+    return { paths, directories, issues, partial }
   }
 
   private async contained(path: string): Promise<string> {

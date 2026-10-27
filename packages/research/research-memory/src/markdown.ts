@@ -19,6 +19,8 @@ export interface MarkdownWorkspaceConfig {
   readonly maxFiles: number
   readonly maxFileBytes: number
   readonly maxContextCharacters: number
+  /** Receives directories visited by bounded discovery for optional notification coverage. */
+  readonly onDirectories?: (directories: readonly string[], partial: boolean) => void
 }
 
 /** A complete fresh source observation; its revision is an opaque read token, not a content hash or edit precondition. */
@@ -224,6 +226,7 @@ export class MarkdownWorkspace {
     if (this.rebuilding) return this.rebuilding
     this.rebuilding = this.attempt(async () => {
       const scan = await this.files.scan(options?.signal)
+      this.config.onDirectories?.(scan.directories ?? [''], scan.partial)
       const paths = new Set(scan.paths)
       const notes = new Map<string, Note>()
       const topicPaths = new Set(scan.paths.filter(path => posix.basename(path).toLowerCase() === 'research.md' && path !== 'research.md'))

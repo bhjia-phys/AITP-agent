@@ -72,7 +72,7 @@ function titles(result: Result<ReadEnvelope<TopicPage>>): string[] {
   if (!result.ok) throw new Error(result.error.message)
   return result.value.value.items.map(item => item.value.title)
 }
-async function fixture() {
+async function fixture(options: { watchSources?: boolean; watchMode?: 'recursive' | 'bounded' } = {}) {
   const path = await mkdtemp(join(tmpdir(), 'research-observation-'))
   disposers.push(() => rm(path, { recursive: true, force: true }))
   await writeFile(join(path, 'research.md'), '# Project\nThe project question.\n')
@@ -81,7 +81,7 @@ async function fixture() {
   await mountAgentLoopTestDependencies(ctx)
   await ctx.plugin(AgentLoop, { agents: [] })
   const effects = vi.spyOn(ctx, 'effect')
-  const service = new ResearchMemory(ctx, ResearchMemory.Config({ roots: [{ path, id: workspaceId, writable: false }] }))
+  const service = new ResearchMemory(ctx, ResearchMemory.Config({ roots: [{ path, id: workspaceId, writable: false }], ...options }))
   const sourceEffect = effects.mock.calls.findIndex(([, label]) => label === 'research-memory: source observations and admitted onboarding')
   const sourceDisposer = effects.mock.results[sourceEffect]
   effects.mockRestore()
@@ -95,6 +95,34 @@ async function fixture() {
 }
 
 describe('source refresh ownership', () => {
+  it('reuses bounded discovery and refreshes it after a source notification', async () => {
+    const { service, list, add } = await fixture({ watchMode: 'bounded' })
+    await add('first')
+    expect(titles(await list())).toEqual(['first'])
+    expect(await service.provider({ workspaceId }, signal())).toMatchObject({ capabilities: { read: true, changeEvents: true } })
+    const rebuild = vi.spyOn(MarkdownWorkspace.prototype, 'rebuild')
+    await list()
+    expect(rebuild).not.toHaveBeenCalled()
+    await add('second')
+    for (const watcher of watchers) watcher.changed()
+    await vi.waitFor(async () => { expect(titles(await list())).toEqual(['first', 'second']) }, { timeout: 3000 })
+    expect(watchMock.mock.calls.every(call => !(call[1] as { recursive: boolean }).recursive)).toBe(true)
+  })
+
+  it('can disable recursive watches while rechecking current sources on every read', async () => {
+    const { service, list, add } = await fixture({ watchSources: false })
+    await add('first')
+    expect(titles(await list())).toEqual(['first'])
+    expect(watchMock).not.toHaveBeenCalled()
+    expect(await service.provider({ workspaceId }, signal())).toMatchObject({ capabilities: { read: true, changeEvents: false } })
+    const stream = service.follow({ workspaceId }, signal())[Symbol.asyncIterator]()
+    expect((await stream.next()).value).toEqual({ kind: 'resync-required', reason: 'automatic-source-notifications-unavailable' })
+    await stream.return?.(undefined)
+    await add('second')
+    expect(titles(await list())).toEqual(['first', 'second'])
+    expect(watchMock).not.toHaveBeenCalled()
+  })
+
   it('stops an admitted runtime turn while its shared source scan continues for another reader', async () => {
     const { ctx, list } = await fixture()
     const entered = deferred()

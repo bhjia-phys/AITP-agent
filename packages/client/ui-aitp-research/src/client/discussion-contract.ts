@@ -26,6 +26,18 @@ export type DiscussionStudyAdmission = (origin: ResearchOrigin, request: Session
   | { readonly ok: false; readonly error: { readonly code: string; readonly message: string } }
 >
 
+/** Optional bridge to the authorized native material reader. */
+export interface ResearchMaterialNavigation {
+  /**
+   * Open a workspace-relative research reference in the current topic's native dock.
+   * @param scope - selected Workspace and topic.
+   * @param resource - reference owned by that Workspace.
+   * @param isCurrent - whether the originating research visit is still active.
+   * @returns Whether the bridge handled the reference.
+   */
+  open(scope: ResearchDiscussionScope, resource: import('./workspace-contract.ts').ResourceReference, isCurrent?: () => boolean): Promise<boolean>
+}
+
 /** Shared discussion used by topic and scoped-library pages. */
 export interface ResearchDiscussions {
   /**
@@ -91,6 +103,8 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     /** Research discussion selection shared by reading surfaces. */
     researchDiscussions: ResearchDiscussions
+    /** Optional native material reader contributed by the independently installed library. */
+    researchMaterialNavigation: ResearchMaterialNavigation
   }
 }
 

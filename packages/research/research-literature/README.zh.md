@@ -27,6 +27,7 @@ kind: "package-reference"
 | 字段 | 默认值 | 含义 |
 | --- | --- | --- |
 | `readingIndexPaths` | `["index.md", "README.md"]` | 根目录内已有的相对阅读入口。 |
+| `primaryPdfOnly` | `false` | 可选仅列 PDF，排除解压出的 `source` 目录；标准 `arxiv/<id>/paper.pdf` 用实际的本地 arXiv 编号作为显示标题。 |
 | `maxReadingNotes` | `256` | 一次目录投影最多检查的不同 Markdown 阅读笔记数。 |
 | `maxPdfBytes` | `33554432` | 请求的 PDF 字节上限，仍受共享来源权限的更小限制约束。 |
 | `initialPdfPages` | `4` | 未明确选择页码时，初次抽取的物理页数。 |

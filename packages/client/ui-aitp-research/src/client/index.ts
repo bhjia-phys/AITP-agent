@@ -90,6 +90,7 @@ export function apply(ctx: ClientContext): void {
   const navigation = new ResearchNavigationController(ctx, PANEL_ID)
   const discussions = registerResearchDiscussions(ctx, workspaces, (scope, address) => navigation.open(scope, address))
   const face: ResearchPanelFace = {
+    openMaterial: async (scope, resource, isCurrent) => await ctx.get('researchMaterialNavigation')?.open(scope, resource, isCurrent) ?? false,
     beginDiscussion: (scope, origin) => { void discussions.open(scope, origin) },
     updateDiscussionSource: (scope, origin) => { discussions.setReadingSource(scope, origin) },
     openDiscussionResource: (scope, address, leave) => navigation.open(scope, address, leave),

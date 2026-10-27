@@ -9,6 +9,8 @@ import { readPdf } from './pdf.ts'
 
 /** Existing reading entry points and bounded PDF extraction; all reads still obey shared root limits. */
 export interface Config {
+  /** Show primary PDF artifacts and omit extracted source/figure files from the global paper catalog. */
+  readonly primaryPdfOnly: boolean
   /** Existing root-relative Markdown reading-index entry points. */
   readonly readingIndexPaths: string[]
   /** Maximum explicitly linked reading notes inspected per admitted root. */
@@ -24,6 +26,7 @@ export interface Config {
 }
 
 export const Config: z<Partial<Config>, Config> = z.object({
+  primaryPdfOnly: z.boolean().default(false),
   readingIndexPaths: z.array(z.string()).default(['index.md', 'README.md']),
   maxReadingNotes: z.number().step(1).min(1).max(10000).default(256),
   maxPdfBytes: z.number().step(1).min(1).max(268435456).default(33554432),
@@ -45,10 +48,13 @@ export function createLiteratureProvider(config: Config): ResourceProvider {
       const summaries: ResourceSummary[] = []
       for (const path of context.paths) {
         if (!/\.(pdf|tex|bib)$/i.test(path)) continue
+        if (config.primaryPdfOnly && (!/\.pdf$/i.test(path) || path.split('/').some(part => part.toLowerCase() === 'source'))) continue
+        const arxiv = config.primaryPdfOnly ? /^arxiv\/([^/]+)\/paper\.pdf$/i.exec(path)?.[1] : undefined
         const reference: SourceRef = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
-        summaries.push({ id: resourceEntryId(reference), ref: reference, title: posix.basename(path),
+        summaries.push({ id: resourceEntryId(reference), ref: reference, title: arxiv === undefined ? posix.basename(path) : `arXiv ${arxiv}`,
           kind: 'literature', domain: 'literature', providerId: name, metadata: {
-            format: posix.extname(path).slice(1).toLowerCase(), titleSource: 'filename', work: 'unknown', edition: 'unknown',
+            format: posix.extname(path).slice(1).toLowerCase(), titleSource: arxiv === undefined ? 'filename' : 'local-identifier',
+            ...arxiv === undefined ? {} : { arxiv }, work: 'unknown', edition: 'unknown',
           }, links: [], topics: [] })
       }
       const queue = config.readingIndexPaths.filter(path => context.paths.includes(path))

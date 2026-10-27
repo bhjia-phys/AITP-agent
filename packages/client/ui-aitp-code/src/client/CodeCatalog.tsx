@@ -12,7 +12,8 @@ type Props = PropsRuntime<'aitp.materials.catalog.body'> & PropsLocale<'aitp.mat
 export function CodeCatalog(props: Props) {
   const { items, roots, rootId, folderPath, query, t } = props
   const root = roots.find(item => item.id === rootId)
-  const repositories = roots.filter(item => item.domains === undefined || item.domains.includes('code'))
+  const repositories = roots.filter(item => (item.domains === undefined || item.domains.includes('code'))
+    && (props.topicFiltered !== true || items.some(entry => entry.ref.rootId === item.id && entry.metadata['entryKind'] === 'checkout')))
   const searching = query.trim() !== ''
   const directory = codeDirectory(items, folderPath, searching || rootId === null)
   const observation = items.find(item => item.ref.rootId === rootId && item.metadata['entryKind'] === 'checkout')

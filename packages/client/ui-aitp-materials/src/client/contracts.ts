@@ -112,6 +112,8 @@ export interface MaterialsCatalogInput {
   readonly rootId: string | null
   readonly folderPath: string
   readonly query: string
+  /** The overview is restricted to explicitly linked sources of one topic. */
+  readonly topicFiltered?: boolean
   readonly selected: readonly SourceSelection[]
   readonly disabled: boolean
   readonly isSelected: (resource: ResourceSummary) => boolean

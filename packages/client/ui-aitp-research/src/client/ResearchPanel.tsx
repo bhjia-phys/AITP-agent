@@ -13,7 +13,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { returnPoint, settleArrival } from './arrival.ts'
 import { workspaceLocation, type createResearchPanelStore, type ResearchLocation, type ResearchArrival, type ResearchReturnPoint } from './store.ts'
-import type { ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview, ReadEnvelope, Result } from './workspace-contract.ts'
+import type { ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview, ReadEnvelope, Result, ResourceReference } from './workspace-contract.ts'
 import { ResearchMap } from './ResearchMap.tsx'
 import { ResearchTrail } from './ResearchTrail.tsx'
 import { WorkspaceMaterial } from './WorkspaceViews.tsx'
@@ -30,9 +30,11 @@ import page from './workspace.module.css'
 /** Narrow application callbacks bound by the panel registration. */
 export interface ResearchPanelFace {
   /** Open the shared native composer with this explicit scientific location and source. */
-  beginDiscussion?: (scope: ResearchDiscussionScope, origin: ResearchOrigin) => void
+  beginDiscussion?: (scope: ResearchDiscussionScope, origin?: ResearchOrigin) => void
   /** Stage the current reading for the next message without replacing explicitly selected sources. */
   updateDiscussionSource?: (scope: ResearchDiscussionScope, origin: ResearchOrigin) => void
+  /** Open a workspace reference in its authorized native reader. */
+  openMaterial?: (scope: ResearchDiscussionScope, resource: ResourceReference, isCurrent?: () => boolean) => Promise<boolean>
   /** Open a research-owned source in the centre reader. */
   openDiscussionResource?: (scope: ResearchDiscussionScope, address: string, leave?: ResearchReturnPoint) => boolean
   /** Return from an independent library to this retained research view. */
@@ -226,6 +228,27 @@ function WorkspaceContent(props: ResearchPanelProps & {
     libraryNavigation.onLeave()
     return props.openDiscussionResource?.(scope, address, libraryReturn.current) ?? false
   }
+  const latestVisit = useRef(visit)
+  const materialRequest = useRef(0)
+  const nativeReading = useRef<{ visit: number; topicId: TopicId } | undefined>(undefined)
+  latestVisit.current = visit
+  useEffect(() => () => { materialRequest.current += 1 }, [visit])
+  const openMaterialReference = (resource: ResourceReference, materialTopicId: TopicId): void => {
+    const request = ++materialRequest.current
+    const fallback = (): void => {
+      if (latestVisit.current === visit && materialRequest.current === request) navigate({ kind: 'resource', resourceId: resource.id, topicId: materialTopicId })
+    }
+    if (resource.target.kind !== 'workspace-path' || props.openMaterial === undefined) { fallback(); return }
+    const materialScope = { ...scope, topicId: materialTopicId }
+    const isCurrent = (): boolean => latestVisit.current === visit && materialRequest.current === request
+    void props.openMaterial(materialScope, resource, isCurrent).then((opened) => {
+      if (!opened) fallback()
+      else if (latestVisit.current === visit && materialRequest.current === request) {
+        nativeReading.current = { visit, topicId: materialTopicId }
+        props.updateDiscussionSource?.(materialScope, { ...materialScope, resourceId: resource.id })
+      }
+    }, fallback)
+  }
   const focusQuestion = (): void => {
     if (props.beginDiscussion !== undefined) {
       rememberSelection()
@@ -235,6 +258,10 @@ function WorkspaceContent(props: ResearchPanelProps & {
         return
       }
       setSelectionError(false)
+      if (quote === undefined && nativeReading.current?.visit === visit && nativeReading.current.topicId === scope.topicId) {
+        props.beginDiscussion(scope, undefined)
+        return
+      }
       props.beginDiscussion(scope, { ...scope,
         ...(location.kind === 'resource' ? { resourceId: location.resourceId } : {}),
         ...(quote === undefined || quote.unsupported ? {} : {
@@ -271,10 +298,10 @@ function WorkspaceContent(props: ResearchPanelProps & {
               onPointerDown={rememberSelection} onClick={focusQuestion}>{props.t('workspace.ask.open')}</Button>}
           </div>
           {location.kind === 'map'
-            ? <ResearchMap {...props} focusId={location.focusId} navigate={navigate} />
+            ? <ResearchMap {...props} focusId={location.focusId} navigate={navigate} openMaterialReference={openMaterialReference} />
             : location.kind === 'topic'
               ? <WorkspaceTopic key={location.topicId} {...props} topicId={location.topicId} navigate={navigate}
-                libraryNavigation={libraryNavigation} focusQuestion={focusQuestion} />
+                libraryNavigation={libraryNavigation} focusQuestion={focusQuestion} openMaterialReference={openMaterialReference} />
               : <WorkspaceMaterial key={location.resourceId} {...props}
                 resourceId={location.resourceId} topicId={location.topicId} navigate={navigate} />}
           {selectionError && <p role="alert">{props.t('workspace.ask.unsupportedSelection')}</p>}

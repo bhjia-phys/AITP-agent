@@ -43,6 +43,7 @@ export function materialSourceSetsAddress(query: SourceSetQuery): string {
 export function materialListAddress(query: ResourceQuery): string {
   const params = new URLSearchParams()
   if (query.rootId !== undefined) params.set('root', query.rootId)
+  if (query.folder !== undefined) params.set('folder', query.folder)
   if (query.query !== undefined) params.set('q', query.query)
   if (query.cursor !== undefined) params.set('cursor', query.cursor)
   if (query.limit !== undefined) params.set('limit', String(query.limit))
@@ -56,6 +57,7 @@ function parseQuery(address: string): ResourceQuery {
   const domain = url.pathname.slice(1)
   if (domain !== 'all' && domain !== 'knowledge' && domain !== 'literature' && domain !== 'code') throw new Error('Unknown material domain')
   const rootId = url.searchParams.get('root')
+  const folder = url.searchParams.get('folder')
   const query = url.searchParams.get('q')
   const cursor = url.searchParams.get('cursor')
   const limit = url.searchParams.get('limit')
@@ -64,7 +66,8 @@ function parseQuery(address: string): ResourceQuery {
   if ((workspaceId === null) !== (topicId === null)) throw new Error('A topic filter needs its Workspace')
   if (limit !== null && (!Number.isSafeInteger(Number(limit)) || Number(limit) < 1)) throw new Error('Invalid page limit')
   return { ...domain === 'all' ? {} : { domain: domain }, ...rootId === null ? {} : { rootId: rootId as SourceRootId },
-    ...query === null ? {} : { query }, ...cursor === null ? {} : { cursor }, ...limit === null ? {} : { limit: Number(limit) },
+    ...folder === null ? {} : { folder }, ...query === null ? {} : { query },
+    ...cursor === null ? {} : { cursor }, ...limit === null ? {} : { limit: Number(limit) },
     ...workspaceId === null || topicId === null ? {}
       : { topic: { workspaceId: workspaceId as WorkspaceId, topicId: topicId as SourceTopicId } } }
 }
