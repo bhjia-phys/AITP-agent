@@ -1382,7 +1382,8 @@ it('opens a workspace material in the native reader without leaving its research
   panel(values, { openMaterial, updateDiscussionSource, beginDiscussion })
   openChild()
   fireEvent.click(screen.getByRole('button', { name: /Reference paper/ }))
-  await waitFor(() => { expect(openMaterial).toHaveBeenCalledWith({ workspaceId: WS, topicId: CHILD, title: child.title }, localPaper) })
+  await waitFor(() => { expect(openMaterial).toHaveBeenCalledWith(
+    { workspaceId: WS, topicId: CHILD, title: child.title }, localPaper, expect.any(Function)) })
   expect(updateDiscussionSource).toHaveBeenCalledWith(
     { workspaceId: WS, topicId: CHILD, title: child.title },
     { workspaceId: WS, topicId: CHILD, title: child.title, resourceId: PDF },
@@ -1412,7 +1413,8 @@ it('opens the topic account through the same native material bridge when its ref
   openChild()
   fireEvent.click(screen.getByRole('button', { name: 'Read full account' }))
   await waitFor(() => {
-    expect(openMaterial).toHaveBeenCalledWith({ workspaceId: WS, topicId: CHILD, title: child.title }, child.resources[0])
+    expect(openMaterial).toHaveBeenCalledWith(
+      { workspaceId: WS, topicId: CHILD, title: child.title }, child.resources[0], expect.any(Function))
   })
   expect(screen.getByRole('heading', { name: 'Controlled limit' })).toBeTruthy()
 })

@@ -34,7 +34,7 @@ export interface ResearchPanelFace {
   /** Stage the current reading for the next message without replacing explicitly selected sources. */
   updateDiscussionSource?: (scope: ResearchDiscussionScope, origin: ResearchOrigin) => void
   /** Open a workspace reference in its authorized native reader. */
-  openMaterial?: (scope: ResearchDiscussionScope, resource: ResourceReference) => Promise<boolean>
+  openMaterial?: (scope: ResearchDiscussionScope, resource: ResourceReference, isCurrent?: () => boolean) => Promise<boolean>
   /** Open a research-owned source in the centre reader. */
   openDiscussionResource?: (scope: ResearchDiscussionScope, address: string, leave?: ResearchReturnPoint) => boolean
   /** Return from an independent library to this retained research view. */
@@ -240,7 +240,8 @@ function WorkspaceContent(props: ResearchPanelProps & {
     }
     if (resource.target.kind !== 'workspace-path' || props.openMaterial === undefined) { fallback(); return }
     const materialScope = { ...scope, topicId: materialTopicId }
-    void props.openMaterial(materialScope, resource).then((opened) => {
+    const isCurrent = (): boolean => latestVisit.current === visit && materialRequest.current === request
+    void props.openMaterial(materialScope, resource, isCurrent).then((opened) => {
       if (!opened) fallback()
       else if (latestVisit.current === visit && materialRequest.current === request) {
         nativeReading.current = { visit, topicId: materialTopicId }

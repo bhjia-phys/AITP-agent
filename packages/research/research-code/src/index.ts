@@ -1,4 +1,6 @@
 /** Checkout-aware source, diff and history projections over shared source grants. */
+import { watch, type FSWatcher } from 'node:fs'
+import { stat } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { normalizedPath, pathForSourceId, resourceEntryId, sourceIdForPath } from '@deepseek-ai/dsh-research-resources'
@@ -55,6 +57,38 @@ function selectedLines(text: string, start: number, end: number): ResourceBody {
  */
 export function createCodeProvider(config: Config): ResourceProvider {
   return { id: name, domain: 'code',
+    async watchChanges(context, changed, signal) {
+      let paths: readonly string[]
+      try { paths = await (await reader(context, config).initialize(signal)).metadataDirectories(signal) }
+      catch (error) {
+        if (error instanceof GitReadError && error.kind === 'not-a-checkout') return () => {}
+        throw error
+      }
+      const watchers: FSWatcher[] = []
+      let stopped = false
+      const isStopped = (): boolean => stopped
+      const dispose = (): void => {
+        if (stopped) return
+        stopped = true
+        signal.removeEventListener('abort', dispose)
+        for (const watcher of watchers) watcher.close()
+      }
+      try {
+        for (const path of paths) {
+          if (isStopped()) break
+          signal.throwIfAborted()
+          try { if (!(await stat(path)).isDirectory()) continue }
+          catch (error) { if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue; throw error }
+          if (isStopped()) break
+          const watcher = watch(path, { recursive: false, persistent: false }, () => { if (!stopped) { dispose(); changed() } })
+          watcher.on('error', () => { if (!stopped) { dispose(); changed(true) } })
+          watchers.push(watcher)
+        }
+        signal.addEventListener('abort', dispose, { once: true })
+        if (signal.aborted) dispose()
+        return dispose
+      } catch (error) { dispose(); throw error }
+    },
     async list(context, signal) {
       let checkout: CheckoutObservation | undefined
       try { checkout = await (await reader(context, config).initialize(signal)).inspect(signal) }

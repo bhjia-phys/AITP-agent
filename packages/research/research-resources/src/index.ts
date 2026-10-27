@@ -2,7 +2,7 @@
 import { watch, type FSWatcher } from 'node:fs'
 import { realpath, stat } from 'node:fs/promises'
 import { EventEmitter, on } from 'node:events'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -91,6 +91,7 @@ interface RootEntry {
   readonly grants: Map<object, SourceRootRegistration>
   readonly files: GuardedFiles
   readonly lifetime: AbortController
+  readonly providerWatches: Map<string, Promise<() => void>>
   watcher: FSWatcher | BoundedSourceWatcher | undefined
   watchFailure: boolean
   dirty: boolean
@@ -196,7 +197,11 @@ export class ResearchResources extends TypertRemoteService {
       await Promise.allSettled(this.restoring === undefined ? [] : [this.restoring])
       for (const connection of this.connections.values()) connection.lease.dispose()
       this.connections.clear()
-      for (const root of this.canonicalRoots.values()) root.watcher?.close()
+      const pendingWatches = [...this.canonicalRoots.values()].flatMap(root => [...root.providerWatches.values()])
+      for (const root of this.canonicalRoots.values()) {
+        root.lifetime.abort(); root.watcher?.close(); this.closeProviderWatches(root)
+      }
+      await Promise.allSettled(pendingWatches)
       await Promise.allSettled([...this.canonicalRoots.values()].flatMap(root => root.refreshing === undefined ? [] : [root.refreshing]))
       this.roots.clear()
       this.canonicalRoots.clear()
@@ -247,7 +252,8 @@ export class ResearchResources extends TypertRemoteService {
     if (entry === undefined) {
       entry = { id: requestedId, path, aliases: new Set(), grants: new Map(),
         files: new GuardedFiles(path, this.config.maxFiles, this.config.maxFileBytes, this.config.maxBinaryBytes),
-        lifetime: new AbortController(), watcher: undefined, watchFailure: false, dirty: true, snapshot: undefined, refreshing: undefined }
+        lifetime: new AbortController(), providerWatches: new Map(), watcher: undefined, watchFailure: false,
+        dirty: true, snapshot: undefined, refreshing: undefined }
       this.canonicalRoots.set(path, entry)
       const observed = entry
       if (this.config.watchSources) {
@@ -280,6 +286,7 @@ export class ResearchResources extends TypertRemoteService {
       if (registered.grants.size === 0) {
         registered.lifetime.abort()
         registered.watcher?.close()
+        this.closeProviderWatches(registered)
         for (const id of registered.aliases) this.roots.delete(id)
         this.roots.delete(registered.id)
         this.canonicalRoots.delete(registered.path)
@@ -375,13 +382,38 @@ export class ResearchResources extends TypertRemoteService {
   }
 
   private invalidate(root: RootEntry): void {
+    this.closeProviderWatches(root)
     root.dirty = true
     this.revision++
     this.events.emit('change', { kind: 'invalidated', rootId: root.id } satisfies ResourceEvent)
   }
 
+  private closeProviderWatches(root: RootEntry): void {
+    for (const pending of root.providerWatches.values()) void pending.then((dispose) => { dispose() }, () => {})
+    root.providerWatches.clear()
+  }
+
+  private async watchProvider(root: RootEntry, provider: ResourceProvider, context: SourceProviderContext): Promise<void> {
+    if (!(root.watcher instanceof BoundedSourceWatcher) || provider.watchChanges === undefined
+      || root.providerWatches.has(provider.id)) return
+    const pending = provider.watchChanges(context, (failed) => {
+      if (failed) root.watchFailure = true
+      this.invalidate(root)
+    }, root.lifetime.signal)
+    root.providerWatches.set(provider.id, pending)
+    try {
+      const dispose = await pending
+      if (root.lifetime.signal.aborted || root.providerWatches.get(provider.id) !== pending) dispose()
+    } catch (error) {
+      if (!root.lifetime.signal.aborted && root.providerWatches.get(provider.id) === pending) {
+        root.watchFailure = true; root.providerWatches.delete(provider.id)
+      }
+      void error
+    }
+  }
+
   private invalidateAll(): void {
-    for (const root of this.canonicalRoots.values()) root.dirty = true
+    for (const root of this.canonicalRoots.values()) { this.closeProviderWatches(root); root.dirty = true }
     this.revision++
     this.events.emit('change', { kind: 'resync-required', reason: 'Source providers changed.' } satisfies ResourceEvent)
   }
@@ -526,6 +558,7 @@ export class ResearchResources extends TypertRemoteService {
             reportIssue: (path, reason) => { issues.push({ rootId: entry.id, providerId: provider.id, path, reason }) } }
           firstContext ??= context
           try {
+            await this.watchProvider(entry, provider, context)
             const projected = await provider.list(context, shared)
             if (this.providers.get(provider.id) !== provider) { entry.dirty = true; continue }
             for (const item of projected) {
@@ -772,6 +805,7 @@ export class ResearchResources extends TypertRemoteService {
         await this.authorizedMetadata(root, signal)
         items.push(...snapshot.items)
         issues.push(...snapshot.issues)
+        if (root.watchFailure) issues.push({ rootId: root.id, reason: MATERIAL_WATCH_UNAVAILABLE })
       } catch (error) {
         signal.throwIfAborted()
         issues.push({ rootId: root.id, reason: sourceFailure(error).message })
@@ -872,24 +906,26 @@ export class ResearchResources extends TypertRemoteService {
       reportIssue: (path, reason) => { issues.push({ rootId: root.id, providerId: provider.id, path, reason }) },
       resolveLink: (basePath, href) => this.resolveLink(root, basePath, href, roots),
     }
+    await this.watchProvider(root, provider, context)
     const items = await provider.listDirectory(context, folder, signal)
     this.watchOpenedSource(root, folder === '' ? '_directory_' : `${folder}/_directory_`)
     await this.authorizedMetadata(root, signal)
     if (root.watchFailure) issues.push({ rootId: root.id, reason: MATERIAL_WATCH_UNAVAILABLE })
     const key = JSON.stringify(['directory', root.id, folder, limit])
+    const observation = createHash('sha256').update(JSON.stringify([items, issues])).digest('base64url')
     let offset = 0
     if (request.cursor !== undefined) {
       if (request.cursor.length > this.config.maxQuestionCharacters * 4) throw new SourceError('invalid-request', 'The source page cursor exceeds its configured size bound.')
       let cursor: unknown
       try { cursor = JSON.parse(Buffer.from(request.cursor, 'base64url').toString()) }
       catch { throw new SourceError('invalid-request', 'The source page cursor is invalid.') }
-      if (!Array.isArray(cursor) || cursor.length !== 3 || cursor[0] !== this.revision || cursor[1] !== key
+      if (!Array.isArray(cursor) || cursor.length !== 4 || cursor[0] !== this.revision || cursor[1] !== key || cursor[3] !== observation
         || !Number.isSafeInteger(cursor[2]) || cursor[2] < 0) throw new SourceError('invalid-request', 'The source page cursor expired or belongs to another query.')
       offset = cursor[2] as number
     }
     const next = offset + limit
     return { items: items.slice(offset, next),
-      nextCursor: next < items.length ? Buffer.from(JSON.stringify([this.revision, key, next])).toString('base64url') : null,
+      nextCursor: next < items.length ? Buffer.from(JSON.stringify([this.revision, key, next, observation])).toString('base64url') : null,
       completeness: issues.length === 0 ? 'complete' : 'partial', issues, observedAt: context.observedAt }
   }
 
@@ -1111,7 +1147,8 @@ export class ResearchResources extends TypertRemoteService {
       const reading: ResourceReading = { resource, body, ...(locator === undefined ? {} : { locator }),
         observedAt: new Date().toISOString(),
         issues: [...catalog.issues.filter(issue => issue.rootId === root.id).map(issue => issue.reason),
-          ...root.watchFailure ? [MATERIAL_WATCH_UNAVAILABLE] : [], ...readingIssues] }
+          ...root.watchFailure && !catalog.issues.some(issue => issue.rootId === root.id && issue.reason === MATERIAL_WATCH_UNAVAILABLE)
+            ? [MATERIAL_WATCH_UNAVAILABLE] : [], ...readingIssues] }
       if (body.kind === 'pdf' && body.dataBase64 !== undefined && JSON.stringify(reading).length > this.config.maxResultCharacters) {
         const { dataBase64: _preview, ...pages } = body
         return { ...reading, body: pages }

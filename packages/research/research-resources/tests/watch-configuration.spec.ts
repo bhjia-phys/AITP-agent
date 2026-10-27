@@ -3,12 +3,27 @@ import { EventEmitter } from 'node:events'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import ResearchResources, { resourceEntryId, sourceIdForPath } from '../src/index.ts'
 
 const watchMock = vi.hoisted(() => vi.fn(() => Object.assign(new EventEmitter(), { close: vi.fn() })))
 vi.mock('node:fs', async original => ({ ...await original<typeof import('node:fs')>(), watch: watchMock }))
+beforeEach(() => { watchMock.mockClear() })
+
+it('reports unavailable automatic updates when a provider metadata watch fails', async () => {
+  const { MATERIAL_WATCH_UNAVAILABLE } = await import('../src/protocol.ts')
+  const root = await mkdtemp(join(tmpdir(), 'aitp-provider-watch-failure-'))
+  const ctx = new Context()
+  try {
+    const service = new ResearchResources(ctx, { watchMode: 'bounded' })
+    const lease = await service.registerRoot({ id: 'code', path: root, domains: ['code'] })
+    service.registerProvider({ id: 'code', domain: 'code', list: async () => [], listDirectory: async () => [],
+      watchChanges: async () => { throw new Error('watch failed') } })
+    const result = await service.listResources({ domain: 'code', rootId: lease.rootId, folder: '' }, new AbortController().signal)
+    expect(result.ok && result.value.issues).toContainEqual({ rootId: lease.rootId, reason: MATERIAL_WATCH_UNAVAILABLE })
+  } finally { await ctx.fiber.dispose(); await rm(root, { recursive: true, force: true }) }
+})
 
 it('omits recursive watches and rediscovers externally changed files on the next read', async () => {
   const root = await mkdtemp(join(tmpdir(), 'aitp-no-watch-'))

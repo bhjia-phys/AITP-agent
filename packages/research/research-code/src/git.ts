@@ -91,6 +91,26 @@ export class GitReader {
   }
 
   /**
+   * Locate only the Git-owned directories needed to observe the current checkout metadata.
+   * @param signal - source-read lifetime.
+   * @returns Git and shared metadata directories and the current branch reference parent.
+   */
+  async metadataDirectories(signal: AbortSignal): Promise<readonly string[]> {
+    const git = await this.execute(['rev-parse', '--absolute-git-dir'], signal)
+    const common = await this.execute(['rev-parse', '--git-common-dir'], signal)
+    const ref = await this.execute(['symbolic-ref', '--quiet', 'HEAD'], signal, [1])
+    if (git === undefined || common === undefined) throw new GitReadError('unavailable', 'The Git metadata location is unavailable.')
+    const gitDir = resolve(this.root, git.trim())
+    const commonDir = resolve(this.root, common.trim())
+    const branch = ref?.trim()
+    const dirs = [gitDir, commonDir, resolve(commonDir, 'refs'), resolve(commonDir, 'refs/heads')]
+    if (branch?.startsWith('refs/heads/') && !branch.split('/').some(part => part === '..' || part === '.')) {
+      dirs.push(resolve(commonDir, branch, '..'))
+    }
+    return [...new Set(dirs)]
+  }
+
+  /**
    * Read HEAD, branch and bounded porcelain status without refreshing the index on disk.
    * @param signal - source-read lifetime.
    * @returns observed checkout facts, including an unborn or detached HEAD explicitly.

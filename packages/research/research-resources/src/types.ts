@@ -249,6 +249,8 @@ export interface ResourceProvider {
   list(context: SourceProviderContext, signal: AbortSignal): Promise<readonly ResourceSummary[]>
   /** Optionally list one immediate directory using the same authorized source context. */
   listDirectory?(context: SourceProviderContext, folder: string, signal: AbortSignal): Promise<readonly ResourceSummary[]>
+  /** Observe provider-owned metadata and report changes without extending source read authority. */
+  watchChanges?(context: SourceProviderContext, changed: (failed?: boolean) => void, signal: AbortSignal): Promise<() => void>
   /** Read a known source or return undefined when this provider has no specialized reader. */
   read?(context: SourceProviderContext, reference: SourceRef,
     locator: SourceLocator | undefined, signal: AbortSignal): Promise<ResourceBody | undefined>

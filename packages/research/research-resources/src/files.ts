@@ -1,5 +1,5 @@
 /** Shared bounded local reads; root authorization belongs to the source service. */
-import { constants, watch, type FSWatcher } from 'node:fs'
+import { constants, lstatSync, watch, type FSWatcher } from 'node:fs'
 import { EventEmitter } from 'node:events'
 import { lstat, open, opendir, readdir, realpath, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
@@ -91,6 +91,7 @@ export interface SourceDirectory {
 /** Non-recursive watches for bounded discovery and explicitly opened sources. */
 export class BoundedSourceWatcher extends EventEmitter {
   private readonly watchers = new Map<string, FSWatcher>()
+  private readonly identities = new Map<string, string>()
   private readonly selected = new Set<string>()
   private timer: ReturnType<typeof setTimeout> | undefined
   private stopped = false
@@ -110,7 +111,9 @@ export class BoundedSourceWatcher extends EventEmitter {
     const desired = new Set(['', ...directories, ...this.selected])
     if (desired.size > this.limit) throw new SourceError('unavailable', 'The bounded source watch limit was reached.')
     for (const path of desired) this.add(path)
-    for (const [path, watcher] of this.watchers) if (!desired.has(path)) { watcher.close(); this.watchers.delete(path) }
+    for (const [path, watcher] of this.watchers) if (!desired.has(path)) {
+      watcher.close(); this.watchers.delete(path); this.identities.delete(path)
+    }
   }
   /**
    * Retain one separately validated opened file's parent even when discovery was partial.
@@ -131,18 +134,27 @@ export class BoundedSourceWatcher extends EventEmitter {
     this.timer = undefined
     for (const watcher of this.watchers.values()) watcher.close()
     this.watchers.clear()
+    this.identities.clear()
   }
   private add(directory: string): void {
-    if (this.stopped || this.watchers.has(directory)) return
+    if (this.stopped) return
     if (directory !== '') normalizedPath(directory)
+    const fullPath = directory === '' ? this.root : resolve(this.root, directory)
+    const info = lstatSync(fullPath)
+    if (!info.isDirectory() || info.isSymbolicLink()) throw new SourceError('permission-denied', 'The watched source directory is unavailable.')
+    const identity = `${info.dev}:${info.ino}`
+    const existing = this.watchers.get(directory)
+    if (existing !== undefined && this.identities.get(directory) === identity) return
+    if (existing !== undefined) { existing.close(); this.watchers.delete(directory); this.identities.delete(directory) }
     if (this.watchers.size >= this.limit) throw new SourceError('unavailable', 'The bounded source watch limit was reached.')
-    const watcher = watch(directory === '' ? this.root : resolve(this.root, directory), { recursive: false, persistent: false }, () => {
+    const watcher = watch(fullPath, { recursive: false, persistent: false }, () => {
       if (this.timer !== undefined) clearTimeout(this.timer)
       this.timer = setTimeout(() => { this.timer = undefined; if (!this.stopped) this.changed() }, 150)
       this.timer.unref()
     })
     watcher.on('error', (error) => { if (!this.stopped) this.emit('error', error) })
     this.watchers.set(directory, watcher)
+    this.identities.set(directory, identity)
   }
 }
 

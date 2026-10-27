@@ -32,9 +32,10 @@ export interface ResearchMaterialNavigation {
    * Open a workspace-relative research reference in the current topic's native dock.
    * @param scope - selected Workspace and topic.
    * @param resource - reference owned by that Workspace.
+   * @param isCurrent - whether the originating research visit is still active.
    * @returns Whether the bridge handled the reference.
    */
-  open(scope: ResearchDiscussionScope, resource: import('./workspace-contract.ts').ResourceReference): Promise<boolean>
+  open(scope: ResearchDiscussionScope, resource: import('./workspace-contract.ts').ResourceReference, isCurrent?: () => boolean): Promise<boolean>
 }
 
 /** Shared discussion used by topic and scoped-library pages. */

@@ -100,6 +100,19 @@ async function panel(overrides: Partial<MaterialsPanelFace> = {}, values: Record
   return { store, face, props }
 }
 
+it('keeps the code catalog mounted for an empty directory so its parent navigation remains available', async () => {
+  const rootId = 'repo' as SourceRootId
+  const values = {
+    [MATERIAL_ROOTS]: live([{ id: rootId, title: 'Repository', displayPath: '/repo', domains: ['code'] }]),
+    [materialListAddress({ domain: 'code', rootId, folder: 'empty' })]: live({ ...page, items: [] }),
+  }
+  const { store, props } = await panel({ domain: 'code' }, values)
+  act(() => { store.actions.setRoot('code', rootId); store.actions.setFolder('code', 'empty') })
+  await waitFor(() => { expect(props.renderFactorySlot).toHaveBeenCalledWith('aitp.materials.catalog', expect.objectContaining({
+    domain: 'code', rootId, folderPath: 'empty', items: [],
+  })) })
+})
+
 it('browses globally, keeps equal filenames distinct and submits only the explicitly selected sources', async () => {
   const { face } = await panel()
   expect(screen.getByText('Global materials')).toBeDefined()

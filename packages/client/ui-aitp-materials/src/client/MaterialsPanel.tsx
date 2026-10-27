@@ -203,7 +203,7 @@ function LibraryRows(props: MaterialsPanelProps & { reading: ResourceSnapshot<Re
     {reading.status === 'failed' && <p role="alert" className={css.notice}>{t('disconnected')}</p>}
     {page.completeness === 'partial' && <p role="note" className={css.notice}>{t('partial')}</p>}
     {page.issues.length > 0 && <details className={css.notice}><summary>{t('issues')}</summary><ul>{page.issues.map((issue, index) => <li key={index}>{issue.reason}</li>)}</ul></details>}
-    {page.items.length === 0 ? <div className={css.empty}><IconFolderOpenOutlineRegular size={28} /><p>{t('empty')}</p></div>
+    {page.items.length === 0 && !(domain === 'code' && view.rootId !== null && !view.query) ? <div className={css.empty}><IconFolderOpenOutlineRegular size={28} /><p>{t('empty')}</p></div>
       : props.renderFactorySlot('aitp.materials.catalog', {
         domain, items: page.items, roots: roots.value ?? [], rootId: view.rootId, folderPath: view.folderPath,
         query: view.query, ...domain === 'code' && view.rootId === null && scope.topicId !== undefined ? { topicFiltered: true } : {},

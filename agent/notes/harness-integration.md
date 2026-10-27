@@ -621,3 +621,5 @@ Shared literature and knowledge can use explicitly configured roots outside topi
 Focused service and client tests cover catalog scope, explicit associations, bounded directory listing, PDF filtering and native source navigation. An isolated real-data Host and browser exercise the shared roots, actual Git observations, native Markdown and PDF reading, and the preservation of Workspace grants. These checks do not establish complete bibliography or scientific-model quality.
 
 This is not a Zotero synchronization or a complete bibliographic catalog: records without confirmed titles, authors, years or reading state remain unknown. Only explicitly configured repositories with authored references acquire topic associations. Discovery limits and symbolic-link exclusions remain visible.
+
+Review follow-up covers stale directory cursors, replaced directory watches, Git-only checkout changes, empty-directory navigation and cancellation of a superseded Research-to-dock open. Bounded checkout metadata watches observe the current branch and index for ordinary Git checkouts and worktrees without exposing Git internals as readable sources; watch failure remains explicit.

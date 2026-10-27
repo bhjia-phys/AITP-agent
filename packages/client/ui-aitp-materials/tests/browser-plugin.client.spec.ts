@@ -173,6 +173,16 @@ it('maps a research reference only through its authorized workspace root and ope
   expect(open).toHaveBeenCalledWith('aitp-research', JSON.stringify(['project', 'topic']),
     materialSourceAddress({ rootId, sourceId: 'source:%E4%B8%AD%E6%96%87%2Fcurrent.pdf' as SourceId }, undefined, 'literature'),
     { params: { scope, libraryDomain: 'literature' } })
+  let current = true
+  const pendingRoots = Promise.withResolvers<unknown>()
+  mock.unary('researchResources/listRoots', () => pendingRoots.promise)
+  const pending = client.ctx.researchMaterialNavigation.open(scope, material, () => current)
+  current = false
+  pendingRoots.resolve(ok({ ok: true, value: [
+    { id: rootId, title: 'Project', displayPath: '/project', grants: [{ kind: 'workspace-connection', workspaceId }] },
+  ] }))
+  expect(await pending).toBe(false)
+  expect(open).toHaveBeenCalledTimes(1)
   expect(await client.ctx.researchMaterialNavigation.open(scope, { ...material, target: { kind: 'workspace-path', path: '../outside.pdf' } })).toBe(false)
   mock.unary('researchResources/listRoots', ok({ ok: true, value: [] }))
   expect(await client.ctx.researchMaterialNavigation.open(scope, material)).toBe(false)

@@ -2640,7 +2640,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-research-code`
 
 - `inject`: `researchResources`
-- `source`: [`packages/research/research-code/src/index.ts:10`](../packages/research/research-code/src/index.ts)
+- `source`: [`packages/research/research-code/src/index.ts:12`](../packages/research/research-code/src/index.ts)
 
 ```ts config-catalog
 /** Local Git executable and bounds, supplied to every observation without shell interpolation. */

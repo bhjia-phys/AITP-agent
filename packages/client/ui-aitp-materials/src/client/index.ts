@@ -80,13 +80,13 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   } }
   const controller = new MaterialsController(ctx, store, connection)
   const researchNavigation: ResearchMaterialNavigation = {
-    async open(scope, resource) {
+    async open(scope, resource, isCurrent) {
       if (resource.target.kind !== 'workspace-path') return false
       const sourceId = `source:${encodeURIComponent(resource.target.path)}` as SourceId
       if (materialSourcePath(sourceId) === undefined) return false
       const signal = AbortSignal.any([ctx.layout.beginNavigation(), controller.lifetime.signal])
       const roots = await connection.run(transport => transport.listRoots(signal))
-      if (!roots.ok || signal.aborted || ctx.layout.panelInfo.getSnapshot().activePanelId !== 'aitp-research') return false
+      if (!roots.ok || signal.aborted || isCurrent?.() === false || ctx.layout.panelInfo.getSnapshot().activePanelId !== 'aitp-research') return false
       const matches = roots.value.filter(root => root.grants?.some(grant =>
         grant.kind === 'workspace-connection' && grant.workspaceId === scope.workspaceId))
       if (matches.length !== 1) return false

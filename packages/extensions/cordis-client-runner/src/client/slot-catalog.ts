@@ -310,7 +310,7 @@ export const CLIENT_SLOT_API: readonly ClientSlotEntry[] = [
     ],
     replaceRisk: 'shadows-shipped-ui',
     example: 'return {\n  inject: [\'slots\'],\n  apply(ctx) {\n    ctx.slots.inject(\'aitp.research.discussion.conversation\', () => ctx.slots.register(\n      { name: \'aitp.research.discussion.conversation\' },\n      () => React.createElement(\'div\', null, \'hello\'),\n    ))\n  },\n}',
-    source: 'packages/client/ui-aitp-research/src/client/discussion-contract.ts:139',
+    source: 'packages/client/ui-aitp-research/src/client/discussion-contract.ts:140',
   },
   {
     key: 'aitp.research.topic.libraries',

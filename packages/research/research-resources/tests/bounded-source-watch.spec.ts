@@ -30,6 +30,24 @@ it('watches only observed directories and an explicitly opened deeper source, in
   } finally { observer?.close(); await rm(root, { recursive: true, force: true }) }
 })
 
+it('reattaches a watch when a discovered directory is replaced', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'aitp-replaced-watch-'))
+  const changed = vi.fn()
+  let observer: BoundedSourceWatcher | undefined
+  try {
+    await mkdir(join(root, 'child'))
+    observer = new BoundedSourceWatcher(root, 20, changed)
+    observer.sync(['', 'child'])
+    await rename(join(root, 'child'), join(root, 'old'))
+    await mkdir(join(root, 'child'))
+    observer.sync(['', 'child'])
+    await vi.waitFor(() => { expect(changed).toHaveBeenCalled() }, { timeout: 3000 })
+    changed.mockClear()
+    await writeFile(join(root, 'child', 'note.md'), 'changed\n')
+    await vi.waitFor(() => { expect(changed).toHaveBeenCalled() }, { timeout: 3000 })
+  } finally { observer?.close(); await rm(root, { recursive: true, force: true }) }
+})
+
 it('reuses a watched catalog and refreshes after an external source change', async () => {
   const { Context } = await import('@deepseek-ai/cordis')
   const { default: ResearchResources, resourceEntryId, sourceIdForPath } = await import('../src/index.ts')

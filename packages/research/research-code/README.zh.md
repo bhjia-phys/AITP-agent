@@ -40,6 +40,8 @@ kind: "package-reference"
 
 Provider 消费共享文件发现及受控来源读取。只读 Git 命令禁用 optional locks、fsmonitor、hooks、已配置的 clean／process filters、external diff 和 textconv。输出与时间限制在呈现完整观察前生效；提交源码读取拒绝符号链接及 submodule。[领域组合测试](../research-knowledge/tests/libraries-loader.spec.ts)同时启动真实插件，读取 dirty diff，并验证单独卸载不会修改源文件或 Git index。
 
+启用有界来源监听时，已观察的检出还会监听至多五个 Git 元数据目录，以发现 HEAD、当前分支引用、index 或 packed refs 的变化。Git 自身解析普通检出和 worktree 的元数据位置；监听不会将这些目录开放为可读来源。变化会使观察失效，后续读取重新建立监听；无法建立监听时，共享服务提示需要手动刷新。
+
 </details>
 
 ## Further Exploration
