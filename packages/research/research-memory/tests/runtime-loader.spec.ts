@@ -52,4 +52,33 @@ describe('research runtime through a minimal production-service Loader compositi
     expect(final).toContain('Historical provisional failed-route')
     expect(events.filter(event => event.type === 'user/message' && event.data.source.kind === 'aitp-research')).toHaveLength(2)
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
+  it('restores a Global selected-source scope and original quote after two compactions, source change and cold restart', async () => {
+    const driver = fileURLToPath(new URL('./fixtures/runtime/driver.ts', import.meta.url))
+    await runLoaderSmoke({
+      label: 'global source-study continuity', tempDirPrefix: 'source-study-runtime-', binScript: driver, libBinScript: driver,
+      configPath: fileURLToPath(new URL('./fixtures/runtime/runtime.cordis.yml', import.meta.url)),
+      tsconfigPath: fileURLToPath(new URL('../../../../tsconfig.json', import.meta.url)),
+      env: { AITP_SOURCE_STUDY_FIXTURE: '1' },
+      inspect: async (cwd) => {
+        const requests = (await readFile(join(cwd, 'runtime-requests.jsonl'), 'utf8')).trim().split('\n').map(line => JSON.parse(line) as GenerateOptions)
+        const final = JSON.stringify(requests.at(-1))
+        expect(final).toContain('persistent-selected-set')
+        expect(final).toContain('GLOBAL_ORIGINAL_QUOTE')
+        expect(final).toContain('historical source text')
+        expect(final).toContain('The original passage has been removed.')
+        expect(final).toContain('只做解析推导')
+        expect(final).toContain('Reopen only after the boundary condition changes')
+        expect(final).not.toContain('branch-a')
+        const disabled = JSON.parse(await readFile(join(cwd, 'runtime-disabled.json'), 'utf8')) as {
+          researchProjectionAbsent: boolean
+          researchToolsAbsent: boolean
+          compactionCount: number
+          originalQuestions: unknown[]
+        }
+        expect(disabled).toMatchObject({ researchProjectionAbsent: true, researchToolsAbsent: true, compactionCount: 2 })
+        expect(JSON.stringify(disabled.originalQuestions)).toContain('GLOBAL_ORIGINAL_QUOTE')
+      },
+    })
+  }, LOADER_SMOKE_TEST_TIMEOUT_MS)
+
 })

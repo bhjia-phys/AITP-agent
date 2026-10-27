@@ -2,12 +2,15 @@
 import { useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconGlobeOutlineRegular, StateDot, Tooltip,
+  Button, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconGlobeOutlineRegular,
+  IconNewChatOutlineRegular, StateDot, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { InjectFace, PropsLocale, PropsRenderFactories, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { TopicId, TopicPage, TopicSummary } from './workspace-contract.ts'
+import type { ResearchDiscussionScope } from './discussion-contract.ts'
 import { workspaceProjectAddress, workspaceSetupAddress, workspaceTopicsAddress } from './workspace-resources.ts'
 import { disclosureKey, type createResearchPanelStore } from './store.ts'
 import type {} from './sidebar-locales.ts'
@@ -21,6 +24,12 @@ export interface WorkspaceSidebarFace {
   showConversations: () => void
   /** Re-read this Workspace after a failed page or an expired cursor. */
   retry: (workspaceId: WorkspaceId) => void
+  /** Open an explicitly requested blank discussion under this topic. */
+  newDiscussion?: ((workspaceId: WorkspaceId, topicId: TopicId, title: string) => void) | undefined
+  /** Reveal the research reading panel when this navigation is used inside a library. */
+  showResearch?: () => void
+  /** A scoped library can present its own location without changing the retained research reader. */
+  navigationScope?: ResearchDiscussionScope | undefined
 }
 
 /** The same declared view store is shared with the main Research panel. */
@@ -29,6 +38,7 @@ export type WorkspaceSidebarProps =
   & PropsLocale<'aitp.research.sidebar'>
   & PropsStore<ReturnType<typeof createResearchPanelStore>>
   & InjectFace<WorkspaceSidebarFace>
+  & PropsRenderFactories
 
 /**
  * Render topic navigation in the single host sidebar.
@@ -39,7 +49,8 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps): ReactNode {
   const { t, useWorkspaces, useStore, wide } = props
   const workspaces = useWorkspaces(snapshot => snapshot.items)
   const selected = useStore(state => state.workspaceId)
-  const workspace = workspaces.find(item => item.workspaceId === selected) ?? workspaces[0]
+  const shown = props.navigationScope?.workspaceId ?? selected
+  const workspace = workspaces.find(item => item.workspaceId === shown) ?? workspaces[0]
   if (!wide) {
     return (
       <div className={css.rail}>
@@ -54,11 +65,9 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps): ReactNode {
   return (
     <nav className={css.browser} aria-label={t('navigation')}>
       <div className={css.switcher}>
-        <Button variant="ghost" size="sm" aria-current="page" className={css.currentMode}>
-          {t('topics')}
-        </Button>
+        <span className={css.navigationTitle}>{t('topicsAndDiscussions')}</span>
         <Button variant="ghost" size="sm" onClick={props.showConversations}>
-          {t('conversations')}
+          {t('allConversations')}
         </Button>
       </div>
       {workspace === undefined
@@ -87,14 +96,21 @@ function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId
   const topics = useResource<'aitp-workspace-topics'>(workspaceTopicsAddress(workspaceId))
   const location = useStore(state => state.workspaceId === workspaceId ? state.location : null)
   const disclosure = useStore(state => state.disclosure)
-  const selectedTopicId = location === null ? null : location.kind === 'map' ? location.focusId : location.topicId
-  const atOverview = location === null || (location.kind === 'map' && location.focusId === null)
+  const scopedTopic = props.navigationScope?.topicId === undefined ? null : brandString<TopicId>(props.navigationScope.topicId)
+  const selectedTopicId = props.navigationScope === undefined
+    ? location === null ? null : location.kind === 'map' ? location.focusId : location.topicId
+    : scopedTopic ?? null
+  const atOverview = selectedTopicId === null
   const [attempt, setAttempt] = useState(0)
   const current = topics.value
   const disconnected = topics.status === 'none'
     || (topics.failure?.code === 'aitp/workspace' && topics.failure.details.code === 'not-connected')
   const openTopic = (topicId: TopicId): void => {
-    actions.open(workspaceId, { kind: 'topic', topicId }, { scrollTop: 0, focusIndex: null })
+    actions.visitTopic(workspaceId, topicId)
+    props.showResearch?.()
+  }
+  const activateTopic = (topicId: TopicId): void => {
+    if (selectedTopicId !== topicId) openTopic(topicId)
   }
   const outline: Outline = {
     isOpen: (topicId, onPath) => disclosure[disclosureKey(workspaceId, 'outline', topicId)] ?? onPath,
@@ -112,8 +128,11 @@ function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId
         type="button"
         className={clsx(css.topicButton, css.overview)}
         aria-current={atOverview ? 'page' : undefined}
-        onClick={() => { actions.open(workspaceId, { kind: 'map', focusId: null }, { scrollTop: 0, focusIndex: null }) }}
+        onClick={() => { actions.visitTopic(workspaceId, null); props.showResearch?.() }}
       >{t('overview')}</button>
+      {atOverview && props.renderFactorySlot('aitp.research.topic-discussions', {
+        scope: { workspaceId, title: project.value?.value.title ?? workspaceTitle },
+      })}
       {current === undefined
         ? (
           topics.status === 'loading'
@@ -125,6 +144,7 @@ function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId
           <TopicPages key={JSON.stringify([current.revision, current.value.nextCursor, attempt])}
             t={t} useResource={useResource} workspaceId={workspaceId} selectedTopicId={selectedTopicId}
             onSelect={openTopic} outline={outline}
+            renderFactorySlot={props.renderFactorySlot} onActivate={activateTopic} newDiscussion={props.newDiscussion}
             onRetry={retry} page={current.value} previous={[]} partial={false} stale={topics.status === 'failed'} />
         )}
     </div>
@@ -139,10 +159,11 @@ interface Outline {
   toggle: (topicId: TopicId, open: boolean) => void
 }
 
-type TopicPageProps = Pick<WorkspaceSidebarProps, 't' | 'useResource'> & {
+type TopicPageProps = Pick<WorkspaceSidebarProps, 't' | 'useResource' | 'renderFactorySlot' | 'newDiscussion'> & {
   workspaceId: WorkspaceId
   selectedTopicId: TopicId | null
   onSelect: (topicId: TopicId) => void
+  onActivate: (topicId: TopicId) => void
   outline: Outline
   onRetry: () => void
   previous: readonly TopicSummary[]
@@ -189,7 +210,9 @@ function TopicTreeRows(props: TopicPageProps): ReactNode {
     path.add(id)
     id = byId.get(id)?.parentId ?? null
   }
-  const branch = { t, byId, path, selectedTopicId: props.selectedTopicId, onSelect: props.onSelect, outline: props.outline }
+  const branch = { t, byId, path, workspaceId: props.workspaceId, selectedTopicId: props.selectedTopicId,
+    onSelect: props.onSelect, onActivate: props.onActivate, outline: props.outline,
+    renderFactorySlot: props.renderFactorySlot, newDiscussion: props.newDiscussion }
   const roots = rows.filter(topic => topic.parentId === null)
   const unplaced = rows.filter(topic => topic.parentId !== null && !byId.has(topic.parentId))
   return <>
@@ -208,11 +231,12 @@ function TopicTreeRows(props: TopicPageProps): ReactNode {
   </>
 }
 
-type BranchProps = Pick<TopicPageProps, 't' | 'selectedTopicId' | 'onSelect' | 'outline'> & {
-  byId: ReadonlyMap<TopicId, TopicSummary>
-  /** The selected topic and its loaded ancestors. */
-  path: ReadonlySet<TopicId>
-}
+type BranchProps = Pick<TopicPageProps, 't' | 'workspaceId' | 'selectedTopicId' | 'onSelect' | 'onActivate'
+  | 'outline' | 'renderFactorySlot' | 'newDiscussion'> & {
+    byId: ReadonlyMap<TopicId, TopicSummary>
+    /** The selected topic and its loaded ancestors. */
+    path: ReadonlySet<TopicId>
+  }
 
 function TopicBranch(props: BranchProps & { topic: TopicSummary }): ReactNode {
   const { topic, byId, outline, t } = props
@@ -221,16 +245,14 @@ function TopicBranch(props: BranchProps & { topic: TopicSummary }): ReactNode {
     return child === undefined ? [] : [child]
   })
   const title = topic.shortTitle ?? topic.title
-  const open = children.length > 0 && outline.isOpen(topic.id, props.path.has(topic.id) && topic.id !== props.selectedTopicId)
+  const open = outline.isOpen(topic.id, props.path.has(topic.id))
   return (
     <li>
       <div className={css.row}>
-        {children.length > 0
-          ? <button type="button" className={css.toggle} aria-expanded={open}
-            aria-label={t(open ? 'hideBranches' : 'showBranches', { title })} onClick={() => { outline.toggle(topic.id, open) }}>
-            {open ? <IconChevronDownOutlineRegular size={14} /> : <IconChevronRightOutlineRegular size={14} />}
-          </button>
-          : <span className={css.toggleSpace} />}
+        <button type="button" className={css.toggle} aria-expanded={open}
+          aria-label={t(open ? 'hideBranches' : 'showBranches', { title })} onClick={() => { outline.toggle(topic.id, open) }}>
+          {open ? <IconChevronDownOutlineRegular size={14} /> : <IconChevronRightOutlineRegular size={14} />}
+        </button>
         <button
           type="button"
           className={css.topicButton}
@@ -238,10 +260,22 @@ function TopicBranch(props: BranchProps & { topic: TopicSummary }): ReactNode {
           title={topic.title}
           onClick={() => { props.onSelect(topic.id) }}
         >{title}</button>
+        {props.newDiscussion !== undefined && <Tooltip label={t('newDiscussion', { title })}>
+          <Button variant="ghost" size="sm" className={css.newDiscussion} aria-label={t('newDiscussion', { title })}
+            icon={<IconNewChatOutlineRegular size={14} />} onClick={() => {
+              props.onActivate(topic.id)
+              props.newDiscussion?.(props.workspaceId, topic.id, title)
+            }} />
+        </Tooltip>}
       </div>
       {open && (
         <ul className={css.children}>
           {children.map(child => <TopicBranch key={child.id} {...props} topic={child} />)}
+          <li>{props.renderFactorySlot('aitp.research.topic-discussions', {
+            scope: { workspaceId: props.workspaceId, topicId: topic.id, title },
+            active: topic.id === props.selectedTopicId,
+            onActivate: () => { props.onActivate(topic.id) },
+          })}</li>
         </ul>
       )}
     </li>

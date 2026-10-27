@@ -1,4 +1,5 @@
 /** Bounded research context on the existing Harness execution and Session log. */
+import type { ResearchRecovery } from './recovery-types.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
@@ -11,7 +12,7 @@ import {
   scopeKey, originPointer, readSessionWrite, WORKING_TOOL, workingStateSchema,
 } from './working-state.ts'
 import type {
-  ResearchContextRead, ResearchHumanInput, ResearchOrigin, ResearchRecovery, ResearchRuntimeConfig,
+  ResearchContextRead, ResearchHumanInput, ResearchOrigin, ResearchRuntimeConfig,
   ResearchWorkingState, ResearchWriteRecord,
 } from './working-types.ts'
 import { unansweredQuestionEntries } from './question-context.ts'
@@ -67,7 +68,7 @@ export function renderResearchContext(
   const last = humans.at(-1)
   const priorities = [last, first, ...humans.filter(input => referenced.has(input.sourceId)), ...humans.toReversed()]
   const ranked = [...new Set(priorities.filter((input): input is ResearchHumanInput => input !== undefined))]
-  const units: { kind: 'human' | 'working' | 'source'; text: string }[] = []
+  const units: { kind: 'human' | 'working' | 'source'; text: string; excerpt?: (fits: (text: string) => boolean) => string | undefined }[] = []
   let humanCharacters = 0
   let includedHuman = 0
   for (const input of ranked) {
@@ -81,9 +82,27 @@ export function renderResearchContext(
   for (const item of items) units.push({ kind: 'working', text: `Provisional model item [${item.id}; ${item.kind}; ${item.sourceId}]:\n${item.text}\nCondition / reopening: ${item.condition}\nOriginal input references: ${item.sourceIds.join(', ')}` })
   for (const write of writes) units.push({ kind: 'working', text: `Recorded source-edit outcome [${write.sourceId}]:\n${writeText(write)}` })
   if (origin.selectedText !== undefined) units.push({ kind: 'source', text: `Original human-selected excerpt (not a fresh source read; context may be incomplete):\n${origin.selectedText}` })
-  for (const entry of read.entries) units.push({ kind: 'source', text: `Source ${entry.label} [${entry.source.target}]:\n${entry.source.locator === undefined ? '' : `Passage locator: ${entry.source.locator}\n`}${entry.text}` })
+  for (const [index, selection] of (origin.selections ?? []).entries()) {
+    const quote = selection.selectedText ?? (selection.locator?.kind === 'text' || selection.locator?.kind === 'pdf-page'
+      ? selection.locator.quote : undefined)
+    if (quote !== undefined) units.push({ kind: 'source', text: `Original human-selected excerpt from source ${index + 1} [${selection.ref.rootId}/${selection.ref.sourceId}] (historical source text, not a human assertion or a fresh read):\n${quote}` })
+  }
+  const sourceText = (entry: ResearchContextRead['entries'][number]): string =>
+    `Source ${entry.label} [${entry.source.target}]:\n${entry.source.locator === undefined ? '' : `Passage locator: ${entry.source.locator}\n`}${entry.text}`
+  for (const entry of read.entries) {
+    const excerpt = entry.excerpt
+    const coverage = '\nReading coverage: only this located excerpt fits the complete request context; the rest of this source was not delivered.'
+    units.push({ kind: 'source', text: sourceText(entry), ...excerpt === undefined ? {} : {
+      excerpt: (fits: (text: string) => boolean) => {
+        const fitted = excerpt(candidate => fits(sourceText(candidate) + coverage))
+        return fitted === undefined ? undefined : sourceText(fitted) + coverage
+      },
+    } })
+  }
   for (const omission of read.omissions) units.push({ kind: 'source', text: `Unavailable source: ${omission}` })
-  const header = `${DESCRIPTION}\nScope: ${JSON.stringify({ workspaceId: origin.workspaceId, topicId: origin.topicId ?? null })}`
+  const header = `${DESCRIPTION}\nScope: ${JSON.stringify(origin.scope === 'global'
+    ? { scope: 'global', studyId: origin.studyId, workspaceId: origin.workspaceId ?? null }
+    : { workspaceId: origin.workspaceId, topicId: origin.topicId ?? null })}`
   const included: string[] = []
   const counts = { human: humans.length, working: items.length + writes.length, source: units.filter(unit => unit.kind === 'source').length }
   const footer = (): string => `Omitted: ${counts.human} human inputs, ${counts.working} working items, ${counts.source} source units. Omitted inputs may contain effective constraints. Use research_read_context to list source IDs or recover an original input before claiming complete recovery.`
@@ -91,9 +110,11 @@ export function renderResearchContext(
     throw new Error('research memory context budget cannot fit its scope and omission report')
   }
   for (const unit of units) {
-    const candidate = `${header}\n\n${[...included, unit.text].join('\n\n')}\n\n${footer()}`
-    if (candidate.length <= config.maxContextCharacters) {
-      included.push(unit.text)
+    const fits = (text: string): boolean =>
+      `${header}\n\n${[...included, text].join('\n\n')}\n\n${footer()}`.length <= config.maxContextCharacters
+    const text = fits(unit.text) ? unit.text : unit.excerpt?.(fits)
+    if (text !== undefined && fits(text)) {
+      included.push(text)
       counts[unit.kind]--
     }
   }
@@ -111,7 +132,7 @@ export function renderResearchContext(
 export function installRuntime(
   ctx: Context,
   config: ResearchRuntimeConfig,
-  resolveContext: (origin: ResearchOrigin, signal?: AbortSignal) => Promise<ResearchContextRead>,
+  resolveContext: (origin: ResearchOrigin, signal?: AbortSignal, question?: string) => Promise<ResearchContextRead>,
   recovery?: ResearchRecovery,
 ): () => void {
   for (const key of ['maxContextCharacters', 'maxWorkingItems', 'maxItemCharacters', 'maxHumanInputs', 'maxHumanCharacters'] as const) {
@@ -121,7 +142,7 @@ export function installRuntime(
   const prepared = new WeakMap<Session, string>()
   const disposers: (() => void)[] = []
   disposers.push(ctx.sessionProjections.register({
-    key: 'researchWorking', stateVersion: 5, stateSchema: workingStateSchema,
+    key: 'researchWorking', stateVersion: 6, stateSchema: workingStateSchema,
     init: emptyWorkingState, apply: applyWorkingEvent,
   }))
   const stateOf = (session: Session): ResearchWorkingState => ctx.sessionProjections.stateOf(session, 'researchWorking') ?? emptyWorkingState()
@@ -148,7 +169,11 @@ export function installRuntime(
       return decision
     }
     let read: ResearchContextRead
-    try { read = await resolveContext(state.origin, signal) } catch (error: unknown) {
+    const latestInput = scopedHumans(state, state.origin).at(-1)
+    const latestMessage = latestInput === undefined ? undefined : proposed.get(latestInput.sourceId)
+    const question = latestInput === undefined ? '' : latestMessage === undefined
+      ? readHumanInput(agent.session, latestInput) : contentText(latestMessage.content)
+    try { read = await resolveContext(state.origin, signal, question) } catch (error: unknown) {
       signal.throwIfAborted()
       read = { entries: [], omissions: [`Research source read failed: ${error instanceof Error ? error.message : String(error)}`] }
     }
@@ -254,7 +279,8 @@ export function installRuntime(
         }
         return { text: `${text}Next inputOffset: ${inputOffset + returned < sources.length ? inputOffset + returned : 'end'}` }
       }
-      let read = await resolveContext(origin, exec.signal)
+      const latestInput = inputs.at(-1)
+      let read = await resolveContext(origin, exec.signal, latestInput === undefined ? '' : readHumanInput(exec.agent.session, latestInput))
       if (recovery !== undefined) {
         const historical = await recovery.recover(origin, exec.agent.session, exec.signal)
         read = { entries: [...historical.entries, ...read.entries], omissions: [...historical.omissions, ...read.omissions] }

@@ -92,7 +92,7 @@ function TopicForm(props: CreationProps & { create: NonNullable<CreationProps['c
     <label htmlFor={`${id}-scope`}>{t('topic.create.scope')}</label>
     <textarea id={`${id}-scope`} rows={2} value={scope} disabled={locked} onChange={(event) => { actions.changeTopic(workspaceId, 'scope', event.currentTarget.value) }} />
     <span id={`${id}-parent`}>{t('topic.create.parent')}</span>
-    <Menu open={menu} onClose={() => { setMenu(false) }} selectedId={parentTopicId === undefined ? 'root' : 'current'}
+    <Menu autoFocus open={menu} onClose={() => { setMenu(false) }} selectedId={parentTopicId === undefined ? 'root' : 'current'}
       items={[{ id: 'root', label: t('topic.create.topLevel') }, ...(draft.currentTopicId === undefined ? [] : [{ id: 'current', label: t('topic.create.under', { title: draft.currentTitle ?? t('topic.create.current') }) }])]}
       onSelect={(choice) => { actions.selectTopicParent(workspaceId, choice === 'root' ? undefined : draft.currentTopicId); setMenu(false) }}
       anchor={<Button variant="outline" size="sm" disabled={locked} aria-labelledby={`${id}-parent ${id}-choice`}

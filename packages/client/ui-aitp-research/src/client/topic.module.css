@@ -1,0 +1,52 @@
+/* Pilot topic page: the host's plugin-detail rhythm, with source reading kept in place. */
+.topic {
+  --dsw-font-markdown-base: 400 var(--dsh-content-font-size, 14px) / 1.6 var(--dsw-font-family);
+  --dsw-font-markdown-base-strong: 500 var(--dsh-content-font-size, 14px) / 1.6 var(--dsw-font-family);
+  --dsw-font-markdown-h1: 500 14px / 22px var(--dsw-font-family);
+  --dsw-font-markdown-h2: 500 14px / 22px var(--dsw-font-family);
+  --dsw-font-markdown-h3: 500 14px / 22px var(--dsw-font-family);
+}
+.header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px 24px; margin: 8px 0 32px; }
+.heading { flex: 1 1 360px; min-width: 0; }
+.title { margin: 0; color: var(--dsw-alias-label-primary); font: 500 20px / 28px var(--dsw-font-family); overflow-wrap: anywhere; }
+.heading > p { margin-bottom: 8px; }
+.question { margin-top: 10px; max-width: 72ch; color: var(--dsw-alias-label-secondary); }
+.actions { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 8px; }
+.overview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 224px); gap: 32px; margin-bottom: 32px; }
+.understanding { min-width: 0; }
+.sectionHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+.sectionHead h3, .context h3 { margin: 0; font-size: 14px; line-height: 22px; font-weight: 500; }
+.context { min-width: 0; padding-left: 24px; border-left: 0.5px solid var(--dsw-alias-border-l1); color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }
+.context h3 { margin-bottom: 12px; color: var(--dsw-alias-label-primary); }
+.next { display: grid; gap: 16px; margin-top: 24px; }
+.next h3 { margin: 0 0 6px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; font-weight: 500; }
+.next p { margin: 0; font-size: 14px; line-height: 22px; overflow-wrap: anywhere; }
+.libraries { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.libraries:empty { display: none; }
+.materials { margin: 0 -8px; padding: 0; list-style: none; }
+.materials li + li { border-top: 0.5px solid var(--dsw-alias-border-l1); }
+.material { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 8px; border: 0; border-radius: var(--dsw-radius-md); background: none; color: var(--dsw-alias-label-primary); font: inherit; text-align: left; cursor: pointer; }
+.fileIcon { display: flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); color: var(--dsw-alias-label-secondary); }
+.materialBody { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
+.materialBody strong { font-size: 14px; line-height: 20px; font-weight: 500; overflow-wrap: anywhere; }
+.materialBody > span { max-width: 100%; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.kind { flex: none; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.material > svg { flex: none; color: var(--dsw-alias-label-secondary); }
+.empty { margin: 12px 0; padding: 24px 16px; border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-layer-2); color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+.readingDetails { margin-top: 20px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 20px; }
+.readingDetails summary { width: fit-content; cursor: pointer; }
+.readingDetails p { margin: 8px 0 0; }
+.material:focus-visible, .readingDetails summary:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+@media (hover: hover) { .material:hover { background: var(--dsw-alias-interactive-bg-hover); } }
+@container (max-width: 760px) {
+  .overview { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .context { padding-left: 0; padding-top: 20px; border-left: 0; border-top: 0.5px solid var(--dsw-alias-border-l1); }
+}
+@container (max-width: 480px) {
+  .header { gap: 16px; margin-bottom: 24px; }
+  .heading { flex-basis: 100%; }
+  .actions { width: 100%; }
+  .material { gap: 10px; }
+  .fileIcon { width: 32px; height: 32px; }
+  .kind { display: none; }
+}

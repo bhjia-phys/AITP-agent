@@ -70,6 +70,7 @@ async function bench(initialSettings?: ChatSettings, withBrowserRegistry = true,
   const browserAvailable = createSnapshotStore(true)
   const sidebarRightTabs = {
     get: vi.fn<(kind: string) => object | undefined>(() => browserAvailable.getSnapshot() ? {} : undefined),
+    candidates: vi.fn<(address: string) => readonly object[]>(() => []),
     subscribe: (listener: () => void) => browserAvailable.subscribe(listener),
     register: vi.fn(() => () => {}),
   }
@@ -257,6 +258,23 @@ describe('Chat inject API', () => {
     // A line travels as the `file` type's navigation parameter, not in the address.
     await injected.openFile('src/a.ts', { line: 7 })
     expect(b.sidebarRight.openResource).toHaveBeenLastCalledWith('dsh-resource://file/session/root-1/src/a.ts', { params: { line: 7 } })
+    await b.runtime.dispose()
+  })
+
+  it('routes recognized source citations through the live reader registry and refuses withdrawn or foreign addresses', async () => {
+    const b = await bench()
+    const { injected } = b.chatViewApi(b.rootReference)
+    const address = 'dsh-resource://fixture-source/root/library/source/paper'
+    b.sidebarRightTabs.candidates.mockImplementation(url => url === address ? [{}] : [])
+    expect(injected.resourceLinks?.canOpen(address)).toBe(true)
+    expect(injected.resourceLinks?.canOpen('dsh-resource://missing/source')).toBe(false)
+    expect(injected.resourceLinks?.canOpen('javascript:alert(1)')).toBe(false)
+    injected.resourceLinks?.open(address)
+    expect(b.sidebarRight.openResource).toHaveBeenCalledExactlyOnceWith(address)
+    b.sidebarRightTabs.candidates.mockReturnValue([])
+    injected.resourceLinks?.open(address)
+    injected.resourceLinks?.open('https://example.com/')
+    expect(b.sidebarRight.openResource).toHaveBeenCalledTimes(1)
     await b.runtime.dispose()
   })
 
@@ -457,10 +475,15 @@ describe('Chat inject API', () => {
     injected.chatScroll.save(null)
     expect(injected.chatScroll.read()).toBeNull()
 
-    const loaded = await injected.loadImage(ATTACHMENT)
-    expect(loaded).toEqual(expect.any(String))
-    expect(b.session.readAttachment).toHaveBeenCalledWith(ATTACHMENT.attachmentId)
-    expect(injected.loadImage.peek?.(ATTACHMENT)).toBe(loaded)
-    await b.runtime.dispose()
+    // This fixture checks the Chat/Session boundary; the browser owns native Blob URL allocation.
+    const created = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:chat-attachment')
+    try {
+      const loaded = await injected.loadImage(ATTACHMENT)
+      expect(loaded).toBe('blob:chat-attachment')
+      expect(created).toHaveBeenCalledWith(expect.any(Blob))
+      expect(b.session.readAttachment).toHaveBeenCalledWith(ATTACHMENT.attachmentId)
+      expect(injected.loadImage.peek?.(ATTACHMENT)).toBe(loaded)
+      await b.runtime.dispose()
+    } finally { created.mockRestore() }
   })
 })

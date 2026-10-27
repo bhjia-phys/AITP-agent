@@ -59,7 +59,7 @@ function mount(options: {
   resources?: Record<string, ResourceSnapshot<unknown>>
 } = {}) {
   const store = createResearchPanelStore().create()
-  const callbacks = { expandSidebar: vi.fn(), showConversations: vi.fn(), retry: vi.fn() }
+  const callbacks = { expandSidebar: vi.fn(), showConversations: vi.fn(), retry: vi.fn(), renderFactorySlot: vi.fn(() => null) }
   let currentWorkspaces = options.workspaces ?? workspaces
   const resources: Record<string, ResourceSnapshot<unknown>> = {
     [workspaceProjectAddress(WS)]: live(envelope<Project>({ id: 'project', title: 'Example research', directions: [], seeds: [] })),
@@ -130,8 +130,8 @@ describe('contextual research sidebar', () => {
     expect(screen.getByRole('button', { name: 'Convergence check' }).getAttribute('aria-current')).toBe('page')
     expect(screen.getByRole('button', { name: 'Hide branches of Finite systems' })).toBeTruthy()
     act(() => { store.actions.open(WS, { kind: 'map', focusId: CHILD }, stay) })
-    expect(screen.getByRole('button', { name: 'Show branches of Finite systems' })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Convergence check' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Hide branches of Finite systems' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Convergence check' })).toBeTruthy()
   })
 
   it('stops following recorded parents when they form a cycle', () => {
@@ -147,7 +147,7 @@ describe('contextual research sidebar', () => {
 
   it('returns to the existing Conversations browser and expands the collapsed rail', () => {
     const expanded = mount()
-    fireEvent.click(screen.getByRole('button', { name: 'Conversations' }))
+    fireEvent.click(screen.getByRole('button', { name: 'All conversations' }))
     expect(expanded.showConversations).toHaveBeenCalledOnce()
     cleanup()
     const collapsed = mount({ wide: false })
@@ -159,7 +159,7 @@ describe('contextual research sidebar', () => {
   it('keeps the route to add a Workspace available when no Workspace exists', () => {
     const { showConversations } = mount({ workspaces: [] })
     expect(screen.getByText('Choose or add a Workspace in Conversations')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Conversations' }))
+    fireEvent.click(screen.getByRole('button', { name: 'All conversations' }))
     expect(showConversations).toHaveBeenCalledOnce()
   })
 

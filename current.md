@@ -206,13 +206,23 @@
 **验收反例：**副本分别保留/拿掉运行时数据，让新宿主恢复问题、限制、失败路线、待选事项和未整合结果；缺失项必须明示。普通 Markdown 的可读性不是已经通过跨宿主试验的证据。
 
 <a id="q09"></a>
-### Q09：知识库、文献库和代码视图已有设计，但材料适配能力仍为空缺
+### Q09：本地三库、统一阅读界面与研读插件已有首版，研究者使用评价和更深科研关联仍待完善
 
-[12 的 Harness 映射](docs/agent/12-desktop-interface.md#harness-integration-map-and-missing-backend-information)已明确：右 dock 仅属于打开的会话且最多两个 pane；无会话浏览走全局面板，共用 reader，不能为打开资料伪造会话。Harness Workspaces 保持唯一项目列表，课题是其内部视图。[正式课题客户端](packages/client/ui-aitp-research/README.md)已接入异步适配器、框架 resource protocol 和同列课题树，并以[研究地图](docs/agent/12-desktop-interface.md#research-map)组织：总览按方向列出课题，聚焦某个课题时显示其分支和带条件的当前认识，课题页与材料页通过位置路径和返回保持连续；结构只取自记录的方向、父课题和作用说明。可选 fixture 支持多层课题、分页与部分读取、材料阅读及内存修改反馈。可选后台已连接配置根的 Markdown 读取、scratch 写回及模型上下文；地图、带来源的提问和保存刷新已通过真实浏览器联调；模型请求用确定性替身检查来源和交付内容，不据此声称科研判断已验证。浏览器成功、后台工程测试与真实科研验收仍分别表述。
+2026-10-27 研究者进一步明确：左侧浏览资料库，右侧通过完整的 DSH 原生文档侧栏查看详情。此前只复用 PDF/Markdown 正文组件、仍在中央自定义详情页阅读，并未满足这个要求。现已接入不依赖 Session 的原生资料标签、收起/展开、全屏和布局；三个库保持左侧目录，明确提问时会话在左侧展开，返回课题恢复原会话和草稿。六个真实应用场景已通过；保留状态限于本次应用运行，整页重载后的阅读标签恢复尚未实现。见[界面规则](docs/agent/12-desktop-interface.md#layout-and-navigation)与[本轮证据](agent/notes/harness-integration.md#native-library-dock)。
 
-**性质：计划内的实现缺口，不应伪装为已完成能力。** [knowledge](agent/packages/core/src/knowledge/index.ts)、[works](agent/packages/core/src/works/index.ts)、[checkouts](agent/packages/core/src/checkouts/index.ts)等服务是占位；上下文中的相应分支不等于能取得真实知识、版本和代码资料。
+研究者随后要求[全面审查并直接优化工作台](docs/agent/14-implementation-blueprint.md#workbench-ui-review)。本轮已将统一布局和渐进披露推广到 Research、三个库、原生阅读、研读笔记与右侧会话，保留真实接口和独立插件职责；[页面与状态清单](docs/agent/12-desktop-interface.md#workbench-ui-review)规定覆盖面，[当前验收记录](agent/notes/harness-integration.md#workbench-ui-review)区分此前通过、本轮发现、修复与复测，不能沿用此前通过记录代替此次验收。
 
-尚需把全局浏览、原文阅读路线、work/edition/file 区分、页码/公式定位、缺失 PDF、知识前置条件和阅读覆盖接到真实材料。导入、分类修改、合并重复记录与只读浏览有不同效果，不能混为一个已经可用的 Library 功能。
+研究者进一步指出 Research 与会话割裂，现已实现[课题—会话工作台](docs/agent/14-implementation-blueprint.md#topic-discussion-workbench)：会话直接挂在子方向下面，右侧原位展开完整会话，可新建、切换、改名并保留草稿，中间持续阅读。真实科研写入后刷新记录，并可查看保存回执中的前后差异。[新应用验收](agent/notes/harness-integration.md#topic-discussion-workbench)覆盖两方向、三会话、运行中切换、引用返回、实际保存及重启恢复；模型仅为确定性替身，不代表科研质量或研究者视觉验收。完整构建与 Client 聚合检查通过；Host 全仓检查因共享机器内存不足终止，受影响 Host 文件另以保留严格配置和项目引用的聚焦程序通过检查。不能将后者写成全仓检查通过。
+
+[12 的 Harness 映射](docs/agent/12-desktop-interface.md#harness-integration-map-and-missing-backend-information)已明确：普通会话 dock 仍归其 Session；三个库现通过独立 root scope 使用同一原生侧栏，保持最多两个 pane，无会话浏览直接使用真实来源权限，不能为打开资料伪造会话。Harness Workspaces 保持唯一项目列表，课题是其内部视图。[正式课题客户端](packages/client/ui-aitp-research/README.md)已接入异步适配器、框架 resource protocol 和同列课题树，并以[研究地图](docs/agent/12-desktop-interface.md#research-map)组织：总览按方向列出课题，聚焦某个课题时显示其分支和带条件的当前认识，课题页与材料页通过位置路径和返回保持连续；结构只取自记录的方向、父课题和作用说明。可选 fixture 支持多层课题、分页与部分读取、材料阅读及内存修改反馈。可选后台已连接配置根的 Markdown 读取、scratch 写回及模型上下文；地图、带来源的提问和保存刷新已通过真实浏览器联调；模型请求用确定性替身检查来源和交付内容，不据此声称科研判断已验证。浏览器成功、后台工程测试与真实科研验收仍分别表述。
+
+**性质：本地库第一版已有有界工程验证，完整 Library 能力仍有缺口。** 保留的 Pi [knowledge](agent/packages/core/src/knowledge/index.ts)、[works](agent/packages/core/src/works/index.ts)、[checkouts](agent/packages/core/src/checkouts/index.ts)等服务是占位；上下文中的相应分支不等于能取得真实知识、版本和代码资料。
+
+本地 provider 已连接全局目录、原文阅读、PDF 物理页定位和代码差异，本地应用路径已通过确定性模型替身验收；完整 work/edition/file 管理、公式定位、知识前置关系和跨来源阅读覆盖仍待进一步接入。导入、分类修改、合并重复记录与只读浏览有不同效果，不能混为一个已经可用的 Library 功能。
+
+研究者认为当前布局、信息密度和视觉完成度仍不足，已要求先做一个有代表性的[课题详情页试改](docs/agent/12-desktop-interface.md#topic-page-pilot)，借鉴实际 Harness 插件管理／详情页，保留现有接口和会话机制。此次同步修复跨库返回的滚动、焦点和重复历史问题，以及 PDF 阅读页在会话往返后的保留；阅读页不改变实际选给模型的来源范围。实际应用中的“课题 → 资料 → 提问 → 返回”、键盘菜单、深色主题、390px 窄窗、长标题、空内容和延迟读取已通过验收测试，[11 张截图与证据](agent/notes/harness-integration.md#topic-page-pilot)供研究者判断视觉方向；研究者随后授权的[三个库统一改版](docs/agent/14-implementation-blueprint.md#library-ui)也已实现，分别采用文献条目、代码目录与 wiki 正文的阅读结构，共用 Harness 图标、按钮、选源和返回机制。[本次独立浏览器证据](agent/notes/harness-integration.md#library-ui)覆盖三库、真实元数据与来源链接、源码及 Git 差异、窄窗与深色主题，并回归课题会话和保存恢复路径；这仍不替代研究者的实际视觉评价或科研质量检验。[14](docs/agent/14-implementation-blueprint.md#topic-redesign-review)维护验收进度。
+
+知识库沿用 [AITP 原有知识集合](docs/agent/11-research-memory.md#knowledge-collection)，界面保留知识原子、文献精读、学习问题链和可选作者研究的[各自阅读路线](docs/agent/12-desktop-interface.md#knowledge)。Notebook 式选源、引用问答与笔记作为研读界面加入；研究结果仍先以问题命名的临时索引指针指向课题原文，提升为 atom 遵循原协议的研究者确认规则。此约束不扩展为每次精读、修正或普通笔记写入都要确认；实现验收见 C19/P2a。[本地库实施切片](docs/agent/14-implementation-blueprint.md#local-libraries)已加入共享来源、三个独立领域提供者与客户端、资料集及暂定研读草稿；实际课题入口、PDF/Git 引用跳转、真实回答捕获、重启与草稿复用路径已通过[浏览器联调](agent/notes/harness-integration.md#local-libraries)，研究者使用评价和科学回答质量仍待实际科研任务检验。导入、完整语义检索、OCR 和音视频提供者尚未实现。研究者随后要求内容打开方式与 DSH 原生一致；[原生阅读适配](docs/agent/14-implementation-blueprint.md#native-source-readers)先完成 PDF 连续阅读、选字、缩放与当前页引用，随后按其要求扩展到 Markdown、图片和相对文件链接。实现让链接在当前库内按实际格式打开，保留阅读返回路径、位置和右侧课题会话；本地插图与图片仍受来源根授权约束，不通过创建会话取得文件权限，也不因显示图片便把像素交给模型。Markdown／图片的新应用路径已独立验证：相对笔记、唯一小节、本地插图和原图、源码、窄窗口及连续返回均通过，同一会话和草稿得以保留；验收证据仍归上述原生阅读记录。
 
 Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)已有通用 PDF、Markdown 和代码展示，可作为复用基础；其浏览器预览不会把内容送入模型，代码预览也不是编辑器。课题／全局资源地址、精确版本与选区、上下文实际交付和公式—实现关联仍属 AITP 的工作，不能把已有预览称为缺失，也不能称为科研文献库已经完成。
 

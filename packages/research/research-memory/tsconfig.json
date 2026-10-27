@@ -91,6 +91,9 @@
     },
     {
       "path": "../../interaction/tool-ask-user"
+    },
+    {
+      "path": "../research-resources"
     }
   ]
 }

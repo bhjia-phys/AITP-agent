@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '../index.ts'
 import type { DocumentPreviewDefinition } from '../document/registry.ts'
-import { MarkdownBody } from './MarkdownBody.tsx'
+import { MarkdownBody, SourceMarkdownReader } from './MarkdownBody.tsx'
 import { en, zh } from './locales.ts'
 
 /** Implementation identity shared by metadata and the document slot. */
@@ -24,6 +24,7 @@ export function markdownDefinition(title: () => string): DocumentPreviewDefiniti
 export function apply(ctx: Context): void {
   const t = ctx.locale.bind('documentMarkdown')
   ctx.effect(() => ctx.locale.register('documentMarkdown', { zh, en }), 'document-markdown: dictionaries')
+  ctx.slots.registerFactory({ name: 'document.markdown.reader', scope: 'root', locale: 'documentMarkdown' }, SourceMarkdownReader)
   ctx.effect(() => ctx.documentPreviews.register(markdownDefinition(() => t('viewer.label'))), 'document-markdown: metadata')
   ctx.effect(() => ctx.slots.inject('sidebar.right.tab.document', () => ctx.slots.register(
     { name: 'sidebar.right.tab.document', key: MARKDOWN_BODY_ID, locale: 'documentMarkdown' }, MarkdownBody,

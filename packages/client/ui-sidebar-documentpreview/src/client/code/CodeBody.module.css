@@ -51,11 +51,11 @@
   overflow-wrap: normal;
 }
 
-.renderer[data-wrap='true'] .code {
+.renderer[data-wrap='true'] .code, .renderer .code[data-code-wrap='true'] {
   --dsl-code-block-line-white-space: pre-wrap;
 }
 
-.renderer[data-wrap='true'] .code pre {
+.renderer[data-wrap='true'] .code pre, .renderer .code[data-code-wrap='true'] pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

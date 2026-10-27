@@ -125,6 +125,18 @@ Office Remote 通过 Connection 的 multipart 二进制传输返回原生 `Uint8
 
 `ctx.sidebarRight.openResource(address, { params: { line } })` 通过 `file` 参数携带 1 起算的源码行号。在 `text-pages` 模式下，owner 顺序加载到该行或 EOF。纯文本与代码渲染器提供源码行锚点；Markdown 不提供。所选渲染器没有锚点时，导航保持待处理；用户切换到纯文本或代码后执行。代码导航直接滚动内部源码视口。字节模式渲染器不消费源码行导航。每个完成的导航 revision 只响应一次。不带 `revealIfOpened: false` 打开同一文件时聚焦已有 tab，并送达新 revision。
 
+根级工厂 `document.pdf.reader` 也接受非会话阅读器已经授权取得的 PDF 字节。它与普通文件及 Office 转换预览共用连续页面、PDF.js 文字层、按需绘制与原生缩放控件，不创建文件 tab 或 Session，也不自行读取来源。仅类型导出的 `SourcePdfReaderInput` 包含 `data`、受控的 `page`/`onPageChange`，以及可选的 `zoom`/`onZoomChange`、`scrollTop`/`onScrollTopChange`。调用方保存这些阅读状态，并提供有明确高度的视口。字节缓冲区变化会建立新的文档生命周期；切换来源身份时，即使内容字节相同，也应重新挂载或提供新缓冲区。
+
+根级阅读器恢复指定物理页（或给定的精确滚动位置），后续外部页码变化会跳转到对应页。页码反馈来自真实滚动视口的位置计算，与相邻页预加载分开；调用方回传该反馈不会再次触发跳页。每个物理页保留 `data-pdf-page`，供来源所有者处理明确的引用操作。阅读器不自行确认引文，也不把跨页选区归到某一页：调用方需要使用已授权的原文读取验证选中文字和引用位置。普通 Session 预览继续使用原有 tab 管理的滚动处理与生命周期。
+
+短 PDF 或文档底部限制导致明确选择的页面无法对齐阅读线时，保留该页码。隐藏标签以及仍停留在底部的布局调整不会将它改成上一页。滚动离开底部，或视口变化解除该限制后，恢复普通的可见页反馈。
+
+`document.markdown.reader` 通过仅类型导出的 `SourceMarkdownReaderInput` 复用原生 Markdown 与 frontmatter 正文。调用方提供来源文字、已授权的本地图片 URL 和明确的导航能力。`localLinks` 接收作者原样书写的相对路径或片段，`resourceLinks` 处理已经识别的应用资源地址；调用方不接纳的本地目标保持不可点击。行内图片使用原生悬停预览和灯箱，不离开当前阅读位置。图片读取及传入 URL 的生命周期由来源所有者负责，该入口不会解析 Session 文件路径。
+
+`document.image.reader` 通过仅类型导出的 `SourceImageReaderInput` 接受已授权的字节、文件名或支持的图片 MIME 类型。它共用普通图片预览及原生缩放控件，创建并释放自己的 Blob URL，并接受可选的缩放和滚动位置回调。SVG 仍作为静态图片展示。这两个根级入口不创建 Session、不扩大文件权限，也不提供图片编辑；普通 Session 中 Markdown 和图片的读取及导航归属保持不变。
+
+`document.code.reader` 为已经授权读取的源码提供普通文档所用的语法高亮和行号。仅类型导出的 `SourceCodeReaderInput` 接收正文、可选的路径或语言提示及行号设置。路径只用于选择高亮语言；该工厂不读取文件，也不创建 Session。复制与本地换行控件共用原生代码阅读界面。
+
 <a id="model-experience"></a>
 ## 模型体验
 
@@ -141,7 +153,7 @@ Office Remote 通过 Connection 的 multipart 二进制传输返回原生 `Uint8
 - **Office 转换限制。** 预览不启动原生 Office 编辑器，也不下载引擎。二进制 `.doc` 和 `.ppt` 文件不返回缺失字体诊断。转换保真度与资源限制由 [LibreOffice 提供方](../../document/office-to-pdf/README.zh.md)负责。
 - **文本顺序分页，完整文件受限。** 定位到较深处的源码行需要先加载此前各页；PDF、HTML 和图片必须取得 Host `maxFileBytes` 上限内的完整结果。
 - **PDF 栅格分配有上限。** 每页位图最多为 16,777,216 像素；超大页面或高像素密度屏幕上的高比例缩放仍可能低于设备分辨率。
-- **字节视图不恢复滚动位置。** PDF、HTML 与图片的渲染器重新挂载或重新载入时可能回到顶部；固定 PDF 与图片缩放可产生横向滚动，HTML iframe 的滚动属于其不透明浏览上下文。
+- **普通字节视图的恢复有限。** 会话中的 PDF、HTML 与图片预览在重新挂载或重新载入时可能回到顶部；此限制不适用于由调用方提供页码和滚动恢复状态的根级 `document.pdf.reader`；固定 PDF 与图片缩放可产生横向滚动，HTML iframe 的滚动属于其不透明浏览上下文。
 - **本地 HTML 依赖集合有限。** 只打包直接引用的经典 `.js` 脚本和 `.css` 样式表。浏览器解析的资源仍受浏览器源与网络规则限制；iframe 不获得运行时文件读取桥接。
 - **滚动写入未节流。** 每次滚动事件都把偏移记进 store；行块已 memo 化，于是由此引发的重渲染交还给 React 的是同一批元素。
 - **PDF chunk 加载失败后需要刷新页面。** React 会在页面生命周期内缓存被拒绝的 lazy import；已加载正文中的普通 PDF 打开或渲染失败仍可重试。

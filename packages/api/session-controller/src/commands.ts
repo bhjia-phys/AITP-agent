@@ -14,6 +14,7 @@ import type {} from '@deepseek-ai/dsh-client-file-upload'
 import {
   ReasoningEffortId, assistantStreamChunks, createUserMessage, freezeMessage,
 } from '@deepseek-ai/dsh-llm'
+import { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { MessageSource } from '@deepseek-ai/dsh-llm'
 import { buildForkSeed } from '@deepseek-ai/dsh-session/fork'
 import { SessionLogOffset, SessionSeq } from '@deepseek-ai/dsh-session'
@@ -313,11 +314,14 @@ export class SessionCommandController {
    * Admit one prompt after Agent and attachment validation; the Remote method
    * has already validated the content and built the durable message source.
    * @param request - Session identity, prompt content, and delivery mode.
-   * @param source - the `user-rpc` source recorded on the accepted message.
+   * @param source - Validated source recorded on the accepted message.
+   * @param guard - Optional owning-domain check repeated immediately before inbox admission.
    * @returns acknowledgement that the Agent accepted the prompt.
    */
-  async prompt(request: SessionPromptRequest, source: MessageSource): Promise<SessionPromptValue> {
+  async prompt(request: SessionPromptRequest, source: MessageSource,
+    guard?: (agent: Agent) => void): Promise<SessionPromptValue> {
     const agent = await this.resolveAgent(request.sessionId)
+    guard?.(agent)
     if (hasPromptRequest(agent, request.requestId)) return { accepted: true }
     const hasImage = request.content.some(part => part.type === 'image')
     const admit = async (): Promise<SessionPromptValue> => {
@@ -338,7 +342,9 @@ export class SessionCommandController {
           receiptId => this.ctx.fileUploads.resolve(agent, receiptId),
         )
         const content = await this.ctx.attachments.admitPromptContent(admission.content)
-        const message: UserMessage = createUserMessage({ content, source })
+        const created = createUserMessage({ content, source })
+        const message: UserMessage = guard === undefined ? created
+          : freezeMessage({ ...created, id: MessageId(request.requestId) })
         if (this.ctx.agents.get(agent.id) !== agent) {
           throw new RemoteError(
             'session/not-found',
@@ -346,6 +352,8 @@ export class SessionCommandController {
             { sessionId: agent.id },
           )
         }
+        guard?.(agent)
+        if (hasPromptRequest(agent, request.requestId)) return { accepted: true }
         using binding = this.ctx.fileUploads.bindPrompt(agent, admission.receiptIds, request.requestId)
         if (request.mode === 'steer') agent.steer(message)
         else agent.followup(message)
@@ -584,14 +592,13 @@ function resolvePromptFileReceipts(
 function hasPromptRequest(agent: Agent, requestId: SessionRequestId): boolean {
   const matches = (message: UserMessage): boolean => {
     const source = message.source
-    return source.kind === 'user' && 'rpcId' in source && source.rpcId === requestId
+    return message.id === String(requestId) || source.kind === 'user' && 'rpcId' in source && source.rpcId === requestId
   }
   if (agent.inbox.nextTurn.some(matches) || agent.inbox.nextStep.some(matches)) return true
   // oxlint-disable-next-line typescript/no-deprecated -- Existing Session history read; migration deferred.
   return agent.session.snapshotEvents().some((event) => {
     if (event.type !== 'user/message') return false
-    const source = event.data.source
-    return source.kind === 'user' && 'rpcId' in source && source.rpcId === requestId
+    return matches(event.data)
   })
 }
 function imageBlockIn(

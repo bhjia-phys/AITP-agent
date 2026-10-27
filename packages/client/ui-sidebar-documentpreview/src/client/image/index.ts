@@ -6,7 +6,7 @@ import type {} from '../index.ts'
 import type { DocumentPreviewDefinition } from '../document/registry.ts'
 import { retainDocumentTabs } from '../document/tab-lifetime.ts'
 import { createZoomStore, type ZoomInjected, type ZoomStore } from '../zoom/store.ts'
-import { ImageBody } from './ImageBody.tsx'
+import { ImageBody, SourceImageReader } from './ImageBody.tsx'
 import { en, zh } from './locales.ts'
 
 /** Image implementation identity, shared by metadata and the keyed slot. */
@@ -42,6 +42,7 @@ export function imageBodyDefinition(title: () => string): DocumentPreviewDefinit
 export function apply(ctx: Context): void {
   const t = ctx.locale.bind('sidebarImage')
   ctx.effect(() => ctx.locale.register('sidebarImage', { zh, en }), 'document-image: dictionaries')
+  ctx.slots.registerFactory({ name: 'document.image.reader', scope: 'root', locale: 'sidebarImage' }, SourceImageReader)
   ctx.effect(() => ctx.documentPreviews.register(imageBodyDefinition(() => t('title'))), 'document-image: metadata')
   const store = createZoomStore()
   const retainTab = retainDocumentTabs(ctx)

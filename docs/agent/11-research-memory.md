@@ -90,6 +90,13 @@ integration. Its model-generated synthesis is provisional and source-linked. The
 model's latent knowledge, a retrieval snippet and a compaction summary can suggest
 what to inspect; none independently establishes what the researcher's files say.
 
+<a id="knowledge-collection"></a>
+### Shared knowledge follows the portable collection
+
+The [portable shared-knowledge guide](../../aitp/plugins/aitp/skills/aitp-memory/references/shared-knowledge.md) owns the collection's meaning and maintenance rules. The planned knowledge provider and views must project its existing index, atoms, source readings, learning stories and optional author collections. Existing explanations inside research topics remain indexable in place. These kinds impose no new directory layout or mandatory metadata. Source readings follow the source's order; a learning story follows the researcher's chain of questions and links into those readings and atoms. The [knowledge interface](12-desktop-interface.md#knowledge) preserves both routes.
+
+Under the guide's [research-result rules](../../aitp/plugins/aitp/skills/aitp-memory/references/shared-knowledge.md#add-what-research-teaches), a research result first enters as a question-named provisional index pointer to its exact owning passage, without copying the conclusion. Promotion of that research result to an atom requires the researcher's confirmation; independent checks do not replace it. Source-based readings and corrections follow their own existing rules, without a new approval requirement for every note edit. Source support, researcher review and reading coverage remain distinct. A saved answer or generated reading aid must retain its origin and does not itself establish a maintained knowledge claim. Application implementation must preserve the portable policy while adding navigation, source selection, request delivery and scoped editing.
+
 <a id="memory-user-view"></a>
 ### A clear user view of memory and its editable rules
 

@@ -96,7 +96,9 @@ Placement is the caller's option, never a type's property. The conversation call
 
 ## Slots and owner props
 
-The Sidebar declares four extension slots; its document tab declares the additional keyed document body below ([hierarchy](slots.md)).
+Global-panel documents use the independent `ctx.sidebarRightRoots` controller. `selectScope(panelId, scopeKey)` selects the panel's reading scope; `openResource(panelId, address, options?)` opens a registered source there. Root scopes preserve their own tabs and visited bodies during the application lifetime, without creating or borrowing a Session. The root-scoped keyed `sidebar.right.root.tab` and `sidebar.right.root.tab.title` seats use the existing native tab definition id. Their [owner props](../../packages/client/ui-sidebar-right/src/client/contract/root.ts) provide `panelId`, `scopeKey`, tab, navigation, visibility and scope-bound opening/closing callbacks. A global panel renders the `sidebar.right.root.expand` factory with `{ panelId }` in its header to reopen collapsed documents. The [package contract](../../packages/client/ui-sidebar-right/README.md#ctxsidebarright) owns navigation, resource retention and reload limits.
+
+The Session Sidebar declares four extension slots; its document tab declares the additional keyed document body below ([hierarchy](slots.md)).
 
 | Slot | Cardinality | Purpose |
 |---|---|---|

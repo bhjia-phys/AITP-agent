@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { build, type Rolldown, type TsdownBundle, type UserConfig } from 'tsdown'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { clientBundle, requestedExternals, staticLinked } from '../packages/client/tsdown.client.ts'
+import materialBundles from '../packages/client/ui-aitp-materials/tsdown.config.ts'
 
 type ResolveId = (source: string) => null | { id: string; external: boolean }
 
@@ -50,6 +51,23 @@ function clientConfigs(dir = REQUESTING_PACKAGE_DIR) {
 }
 
 describe('client bundle build faces', () => {
+  it('bundles the material metadata reader without a Node process dependency', async () => {
+    const config = materialBundles({ env: {} }).find(item => item.platform === 'browser')
+    if (config === undefined) throw new Error('materials browser config missing')
+    const bundles = await build({
+      ...config, cwd: packageDir('client/ui-aitp-materials'), config: false,
+      write: false, clean: false, exports: false, report: false, logLevel: 'silent',
+    })
+    try {
+      const chunks = bundles.flatMap(bundle => bundle.chunks).filter(chunk => chunk.type === 'chunk')
+      expect(chunks.length).toBeGreaterThan(0)
+      expect(chunks.map(chunk => chunk.code).join('\n')).not.toMatch(/\brequire\(["'](?:node:)?process["']\)/u)
+      expect(chunks.flatMap(chunk => chunk.moduleIds).some(id => id.includes('/yaml/browser/'))).toBe(true)
+    } finally {
+      for (const bundle of bundles) await bundle[Symbol.asyncDispose]()
+    }
+  })
+
   it('names both configs and the loader registration after the package directory manifest', () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-client-manifest-'))
     onTestFinished(() => { rmSync(root, { recursive: true, force: true }) })
@@ -225,6 +243,15 @@ describe('client bundle purity gate', () => {
     expect(resolveId('@deepseek-ai/dsh-plugin-manager/registry')).toBeNull()
     expect(() => resolveId('@deepseek-ai/dsh-plugin-manager')).toThrow(/purity/)
     expect(() => resolveId('@deepseek-ai/dsh-plugin-manager/registry/internal')).toThrow(/purity/)
+  })
+
+  it('admits the pure research source protocol and markup parser, keeping its Host reader outside Client bundles', () => {
+    expect(resolveId('@deepseek-ai/dsh-research-resources/protocol')).toBeNull()
+    expect(resolveId('@deepseek-ai/dsh-research-resources/markup')).toBeNull()
+    expect(() => resolveId('@deepseek-ai/dsh-research-resources')).toThrow(/purity/)
+    expect(() => resolveId('@deepseek-ai/dsh-research-resources/files')).toThrow(/purity/)
+    expect(() => resolveId('@deepseek-ai/dsh-research-resources/protocol/internal')).toThrow(/purity/)
+    expect(() => resolveId('@deepseek-ai/dsh-research-resources/markup/internal')).toThrow(/purity/)
   })
 
   it('admits only the pure spill notice entry, not its Host policy', () => {

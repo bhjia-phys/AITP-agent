@@ -96,7 +96,9 @@ export function apply(ctx: Context): void {
 
 ## Slot 与 owner props
 
-Sidebar 声明四个扩展 slot；其文档 tab 另行声明下表中的 keyed 文档正文 slot（[层级](slots.zh.md)）。
+全局面板资料使用独立的 `ctx.sidebarRightRoots` 控制器。`selectScope(panelId, scopeKey)` 选择面板的阅读范围；`openResource(panelId, address, options?)` 在该范围打开已注册的来源。root 范围在本次应用运行期间保留自己的标签和已访问正文，不创建或借用 Session。root 作用域的 keyed `sidebar.right.root.tab` 与 `sidebar.right.root.tab.title` 席位沿用原生标签类型定义的 id。[owner props](../../packages/client/ui-sidebar-right/src/client/contract/root.ts) 提供 `panelId`、`scopeKey`、标签、导航、可见性和绑定原范围的打开／关闭回调。全局面板在自己的页头以 `{ panelId }` 渲染 `sidebar.right.root.expand` factory，即可重新展开折叠的资料。导航、资源保留和重载限制归[包契约](../../packages/client/ui-sidebar-right/README.zh.md#ctxsidebarright)所有。
+
+Session Sidebar 声明四个扩展 slot；其文档 tab 另行声明下表中的 keyed 文档正文 slot（[层级](slots.zh.md)）。
 
 | Slot | Cardinality | 用途 |
 |---|---|---|

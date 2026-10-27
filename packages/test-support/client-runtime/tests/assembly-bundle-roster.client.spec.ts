@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { createRequire } from 'node:module'
 import { getStaticModules } from '@deepseek-ai/dsh-client-web/src/seed.ts'
 import { afterAll, describe, expect, it, onTestFinished } from 'vitest'
 import { MODULES_PACKAGE } from '../src/assembly/modules.ts'
@@ -73,6 +74,31 @@ class Scratch {
 describe('bundleRoster on a scratch installation', () => {
   const scratch = new Scratch()
   afterAll(() => { rmSync(scratch.root, { recursive: true, force: true }) })
+
+  it('matches Node package-exports self references for a linked bundle without a self dependency', () => {
+    const linked = new Scratch()
+    onTestFinished(() => { rmSync(linked.root, { recursive: true, force: true }) })
+    const bundle = join(linked.root, 'workspace', 'self')
+    mkdirSync(bundle, { recursive: true })
+    writeFileSync(join(bundle, 'package.json'), JSON.stringify({ name: '@t/self', exports: { '.': './entry.cjs' },
+      dsh: { bundle: { patch: './cordis.patch.yml' }, client: { platform: 'web' } } }))
+    writeFileSync(join(bundle, 'entry.cjs'), 'module.exports = {}')
+    writeFileSync(join(bundle, 'cordis.patch.yml'), "- insert:\n    - id: self\n      name: '@t/self'\n")
+    mkdirSync(join(linked.root, 'app', 'node_modules', '@t'), { recursive: true })
+    symlinkSync(bundle, join(linked.root, 'app', 'node_modules', '@t', 'self'), 'junction')
+    expect(createRequire(join(bundle, 'package.json')).resolve('@t/self')).toBe(join(bundle, 'entry.cjs'))
+    expect(linked.roster(['@t/self'])).toEqual(['@t/self'])
+
+    // A separate package without exports is not eligible for Node's self-reference route.
+    const absent = join(linked.root, 'workspace', 'absent')
+    mkdirSync(absent, { recursive: true })
+    writeFileSync(join(absent, 'package.json'), JSON.stringify({ name: '@t/no-self',
+      dsh: { bundle: { patch: './cordis.patch.yml' }, client: { platform: 'web' } } }))
+    writeFileSync(join(absent, 'cordis.patch.yml'), "- insert:\n    - id: self\n      name: '@t/no-self'\n")
+    symlinkSync(absent, join(linked.root, 'app', 'node_modules', '@t', 'no-self'), 'junction')
+    expect(() => createRequire(join(absent, 'package.json')).resolve('@t/no-self')).toThrow()
+    expect(() => linked.roster(['@t/no-self'])).toThrow('cannot resolve plugin package @t/no-self')
+  })
 
   it('resolves a linked bundle dependency before an unrelated ancestor package', () => {
     const linked = new Scratch()

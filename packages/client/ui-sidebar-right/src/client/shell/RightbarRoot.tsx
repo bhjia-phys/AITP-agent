@@ -4,6 +4,7 @@ import type { HostObservable, InjectFace, PropsRenderSlots, PropsRuntime } from 
 import type { SessionReference } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { SidebarSessionViewSnapshot } from '../session-views.ts'
 import type {} from '../contract/slots.ts'
+import type {} from '../contract/root.ts'
 import css from './SidebarRight.module.css'
 
 /** Root-only retained Session targets and their committed mount lifetimes. */
@@ -12,7 +13,7 @@ export interface RightbarRootInjected {
   readonly mountView: (reference: SessionReference) => () => void
 }
 
-type RootProps = PropsRuntime<'rightbar'> & PropsRenderSlots<'rightbar.session'> & InjectFace<RightbarRootInjected>
+type RootProps = PropsRuntime<'rightbar'> & PropsRenderSlots<'rightbar.session' | 'rightbar.root'> & InjectFace<RightbarRootInjected>
 
 function SessionView({ view, visible, SessionProvider, renderSlot, mountView, width, viewportWidth, canShow }:
   Pick<RootProps, 'SessionProvider' | 'renderSlot' | 'mountView' | 'width' | 'viewportWidth' | 'canShow'>
@@ -34,5 +35,6 @@ function SessionView({ view, visible, SessionProvider, renderSlot, mountView, wi
 export function RightbarRoot({ usePanelInfo, useViews, ...props }: RootProps) {
   const visible = usePanelInfo(info => info.activePanelId === null)
   const views = useViews(value => value)
-  return <>{views.map(view => <SessionView key={view.sessionId} {...props} view={view} visible={visible} />)}</>
+  return <>{views.map(view => <SessionView key={view.sessionId} {...props} view={view} visible={visible} />)}
+    {props.renderSlot('rightbar.root', { width: props.width, viewportWidth: props.viewportWidth, canShow: props.canShow })}</>
 }

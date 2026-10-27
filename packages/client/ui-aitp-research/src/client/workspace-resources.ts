@@ -1,16 +1,20 @@
 /** Framework-resource adapters: one async read stream per workspace address. */
+import { brandString } from '@deepseek-ai/dsh-brand'
 import type { Context } from '@deepseek-ai/cordis'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { RemoteError, type RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type {} from '@deepseek-ai/dsh-client-resources/client'
 import type {
-  ActivityPage, Project, ReadEnvelope, ResearchWorkspaceAdapter, Resource,
+  ResearchChangeQuery, ResearchChangeView, DiscussionPage, ActivityPage, Project, ReadEnvelope, ResearchWorkspaceAdapter, Resource,
   ResourceId, Result, Topic, TopicId, TopicPage, TopicQuery, WorkspaceError, WorkspaceRead, ResearchSetup,
 } from './workspace-contract.ts'
 import type { ResearchWorkspaceRegistry } from './workspace-service.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface ResourceProtocolMap {
+    'aitp-workspace-change': ResearchChangeView
+    'aitp-workspace-discussions': DiscussionPage
     'aitp-workspace-setup': ResearchSetup
     'aitp-workspace-project': WorkspaceRead<Project>
     'aitp-workspace-topics': WorkspaceRead<TopicPage>
@@ -28,6 +32,27 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 }
 
 const enc = encodeURIComponent
+
+/**
+ * Address an existing Session-owned receipt without creating a new operation.
+ * @param workspaceId - Authorized source Workspace.
+ * @param sessionId - Original ordinary Session.
+ * @param operationId - Native tool result's recorded operation identity.
+ * @returns The bounded change-inspection resource address.
+ */
+export function workspaceChangeAddress(workspaceId: WorkspaceId, sessionId: SessionId, operationId: string): string {
+  return `dsh-resource://aitp-workspace-change/workspace/${enc(workspaceId)}?session=${enc(sessionId)}&operation=${enc(operationId)}`
+}
+
+/**
+ * Address native discussions belonging to the visible Workspace/root or direction.
+ * @param workspaceId - Harness Workspace.
+ * @param topicId - Exact topic identity; omission means the root account.
+ * @returns A read-only discussion-list resource address.
+ */
+export function workspaceDiscussionsAddress(workspaceId: WorkspaceId, topicId?: string): string {
+  return `dsh-resource://aitp-workspace-discussions/workspace/${enc(workspaceId)}${topicId === undefined ? '' : `?topic=${enc(topicId)}`}`
+}
 
 /**
  * Read enrollment before attempting research-content reads.
@@ -99,6 +124,8 @@ interface ParsedAddress {
   readonly workspaceId: WorkspaceId
   readonly id: string | undefined
   readonly query: TopicQuery
+  readonly topicId?: string
+  readonly change?: ResearchChangeQuery
 }
 
 function parseAddress(address: string): Result<ParsedAddress> {
@@ -126,7 +153,13 @@ function parseAddress(address: string): Result<ParsedAddress> {
     ...(cursor === null ? {} : { cursor }),
     ...(limit === null ? {} : { limit: Number(limit) }),
   }
-  return { ok: true, value: { workspaceId, id, query } }
+  const topicId = url.searchParams.get('topic')
+  if (topicId === '') return invalidAddress('A discussion direction identity cannot be empty.')
+  const session = url.searchParams.get('session'), operation = url.searchParams.get('operation')
+  if ((session !== null || operation !== null) && (!session || !operation)) return invalidAddress('A change needs its original Session and operation.')
+  return { ok: true, value: { workspaceId, id, query, ...(topicId === null ? {} : { topicId }),
+    ...(session === null || operation === null ? {} : { change: { sessionId: brandString<SessionId>(session), operationId: operation } }),
+  } }
 }
 
 function invalidAddress(message: string): Result<never> {
@@ -229,6 +262,22 @@ async function* providerFrames<T>(
  * @param registry - adapter registry to resolve for every observation.
  */
 export function registerWorkspaceResources(ctx: Context, registry: ResearchWorkspaceRegistry): void {
+  ctx.effect(() => ctx.resources.register({
+    protocol: 'aitp-workspace-change',
+    open: (address, { signal }) => providerFrames(registry, address, signal, false, async (adapter, parsed, readSignal) => {
+      if (parsed.change === undefined) return invalidAddress('The original Session and operation are required.')
+      if (adapter.getChange === undefined) return { ok: false, error: { code: 'unsupported', message: 'This connection cannot inspect source edits.', retryable: false } }
+      return adapter.getChange(parsed.change, { signal: readSignal })
+    }),
+  }), 'research: source change resource')
+  ctx.effect(() => ctx.resources.register({
+    protocol: 'aitp-workspace-discussions',
+    open: (address, { signal }) => providerFrames(registry, address, signal, false,
+      async (adapter, parsed, readSignal) => adapter.listDiscussions === undefined
+        ? { ok: false, error: { code: 'unsupported', message: 'This connection cannot list research discussions.', retryable: false } }
+        : adapter.listDiscussions({ ...(parsed.topicId === undefined ? {} : { topicId: brandString<TopicId>(parsed.topicId) }),
+          ...(parsed.query.limit === undefined ? {} : { limit: parsed.query.limit }) }, { signal: readSignal })),
+  }), 'research: discussion list resource')
   ctx.effect(() => ctx.resources.register({
     protocol: 'aitp-workspace-setup',
     open: (address, { signal }) => providerFrames(registry, address, signal, false,

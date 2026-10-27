@@ -19,7 +19,7 @@ import type {
   SessionRequestId,
 } from '../../types.ts'
 import type {
-  BeginSubmissionInput, PendingSubmissionRetirement, SessionFace, SubmissionHandle,
+  BeginSubmissionInput, PendingSubmissionRetirement, SessionFace, SessionPromptTransport, SubmissionHandle,
 } from '../contract/session.ts'
 import type {
   OpenState, PendingSubmission, PromptError, SessionSnapshot,
@@ -249,6 +249,7 @@ export class Session implements SessionFace {
    * @param mode - queue appends after the current turn; steer interrupts it.
    * @param signal - optional caller cancellation for the complete admission round-trip.
    * @param requestId - identity from {@link beginSubmission}; a failed identified prompt retires its echo.
+   * @param transport - optional ordinary-Session admission route captured for this submission.
    * @returns the prompt result (also mirrored into promptError on failure).
    */
   async prompt(
@@ -256,6 +257,7 @@ export class Session implements SessionFace {
     mode: 'queue' | 'steer',
     signal?: AbortSignal,
     requestId?: SessionRequestId,
+    transport?: SessionPromptTransport,
   ): Promise<RemoteResult<{ accepted: true }>> {
     this.promptError = null
     this.lastAgentError = null
@@ -268,7 +270,8 @@ export class Session implements SessionFace {
     let result: RemoteResult<{ accepted: true }>
     if (this.address === undefined) {
       const clientTimeZone = resolvedClientTimeZone()
-      result = await this.remote.session.prompt({
+      const deliver: SessionPromptTransport = transport ?? ((request, requestSignal) => this.remote.session.prompt(request, requestSignal))
+      result = await deliver({
         requestId: requestId ?? randomUUID() as SessionRequestId,
         sessionId: this.sessionId,
         mode,
@@ -792,9 +795,9 @@ export class Session implements SessionFace {
 
   private observeSubmissionInsertions(target: InboxTarget, messages: readonly UserMessage[], start: number, seq: number): void {
     for (const [index, message] of messages.entries()) {
-      const source = message.source
-      if (source.kind !== 'user' || !('rpcId' in source)) continue
-      const settlement = this.submissionSettlements.get(source.rpcId)
+      const requestId = this.submissionRequestId(message)
+      if (requestId === undefined) continue
+      const settlement = this.submissionSettlements.get(requestId)
       if (settlement === undefined || settlement.placement === 'queued'
         || settlement.retiring || (settlement.receipt?.seq ?? -1) > seq) continue
       settlement.receipt = { target, seq, index: start + index, attachments: attachmentRefsIn(message.content) }
@@ -802,16 +805,23 @@ export class Session implements SessionFace {
   }
 
   private observeSubmissionMessage(message: UserMessage, admitted: boolean): void {
-    const source = message.source
-    if (source.kind !== 'user' || !('rpcId' in source)) return
-    const settlement = this.submissionSettlements.get(source.rpcId)
+    const requestId = this.submissionRequestId(message)
+    if (requestId === undefined) return
+    const settlement = this.submissionSettlements.get(requestId)
     if (settlement === undefined || settlement.retiring) return
     if (!admitted) {
-      if (settlement.placement === 'queued') this.scheduleObservedRetirement(source.rpcId, attachmentRefsIn(message.content))
+      if (settlement.placement === 'queued') this.scheduleObservedRetirement(requestId, attachmentRefsIn(message.content))
       return
     }
     settlement.admitted = attachmentRefsIn(message.content)
-    this.retireAdmittedSubmission(source.rpcId)
+    this.retireAdmittedSubmission(requestId)
+  }
+
+  /** Attributed admission may retain the client request identity as the durable message id. */
+  private submissionRequestId(message: UserMessage): SessionRequestId | undefined {
+    const source = message.source
+    return source.kind === 'user' && 'rpcId' in source ? source.rpcId
+      : [...this.submissionSettlements.keys()].find(requestId => requestId === String(message.id))
   }
 
   /** Retire admitted Chat identities only after stale Inbox rows can no longer reappear. */

@@ -15,7 +15,7 @@ This table connects model-visible tool names to the plugin package and service s
 
 | Tool package | Model-visible names | Requires | Writes / affects | Shipped aliases | Deployment note |
 | --- | --- | --- | --- | --- | --- |
-| `@deepseek-ai/dsh-research-memory` | `research_apply_change`, `research_prepare_change`, `research_read_context`, `research_recover_change`, `research_working_update` | `ctx.agents`, `ctx.sessions`, `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionProjections`, `ctx.sandboxPolicy (write execution)` | `tool/call`, `tool/result`, `existing runtime-context messages`, `configured scratch sources and operation receipts` | - | - |
+| `@deepseek-ai/dsh-research-memory` | `research_apply_change`, `research_prepare_change`, `research_read_context`, `research_read_source`, `research_recover_change`, `research_working_update` | `ctx.agents`, `ctx.sessions`, `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionProjections`, `ctx.researchResources (selected-source reads)`, `ctx.sandboxPolicy (write execution)` | `tool/call`, `tool/result`, `existing runtime-context messages`, `configured scratch sources and operation receipts` | - | research_read_source is contributed only while research-resources is connected; this catalog mounts the genuine optional bridge with no directory grants. |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-plugin-market` | `plugin_market` | `ctx.tools`, `ctx.pluginMarket` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`, `list_mcp_resources`, `read_mcp_resource` | `ctx.tools`, `ctx.mcpResources` | `tool/call`, `tool/result` | - | - |
@@ -169,6 +169,32 @@ Recover the current research direction, source-backed context and exact resource
 
 Source: [`packages/research/research-memory/src/runtime.ts`](../packages/research/research-memory/src/runtime.ts)
 
+### `research_read_source`
+
+Read a current source already selected for this research conversation. sourceIndex is its one-based selected-source number. Optionally specify location as JSON: {"kind":"pdf-page","page":2}, {"kind":"anchor","anchor":"proof"}, or {"kind":"code","startLine":10,"endLine":30,"revision":"commit-id"}. PDF pages and code lines are one-based. offset reopens a bounded character window. This reads evidence, not permission to write or a claim that the whole source was inspected.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sourceIndex": {
+      "type": "integer"
+    },
+    "location": {
+      "type": "string"
+    },
+    "offset": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "sourceIndex"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/study-tools.ts`](../packages/research/research-memory/src/study-tools.ts)
+
 ### `research_recover_change`
 
 Inspect an operation from this conversation and research direction without applying it. Distinguish its historical file outcomes from current source observations. Matching text never makes an interrupted operation successful. Read the named sources before deciding on a new proposal.
@@ -238,6 +264,8 @@ Keep a concise provisional working item for the current research direction: a ga
 ```
 
 Source: [`packages/research/research-memory/src/runtime.ts`](../packages/research/research-memory/src/runtime.ts)
+
+research_read_source is contributed only while research-resources is connected; this catalog mounts the genuine optional bridge with no directory grants.
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 

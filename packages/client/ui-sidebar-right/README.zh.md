@@ -54,11 +54,13 @@ kind: "package-reference"
 
 快捷键速查包含右侧栏切换、分栏和面板全屏命令，对应控件显示同一份有效键位。分栏与全屏要求焦点位于可见的停靠分栏内；焦点在聊天区时不可用。不可分栏时控件仍可见，可聚焦的提示显示当前键位，并说明分栏数量上限或宽度要求。文件、浏览器和终端提供者分别注册自己的命令。开始页按钮内以无背景文字显示有效快捷键，不额外弹出重复提示。
 
-面板隐藏时，会话 header 角落席位里的一个按钮（`conversation.session.header.corner`，在工具组右缘之外，与 Session 日志控件齐平）是回去的路。它的图形是左侧 sidebar 折叠图标的镜像。它使用公共紧凑 Button，与相邻更多操作按钮共用圆角和 hover 底色。它与面板共用一个存储（slot 运行时允许两个同作用域席位共用一个 handle）；面板显示时它什么也不渲染，角落席位随之收起。于是折叠的 Sidebar 不花会话区任何代价：没有轨条、没有宽度，转录的滚动条留在列的边缘。没有会话就没有按钮也没有面板。
+面板隐藏时，会话 header 角落席位里的一个按钮（`conversation.session.header.corner`，在工具组右缘之外，与 Session 日志控件齐平）是回去的路。它的图形是左侧 sidebar 折叠图标的镜像。它使用公共紧凑 Button，与相邻更多操作按钮共用圆角和 hover 底色。它与面板共用一个存储（slot 运行时允许两个同作用域席位共用一个 handle）；面板显示时它什么也不渲染，角落席位随之收起。于是折叠的 Sidebar 不花会话区任何代价：没有轨条、没有宽度，转录的滚动条留在列的边缘。没有 Session 时，此会话控件不显示；全局资料拥有者使用下文的 root 展开 factory。
 
 面板取会话区的底色与正文字号，而不是自成一层浮起的表面：它是页面的一列，不是压在页面上的卡片。
 
 root 作用域的 `rightbar` 入口通过独立的 `rightbar.session` 子树渲染选中的 Session，以及拥有已初始化 `keepMounted` 正文的后台 Session。每个 View 拥有自身的 Session reference。只有前台子树上报框架列宽；其他子树保持隐藏，不删除 tab 状态。
+
+全局面板通过 `rightbar.root` 阅读资料，与普通会话共用原生侧栏框架、标签条、分栏和浮窗控件及窄窗口全屏行为。面板可以在自己的页头以 `panelId` 渲染 `sidebar.right.root.expand`；仅当该面板当前范围存在已折叠的资料时，它才显示同一个原生展开按钮。折叠后键盘焦点返回此按钮，再展开时焦点进入资料阅读区域。
 
 <a id="state"></a>
 ## 状态
@@ -89,6 +91,10 @@ tab 类型分两阶段注册，随包发布的引导类型走的正是别的包�
 
 <a id="ctxsidebarright"></a>
 ## `ctx.sidebarRight`
+
+`ctx.sidebarRightRoots` 提供独立的全局面板资料导航。拥有者先调用 `selectScope(panelId, scopeKey)` 恢复阅读范围，再调用 `openResource(panelId, address, options?)`。不同地址打开原生标签；再次打开同一地址会显示已有标签。`close`、`setExpanded` 和 `toggleExpanded` 作用于该面板当前范围。可观察的 `views` 通过框架 hook 提供当前范围、展开状态和活动地址。框架尚未创建 root store 时，请求按序暂存。在本次应用运行期间，面板、课题和 Session 切换均保留阅读状态及已访问的正文；root 布局不跨应用重新加载保存。
+
+资料插件以已有标签类型定义的 id 为 key，在 root 作用域的 `sidebar.right.root.tab` 和可选的 `sidebar.right.root.tab.title` 中注册正文与标题。owner props 提供真实 `panelId`、明确 `scopeKey`、标签、导航、可见性，以及绑定原范围的 `onOpen` 和 `onClose`。打开的资源持续保留到标签关闭或插件卸载。读取权限始终属于实际资源提供者：此导航不创建 Session，也不把来源引用转换为 Session 文件地址。普通 Session 状态及其公共控制器保持原有语义。
 
 `openResource(address, options?)` 与 `openTab(kind, options?)` 是导航控制器，进入该列的每条路都调用其中之一：会话区的文件链接与工具行的行号引用（`openResource(fileAddress, { params: { line } })`），tab 条的添加控件与引导入口框（`openTab`），文件树的行（`tab.actions.openResource`）。资源地址是 `dsh-resource://<type>/…` URI；不带 `options.kind` 时由注册表认领（glob 与 `canOpen`，最高档胜出），带它时由该 kind 生效的类型打开。页按 kind 命名；tab 记录在本包拼出、别处无人书写的地址下（`contract/seed.ts`）。两者以同一组步骤作为一条历史运行：已展示同一 (kind, contentId) 的资源 tab 被聚焦，不限所在分栏，除非 `revealIfOpened: false`；页 tab 始终只在目标分栏内去重，不受该选项影响；否则新 tab 落到 `options.replaceTab` 所在的格与位置（并关掉那个 tab），再退而落到 `options.paneId`，再退而落到活跃停靠格；面板展开，因为用户看不到的内容不算打开。随后 Tab 域记录这次导航——`params` 以 `navigation.params` 抵达正文，`revision` 递增——不进布局历史。`params` 按所开之物定型：某资源类型的查看器把自己那项并入 `SidebarRightResourceParamsMap`（文本预览声明 `{ line?: number }`）；接受参数的页类型按其 kind 并入 `SidebarRightTabParamsMap`；值约定为 JSON 形状，运行时不校验。`dsh-resource://` 之外的地址、无人认领的地址、或未注册的 kind 都会 throw：那是接线错误，不是用户错误。
 

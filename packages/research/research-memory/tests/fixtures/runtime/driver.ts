@@ -8,6 +8,8 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import { sourceRootId, sourceIdForPath } from '@deepseek-ai/dsh-research-resources'
+import type { ResearchOrigin } from '../../../src/working-types.ts'
 import SessionStore from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
 import * as JsonlPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
@@ -27,6 +29,10 @@ import type {} from '../../../src/working-types.ts'
 const configPath = process.argv[2]
 if (configPath === undefined) throw new Error('runtime fixture requires its overlay path')
 const id = SessionId('research-continuity')
+const sourceStudy = process.env['AITP_SOURCE_STUDY_FIXTURE'] === '1'
+const origin: ResearchOrigin = sourceStudy ? { scope: 'global', studyId: 'persistent-selected-set', selections: [
+  { ref: { rootId: sourceRootId('local-library'), sourceId: sourceIdForPath('note.md') }, selectedText: 'GLOBAL_ORIGINAL_QUOTE: applies only under convention A.' },
+] } : { workspaceId: 'scratch', topicId: 'branch-a' }
 const agentOptions = { provider: 'research-runtime-mock', model: 'research-runtime-mock', cwd: process.cwd() }
 await writeFile('research.md', '# Scratch research\n\nThe finite-chain result does not establish a thermodynamic limit.\n')
 
@@ -63,7 +69,7 @@ let ctx = await boot()
 try {
   const agent = await ctx.agentLoop.create(id, agentOptions, { cwd: process.cwd() })
   agent.followup(createUserMessage({
-    source: { kind: 'aitp-research', actor: 'human', origin: { workspaceId: 'scratch', topicId: 'branch-a' } },
+    source: { kind: 'aitp-research', actor: 'human', origin },
     content: [{ type: 'text', text: '只做解析推导。Preserve the exact boundary convention.' }],
   }))
   await agent.whenIdle()
@@ -73,6 +79,8 @@ try {
   await compact(ctx, agent)
   await ctx.sessions.flush(agent.session)
 } finally { await ctx.fiber.dispose() }
+
+if (sourceStudy) await writeFile('research.md', '# Current source\nThe original passage has been removed.\n')
 
 // Read the same ordinary Session without installing the research projection or tools.
 const withoutRuntime = resolve('without-runtime.cordis.yml')
@@ -98,7 +106,7 @@ try {
   await ctx.sessions.flush(handle.agent.session)
   const fresh = await ctx.agentLoop.create(SessionId('fresh-owner-conversation'), agentOptions, { cwd: process.cwd() })
   fresh.followup(createUserMessage({
-    source: { kind: 'aitp-research', actor: 'human', origin: { workspaceId: 'scratch', topicId: 'branch-a' } },
+    source: { kind: 'aitp-research', actor: 'human', origin },
     content: [{ type: 'text', text: 'fresh owner ask: continue this direction' }],
   }))
   await fresh.whenIdle()

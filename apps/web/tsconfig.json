@@ -22,6 +22,16 @@
   // this client-registered project must not also hold them (one program
   // cannot see both sides of the cordis Context merges).
   "exclude": [
+    "tests/library-ui.e2e.ts",
+    "tests/native-sources.e2e.ts",
+    "tests/native-dock.e2e.ts",
+    "tests/fixtures/library-ui/**/*.ts",
+    "tests/workbench.e2e.ts",
+    "tests/workbench-ui.e2e.ts",
+    "tests/fixtures/workbench",
+    "tests/local-libraries.e2e.ts",
+    "tests/topic-pilot.e2e.ts",
+    "tests/fixtures/local-libraries",
     "tests/aitp-memory.e2e.ts",
     "tests/aitp-onboarding.e2e.ts",
     "tests/aitp-workspace.e2e.ts",

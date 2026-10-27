@@ -149,6 +149,15 @@ flowchart LR
   pkg_research_memory["research-memory"]
   svc_researchMemory["ctx.researchMemory<br/>Scoped research sources and memory"]
   pkg_client_ui_aitp_backend["client-ui-aitp-backend"]
+  pkg_research_resources["research-resources"]
+  svc_researchResources["ctx.researchResources<br/>Shared local research sources"]
+  pkg_research_knowledge["research-knowledge"]
+  pkg_research_literature["research-literature"]
+  pkg_research_code["research-code"]
+  pkg_research_study["research-study"]
+  pkg_client_ui_aitp_materials["client-ui-aitp-materials"]
+  svc_researchStudy["ctx.researchStudy<br/>Provisional study drafts"]
+  pkg_client_ui_aitp_study["client-ui-aitp-study"]
   svc_sessionQuery["ctx.sessionQuery<br/>Session reads, traces, filters, and search"]
   pkg_session_reference["session-reference"]
   pkg_tool_session_query["tool-session-query"]
@@ -388,7 +397,13 @@ flowchart LR
   pkg_ptc_runtime --> svc_ptcRuntime
   pkg_ptc_runtime_node --> svc_ptcRuntime
   pkg_pwsh_local --> svc_shell
+  pkg_research_code --> svc_researchResources
+  pkg_research_knowledge --> svc_researchResources
+  pkg_research_literature --> svc_researchResources
   pkg_research_memory --> svc_researchMemory
+  pkg_research_resources --> svc_researchResources
+  pkg_research_study --> svc_researchResources
+  pkg_research_study --> svc_researchStudy
   pkg_sandbox --> svc_sandbox
   pkg_sandbox_local --> svc_sandbox
   pkg_sandbox_policy --> svc_sandboxPolicy
@@ -519,6 +534,9 @@ flowchart LR
   svc_remoteAccess --> pkg_api_session_controller
   svc_remoteAccess --> pkg_api_workspace_controller
   svc_researchMemory --> pkg_client_ui_aitp_backend
+  svc_researchResources --> pkg_client_ui_aitp_materials
+  svc_researchResources --> pkg_research_memory
+  svc_researchStudy --> pkg_client_ui_aitp_study
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
@@ -612,6 +630,8 @@ flowchart LR
   svc_workspaceRegistry --> pkg_api_workspace_controller
   svc_worktrees --> pkg_experimental_tool_worktree
   svc_fs -. event gate .-> pkg_fs_observation_policy
+  svc_researchMemory -. event gate .-> pkg_research_resources
+  svc_researchStudy -. event gate .-> pkg_research_resources
 ```
 
 | ctx key | Role | Owner | Implementations | Direct consumers | Companion plugins | Note |
@@ -668,7 +688,9 @@ flowchart LR
 | `ctx.messageFeedback` | `core` | [`message-feedback`](../packages/feedback/message-feedback) | - | - | - | Owns per-assistant-message feedback in the canonical Session log, target validation, per-item compare-and-set, and the Host unary Remote contract. Feedback stays outside model history; log export follows the consumer policy. |
 | `ctx.sessionFeedback` | `core` | [`command-feedback`](../packages/feedback/command-feedback) | - | - | - | Records one Session-level remark with its category as a log-only feedback/record event on a live Session through the Host unary Remote contract; the /feedback command shares the same producer. |
 | `ctx.workspaceRegistry` | `core` | [`workspace`](../packages/workspace/workspace) | - | [`api-workspace-controller`](../packages/api/workspace-controller), [`api-session-controller`](../packages/api/session-controller) | - | Owns WorkspaceId-branded records over the domain facility; stable sessionIds accounts drive Host RPC and GUI projections. |
-| `ctx.researchMemory` | `service` | [`research-memory`](../packages/research/research-memory) | - | [`client-ui-aitp-backend`](../packages/client/ui-aitp-backend) | - | Reads explicitly configured Markdown owners, delivers recorded research context through existing Sessions, and applies recoverable writes within configured scratch roots. |
+| `ctx.researchMemory` | `service` | [`research-memory`](../packages/research/research-memory) | - | [`client-ui-aitp-backend`](../packages/client/ui-aitp-backend) | [`research-resources`](../packages/research/research-resources) | Reads enrolled Markdown owners and explicitly selected library sources, delivers scoped context through existing Sessions, and applies recoverable writes only within existing scientific write grants. |
+| `ctx.researchResources` | `seam` | [`research-resources`](../packages/research/research-resources) | [`research-knowledge`](../packages/research/research-knowledge), [`research-literature`](../packages/research/research-literature), [`research-code`](../packages/research/research-code), [`research-study`](../packages/research/research-study) | [`research-memory`](../packages/research/research-memory), [`client-ui-aitp-materials`](../packages/client/ui-aitp-materials) | - | Owns current local-root read grants, bounded discovery and source identities; independent providers project domains, while operational source sets retain references without owning scientific conclusions. |
+| `ctx.researchStudy` | `service` | [`research-study`](../packages/research/research-study) | - | [`client-ui-aitp-study`](../packages/client/ui-aitp-study) | [`research-resources`](../packages/research/research-resources) | Saves explicit Markdown drafts and captures completed ordinary Session answers with recorded sources; optional synthetic readings share the same operational owner and remain provisional. |
 | `ctx.sessionQuery` | `seam` | [`session-query`](../packages/session-query/session-query) | [`session-query-sqlite`](../packages/session-query/session-query-sqlite) | [`session-reference`](../packages/context/session-reference), [`tool-session-query`](../packages/experimental/tool-session-query) | - | The interface supplies exact reads, filters, and traces; its concrete backend adds full-text reconciliation, ranking, snippets, and cursor generations, while the model consumer owns workspace authority and cursor-free rendering. |
 | `ctx.fileReferences` | `seam` | [`file-reference`](../packages/context/file-reference) | [`file-reference-local`](../packages/context/file-reference-local) | [`api-session-controller`](../packages/api/session-controller) | - | The interface returns path-only completion candidates within an Agent cwd; providers own namespace access and ranking without reading file contents. |
 | `ctx.sessionReferenceResolver` | `core` | [`session-reference`](../packages/context/session-reference) | - | - | - | Projects bounded current-surface conversation snapshots into durable untrusted message context; host adapters own mention syntax. |

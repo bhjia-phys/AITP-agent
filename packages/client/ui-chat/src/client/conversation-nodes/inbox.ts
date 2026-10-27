@@ -91,7 +91,8 @@ function applySplice(
       pending: { kind: 'snapshot', ids: pending },
       currentClaimed: new Set(removed.map(message => message.id)),
       claimSeq: seq,
-      claimedHuman: removed.some(message => message.source.kind === 'user'),
+      claimedHuman: removed.some(message => message.source.kind === 'user'
+        || 'actor' in message.source && message.source.actor === 'human'),
     }
   }
   const currentClaimed = withoutInserted(

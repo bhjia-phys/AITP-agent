@@ -1,0 +1,39 @@
+.catalog { container-type: inline-size; min-width: 0; }
+.table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; line-height: 1.6; }
+.table th { color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 400; text-align: left; padding: 10px 12px; border-bottom: 0.5px solid var(--dsw-alias-border-l2); }
+.table th:first-child { width: 28px; padding-inline: 0 8px; }
+.table th:nth-child(2) { width: 39%; }
+.table th:nth-child(3) { width: 23%; }
+.table th:nth-child(4) { width: 9%; }
+.table td { padding: 18px 12px; border-bottom: 0.5px solid var(--dsw-alias-border-l1); vertical-align: top; overflow-wrap: anywhere; }
+.table td.selectCell { padding-inline: 0 8px; }
+.table tr[data-selected] { background: var(--dsw-alias-interactive-bg-hover); }
+.select { min-height: 28px; justify-content: center; }
+.select > span, .hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.titleLine { display: flex; align-items: flex-start; gap: 8px; }
+.titleLine svg { flex-shrink: 0; margin-top: 4px; color: var(--dsw-alias-label-secondary); }
+.title { border: 0; padding: 0; background: none; color: var(--dsw-alias-label-primary); font: inherit; font-weight: 500; text-align: left; cursor: pointer; overflow-wrap: anywhere; line-height: 1.6; min-height: 28px; }
+.title:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 3px; border-radius: var(--dsw-radius-sm); }
+.kind { display: block; color: var(--dsw-alias-label-secondary); font-size: 12px; margin: 4px 0 0 24px; }
+.authors, .year, .coverage, .missing { color: var(--dsw-alias-label-secondary); }
+.header { margin-bottom: 20px; }
+.header h2 { margin: 8px 0 12px; font-family: inherit; font-weight: 500; font-size: 22px; line-height: 1.4; overflow-wrap: anywhere; }
+.eyebrow { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.byline { margin: 0; font-size: 14px; color: var(--dsw-alias-label-secondary); line-height: 1.6; overflow-wrap: anywhere; }
+.details { display: flex; flex-wrap: wrap; gap: 12px 28px; margin: 20px 0 0; font-size: 13px; }
+.details > div { min-width: 0; max-width: 100%; }
+.details dt { color: var(--dsw-alias-label-secondary); font-size: 12px; margin-bottom: 3px; }
+.details dd { margin: 0; overflow-wrap: anywhere; }
+@media (hover: hover) { .title:hover { color: var(--dsw-alias-brand-primary); } }
+@container (max-width: 720px) {
+  .table, .table tbody { display: block; }
+  .table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .table tr { display: grid; grid-template-columns: 28px minmax(0, 1fr); padding: 16px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
+  .table td { border: 0; padding: 0 0 4px 8px; }
+  .table .selectCell { grid-column: 1; grid-row: 1 / span 4; padding: 0; }
+  .table .titleCell, .table .authors, .table .year, .table .coverage { grid-column: 2; }
+  .titleCell { margin-bottom: 6px; }
+  .authors::before, .year::before, .coverage::before { content: attr(data-label); margin-right: 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+}
+
+@container (max-width: 640px) { .header h2 { font-size: 22px; } }

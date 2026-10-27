@@ -1,0 +1,7 @@
+- name: cordis:typert
+- name: cordis:resources
+  config:
+    roots:
+      - id: local-library
+        path: !!js process.cwd() + '/sources'
+- name: cordis:catalog

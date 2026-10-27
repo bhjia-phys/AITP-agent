@@ -316,6 +316,16 @@ describe('built-in conversation node Definitions', () => {
     expect(chatViewDefinition.isActive?.(current)).toBe(false)
   })
 
+  it('renders an attributed human question as user input and retains its native submission identity', () => {
+    const question = { ...textMessage('research-request', 'What does this passage establish?'),
+      source: { kind: 'research-question', actor: 'human' } }
+    const value = assembler([at(1, 'user/message', question, { surfaceOp: 'append' })])
+    expect(node(snapshot(value), 'user')?.data).toMatchObject({
+      kind: 'user', messageId: 'research-request', content: question.content, source: question.source,
+    })
+    expect(node(snapshot(value), 'context')).toBeUndefined()
+  })
+
   it('keeps the Turn rail projection current when a chunk updates one node in place', () => {
     const value = assembler([
       at(1, 'turn/start', { turn: 1 }),

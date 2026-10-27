@@ -343,6 +343,38 @@
 
     # AITP research views, enabled by the AITP application overlay. Without a
     # provider for their resource protocols they show an unconnected state.
+    - id: research-study
+      name: '@deepseek-ai/dsh-research-study'
+      disabled: true
+    - id: ui-aitp-study
+      name: '@deepseek-ai/dsh-client-ui-aitp-study'
+      disabled: true
+    - id: research-resources
+      name: '@deepseek-ai/dsh-research-resources'
+      disabled: true
+      config:
+        roots: []
+    - id: research-knowledge
+      name: '@deepseek-ai/dsh-research-knowledge'
+      disabled: true
+    - id: research-literature
+      name: '@deepseek-ai/dsh-research-literature'
+      disabled: true
+    - id: research-code
+      name: '@deepseek-ai/dsh-research-code'
+      disabled: true
+    - id: ui-aitp-materials
+      name: '@deepseek-ai/dsh-client-ui-aitp-materials'
+      disabled: true
+    - id: ui-aitp-literature
+      name: '@deepseek-ai/dsh-client-ui-aitp-literature'
+      disabled: true
+    - id: ui-aitp-knowledge
+      name: '@deepseek-ai/dsh-client-ui-aitp-knowledge'
+      disabled: true
+    - id: ui-aitp-code
+      name: '@deepseek-ai/dsh-client-ui-aitp-code'
+      disabled: true
     - id: research-memory
       name: '@deepseek-ai/dsh-research-memory'
       disabled: true

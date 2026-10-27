@@ -6,6 +6,8 @@
 import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { PromptContentPart, SessionRequestId } from '@deepseek-ai/dsh-api-session-controller/types'
+export type { ResearchOrigin, ResearchWorkingState } from './working-types.ts'
 
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
@@ -29,6 +31,64 @@ export interface ResearchQuestion {
   /** Pinned by source resolution; changed bytes or offsets are never silently relocated. */
   readonly selectedRange?: ResearchSourceRange
   readonly question: string
+  /** Continue this exact ordinary Session; omission creates a Session on send. */
+  readonly sessionId?: SessionId
+  /** Native queue/steer admission, defaulting to queue. */
+  readonly mode?: 'queue' | 'steer'
+  /** Stable native prompt identity; retries in the same Session do not enqueue twice. */
+  readonly requestId?: SessionRequestId
+  /** Full native composer content. When present its text replaces question for context retrieval. */
+  readonly content?: readonly PromptContentPart[]
+}
+
+/** Exact research scope; omission of topicId means the Workspace root account. */
+export interface DiscussionQuery {
+  readonly topicId?: TopicId
+  readonly limit?: number
+}
+
+/** Existing ordinary Sessions currently bound to one research scope. */
+export interface DiscussionPage {
+  readonly items: readonly {
+    readonly sessionId: SessionId
+    readonly title: string
+    readonly updatedAt: string
+    readonly busy: boolean
+  }[]
+  /** Partial means some candidates or older matching Sessions were omitted. */
+  readonly completeness: 'complete' | 'partial'
+  readonly issues: readonly string[]
+}
+
+/** One existing writer receipt proven to belong to the addressed ordinary Session. */
+export interface ResearchChangeQuery {
+  readonly sessionId: SessionId
+  readonly operationId: string
+}
+
+/** Bounded historical file publication and separately observed current state; no new write is admitted. */
+export interface ResearchChangeView {
+  readonly operationId: string
+  readonly sessionId: SessionId
+  readonly workspaceId: WorkspaceId
+  readonly topicId?: TopicId
+  readonly state: 'prepared' | 'no-change' | 'pending' | 'applying' | 'applied' | 'not-applied' | 'partial' | 'unknown'
+  readonly updatedAt: string
+  readonly files: readonly {
+    readonly resourceId: ResourceId
+    readonly relativePath: string
+    readonly state: 'prepared' | 'applying' | 'applied' | 'not-applied' | 'unknown'
+    readonly appliedAt?: string
+    /** Exact complete file texts, present together only when both fit the response bound. */
+    readonly beforeText?: string
+    readonly afterText?: string
+    readonly current?: { readonly state: 'matches-planned-output' | 'different' | 'unavailable'; readonly observedAt: string }
+  }[]
+  readonly remainingUses: readonly string[]
+  readonly completeness: 'complete' | 'partial'
+  readonly omittedFiles: number
+  readonly omittedDiffs: number
+  readonly omittedUses: number
 }
 
 /** Exact UTF-16 source interval [start, end), with its observed raw Markdown for fresh-read validation. */
@@ -368,6 +428,8 @@ export interface ApplyRequest {
 
 /** Acknowledgement that the advertised edit set committed, with resulting owner versions and actor. */
 export interface ApplyReceipt {
+  /** Source receipt remains authoritative if downstream view invalidation failed. */
+  readonly notificationWarning?: string
   readonly operationId: string
   readonly changeId: string
   readonly committedAt: string
@@ -475,7 +537,11 @@ export interface ResearchWorkspaceAdapter {
   /** Create a fresh linked account using the supplied human question and scope. */
   createTopic?(request: CreateTopicRequest): Promise<Result<CreateTopicReceipt>>
   /** Submit an explicit human question with its reading origin to a new conversation. */
-  ask?(question: Omit<ResearchQuestion, 'workspaceId'>): Promise<Result<{ readonly sessionId: SessionId }>>
+  ask?(question: Omit<ResearchQuestion, 'workspaceId'>, options?: ReadOptions): Promise<Result<{ readonly sessionId: SessionId }>>
+  /** Inspect exact receipt text only after proving its original Session and Workspace ownership. */
+  getChange?(query: ResearchChangeQuery, options?: ReadOptions): Promise<Result<ResearchChangeView>>
+  /** Read existing discussions without starting or resuming their Agents. */
+  listDiscussions?(query: DiscussionQuery, options?: ReadOptions): Promise<Result<DiscussionPage>>
   /**
    * Read the bound workspace's project overview.
    * @param options - cancellation for this read.

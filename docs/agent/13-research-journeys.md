@@ -53,24 +53,24 @@ cannot close the missing parts of a case.
 | [C01 Return to a project](#c01) | Harness navigation, scoped delivery and scratch recovery tested; [paired synthetic writing/file-only recovery](../../agent/notes/harness-integration.md#research-behavior-comparison) adds finite behavior evidence. [Recovery fixes](../../agent/notes/harness-integration.md#research-recovery-fixes) cover unanswered timed choices, crowded history and selected deep files within bounded coverage; researcher-operated continuity remains open | Headless continuity; B1–B6; P1 / UI-1, W1 |
 | [C02 Idea to scoped question](#c02) | Discussion and choice-card foundation; idea lifecycle and approved branch creation unavailable | P1 context; P3–P4 authoring |
 | [C03 Discover and import literature](#c03) | Existing text can be searched; literature retrieval/import and edition adapter unavailable | P2b local library; separately approved retrieval |
-| [C04 Close reading across editions](#c04) | Note reading foundation; W2 page/edition states are synthetic; actual research PDF/edition route unavailable | UI-1 note selection; P2b / UI-2, W2 |
+| [C04 Close reading across editions](#c04) | Real PDF-page reading, exact selections and scoped source delivery validated; full cross-edition identity/comparison remains unimplemented | UI-1 note selection; P2b / UI-2, W2 |
 | [C05 Learn a framework](#c05) | Learning Skill/context foundation; dedicated knowledge/story view unavailable | P2a; P3–P4 retained writing |
 | [C06 Analytic derivation](#c06) | Paired finite commutator/source-correction and qualified-use writing controls; no accepted open-research analytic workflow or reviewed authoring | P1 scope; P2a; P3–P4 |
 | [C07 Cross-topic transfer](#c07) | Parent-use/source lookup foundation; full condition-aware relation view and integration unavailable | P2a; P3–P4 |
-| [C08 Formula, code and debugging](#c08) | Pi retained text reading/mock; Harness generic preview/navigation/editing/execution exists. W3 checkout/formula comparison is synthetic; research-linked execution remains unverified | P2c / UI-5, W3; P4 bounded execution |
+| [C08 Formula, code and debugging](#c08) | Pi retained text reading/mock; Harness generic preview/navigation/editing/execution exists; local research source/diff/history now have bounded application evidence. W3 formula comparison is synthetic; research-linked execution remains unverified | P2c / UI-5, W3; P4 bounded execution |
 | [C09 Numerical campaign](#c09) | Retained text can be inspected; run adapter, scheduler and campaign controller unavailable | P4 bounded run; P5 orchestration |
 | [C10 Convergence and acceptance](#c10) | Qualified-answer recovery recorded live; material/run comparison and execution unavailable | P2a/P2c; P4 |
 | [C11 Raw data and matched diagnostics](#c11) | Notes can describe coverage; data/plot analysis and run provenance unavailable | P2 views; P4 analysis |
 | [C12 Manuscript, figures and citations](#c12) | Text reading foundation; proposal mock; document/manuscript/build paths unavailable | P3 scratch; P4 real pilot |
-| [C13 Reusable knowledge](#c13) | Knowledge text may be read/searched; knowledge service and promotion writes unavailable | P2a; P3–P4 |
+| [C13 Reusable knowledge](#c13) | Existing knowledge kinds and sources can be browsed through the real provider; scientific promotion writes remain unavailable | P2a; P3–P4 |
 | [C14 Distill a procedure](#c14) | Distillation Skill can be read; W5 draft/evaluation/file states are synthetic; actual proposal/evaluation integration unavailable | Proposal/Skill-use slice; UI-6, W5; P4 named actual Skill-write pilot |
 | [C15 Independent review](#c15) | Supplied-review-claim assessment tested in finite pairs; dedicated independent reviewer execution/assessment workflow unavailable | P3b–c |
 | [C16 Interrupt and resume](#c16) | Harness working-state recovery, two compactions/restart and scratch write reconciliation tested; full W1 client bridge, W6 rule adoption and broader effects remain incomplete | B2–B6; UI-1 W1; UI-4 W6; P3c/P4 effects |
 | [C17 Delegate and hand off](#c17) | Export/retained-note foundation; application worker execution unavailable | P3 review; P5 research workers |
 | [C18 Desktop, hosts and interoperability](#c18) | Local server and portable Markdown foundation; native attachment and fresh cross-host continuation unverified | P2d; explicit compatibility exercise |
-| [C19 Browse a knowledge wiki](#c19) | Existing text/link reading foundation; global wiki index, entry navigation and knowledge adapter unavailable | P2a |
+| [C19 Browse a knowledge wiki](#c19) | Real global knowledge index, article contents and authored source navigation validated; semantic graph, complete prerequisite/where-used coverage and researcher usability acceptance remain open | P2a |
 | [C20 Review knowledge against sources](#c20) | Source inspection and review-request foundation; scoped knowledge review execution and correction workflow unavailable | P2a/P2b inspection; P3 review; P4 selected correction |
-| [C21 Browse and curate the literature library](#c21) | Existing file reading foundation; collection/work/edition views and curation unavailable | P2b browsing; P3–P4 selected curation |
+| [C21 Browse and curate the literature library](#c21) | Real bibliographic rows, exact PDF-page reading/selection and source-set questions validated; full work/edition identity management and curation remain unavailable | P2b browsing; P3–P4 selected curation |
 | [C22 Select and adapt an applicable Skill](#c22) | Harness discovers configured Skill sources; W4/W5 matching and feedback states are synthetic; applicability and partial-use integration remain proposed | Read-only context/catalog slice; UI-3 W4; C14 / UI-6 W5 |
 
 ## Scenarios choose cooperating plugins
@@ -121,6 +121,8 @@ task with different acceptance.
 
 <a id="c01"></a>
 ## C01. Return to a project after weeks away
+
+**Workbench engineering increment, 2026-10-26.** The [actual-app scenario](../../agent/notes/harness-integration.md#topic-discussion-workbench) exercises two directions and three ordinary Sessions: reopen discussions beneath their directions, create and rename another, switch back with native drafts intact, and send a located source question while reading in the centre. A held running turn keeps its original scope while another direction is selected. Actual research tools save a synthetic correction; the corresponding source and topic reread it, and **View changes** exposes the original before/after text. Admitted discussion titles, scope and saved records recover after a Host restart without an extra model request. This is bounded UI, storage and delivery evidence with a deterministic model; researcher-operated long-term continuity and scientific judgment remain separate acceptance questions.
 
 **Task and cooperation.** The researcher opens a self-consistency or symmetry
 project and asks where to resume. Projects resolves its actual main note or family
@@ -229,13 +231,18 @@ step. If a locator is corrected, the original observed passage remains inspectab
 in the session and the current source is a separate choice. One global paper may
 serve several projects without duplicated PDFs or reading notes.
 
-**Current support and gap.** [Text reads][reader] can inspect existing reading
-notes. The [prototype][prototype] demonstrates a two-page synthetic paper, named
-and native-text selection, and rejected cross-pane provenance. It is not a PDF
-parser or real library. [WorksService][works] and edition selection are unavailable;
-delivery-bound source citations and pane-local anchors remain P1 requirements.
+**Retained Pi support and current Harness gap.** [Text reads][reader] and the
+[prototype][prototype] supplied note reading and synthetic page/selection evidence;
+the old [WorksService][works] is a placeholder. The current Harness library has
+[actual PDF-page reading, exact selection and scoped source delivery](../../agent/notes/harness-integration.md#library-ui).
+The [native-reader adaptation](../../agent/notes/harness-integration.md#native-source-readers)
+adds continuous native PDF reading and quotations beyond the initial extraction window.
+The [workbench presentation review](../../agent/notes/harness-integration.md#workbench-ui-review)
+checks the reading/discussion/return path and disclosure without adding edition semantics.
+Complete work/edition identity, checked printed-page mapping and cross-edition
+comparison remain unimplemented; the earlier prototype does not establish them.
 
-**Harness UI acceptance route — W2 / UI-2 (design only).** In Materials, open the intended edition and compare its knowledge prerequisite without a Session. Ask about a located selection to create a Global draft with no inherited topic; distinguish attached, sent and currently available text. A missing edition offers explicit candidates without substitution. [W2](12-desktop-interface.md#scenario-walkthroughs) is synthetic; UI-1 first exercises only its note-selection part, while actual PDF/edition behavior needs the literature provider.
+**Harness UI acceptance route — W2 / UI-2 (design only).** In Materials, open the intended edition and compare its knowledge prerequisite without a Session. Ask about a located selection to create a Global draft with no inherited topic; distinguish attached, sent and currently available text. A missing edition offers explicit candidates without substitution. [W2](12-desktop-interface.md#scenario-walkthroughs) is synthetic; UI-1 first exercises only its note-selection part, while the current literature provider supplies bounded actual PDF behavior and complete cross-edition identity/comparison remains open.
 
 **Acceptance and counterexample.** Restart and recover the page and task; select
 from one of two panes and verify that the attached source is that pane's edition.
@@ -262,10 +269,14 @@ reading the whole transcript. An agent-produced explanation, agent review and
 learner-confirmed understanding are different facts.
 
 **Current support and gap.** [Learning instructions][learning], [Skill-aware
-context][context] and ordinary note reads exist. [KnowledgeService][knowledge] is
-unavailable; the knowledge/story screen and independent learning origin are
-specification/mock, and no learner usability study is recorded. Instruction
-availability does not establish teaching quality or mastery.
+context][context] and ordinary note reads exist. The retained Pi
+[KnowledgeService][knowledge] remains unavailable. The current Harness application
+has local knowledge/source reading, authored question routes, source selection and
+provisional study notes; its [workbench review](../../agent/notes/harness-integration.md#workbench-ui-review)
+checks draft retention and the reading interface. Semantic prerequisite relations,
+an independent learning origin and learner-confirmed mastery remain unimplemented
+or unvalidated. No learner usability study is recorded, and instruction
+availability does not establish teaching quality.
 
 **Acceptance and counterexample.** Resume with the same difficulty after
 compression and a side question; find the exact source and prerequisite. Failure:
@@ -369,7 +380,7 @@ in its [base composition](../../packages/bundle/base/cordis.patch.yml), subject 
 the selected configuration and permissions. These are three distinct scopes:
 code inspection, generic agent editing/execution, and the research integration
 that connects a specific checkout, equation, operation and scientific implication.
-The proposed research-linked code workspace still has no integrated UI/service evidence. In the [2026-10-23 live comparison](../../agent/notes/harness-integration.md#gpt-live-acceptance), both hosts repaired a residual-stopping defect in two synthetic instances, preserved the agreed iteration and protected files, and identified shared-helper agreement as non-independent. This exercises generic tools plus portable guidance, not the proposed workspace or scientific acceptance. [14](14-implementation-blueprint.md)
+Local checkout, source, observed working/staged/commit differences and history now have [bounded application evidence](../../agent/notes/harness-integration.md#library-ui). Formula-to-code semantics, run receipts and research-linked execution remain unverified. In the [2026-10-23 live comparison](../../agent/notes/harness-integration.md#gpt-live-acceptance), both hosts repaired a residual-stopping defect in two synthetic instances, preserved the agreed iteration and protected files, and identified shared-helper agreement as non-independent. This exercises generic tools plus portable guidance, not the proposed workspace or scientific acceptance. [14](14-implementation-blueprint.md)
 owns the current UI/runtime work allocation and implementation progress. This case
 does not verify UI work performed in another development task.
 
@@ -699,6 +710,8 @@ portable syntax is treated as demonstrated interoperability. **Implementation re
 <a id="c19"></a>
 ## C19. Browse a knowledge wiki without starting a research task
 
+**Current Harness support.** The [three-library application check](../../agent/notes/harness-integration.md#library-ui) exercises the real knowledge provider, type-grouped index, article contents, authored local source links, exact source selection and a topic-scoped native discussion. Reading alone sends no model request. These checks do not establish complete semantic relationships, scientific correctness or comparative researcher usability.
+
 **Task and cooperation.** The researcher opens Knowledge to explore a subject,
 look up a definition or revisit a derivation. A subject index and search lead to
 existing questions, concepts, results, examples and learning stories. An entry
@@ -715,16 +728,20 @@ derivation steps. A summary gives orientation; it cannot stand in for the source
 reading. Browsing requires neither a project nor a model request. Asking about a
 selected passage is an optional next action.
 
-**Current support and gap.** [Source reading][reader], ordinary note links and
-search supply a foundation. The [knowledge adapter][knowledge] is a placeholder;
-the global wiki index, complete navigation loop and dedicated where-used view are
-specification only. Current location-bound sessions do not supply a Global
-knowledge session. C05 covers guided learning and C13 covers promotion; neither
-establishes this independent browsing workflow.
+The [knowledge view](12-desktop-interface.md#knowledge) preserves the portable collection's atoms, source readings, learning stories and optional author collections. An existing explanation may stay inside its research topic. A provisional research-result index row opens that owning passage; a saved answer does not promote it to an atom.
+
+**Retained Pi support and current Harness gap.** [Source reading][reader],
+ordinary links and search supplied the earlier foundation; the old
+[knowledge adapter][knowledge] remains a Pi placeholder. The current Harness
+support at the start of this case covers a real global index, article navigation
+and scoped/global question handoff. Complete semantic/prerequisite relationships
+and a dedicated where-used view remain unimplemented. C05 covers guided learning
+and C13 covers promotion; neither is established by browsing alone.
 
 **Acceptance and counterexample.** Start without a chat or known file path. Find a
 concept, inspect a premise and its source, then return to the original passage
 with scroll and context preserved. Show missing links and unknown index coverage.
+Include a source-ordered reading and its question-led story, an explanation indexed in place, and a provisional research pointer. Keep source support, researcher review and reading coverage distinct when moving between them.
 Failure: browsing creates a project/task, a similarly named concept with different
 conventions silently substitutes for the target, or an overview hides an unproved
 step. **Implementation reference:** [P2a][p2], with actual PDF source navigation in P2b.
@@ -766,6 +783,8 @@ scientific labels or source text. **Implementation reference:** [P2a/P2b][p2] fo
 <a id="c21"></a>
 ## C21. Browse and curate an existing literature library
 
+**Current Harness support.** The [three-library application check](../../agent/notes/harness-integration.md#library-ui) verifies recorded title/author/year presentation, distinct library metadata for the same underlying source, physical PDF page retention, exact page quotation, durable source sets and topic → source → question → return. It includes narrow/dark views, long titles and empty/loading states. Full work/edition identity management, import, deduplication and scientific reading-quality assessment remain outside this UI increment.
+
 **Task and cooperation.** The researcher opens Library to inspect what is already
 available, without first asking the agent to find a paper. Search and collection
 filters expose title, author, year, topic, identifiers, local availability and
@@ -782,10 +801,12 @@ reviewable change to its existing owner. Similar titles, a preprint and a journa
 article do not automatically denote identical editions. Collection membership is
 not a second copy of the paper or its scientific conclusions.
 
-**Current support and gap.** Existing paths and text tools can locate some local
-material; [works][works] remains a placeholder. Collection/work/edition views,
-actual PDF reading and library curation are unavailable in the application.
-Prototype selections are synthetic and do not establish a working library.
+**Retained Pi support and current Harness gap.** Existing paths and text tools
+supplied the earlier foundation; [works][works] remains a Pi placeholder. Current
+Harness support at the start of this case includes bibliographic lists and actual
+PDF reading. Complete work/edition management, import, deduplication and library
+curation remain unimplemented. Prototype selections alone do not establish those
+capabilities.
 
 **Acceptance and counterexample.** Starting from Library alone, find a paper among
 similarly titled works, select its intended edition, open its reading note and

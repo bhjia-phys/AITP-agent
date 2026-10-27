@@ -20,12 +20,18 @@ import { ResearchPanel, type ResearchPanelFace } from './ResearchPanel.tsx'
 import { ResearchPanelIcon } from './ResearchPanelIcon.tsx'
 import { createResearchPanelStore } from './store.ts'
 import { sidebarEn, sidebarZh } from './sidebar-locales.ts'
-import { WorkspaceSidebar } from './WorkspaceSidebar.tsx'
+import { WorkspaceSidebar, type WorkspaceSidebarFace } from './WorkspaceSidebar.tsx'
 import { registerWorkspaceResources } from './workspace-resources.ts'
 import { ResearchWorkspaceRegistry } from './workspace-service.ts'
 import { createTopicCreationJournal } from './topic-creation-journal.ts'
+import { TopicLibraries } from './TopicLibraries.tsx'
+import { registerResearchDiscussions } from './discussion-registration.ts'
+import { ResearchNavigationController } from './research-navigation.ts'
+import { ResearchNavigation } from './ResearchNavigation.tsx'
 
 export type { AitpResearchKey } from './locales.ts'
+export type * from './discussion-contract.ts'
+export type {} from './ResearchChangeNotice.tsx'
 export type { NoteTabBodyProps } from './NoteTab.tsx'
 export type {
   BranchUse, MaterialLink, NoteView, PendingChoice, ResearchDataOrigin, SourceLocator, SourcePassage,
@@ -38,6 +44,8 @@ export type { TopicSummary as WorkspaceTopicSummary } from './workspace-contract
 export type { WorkspaceAdapterFactory, ResearchWorkspaceRegistry } from './workspace-service.ts'
 export type { WorkspaceSidebarFace, WorkspaceSidebarProps } from './WorkspaceSidebar.tsx'
 export type {} from './workspace-resources.ts'
+export type { TopicLibraryOwner } from './TopicLibraries.tsx'
+export type {} from './ResearchNavigation.tsx'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -56,7 +64,8 @@ const PANEL_ID = 'aitp-research' as MainPanelId
 const NOTE_TAB_ID = '@deepseek-ai/dsh-client-ui-aitp-research/note'
 
 /** Services read by the registrations. */
-export const inject = ['slots', 'locale', 'sidebarRightTabs', 'uiWorkspace', 'resources', 'layout']
+export const inject = ['slots', 'locale', 'sidebarRightTabs', 'uiWorkspace', 'resources', 'layout',
+  'workspaces', 'sessions', 'conversation', 'uiConversation', 'uiChatNavigation']
 
 /**
  * Contribute the Research entry, its global panel and the note dock tab type.
@@ -78,7 +87,13 @@ export function apply(ctx: ClientContext): void {
     // Browser policy can deny tab storage; the form reports this explicitly.
   }
   const store = createResearchPanelStore(createTopicCreationJournal(topicStorage, t('topic.create.reloaded')))
+  const navigation = new ResearchNavigationController(ctx, PANEL_ID)
+  const discussions = registerResearchDiscussions(ctx, workspaces, (scope, address) => navigation.open(scope, address))
   const face: ResearchPanelFace = {
+    beginDiscussion: (scope, origin) => { void discussions.open(scope, origin) },
+    updateDiscussionSource: (scope, origin) => { discussions.setSource(scope, origin) },
+    openDiscussionResource: (scope, address, leave) => navigation.open(scope, address, leave),
+    showResearch: () => { ctx.layout.selectPanel(PANEL_ID) },
     showWorkspaces: () => { ctx.layout.selectPanel(null) },
     initializeResearch: (workspaceId, request) => workspaces.initialize(workspaceId, request),
     createTopic: (workspaceId, request) => workspaces.createTopic(workspaceId, request),
@@ -89,12 +104,24 @@ export function apply(ctx: ClientContext): void {
     applyChange: (workspaceId, request) => workspaces.applyChange(workspaceId, request),
     retry: (workspaceId) => { workspaces.retry(workspaceId) },
   }
+  const sidebarFace: WorkspaceSidebarFace = {
+    checkSetup: true, showConversations: () => { ctx.layout.selectPanel(null) },
+    showResearch: () => { ctx.layout.selectPanel(PANEL_ID) }, retry: face.retry,
+    newDiscussion: (workspaceId, topicId, title) => { void discussions.newDiscussion({ workspaceId, topicId, title }) },
+  }
+  ctx.slots.registerFactory({ name: 'aitp.research.navigation', scope: 'root', locale: 'aitp.research.sidebar', store,
+    inject: (actions) => { navigation.bind(actions); return sidebarFace },
+  }, ResearchNavigation)
+  ctx.slots.registerFactory({ name: 'aitp.research.topic-libraries', scope: 'root',
+    children: { 'aitp.research.topic.libraries': { kind: 'list', scope: 'root' } },
+  }, TopicLibraries)
   ctx.slots.inject('main', function* () {
-    yield ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS, store, inject: () => face }, ResearchPanel)
+    yield ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS, store,
+      inject: (actions) => { navigation.bind(actions); return face } }, ResearchPanel)
   })
   ctx.slots.inject('sidebar.context', () => ctx.slots.register({
     name: 'sidebar.context', key: PANEL_ID, locale: 'aitp.research.sidebar', store,
-    inject: () => ({ checkSetup: true, showConversations: () => { ctx.layout.selectPanel(null) }, retry: face.retry }),
+    inject: (actions) => { navigation.bind(actions); return sidebarFace },
   }, WorkspaceSidebar))
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
     name: 'sidebar.panellist',

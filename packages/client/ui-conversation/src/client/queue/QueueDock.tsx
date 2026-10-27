@@ -107,14 +107,14 @@ export function QueueDock({ useSession, useProjection, updateQueue, notify, load
   const pendingSubmissions = useSession(s => s.pendingSubmissions)
   const queue = useMemo(() => {
     const rows = inbox?.['next-turn'] ?? EMPTY_QUEUE
-    const inChat = new Set(pendingSubmissions.filter(item => item.placement === 'transcript').map(item => item.requestId))
-    return inChat.size === 0 ? rows : rows.filter(({ source }) => (
-      source.kind !== 'user' || !('rpcId' in source) || !inChat.has(source.rpcId)
+    const inChat = new Set<string>(pendingSubmissions.filter(item => item.placement === 'transcript').map(item => item.requestId))
+    return inChat.size === 0 ? rows : rows.filter(({ source, id }) => (
+      !inChat.has(source.kind === 'user' && 'rpcId' in source ? source.rpcId : id)
     ))
   }, [inbox, pendingSubmissions])
   const pendingQueue = useMemo(() => {
-    const admitted = new Set(queue.flatMap(({ source }) => (
-      source.kind === 'user' && 'rpcId' in source ? [source.rpcId] : []
+    const admitted = new Set<string>(queue.map(({ source, id }) => (
+      source.kind === 'user' && 'rpcId' in source ? source.rpcId : id
     )))
     return pendingSubmissions.filter(submission => (
       submission.placement === 'queued' && !admitted.has(submission.requestId)

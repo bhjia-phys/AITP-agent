@@ -21,6 +21,10 @@ import { selectionSource } from './workspace-selection.ts'
 export type WorkspaceViewProps = ResearchPanelProps & {
   workspaceId: WorkspaceId
   navigate: (location: ResearchLocation) => void
+  /** Capture the current reading point before opening a library, then restore it when that library returns. */
+  libraryNavigation?: { readonly onLeave: () => void; readonly returnTo: () => void }
+  /** Open the shared discussion, or focus the compatibility composer supplied by an older host. */
+  focusQuestion?: () => void
 }
 
 type T = TranslateNS<'aitp.research'>
@@ -116,14 +120,19 @@ export function WorkStateLabel({ work, t }: { work: Pick<WorkSummary, 'state' | 
  * @param props - localized copy and the recorded answer, if any.
  * @returns the qualified answer or the explicit absence of one.
  */
-export function QualifiedAnswerView({ t, answer, topicId }: { t: T; answer: QualifiedAnswer | null; topicId: TopicId }): ReactNode {
+export function QualifiedAnswerView({ t, answer, topicId, qualificationLabel }: {
+  t: T
+  answer: QualifiedAnswer | null
+  topicId: TopicId
+  qualificationLabel?: string | undefined
+}): ReactNode {
   if (answer === null) return <p className={css.note}>{t('workspace.noAnswer')}</p>
   const sourceId = answer.attribution.sourceResourceIds.length === 1 ? answer.attribution.sourceResourceIds[0] : undefined
   return (
     <div className={css.answer} {...selectionSource(topicId, sourceId)}>
       <MarkdownText text={answer.text} labels={markdownLabels(t)} />
       {answer.qualification !== '' && <div className={css.qualification}>
-        <p className={css.label}>{t('workspace.limits')}</p>
+        <p className={css.label}>{qualificationLabel ?? t('workspace.limits')}</p>
         <MarkdownText text={answer.qualification} labels={markdownLabels(t)} />
       </div>}
     </div>
@@ -169,7 +178,7 @@ export function materialLocator(resource: Pick<ResourceReference, 'target'>): st
 }
 
 /**
- * Materials of one topic, each opening its reader.
+ * Materials of one topic, each opening its reader with that topic's question scope.
  * @param props - view callbacks, the current topic and its material references.
  * @returns the material rows, or the explicit absence of materials.
  */
@@ -180,7 +189,7 @@ export function MaterialLinks(props: Pick<WorkspaceViewProps, 't' | 'navigate'> 
 }): ReactNode {
   if (props.resources.length === 0) return <p className={css.note}>{props.t('workspace.noMaterials')}</p>
   return <ul className={css.materials}>{props.resources.map(resource => <li key={resource.id}>
-    <button type="button" className={css.materialLink} onClick={() => { props.navigate({ kind: 'resource', resourceId: resource.id, topicId: resource.ownerTopicId ?? props.topicId }) }}>
+    <button type="button" className={css.materialLink} onClick={() => { props.navigate({ kind: 'resource', resourceId: resource.id, topicId: props.topicId }) }}>
       <span className={css.materialKind}>{props.t(`workspace.material.${resource.kind}`)}</span><strong>{resource.title}</strong>
       {props.showLocator && <span className={css.materialPath}>{materialLocator(resource)}</span>}
     </button>

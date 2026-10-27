@@ -42,7 +42,8 @@
     "scripts/experimental-package-policy.ts",
     "scripts/*.client.spec.ts",
     "scripts/client-bundle-css.spec.ts",
-    "scripts/client-bundle-purity.spec.ts"
+    "scripts/client-bundle-purity.spec.ts",
+    "packages/client/ui-aitp-materials/tsdown.config.ts"
   ],
   // Host unit tests (`*.host.spec.ts`), e2e tests (`*.host.e2e.ts`), and fixtures
   // (`*.host.ts`) belong to the host aggregate, which excludes `*.client.*`
@@ -53,6 +54,11 @@
     "packages/client/*/tests/**/*.host.ts"
   ],
   "references": [
+    { "path": "./packages/client/ui-aitp-materials" },
+    { "path": "./packages/client/ui-aitp-study" },
+    { "path": "./packages/client/ui-aitp-literature" },
+    { "path": "./packages/client/ui-aitp-knowledge" },
+    { "path": "./packages/client/ui-aitp-code" },
     { "path": "./packages/client/ui-aitp-backend" },
     { "path": "./packages/experimental/client-ui-cot-translation/tsconfig.client.json" },
     { "path": "./packages/client/product-analytics/tsconfig.client.json" },

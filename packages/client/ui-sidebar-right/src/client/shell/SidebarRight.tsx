@@ -28,15 +28,14 @@
  * domain follows each session's store commits, including sessions off screen.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
-import type { CSSProperties, ReactNode, RefObject } from 'react'
+import type { ReactNode, RefObject } from 'react'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
-import { IconPanelLeftOutlineRegular, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime, PropsStore,
 } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '../contract/slots.ts'
-import type { DockIntents, DockMode, FloatRect, TabId, TabRecord, TabRenderer } from '@deepseek-ai/dsh-client-ui-dockkit'
-import { canSplit, dockPaneIds, DockLayout, findPaneContentTab } from '@deepseek-ai/dsh-client-ui-dockkit'
+import type { DockIntents, FloatRect, TabId, TabRecord, TabRenderer } from '@deepseek-ai/dsh-client-ui-dockkit'
+import { canSplit, dockPaneIds, findPaneContentTab } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { HalvesFit, LayoutState, PaneId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { GUIDE_KIND, pageAddress } from '../contract/seed.ts'
@@ -49,6 +48,7 @@ import type { TabOccurrence } from '../tab-domain.ts'
 import type { SidebarRightTabNavigation } from '../contract/slots.ts'
 import type { TabHookContext } from '../tab-info.ts'
 import css from './SidebarRight.module.css'
+import { SidebarPanelFrame } from './SidebarPanelFrame.tsx'
 
 /** The store share the seat receives. */
 type Store = PropsStore<ReturnType<typeof createSidebarRightStore>>
@@ -240,106 +240,25 @@ function titlesFor(panel: PanelProps): TabRenderer {
   return tab => <TabSlot key={tab.id} {...panel} tab={tab} seat="sidebar.right.pane.tab.title" fallback={tab.title} />
 }
 
-/** Expand-to-viewport glyph from the shared product artwork. */
-function FullscreenGlyph(): ReactNode {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M2.33203 10.4054V13.1681C2.33229 13.444 2.55605 13.6681 2.83203 13.6681H5.49512V14.6681H2.83203C2.00376 14.6681 1.33229 13.9963 1.33203 13.1681V10.4054H2.33203ZM14.6689 13.1681C14.6687 13.996 13.9968 14.6676 13.1689 14.6681H10.4951V13.6681H13.1689C13.4445 13.6676 13.6687 13.4437 13.6689 13.1681V10.4054H14.6689V13.1681ZM13.1689 1.33118C13.9969 1.33163 14.6688 2.00315 14.6689 2.83118V5.4054H13.6689V2.83118C13.6688 2.55544 13.4446 2.33162 13.1689 2.33118H10.4951V1.33118H13.1689ZM5.49512 2.33118H2.83203C2.55598 2.33118 2.33218 2.55516 2.33203 2.83118V5.4054H1.33203V2.83118C1.33218 2.00288 2.00369 1.33118 2.83203 1.33118H5.49512V2.33118Z" fill="currentColor" />
-    </svg>
-  )
-}
-
-/** Restore-from-fullscreen glyph from the shared product artwork. */
-function ExitFullscreenGlyph(): ReactNode {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path d="M9 2.5V6C9 6.26522 9.10536 6.51957 9.29289 6.70711C9.48043 6.89464 9.73478 7 10 7H13.5" stroke="currentColor" />
-      <path d="M7 13.5V10C7 9.73478 6.89464 9.48043 6.70711 9.29289C6.51957 9.10536 6.26522 9 6 9H2.5" stroke="currentColor" />
-    </svg>
-  )
-}
-
-/** The panel's two controls, placed by the kit at the top-right pane's strip end. */
-function PanelChrome({ sessionId, fullscreen, actions, t, shortcuts, toggleFullscreen }: Pick<PanelProps, 'sessionId' | 'actions' | 't' | 'fullscreen' | 'shortcuts' | 'toggleFullscreen'>): ReactNode {
-  const next: DockMode = fullscreen ? 'push' : 'fullscreen'
-  const modeLabel = fullscreen ? t('chrome.exitFullscreen') : t('chrome.toFullscreen')
-  const mode = shortcuts.find(entry => entry.id === 'pane.fullscreen.toggle')
-  const toggle = shortcuts.find(entry => entry.id === 'sidebar.right.toggle')
-  return (
-    <>
-      <Tooltip label={modeLabel} shortcutKeys={mode?.keys} side="bottom" delayMs={500}>
-        <button
-          type="button"
-          className={css.iconButton}
-          aria-label={modeLabel}
-          aria-keyshortcuts={mode?.aria}
-          data-sidebar-right-mode={next}
-          onClick={toggleFullscreen}
-        >
-          {fullscreen ? <ExitFullscreenGlyph /> : <FullscreenGlyph />}
-        </button>
-      </Tooltip>
-      <Tooltip label={t('chrome.collapse')} shortcutKeys={toggle?.keys} side="bottom" delayMs={500}>
-        <button
-          type="button"
-          className={css.iconButton}
-          aria-label={t('chrome.collapseAria')}
-          aria-keyshortcuts={toggle?.aria}
-          data-sidebar-right-toggle
-          onClick={() => { actions.toggleExpanded(sessionId) }}
-        >
-          <IconPanelLeftOutlineRegular className={css.collapseGlyph} />
-        </button>
-      </Tooltip>
-    </>
-  )
-}
-
-/**
- * The panel: the docked surface with the two controls in its top-right strip,
- * anchored to the frame's right edge and slid off it while collapsed.
- */
+/** The ordinary Session adapter supplies its existing slots and intents to the shared native frame. */
 function SidebarPanel(panel: PanelProps & { width: number; panelRef: RefObject<HTMLDivElement> }): ReactNode {
   const { sessionId, surface, actions, t, renderSlot, openTab, width, reportRoom, fullscreen, panelRef } = panel
-  const { expanded } = surface.layout
   const types = panel.useTabTypes(value => value)
-  return (
-    <div
-      ref={panelRef}
-      className={css.panel}
-      style={{ width: fullscreen ? '100vw' : width,
-        '--dsh-sidebar-width': fullscreen ? '100vw' : `${width}px` } as CSSProperties}
-      data-sidebar-right-session={sessionId}
-      data-sidebar-right-panel={fullscreen ? 'fullscreen' : 'push'}
-      data-sidebar-right-open={expanded || undefined}
-      // Dockkit hides individual docked hosts; floating descendants remain accessible.
-      aria-hidden={(!expanded && surface.layout.floats.length === 0) || undefined}
-    >
-      <div className={css.panelBody}>
-        <DockLayout
-          state={surface.layout}
-          canSplit={canSplit(surface.layout) && dockPaneIds(surface.layout).length < 2}
-          dropZones="horizontal"
-          minPaneFraction={0.2}
-          canAddTab={paneId => guideIn(surface.layout, paneId) === undefined}
-          canCloseTab={tabId => canCloseTab(surface, tabId)}
-          intents={intentsFor(sessionId, actions, openTab, panel.closeTab, panel.splitPane)}
-          labels={dockLabels(t, panel.shortcuts.find(entry => entry.id === 'pane.split'), panel.shortcuts.find(entry => entry.id === 'page.close'))}
-          renderTab={bodiesFor(panel)}
-          renderTabTitle={titlesFor(panel)}
-          active={panel.active}
-          keepMounted={tab => types.find(type => type.kind === tab.kind)?.keepMounted === true}
-          renderTabMenuItems={(tab, dismiss) =>
-            renderSlot('sidebar.right.tab.menu.item', { tab, dismiss })}
-          chrome={<PanelChrome
-            sessionId={sessionId} fullscreen={fullscreen} actions={actions} t={t}
-            shortcuts={panel.shortcuts} toggleFullscreen={panel.toggleFullscreen}
-          />}
-          onRoom={reportRoom}
-        />
-      </div>
-    </div>
-  )
+  return <SidebarPanelFrame sessionId={sessionId} width={width} fullscreen={fullscreen} panelRef={panelRef}
+    t={t} shortcuts={panel.shortcuts} toggleFullscreen={panel.toggleFullscreen}
+    collapse={() => { actions.toggleExpanded(sessionId) }} dock={{
+      state: surface.layout,
+      canSplit: canSplit(surface.layout) && dockPaneIds(surface.layout).length < 2,
+      dropZones: 'horizontal', minPaneFraction: 0.2,
+      canAddTab: paneId => guideIn(surface.layout, paneId) === undefined,
+      canCloseTab: tabId => canCloseTab(surface, tabId),
+      intents: intentsFor(sessionId, actions, openTab, panel.closeTab, panel.splitPane),
+      labels: dockLabels(t, panel.shortcuts.find(entry => entry.id === 'pane.split'), panel.shortcuts.find(entry => entry.id === 'page.close')),
+      renderTab: bodiesFor(panel), renderTabTitle: titlesFor(panel), active: panel.active,
+      keepMounted: tab => types.find(type => type.kind === tab.kind)?.keepMounted === true,
+      renderTabMenuItems: (tab, dismiss) => renderSlot('sidebar.right.tab.menu.item', { tab, dismiss }),
+      onRoom: reportRoom,
+    }} />
 }
 
 /**

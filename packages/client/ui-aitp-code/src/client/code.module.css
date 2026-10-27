@@ -1,0 +1,54 @@
+.catalog { min-width: 0; }
+.repositories { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.repository { min-width: 0; padding: 20px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-lg); }
+.repositoryHeading { display: flex; align-items: center; gap: 10px; }
+.repositoryHeading svg, .fileRow svg, .branch svg { flex: none; color: var(--dsw-alias-label-secondary); }
+.link, .fileName, .breadcrumbs button { min-width: 0; border: 0; padding: 0; font: inherit; color: inherit; background: transparent; text-align: start; overflow-wrap: anywhere; cursor: pointer; }
+.link { font-size: 16px; font-weight: 500; }
+.path { margin: 10px 0 16px; color: var(--dsw-alias-label-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.facts, .branch, .repositoryBar, .tabs, .diffScope { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.facts { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.branch { gap: 5px; overflow-wrap: anywhere; }
+.repositoryBar { justify-content: space-between; margin: 0 0 12px; }
+.breadcrumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 18px; font-size: 13px; line-height: 1.7; }
+.breadcrumbs > span, .crumb > span { color: var(--dsw-alias-label-tertiary); }
+.crumb { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.fileTable { border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-lg); overflow: hidden; }
+.fileRow, .statusRow { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
+.fileRow:last-child, .statusRow:last-child { border-bottom: 0; }
+.fileRow input, .selectionSpace { width: 14px; height: 14px; flex: none; margin: 0; }
+.fileName { flex: 1; font-size: 13px; line-height: 1.6; }
+.fileRoot { display: block; color: var(--dsw-alias-label-secondary); font-size: 12px; margin-top: 2px; }
+.fileState { color: var(--dsw-alias-label-secondary); font-size: 12px; flex: none; }
+.parent { width: 100%; padding: 12px 16px; border: 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); font: inherit; text-align: start; color: var(--dsw-alias-label-secondary); background: transparent; cursor: pointer; }
+.empty { padding: 24px 16px; margin: 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.8; }
+.readerHeading { margin-bottom: 24px; }
+.readerHeading h2 { margin: 6px 0 12px; font-size: 22px; line-height: 1.5; font-weight: 500; overflow-wrap: anywhere; }
+.readerHeading > .branch { color: var(--dsw-alias-label-secondary); font-size: 13px; }
+.eyebrow { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.details { margin-top: 14px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.details summary { cursor: pointer; width: fit-content; }
+.details dl { margin: 14px 0 0; display: grid; gap: 10px; }
+.details dt { margin-bottom: 3px; }
+.details dd { margin: 0; overflow-wrap: anywhere; color: var(--dsw-alias-label-primary); }
+.reader { min-width: 0; }
+.tabs { gap: 4px; padding-bottom: 12px; margin-bottom: 16px; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
+.diffScope { margin: 0 0 14px; gap: 6px; }
+.revision { font-family: var(--ds-font-family-code); font-size: 12px; }
+.source { margin: 0; max-width: 100%; }
+.note { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.7; margin: 0 0 12px; }
+.commit { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
+.commit > div { min-width: 0; }
+.commit p { margin: 0 0 6px; overflow-wrap: anywhere; font-size: 13px; }
+.commit time { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.link:focus-visible, .fileName:focus-visible, .parent:focus-visible, .breadcrumbs button:focus-visible { outline: 2px solid var(--dsw-focus-ring-color); outline-offset: 4px; border-radius: var(--dsw-radius-sm); }
+@media (hover: hover) {
+  .link:hover, .fileName:hover, .breadcrumbs button:hover { text-decoration: underline; }
+  .fileRow:hover, .parent:hover { background: var(--dsw-alias-interactive-bg-hover); }
+}
+@media (max-width: 600px) {
+  .fileRow, .statusRow { padding: 12px; gap: 8px; flex-wrap: wrap; }
+  .fileRow .fileName { flex-basis: calc(100% - 70px); }
+  .fileState { margin-inline-start: auto; }
+  .commit { flex-wrap: wrap; }
+}

@@ -4,15 +4,21 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
+import { brandString } from '@deepseek-ai/dsh-brand'
+import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller/types'
+import ResearchResources from '@deepseek-ai/dsh-research-resources'
+import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import { mountAgentLoopTestDependencies } from '@deepseek-ai/dsh-agent-loop-testkit'
 import { createUserMessage, LlmAdapter, ToolCallId, type GenerateOptions, type StreamChunk } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
+import SandboxPolicy from '@deepseek-ai/dsh-sandbox-policy'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import * as JsonlPersistence from '@deepseek-ai/dsh-session-persistence-jsonl'
 import ExactSessionQuery from './fixtures/runtime/query-plugin.ts'
 import ResearchMemory from '../src/index.ts'
+import { promptAdmission } from './fixtures/admission.ts'
 import { topicIdForPath, resourceIdForPath } from '../src/markdown.ts'
 
 const disposers: (() => Promise<unknown>)[] = []
@@ -22,9 +28,26 @@ const signal = (): AbortSignal => new AbortController().signal
 
 class Capture extends LlmAdapter {
   requests: GenerateOptions[] = []
+  writeNext = false
+  private writeStage = 0
   constructor(private readonly readContextFirst = false) { super() }
   override async *stream(options: GenerateOptions): AsyncIterable<StreamChunk> {
     this.requests.push(options)
+    if (this.writeNext && this.writeStage < 2) {
+      const preparing = this.writeStage++ === 0
+      const operationId = /Operation ([0-9a-f-]+): prepared/.exec(JSON.stringify(options.messages))?.[1]
+      if (!preparing && operationId === undefined) throw new Error('Prepared receipt did not reach the actual model request.')
+      yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+      yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId(preparing ? 'prepare-record' : 'apply-record'),
+        name: preparing ? 'research_prepare_change' : 'research_apply_change', arguments: JSON.stringify(preparing ? {
+          disposition: 'edit', rationale: 'Retain the explicit human finite-system correction.', edits: [{
+            resourceId: resourceIdForPath('a/research.md'), originalText: 'Finite systems only.',
+            replacementText: 'Finite N=6 only, pending the boundary control.', rationale: 'Keep the boundary condition.', sourceRefs: [],
+          }], remainingUses: ['The parent implication remains unresolved.'],
+        } : { operationId }) } }
+      yield { type: 'finish', reason: { kind: 'tool-calls' } }
+      return
+    }
     if (this.readContextFirst && this.requests.length === 1) {
       yield { type: 'block-start', index: 0, blockType: 'tool-call' }
       yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId('read-owning-topic'), name: 'research_read_context', arguments: '{}' } }
@@ -37,9 +60,10 @@ class Capture extends LlmAdapter {
   }
 }
 
-async function fixture(readContextFirst = false) {
+async function fixture(readContextFirst = false, writable = false) {
   const path = await mkdtemp(join(tmpdir(), 'research-service-'))
   disposers.push(() => rm(path, { recursive: true, force: true }))
+  disposers.push(() => rm(`${path}-receipts`, { recursive: true, force: true }))
   await mkdir(join(path, 'a'))
   await mkdir(join(path, 'b'))
   await writeFile(join(path, 'research.md'), '# Project\nGlobal question.\n## Topics\n[A](a/research.md)\n[B](b/research.md)\n')
@@ -49,6 +73,9 @@ async function fixture(readContextFirst = false) {
   const ctx = new Context()
   disposers.push(() => ctx.fiber.dispose())
   await mountAgentLoopTestDependencies(ctx)
+  if (writable) await ctx.plugin(SandboxPolicy, { mode: 'workspace-write', workspaceRoot: path })
+  await ctx.plugin(TypertRegistry)
+  await ctx.plugin(ExactSessionQuery)
   const loop = await ctx.plugin(AgentLoop, { agents: [] })
   const model = new Capture(readContextFirst)
   ctx.llm.registerAdapter(['capture'], model)
@@ -57,8 +84,8 @@ async function fixture(readContextFirst = false) {
     const agent = await ctx.agentLoop.create(SessionId(`service-${create.mock.calls.length}`), { provider: 'capture', model: 'capture' }, { cwd: path })
     return { sessionId: agent.id }
   })
-  ctx.provide('sessionController', { create } as never)
-  const service = new ResearchMemory(ctx, ResearchMemory.Config({ roots: [{ path, id: workspaceId, writable: false }] }))
+  ctx.provide('sessionController', { create, ...promptAdmission(ctx) } as never)
+  const service = new ResearchMemory(ctx, ResearchMemory.Config({ roots: [{ path, id: workspaceId, writable, stateDirectory: `${path}-receipts` }] }))
   return { service, ctx, path, create, model, loop }
 }
 
@@ -120,7 +147,6 @@ it('supports project-root questions, cancels before admission, and names its wor
 it('reads memory from a persisted cold Session without creating an Agent, and keeps ordinary Sessions empty', async () => {
   const { service, ctx, path, create, loop } = await fixture()
   await ctx.plugin(JsonlPersistence, { root: join(path, '.sessions'), compression: 'none' })
-  await ctx.plugin(ExactSessionQuery)
   const unbound = ctx.sessions.create(SessionId('ordinary-memory-reader'), { meta: { cwd: path } })
   expect(await service.getSessionMemory({ sessionId: unbound.id }, signal())).toEqual({ ok: true, value: null })
   expect(create).not.toHaveBeenCalled()
@@ -142,7 +168,6 @@ it('reads memory from a persisted cold Session without creating an Agent, and ke
 
 it('rejects non-owner memory reads and research scopes outside configured roots', async () => {
   const { service, ctx, path } = await fixture()
-  await ctx.plugin(ExactSessionQuery)
   const session = ctx.sessions.create(SessionId('outside-research-root'), { meta: { cwd: path } })
   session.append('user/message', createUserMessage({ source: { kind: 'aitp-research', actor: 'human',
     origin: { workspaceId: 'not-configured', topicId: 'other' } }, content: [{ type: 'text', text: 'Private other-root question.' }] }), { surfaceOp: 'append' })
@@ -150,7 +175,45 @@ it('rejects non-owner memory reads and research scopes outside configured roots'
   const caller = ctx.extend({ invocation: { peer: { principal: { kind: 'external-test-reader' } } } })
   const observe = vi.spyOn(ctx.sessionQuery, 'observeSession')
   await expect(caller.researchMemory.getSessionMemory({ sessionId: session.id }, signal())).rejects.toThrow('available to the workspace owner')
+  await expect(caller.researchMemory.ask({ workspaceId, sessionId: session.id, question: 'Unauthorized continuation' }, signal())).rejects.toThrow('available to the workspace owner')
+  await expect(caller.researchMemory.listDiscussions({ workspaceId }, signal())).rejects.toThrow('available to the workspace owner')
   expect(observe).not.toHaveBeenCalled()
+})
+
+it('inspects only the owning conversation actual write receipt with immutable before/after and separate current bytes', async () => {
+  const { service, ctx, model, path, create } = await fixture(false, true)
+  model.writeNext = true
+  const asked = await service.ask({ workspaceId, topicId: topicIdForPath('a/research.md'),
+    question: 'Correct this isolated record: retain finite N=6 and the missing boundary control.' }, signal())
+  if (!asked.ok) throw new Error(asked.error.message)
+  const agent = ctx.agents.get(asked.value.sessionId)!
+  await agent.whenIdle()
+  const write = ctx.sessionProjections.stateOf(agent.session, 'researchWorking')?.writes.find(item => item.state === 'applied')
+  if (write === undefined) throw new Error(`A real source write was not applied: ${JSON.stringify(model.requests.at(-1)?.messages)}`)
+  const request = { workspaceId, sessionId: agent.id, operationId: write.operationId }
+  const inspected = await service.getChange(request, signal())
+  expect(inspected).toMatchObject({ ok: true, value: { ...request, state: 'applied', completeness: 'complete',
+    files: [{ relativePath: 'a/research.md', state: 'applied', current: { state: 'matches-planned-output' } }],
+    remainingUses: ['The parent implication remains unresolved.'], omittedFiles: 0, omittedDiffs: 0, omittedUses: 0,
+  } })
+  if (!inspected.ok) throw new Error(inspected.error.message)
+  expect(inspected.value.files[0]?.beforeText).toContain('Finite systems only.')
+  expect(inspected.value.files[0]?.afterText).toContain('Finite N=6 only, pending the boundary control.')
+  await writeFile(join(path, 'a/research.md'), '# External subsequent edit\nKeep the later editor change.\n')
+  expect(await service.getChange(request, signal())).toMatchObject({ ok: true, value: { state: 'applied',
+    files: [{ beforeText: inspected.value.files[0]?.beforeText, afterText: inspected.value.files[0]?.afterText,
+      current: { state: 'different' } }],
+  } })
+  const other = await service.ask({ workspaceId, topicId: topicIdForPath('b/research.md'), question: 'Independent discussion.' }, signal())
+  if (!other.ok) throw new Error(other.error.message)
+  await ctx.agents.get(other.value.sessionId)!.whenIdle()
+  expect(await service.getChange({ ...request, sessionId: other.value.sessionId }, signal()))
+    .toMatchObject({ ok: false, error: { code: 'permission-denied' } })
+  expect(await service.getChange({ ...request, workspaceId: brandString<WorkspaceId>('other') }, signal()))
+    .toMatchObject({ ok: false, error: { code: 'permission-denied' } })
+  const caller = ctx.extend({ invocation: { peer: { principal: { kind: 'external-test-reader' } } } })
+  await expect(caller.researchMemory.getChange(request, signal())).rejects.toThrow('available to the workspace owner')
+  expect(create).toHaveBeenCalledTimes(2)
 })
 
 it.each([
@@ -214,4 +277,154 @@ it('delivers usable source locators and topic evidence despite an unreadable aut
   expect(delivered).toContain('[resource:a%2Fresearch.md]')
   expect(delivered).toContain('Unavailable source:')
   expect(delivered).not.toContain('A source must have a normalized relative path')
+})
+
+
+it('continues the exact direction with immutable per-message origins and native retry identities', async () => {
+  const { service, ctx, create, model } = await fixture()
+  const topicId = topicIdForPath('a/research.md')
+  const first = await service.ask({ workspaceId, topicId, resourceId: resourceIdForPath('a/research.md'), question: 'First exact question.' }, signal())
+  if (!first.ok) throw new Error(first.error.message)
+  const sessionId = first.value.sessionId
+  const agent = ctx.agents.get(sessionId)!
+  await agent.whenIdle()
+  const request = { workspaceId, topicId, sessionId, requestId: brandString<SessionRequestId>('second-research-input'),
+    mode: 'steer' as const, resourceId: resourceIdForPath('shared.md'), selectedText: 'The unresolved condition.',
+    question: 'UNTRUSTED_DIFFERENT_SEARCH_TEXT', content: [{ type: 'text' as const, text: 'Actual composer follow-up.' }] }
+  expect(await service.ask(request, signal())).toEqual({ ok: true, value: { sessionId } })
+  await agent.whenIdle()
+  expect(await service.ask(request, signal())).toEqual({ ok: true, value: { sessionId } })
+  await agent.whenIdle()
+  expect(create).toHaveBeenCalledTimes(1)
+  expect(model.requests).toHaveLength(2)
+  expect(JSON.stringify(model.requests.at(-1))).not.toContain('UNTRUSTED_DIFFERENT_SEARCH_TEXT')
+  const accepted = agent.session.snapshotEvents().filter(event => event.type === 'user/message')
+    .filter(event => event.data.source.kind === 'aitp-research')
+  expect(accepted).toHaveLength(2)
+  expect(accepted[0]?.data.source).toMatchObject({ kind: 'aitp-research', origin: { resourceId: resourceIdForPath('a/research.md') } })
+  expect(accepted[1]?.data).toMatchObject({ id: 'second-research-input', source: { kind: 'aitp-research', origin: { resourceId: resourceIdForPath('shared.md') } } })
+  expect(accepted[1]?.data.source).not.toHaveProperty('origin.sessionId')
+  await expect(service.ask({ ...request, topicId: topicIdForPath('b/research.md'), requestId: brandString<SessionRequestId>('wrong-direction') }, signal()))
+    .rejects.toMatchObject({ code: 'research/session-unavailable' })
+  expect(model.requests).toHaveLength(2)
+})
+
+it('binds only an explicit same-Workspace blank discussion and refuses unrelated ordinary history', async () => {
+  const { service, ctx, path, create, model } = await fixture()
+  const blank = await ctx.agentLoop.create(SessionId('explicit-blank'), { provider: 'capture', model: 'capture' }, { cwd: path })
+  const other = await ctx.agentLoop.create(SessionId('foreign-blank'), { provider: 'capture', model: 'capture' }, { cwd: join(path, 'b') })
+  const ordinary = await ctx.agentLoop.create(SessionId('ordinary-history'), { provider: 'capture', model: 'capture' }, { cwd: path })
+  ordinary.session.append('user/message', createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'Prior unrelated discussion.' }] }), { surfaceOp: 'append' })
+  const request = { workspaceId, topicId: topicIdForPath('a/research.md'), question: 'First real input.' }
+  for (const agent of [other, ordinary]) await expect(service.ask({ ...request, sessionId: agent.id }, signal()))
+    .rejects.toMatchObject({ code: 'research/session-unavailable' })
+  expect(model.requests).toHaveLength(0)
+  expect(await service.ask({ ...request, sessionId: blank.id }, signal())).toMatchObject({ ok: true, value: { sessionId: blank.id } })
+  await blank.whenIdle()
+  expect(create).not.toHaveBeenCalled()
+  expect(model.requests).toHaveLength(1)
+})
+
+it('lists live and durable discussions by exact topic with fresh titles and honest bounds, without activating cold Agents', async () => {
+  const { service, ctx, path, create, loop } = await fixture()
+  await ctx.plugin(JsonlPersistence, { root: join(path, '.sessions'), compression: 'none' })
+  const topicId = topicIdForPath('a/research.md')
+  const ids = []
+  for (const selected of [topicId, topicIdForPath('b/research.md'), topicId]) {
+    const result = await service.ask({ workspaceId, topicId: selected, question: `Question for ${selected}` }, signal())
+    if (!result.ok) throw new Error(result.error.message)
+    const agent = ctx.agents.get(result.value.sessionId)!
+    await agent.whenIdle()
+    agent.session.append('session/title', { title: `Actual title ${ids.length}`, source: { kind: 'user' }, messageSeqs: [] })
+    await ctx.sessions.flush(agent.session)
+    ids.push(agent.id)
+  }
+  const live = await service.listDiscussions({ workspaceId, topicId }, signal())
+  if (!live.ok) throw new Error(live.error.message)
+  expect(live.value.completeness).toBe('complete')
+  expect(live.value.items.map(item => item.sessionId).sort()).toEqual([ids[0], ids[2]].sort())
+  expect(live.value.items.map(item => item.title).sort()).toEqual(['Actual title 0', 'Actual title 2'])
+  expect(live.value.items.every(item => !item.busy)).toBe(true)
+  expect(await service.listDiscussions({ workspaceId, topicId, limit: 1 }, signal())).toMatchObject({ ok: true, value: { completeness: 'partial', items: [expect.anything()] } })
+  expect(await service.listDiscussions({ workspaceId }, signal())).toMatchObject({ ok: true, value: { completeness: 'complete', items: [] } })
+  await loop.dispose()
+  const observed = vi.spyOn(ctx.sessionQuery, 'observeSession')
+  const cold = await service.listDiscussions({ workspaceId, topicId }, signal())
+  expect(cold).toEqual(live)
+  const calls = observed.mock.calls.length
+  expect(await service.listDiscussions({ workspaceId, topicId }, signal())).toEqual(cold)
+  expect(observed).toHaveBeenCalledTimes(calls)
+  for (const id of ids) expect(ctx.agents.get(id)).toBeUndefined()
+  expect(create).toHaveBeenCalledTimes(3)
+})
+
+it('explicitly refreshes material readers after confirmed writes and retains the file outcome if notification fails', async () => {
+  const { service, ctx } = await fixture(false, true)
+  await ctx.plugin(ResearchResources, { roots: [] })
+  await ctx.fiber.await()
+  const topicId = topicIdForPath('a/research.md')
+  const topic = await service.getTopic({ workspaceId, topicId }, signal())
+  if (!topic.ok) throw new Error(topic.error.message)
+  const refresh = vi.spyOn(ctx.researchResources, 'refresh')
+  const preview = await service.previewChange({ workspaceId, intent: { topicId, expectedRevision: topic.value.revision,
+    command: { kind: 'update-scope', scope: 'Finite systems only, with convention A.' } } })
+  if (!preview.ok) throw new Error(preview.error.message)
+  refresh.mockRejectedValueOnce(new Error('Materials bridge interrupted after write.'))
+  const applied = await service.applyChange({ workspaceId, request: { previewId: preview.value.value.previewId, operationId: 'explicit-write-refresh' } })
+  expect(applied.ok).toBe(true)
+  if (!applied.ok) throw new Error(applied.error.message)
+  expect(applied.value.value.notificationWarning).toContain('file outcome is recorded')
+  expect(refresh).toHaveBeenCalledTimes(1)
+  expect(refresh.mock.calls[0]?.[0]).toHaveProperty('rootId')
+  const readback = await service.getTopic({ workspaceId, topicId }, signal())
+  expect(readback.ok && readback.value.value.scope).toContain('convention A')
+  const stale = await service.applyChange({ workspaceId, request: { previewId: 'missing-preview', operationId: 'failed-write-refresh' } })
+  expect(stale.ok).toBe(false)
+  expect(refresh).toHaveBeenCalledTimes(1)
+})
+
+
+it('rechecks a blank discussion after concurrent attachment admission before binding its first direction', async () => {
+  const { service, ctx, path, model } = await fixture()
+  const agent = await ctx.agentLoop.create(SessionId('racing-blank'), { provider: 'capture', model: 'capture' }, { cwd: path })
+  const original = ctx.attachments.admitPromptContent.bind(ctx.attachments)
+  const release: (() => void)[] = []
+  const admission = vi.spyOn(ctx.attachments, 'admitPromptContent').mockImplementation(async (content) => {
+    const admitted = await original(content)
+    await new Promise<void>((resolve) => { release.push(resolve) })
+    return admitted
+  })
+  const settled = Promise.allSettled(['a', 'b'].map(direction => service.ask({ workspaceId, sessionId: agent.id,
+    topicId: topicIdForPath(`${direction}/research.md`), question: `Question from ${direction}` }, signal())))
+  await vi.waitFor(() => { expect(admission).toHaveBeenCalledTimes(2) })
+  for (const resolve of release) resolve()
+  const results = await settled
+  expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1)
+  expect(results.filter(result => result.status === 'rejected')).toHaveLength(1)
+  await agent.whenIdle()
+  expect(model.requests).toHaveLength(1)
+  const accepted = agent.session.snapshotEvents().filter(event => event.type === 'user/message' && event.data.source.kind === 'aitp-research')
+  expect(accepted).toHaveLength(1)
+})
+
+it('resumes the exact persisted discussion through Session authority and retains its original human context', async () => {
+  const { service, ctx, path, loop, create, model } = await fixture()
+  await ctx.plugin(JsonlPersistence, { root: join(path, '.sessions'), compression: 'none' })
+  ctx.provide('agentDefaultModel', { currentSelection: () => ({ provider: 'capture', model: 'capture' }), saveSelection: async () => {} } as never)
+  const request = { workspaceId, topicId: topicIdForPath('a/research.md'), question: 'PERSISTED_EXACT_HUMAN_BOUNDARY' }
+  const first = await service.ask(request, signal())
+  if (!first.ok) throw new Error(first.error.message)
+  const original = ctx.agents.get(first.value.sessionId)!
+  await original.whenIdle()
+  await ctx.sessions.flush(original.session)
+  await loop.dispose()
+  expect(ctx.agents.get(first.value.sessionId)).toBeUndefined()
+  await ctx.plugin(AgentLoop, { agents: [] })
+  const resumed = await service.ask({ ...request, sessionId: first.value.sessionId, question: 'Continue that same research direction.' }, signal())
+  expect(resumed).toEqual(first)
+  const agent = ctx.agents.get(first.value.sessionId)!
+  expect(agent).not.toBe(original)
+  await agent.whenIdle()
+  expect(JSON.stringify(model.requests.at(-1))).toContain('PERSISTED_EXACT_HUMAN_BOUNDARY')
+  expect(create).toHaveBeenCalledTimes(1)
 })

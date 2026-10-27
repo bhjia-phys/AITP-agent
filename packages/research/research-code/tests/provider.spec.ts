@@ -1,0 +1,132 @@
+import { Context } from '@deepseek-ai/cordis'
+import ResearchResources, { sourceIdForPath } from '@deepseek-ai/dsh-research-resources'
+import type { ResourceResult } from '@deepseek-ai/dsh-research-resources'
+import { readFile, rm, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { Config, createCodeProvider } from '../src/index.ts'
+import { createCheckoutFixture } from './fixture.ts'
+
+const cleanup: (() => Promise<unknown>)[] = []
+afterEach(async () => { for (const dispose of cleanup.splice(0).reverse()) await dispose() })
+const signal = (): AbortSignal => new AbortController().signal
+function value<T>(result: ResourceResult<T>): T {
+  if (!result.ok) throw new Error(result.error.message)
+  return result.value
+}
+
+async function fixture() {
+  const checkout = await createCheckoutFixture()
+  cleanup.push(checkout.dispose)
+  const ctx = new Context()
+  cleanup.push(() => ctx.fiber.dispose())
+  const service = new ResearchResources(ctx, {})
+  const root = await service.registerRoot({ id: 'checkout', path: checkout.root, domains: ['code'] })
+  service.registerProvider(createCodeProvider(Config({ gitTimeoutMs: 5000 })))
+  return { ...checkout, service, sourceRoot: root.rootId }
+}
+
+describe('checkout source readings', () => {
+  it('retains the actual commit behind a movable revision and later reopens the same source', async () => {
+    const { service, root, git, sourceRoot } = await fixture()
+    const ref = { rootId: sourceRoot, sourceId: sourceIdForPath('model.py') }
+    const first = value(await service.readResource({ ref, locator: { kind: 'code', startLine: 1, endLine: 1, revision: 'HEAD' } }, signal()))
+    expect(first.body).toMatchObject({ kind: 'text', format: 'code', text: 'original condition\n', startLine: 1, endLine: 1 })
+    if (first.locator?.kind !== 'code' || first.locator.revision === undefined) throw new Error('The observed commit was not retained.')
+    expect(first.locator.revision).toMatch(/^[a-f0-9]{40,64}$/)
+    expect(first.locator.revision).not.toBe('HEAD')
+    await writeFile(join(root, 'model.py'), 'later condition\nsecond line\n')
+    await git('add', 'model.py')
+    await git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--no-gpg-sign', '-qm', 'Later model')
+    const reopened = value(await service.readResource({ ref, locator: first.locator }, signal()))
+    expect(reopened.body).toMatchObject({ text: 'original condition\n', revision: first.locator.revision })
+    expect(value(await service.readResource({ ref, locator: { kind: 'code', startLine: 1, endLine: 1 } }, signal())).body)
+      .toMatchObject({ text: 'later condition\n', revision: 'working-tree' })
+  })
+
+  it('keeps staged and unstaged changes distinct and preserves exact line endings', async () => {
+    const { service, root, git, sourceRoot } = await fixture()
+    await writeFile(join(root, 'model.py'), 'staged condition\r\nsecond line\r\n')
+    await git('add', 'model.py')
+    await writeFile(join(root, 'model.py'), 'working condition\r\nsecond line\r\n')
+    const index = await readFile(join(root, '.git/index'))
+    const page = value(await service.listResources({ domain: 'code' }, signal()))
+    const checkout = page.items.find(item => item.metadata.entryKind === 'checkout')
+    if (checkout === undefined) throw new Error('The actual checkout was not listed.')
+    const staged = value(await service.readResource({ ref: checkout.ref, locator: { kind: 'git', view: 'diff', scope: 'staged' } }, signal()))
+    const working = value(await service.readResource({ ref: checkout.ref, locator: { kind: 'git', view: 'diff', scope: 'working-tree' } }, signal()))
+    expect(staged.body.kind).toBe('text')
+    expect(working.body.kind).toBe('text')
+    if (staged.body.kind === 'text') expect(staged.body.text).toContain('+staged condition')
+    if (working.body.kind === 'text') expect(working.body.text).toContain('+working condition')
+    const ref = { rootId: sourceRoot, sourceId: sourceIdForPath('model.py') }
+    expect(value(await service.readResource({ ref, locator: { kind: 'code', startLine: 2, endLine: 2 } }, signal())).body)
+      .toMatchObject({ text: 'second line\r\n' })
+    expect(value(await service.readResource({ ref, locator: { kind: 'code', startLine: 3, endLine: 3 } }, signal())).body)
+      .toMatchObject({ kind: 'unavailable', reason: 'missing' })
+    expect(await readFile(join(root, '.git/index'))).toEqual(index)
+  })
+
+  it('keeps a selected file inside its own Git diff and status rather than switching to another file or the whole checkout', async () => {
+    const { service, root, git, sourceRoot } = await fixture()
+    await writeFile(join(root, 'other.py'), 'original unrelated source\n')
+    await git('add', 'other.py')
+    await git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--no-gpg-sign', '-qm', 'Other source')
+    await writeFile(join(root, 'model.py'), 'selected A changed\n')
+    await writeFile(join(root, 'other.py'), 'UNSELECTED_B_CONTENT\n')
+    const ref = { rootId: sourceRoot, sourceId: sourceIdForPath('model.py') }
+    for (const path of [undefined, 'model.py']) {
+      const reading = value(await service.readResource({ ref, locator: { kind: 'git', view: 'diff',
+        ...(path === undefined ? {} : { path }) } }, signal()))
+      expect(reading.body).toMatchObject({ kind: 'text' })
+      if (reading.body.kind !== 'text') throw new Error('The selected file diff is unavailable.')
+      expect(reading.body.text).toContain('+selected A changed')
+      expect(reading.body.text).not.toContain('UNSELECTED_B_CONTENT')
+      expect(reading.body.text).not.toContain('other.py')
+    }
+    const escaped = value(await service.readResource({ ref, locator: { kind: 'git', view: 'diff', path: 'other.py' } }, signal()))
+    expect(escaped.body).toMatchObject({ kind: 'unavailable', reason: 'unsupported' })
+    const status = value(await service.readResource({ ref, locator: { kind: 'git', view: 'status' } }, signal()))
+    if (status.body.kind !== 'text') throw new Error('The selected file status is unavailable.')
+    expect(status.body.text).toContain('model.py')
+    expect(status.body.text).not.toContain('other.py')
+    const checkout = value(await service.listResources({ domain: 'code' }, signal())).items.find(item => item.metadata.entryKind === 'checkout')
+    if (checkout === undefined) throw new Error('The explicit checkout source is unavailable.')
+    const full = value(await service.readResource({ ref: checkout.ref, locator: { kind: 'git', view: 'diff' } }, signal()))
+    if (full.body.kind !== 'text') throw new Error('The explicit checkout diff is unavailable.')
+    expect(full.body.text).toContain('UNSELECTED_B_CONTENT')
+  })
+
+  it('does not attach an ignored historical revision to current checkout status or diffs', async () => {
+    const { service, root, sourceRoot } = await fixture()
+    await writeFile(join(root, 'model.py'), 'current modified condition\n')
+    const ref = { rootId: sourceRoot, sourceId: sourceIdForPath('model.py') }
+    for (const locator of [
+      { kind: 'git' as const, view: 'status' as const, revision: 'HEAD' },
+      { kind: 'git' as const, view: 'diff' as const, scope: 'working-tree' as const, revision: 'HEAD' },
+      { kind: 'git' as const, view: 'diff' as const, scope: 'staged' as const, revision: 'HEAD' },
+    ]) expect(value(await service.readResource({ ref, locator }, signal())).body)
+      .toMatchObject({ kind: 'unavailable', reason: 'unsupported' })
+    for (const locator of [
+      { kind: 'git' as const, view: 'history' as const, revision: 'HEAD' },
+      { kind: 'git' as const, view: 'diff' as const, scope: 'commit' as const, revision: 'HEAD' },
+    ]) {
+      const reading = value(await service.readResource({ ref, locator }, signal()))
+      expect(reading.body.kind).toBe('text')
+      expect(reading.locator?.kind === 'git' ? reading.locator.revision : undefined).toMatch(/^[a-f0-9]{40,64}$/)
+    }
+  })
+
+  it('reads the exact historical blob after the working file and its latest committed entry were deleted', async () => {
+    const { service, root, git, sourceRoot } = await fixture()
+    const revision = (await git('rev-parse', 'HEAD')).stdout.trim()
+    await rm(join(root, 'model.py'))
+    await git('add', 'model.py')
+    await git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--no-gpg-sign', '-qm', 'Remove current model')
+    const reading = value(await service.readResource({ ref: { rootId: sourceRoot, sourceId: sourceIdForPath('model.py') },
+      locator: { kind: 'code', startLine: 1, endLine: 2, revision } }, signal()))
+    expect(reading.body).toMatchObject({ kind: 'text', format: 'code', text: 'original condition\nsecond line\n', revision })
+    expect(reading.locator).toEqual({ kind: 'code', startLine: 1, endLine: 2, revision })
+    expect(reading.resource).toMatchObject({ domain: 'code', providerId: 'research-code', title: 'model.py' })
+  })
+})

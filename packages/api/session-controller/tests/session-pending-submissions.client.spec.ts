@@ -5,7 +5,8 @@
  */
 
 import { afterEach, describe, expect, vi } from 'vitest'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
+import { createUserMessage, type MessageSource } from '@deepseek-ai/dsh-llm'
+import { MessageId } from '@deepseek-ai/dsh-llm/brand'
 import type { FileAttachmentRef, ImageAttachmentRef } from '@deepseek-ai/dsh-attachment'
 import { SessionSeq, type SessionEvent } from '@deepseek-ai/dsh-session/types'
 import type { SessionId } from '@deepseek-ai/dsh-api-remotes/client'
@@ -31,6 +32,12 @@ afterEach(() => {
 })
 
 type AttachmentRef = ImageAttachmentRef | FileAttachmentRef
+
+declare module '@deepseek-ai/dsh-llm' {
+  interface MessageSourceMap {
+    'attributed-test': { kind: 'attributed-test'; actor: 'human' }
+  }
+}
 
 function attachmentBlock(attachment: AttachmentRef) {
   return 'mediaType' in attachment
@@ -135,6 +142,25 @@ describe('beginSubmission', () => {
 })
 
 describe('prompt-coupled retirement', () => {
+  it('uses an attributed transport with the same native request identity and retires its durable echo', async ({ mock, start }) => {
+    const session = await sessionBench(mock, start, SID)
+    await session.open()
+    const handle = session.beginSubmission({ mode: 'queue', text: '来源问题', attachments: [] })
+    const transport = vi.fn(async () => ({ ok: true as const, value: { accepted: true as const } }))
+    const content = [{ type: 'text' as const, text: '来源问题' }]
+    const result = await session.prompt(content, 'queue', undefined, handle.requestId, transport)
+    expect(result.ok).toBe(true)
+    expect(transport).toHaveBeenCalledWith(expect.objectContaining({ sessionId: SID, requestId: handle.requestId, content, mode: 'queue' }), undefined)
+    expect(mock.log.requests('session/prompt')).toEqual([])
+    const event = promptEvent(SessionSeq(0), handle.requestId)
+    if (event.type !== 'user/message') throw new Error('Expected human message')
+    const source: MessageSource = { kind: 'attributed-test', actor: 'human' }
+    await pushEvent(mock, { ...event, data: { ...event.data, id: MessageId(handle.requestId),
+      source } })
+    await settleFrames()
+    expect(session.getSnapshot().pendingSubmissions).toEqual([])
+  })
+
   it('a rejected identified prompt retires its echo immediately alongside promptError', async ({ mock, start }) => {
     const session = await sessionBench(mock, start, SID)
     mock.remote.session.prompt.mockResolvedValue(err(new RemoteError('session/agent-busy', '忙', { reason: 'busy' })))

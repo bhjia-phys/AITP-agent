@@ -2,6 +2,9 @@
 export const sidebarEn = {
   'navigation': 'Research navigation',
   'topics': 'Topics',
+  'topicsAndDiscussions': 'Topics and conversations',
+  'allConversations': 'All conversations',
+  'newDiscussion': 'New conversation under {title}',
   'conversations': 'Conversations',
   'overview': 'Research map',
   'expand': 'Open topic navigation',
@@ -30,6 +33,9 @@ export type WorkspaceSidebarKey = keyof typeof sidebarEn
 export const sidebarZh: Record<WorkspaceSidebarKey, string> = {
   'navigation': '科研导航',
   'topics': '课题',
+  'topicsAndDiscussions': '课题与会话',
+  'allConversations': '所有会话',
+  'newDiscussion': '在“{title}”下新建会话',
   'conversations': '对话',
   'overview': '研究地图',
   'expand': '展开课题导航',

@@ -36,7 +36,7 @@
 
 ## 仓库与分支
 
-公开地址保留为 [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent)。`main` 是集成与默认分支，以快进方式接纳 Harness 主线及原 AITP-agent 历史，不改写已有提交。原 Pi `main` 保留在 `legacy/pi-foundation`；`harness` 继续保留为迁移分支。官方 Harness 是 Git `upstream`；保留原地址不会自动改变 GitHub 的 fork 网络标识。
+公开地址保留为 [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent)。`main` 是集成与默认分支，以快进方式接纳 Harness 主线及原 AITP-agent 历史，不改写已有提交。原 Pi head（`4eaa9eaf44`）和 Harness 迁移历史仍可从 `main` 追溯；已合入的旧分支已清理，已有工作树目录保留原提交及未提交文件。官方 Harness 是 Git `upstream`；保留原地址不会自动改变 GitHub 的 fork 网络标识。
 
 ```sh
 git clone --branch main --recurse-submodules https://github.com/bhjia-phys/AITP-agent.git
@@ -81,7 +81,7 @@ GPT API key 与 ChatGPT 订阅授权是不同路线；不会静默导入 Codex C
 
 正常 AITP Web 配置已包含科研后台，初始不读取任何目录。在对话中把已有项目目录添加为工作区，再进入 Research 并选中它。点击“启用研究项目”；要创建课题和保存记录时，勾选“允许保存研究修改”。只读启用不创建科研文件。已有宿主配置的访问限制继续适用。
 
-使用“新建课题”或“新建子方向”，填写名称、研究问题和可选范围。创建会保存新记录及明确的父子链接，刷新地图并打开课题，尚不联系模型。“在新对话中提问”才会发起带课题来源上下文的普通 Harness 对话；之后的消息沿用其范围。项目授权保存在应用存储中，重启后仍有效。资料格式、恢复预算和写入结果不确定的处理见[科研记忆说明](packages/research/research-memory/README.md)。
+使用“新建课题”或“新建子方向”，填写名称、研究问题和可选范围。创建会保存新记录及明确的父子链接，刷新地图并打开课题，尚不联系模型。普通 Harness 会话在课题右侧展开，并列在相应子方向下。可在这里新建、切换和改名；打开会话不请求模型，提交问题时才附带该课题和已选资料，后续消息沿用该会话的课题范围。项目授权保存在应用存储中，重启后仍有效。资料格式、恢复预算和写入结果不确定的处理见[科研记忆说明](packages/research/research-memory/README.md)。
 
 ## 上游与许可
 

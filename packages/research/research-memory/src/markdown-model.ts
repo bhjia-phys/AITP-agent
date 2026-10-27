@@ -12,12 +12,15 @@ export interface SourceSection {
 }
 /** A root-relative local link whose explicit label or enclosing heading supplies its relationship role. */
 export interface SourceLink { readonly path: string; readonly title: string; readonly section: string; readonly role: 'parent' | 'child' | 'reference'; readonly text: string }
+/** An authored link retained before root-bound resolution; its passage is not an inferred scientific dependency. */
+export interface AuthoredSourceLink { readonly href: string; readonly title: string; readonly section: string; readonly context: string }
 /** Authored title, opening and spans; anchor entries retain all matches rather than silently resolving duplicates. */
 export interface ParsedMarkdown {
   readonly title: string
   readonly opening: string
   readonly sections: readonly SourceSection[]
   readonly links: readonly SourceLink[]
+  readonly authoredLinks: readonly AuthoredSourceLink[]
   readonly anchors: ReadonlyMap<string, readonly SourceSection[]>
 }
 
@@ -62,8 +65,11 @@ export function parseMarkdown(path: string, text: string): ParsedMarkdown {
   for (const section of sections) addAnchor(section.anchor, section)
   const definitions = new Map(tree.children.filter(node => node.type === 'definition').map(node => [node.identifier.toLowerCase(), node.url]))
   const links: SourceLink[] = []
-  const visit = (node: Node): void => {
+  const authoredLinks: AuthoredSourceLink[] = []
+  const visit = (node: Node, surrounding = ''): void => {
     const offset = node.position?.start.offset ?? 0
+    const context = node.type === 'paragraph' || node.type === 'listItem'
+      ? text.slice(offset, node.position?.end.offset ?? offset) : surrounding
     const section = [...sections].reverse().find(candidate => candidate.start <= offset && candidate.end > offset)
     if (node.type === 'html') {
       for (const match of node.value.matchAll(/<a\s+[^>]*(?:id|name)\s*=\s*["']([^"']+)["'][^>]*>/gi)) {
@@ -79,6 +85,7 @@ export function parseMarkdown(path: string, text: string): ParsedMarkdown {
     let url: string | undefined
     if (node.type === 'link') url = node.url
     if (node.type === 'linkReference') url = definitions.get(node.identifier.toLowerCase())
+    if (url !== undefined) authoredLinks.push({ href: url, title: nodeText(node), section: section?.title ?? '', context })
     if (url !== undefined && !/^(?:[a-z][a-z\d+.-]*:|\/|#)/i.test(url)) {
       let decoded: string | undefined
       try { decoded = decodeURIComponent(url.split('#')[0] ?? '') }
@@ -92,14 +99,14 @@ export function parseMarkdown(path: string, text: string): ParsedMarkdown {
         }
       }
     }
-    if ('children' in node) for (const child of node.children) visit(child)
+    if ('children' in node) for (const child of node.children) visit(child, context)
   }
   visit(tree)
   for (const [anchor, targets] of explicitAnchors) anchors.set(anchor, targets)
   return {
     title: title ? nodeText(title) : posix.basename(posix.dirname(path)) || path,
     opening: text.slice(title?.position?.end.offset ?? 0, sectionHeadings[0]?.position?.start.offset ?? text.length).trim(),
-    sections, links, anchors,
+    sections, links, anchors, authoredLinks,
   }
 }
 

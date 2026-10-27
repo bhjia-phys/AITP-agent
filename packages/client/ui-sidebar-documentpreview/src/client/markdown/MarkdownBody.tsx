@@ -1,12 +1,13 @@
 /** One retained Markdown renderer over the document owner's accumulated text. */
 import { lazy, Suspense, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { MarkdownText, type MarkdownLabels, type MarkdownPathImages } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
+import { MarkdownDelegateProvider, MarkdownText, type MarkdownLabels, type MarkdownPathImages } from '@deepseek-ai/dsh-client-ui-primitives'
+import type { FactoryComponentPropsOf, PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import type { DocumentPreviewProps } from '../document/contract.ts'
 import { splitFrontmatter } from './frontmatter.ts'
 import type { FrontmatterFieldsProps } from './frontmatter-fields.tsx'
 import { markdownImageUrl } from './path-images.ts'
+import type { SourceMarkdownReaderInput } from './source-reader.ts'
 import type {} from './locales.ts'
 import css from './MarkdownBody.module.css'
 
@@ -33,9 +34,34 @@ export type MarkdownBodyProps = DocumentPreviewProps & PropsLocale<'documentMark
  */
 export function MarkdownBody({ content, resourceAddress, useResource, t }: MarkdownBodyProps): ReactNode {
   const absolutePath = useResource<'file'>(resourceAddress).value?.absolutePath
-  const pathImages = useMemo<MarkdownPathImages>(() => ({
-    resolve: value => markdownImageUrl(document.baseURI, absolutePath, value),
-  }), [absolutePath])
+  const resolveImage = useMemo(() => (value: string) => markdownImageUrl(document.baseURI, absolutePath, value), [absolutePath])
+  if (content.kind !== 'text') return null
+  return <MarkdownSurface text={content.text} streaming={!content.eof} resolveImage={resolveImage} t={t} />
+}
+
+/**
+ * Render native Markdown without granting a source another Session's file authority.
+ * @param props - source text, authorized image URLs and explicit navigation callbacks.
+ * @returns the same native Markdown/frontmatter body with a source-owned navigation boundary.
+ */
+export function SourceMarkdownReader(props: FactoryComponentPropsOf<'document.markdown.reader'>): ReactNode {
+  const fileImages = useMemo(() => ({
+    resolve: (path: string) => props.resolveImage?.(path),
+    labels: { dialog: props.t('image.dialog'), close: props.t('image.close'), open: props.t('image.open'),
+      loading: props.t('image.loading'), failed: props.t('image.failed') },
+  }), [props.resolveImage, props.t])
+  return <MarkdownDelegateProvider openFile={props.onOpenFile} resourceLinks={props.resourceLinks}
+    localLinks={props.localLinks} fileImages={fileImages}
+    openExternalLink={props.onOpenExternalLink}>
+    <MarkdownSurface {...props} />
+  </MarkdownDelegateProvider>
+}
+
+/** Shared actual body for ordinary file previews and root source readers. */
+function MarkdownSurface({ text, streaming = false, resolveImage, t }:
+  SourceMarkdownReaderInput & PropsLocale<'documentMarkdown'>): ReactNode {
+  const pathImages = useMemo<MarkdownPathImages | undefined>(
+    () => resolveImage === undefined ? undefined : { resolve: resolveImage }, [resolveImage])
   const copyLabel = t('code.copy')
   const copiedLabel = t('code.copied')
   const footnotes = t('footnotes')
@@ -45,13 +71,11 @@ export function MarkdownBody({ content, resourceAddress, useResource, t }: Markd
   const labels = useMemo<MarkdownLabels>(() => ({
     code: { copyLabel, copiedLabel, toolbarLabels: { codeLabel, wrapLabel, unwrapLabel } }, footnotes,
   }), [copyLabel, copiedLabel, footnotes, codeLabel, wrapLabel, unwrapLabel])
-  const text = content.kind === 'text' ? content.text : ''
   const split = useMemo(() => splitFrontmatter(text), [text])
-  if (content.kind !== 'text') return null
   return (
     <div className={css.document} data-document-markdown>
       {split === undefined ? null : <FrontmatterBox source={split.source} />}
-      <MarkdownText text={split?.body ?? text} streaming={!content.eof} labels={labels} pathImages={pathImages} />
+      <MarkdownText text={split?.body ?? text} streaming={streaming} labels={labels} pathImages={pathImages} />
     </div>
   )
 }

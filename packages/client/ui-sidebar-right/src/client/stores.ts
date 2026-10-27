@@ -187,14 +187,24 @@ function arriving(state: LayoutState, tabId: TabId, toPaneId: PaneId, otherwise:
  * @returns the next surface, or the same one when the intent changes nothing.
  */
 function advance(surface: SurfaceState, plan: SurfacePlan, seed: () => SidebarRightSeed): SurfaceState {
-  const counter = counting(surface.minted)
   const makeTab = (id: TabId): TabRecord => seedRecord(id, seed)
-  const planned = plan(surface.layout, counter.mint, makeTab)
+  return advanceSurface(surface, (state, mint) => plan(state, mint, makeTab), makeTab)
+}
+
+/**
+ * Record a native docking intent, optionally seeding empty panes with the owner's page.
+ * @param surface - current viewing state.
+ * @param plan - shared docking planner.
+ * @param makeTab - optional page seed; global document surfaces do not invent Session pages.
+ * @returns the unchanged or newly recorded surface.
+ */
+export function advanceSurface(surface: SurfaceState,
+  plan: (state: LayoutState, mint: Mint) => readonly LayoutOp[],
+  makeTab?: (id: TabId) => TabRecord,
+): SurfaceState {
+  const counter = counting(surface.minted)
+  const planned = plan(surface.layout, counter.mint)
   if (planned.length === 0) return surface
-  // The settle planner reads the state the intent produces, so it is applied
-  // to a scratch copy first; the record then applies both parts once. The
-  // seed factory is withheld while the intent leaves the column collapsed:
-  // an empty collapsed column stays empty until the expansion that shows it.
   const after = replay(surface.layout, planned)
   const settled = planSettle(after, counter.mint, after.expanded ? makeTab : undefined)
   const stepped = record(surface.history, surface.layout, [...planned, ...settled])

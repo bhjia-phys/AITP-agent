@@ -3,7 +3,7 @@ import { RemoteError, remoteErrorOf, type RemoteResult } from '@deepseek-ai/dsh-
 import type {} from '@deepseek-ai/dsh-research-memory/remote'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type {
-  ActivityQuery, ApplyRequest, ChangeIntent, ContextQuery, ReadOptions, ResearchEvent,
+  ResearchChangeQuery, DiscussionQuery, ActivityQuery, ApplyRequest, ChangeIntent, ContextQuery, ReadOptions, ResearchEvent,
   ResearchProvider, ResearchQuestion, ResearchWorkspaceAdapter, ResourceId, Result, TopicId, TopicQuery,
   ResearchInitializeRequest, CreateTopicRequest,
 } from '@deepseek-ai/dsh-research-memory/types'
@@ -75,6 +75,14 @@ export class RuntimeWorkspaceAdapter implements ResearchWorkspaceAdapter {
     return result
   }
 
+  getChange(query: ResearchChangeQuery, options?: ReadOptions) {
+    return this.read(signal => this.transport.researchMemory.getChange({ ...query, workspaceId: this.workspaceId }, signal), options)
+  }
+
+  listDiscussions(query: DiscussionQuery, options?: ReadOptions) {
+    return this.read(signal => this.transport.researchMemory.listDiscussions({ ...query, workspaceId: this.workspaceId }, signal), options)
+  }
+
   listTopics(query: TopicQuery, options?: ReadOptions) {
     return this.read(signal => this.transport.researchMemory.listTopics({ workspaceId: this.workspaceId, query }, signal), options)
   }
@@ -105,8 +113,8 @@ export class RuntimeWorkspaceAdapter implements ResearchWorkspaceAdapter {
     )
   }
 
-  ask(question: Omit<ResearchQuestion, 'workspaceId'>) {
-    return this.read(signal => this.transport.researchMemory.ask({ ...question, workspaceId: this.workspaceId }, signal))
+  ask(question: Omit<ResearchQuestion, 'workspaceId'>, options?: ReadOptions) {
+    return this.read(signal => this.transport.researchMemory.ask({ ...question, workspaceId: this.workspaceId }, signal), options)
   }
 
   /** Subscribers share one reconnecting feed; the adapter owner closes it on provider withdrawal. */

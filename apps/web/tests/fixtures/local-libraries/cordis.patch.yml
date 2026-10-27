@@ -1,0 +1,16 @@
+# Keep the real application and external-provider adapter; contain all local state in the fixture world.
+- id: workspace-controller
+  config:
+    documentsDirectory: !!js process.env.DSH_LOCAL_LIBRARIES_WORLD + '/Documents'
+- id: session-title-llm
+  disabled: true
+- id: agent-instructions
+  disabled: true
+- id: llm-pi-ai
+  disabled: true
+- id: skill-filesystem
+  config:
+    dshHome: !!js process.env.DSH_HOME
+    agentsHome: !!js process.env.DSH_AGENTS_HOME
+    bundledSkillDir: !!js process.env.DSH_LOCAL_LIBRARIES_WORLD + '/bundled-skills'
+    watch: false

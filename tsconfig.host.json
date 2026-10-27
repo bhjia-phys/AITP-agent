@@ -8,6 +8,16 @@
     "rewriteRelativeImportExtensions": false
   },
   "include": [
+    "apps/web/tests/library-ui.e2e.ts",
+    "apps/web/tests/native-sources.e2e.ts",
+    "apps/web/tests/native-dock.e2e.ts",
+    "apps/web/tests/fixtures/library-ui/**/*.ts",
+    "apps/web/tests/workbench.e2e.ts",
+    "apps/web/tests/workbench-ui.e2e.ts",
+    "apps/web/tests/fixtures/workbench/**/*.ts",
+    "apps/web/tests/local-libraries.e2e.ts",
+    "apps/web/tests/topic-pilot.e2e.ts",
+    "apps/web/tests/fixtures/local-libraries/**/*.ts",
     "apps/web/tests/collapse-timing.e2e.ts",
     "apps/web/tests/notice-wake-tail.e2e.ts",
     "apps/web/tests/fold-blank-matrix.e2e.ts",
@@ -240,6 +250,11 @@
     "scripts/client-bundle-purity.spec.ts"
   ],
   "references": [
+    { "path": "./packages/research/research-resources" },
+    { "path": "./packages/research/research-study" },
+    { "path": "./packages/research/research-knowledge" },
+    { "path": "./packages/research/research-literature" },
+    { "path": "./packages/research/research-code" },
     { "path": "./packages/research/research-memory" },
     { "path": "./packages/experimental/client-ui-cot-translation/tsconfig.host.json" },
     { "path": "./packages/experimental/cot-translation-bundle" },

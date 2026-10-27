@@ -58,19 +58,29 @@ export type ResearchPanelState = WorkspaceEditOwner & TopicCreationOwner & {
   visit: number
   /** Open (true) or closed (false) regions by {@link disclosureKey}; absent keys use each view's default. */
   disclosure: Record<string, boolean>
+  /** Reading positions retained when switching topic discussions in this client. */
+  readingPoints: Record<string, ResearchReturnPoint>
 }
 
 /** The panel's complete mutation API. */
 export type ResearchPanelActions = typeof workspaceEditActions & typeof topicCreationActions & {
   selectWorkspace: (draft: ResearchPanelState, workspaceId: WorkspaceId) => void
   open: (draft: ResearchPanelState, workspaceId: WorkspaceId, location: ResearchLocation, leave: ResearchReturnPoint) => void
+  restore: (draft: ResearchPanelState, workspaceId: WorkspaceId, location: ResearchLocation, returnTo: ResearchReturnPoint) => void
   goBack: (draft: ResearchPanelState, workspaceId: WorkspaceId) => void
   setDisclosed: (draft: ResearchPanelState, key: string, open: boolean) => void
+  rememberReading: (draft: ResearchPanelState, workspaceId: WorkspaceId, location: ResearchLocation, point: ResearchReturnPoint) => void
+  visitTopic: (draft: ResearchPanelState, workspaceId: WorkspaceId, topicId: TopicId | null) => void
 }
 
 /** Locations kept for Back; older entries fall off. */
 const BACK_LIMIT = 50
 const PROJECT: ResearchLocation = { kind: 'map', focusId: null }
+const START: ResearchReturnPoint = { scrollTop: 0, focusIndex: null }
+
+function readingKey(workspaceId: WorkspaceId, location: ResearchLocation): string {
+  return JSON.stringify([workspaceId, location])
+}
 
 /**
  * Identify one disclosure choice; choices of different Workspaces never collide.
@@ -105,7 +115,7 @@ export function createResearchPanelStore(journal?: TopicCreationJournal): Engine
       pendingEdits: {},
       topicDrafts: {},
       topicRecovery: 'available',
-      workspaceId: null, location: PROJECT, back: [], arrival: { kind: 'none' }, visit: 0, disclosure: {},
+      workspaceId: null, location: PROJECT, back: [], arrival: { kind: 'none' }, visit: 0, disclosure: {}, readingPoints: {},
     }),
     actions: {
       ...workspaceEditActions,
@@ -127,6 +137,13 @@ export function createResearchPanelStore(journal?: TopicCreationJournal): Engine
         draft.arrival = { kind: 'enter', focus: leave.focusIndex !== null }
         draft.visit += 1
       },
+      restore: (draft, workspaceId: WorkspaceId, location: ResearchLocation, returnTo: ResearchReturnPoint) => {
+        if (draft.workspaceId !== workspaceId) draft.back = []
+        draft.workspaceId = workspaceId
+        draft.location = location
+        draft.arrival = { kind: 'return', ...returnTo }
+        draft.visit += 1
+      },
       goBack: (draft, workspaceId: WorkspaceId) => {
         if (draft.workspaceId !== workspaceId) return
         const previous = draft.back.at(-1)
@@ -138,6 +155,21 @@ export function createResearchPanelStore(journal?: TopicCreationJournal): Engine
       },
       setDisclosed: (draft, key: string, open: boolean) => {
         draft.disclosure[key] = open
+      },
+      rememberReading: (draft, workspaceId: WorkspaceId, location: ResearchLocation, point: ResearchReturnPoint) => {
+        draft.readingPoints[readingKey(workspaceId, location)] = point
+      },
+      visitTopic: (draft, workspaceId: WorkspaceId, topicId: TopicId | null) => {
+        const sameWorkspace = draft.workspaceId === workspaceId
+        const previous = sameWorkspace ? draft.location : PROJECT
+        const location: ResearchLocation = topicId === null ? PROJECT : { kind: 'topic', topicId }
+        draft.back = [...(sameWorkspace ? draft.back : []), {
+          location: previous, returnTo: draft.readingPoints[readingKey(workspaceId, previous)] ?? START,
+        }].slice(-BACK_LIMIT)
+        draft.workspaceId = workspaceId
+        draft.location = location
+        draft.arrival = { kind: 'return', ...draft.readingPoints[readingKey(workspaceId, location)] ?? START }
+        draft.visit += 1
       },
     },
   })

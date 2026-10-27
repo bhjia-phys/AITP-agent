@@ -51,7 +51,11 @@ async function boot() {
   ctx.provide('configForms', { developerTools: { enabled: createSnapshotStore(true) } } as never)
   const tabs = new SidebarRightTabRegistry(ctx)
   const registered: Recorded[] = []
+  const factories = new Map<string, unknown>()
   const slots = {
+    registerFactory: vi.fn((options: { name: string }, component: unknown) => {
+      factories.set(options.name, component)
+    }),
     inject: vi.fn((_name: string, register: () => () => void) => register()),
     register: vi.fn((options: Omit<Recorded, 'component'>, component: unknown) => {
       const entry: Recorded = { ...options, component }
@@ -77,12 +81,14 @@ async function boot() {
   const fiber = ctx.plugin({ inject: [...inject], apply })
   onTestFinished(async () => { await fiber.dispose() })
   await fiber.await()
-  return { ctx, tabs, registered, dictionaries, fiber, read, readBytes }
+  return { ctx, tabs, registered, factories, dictionaries, fiber, read, readBytes }
 }
 
 describe('ui-sidebar-documentpreview apply', () => {
   it('registers the type, its dictionaries, and the body and title seats under the type\'s id, the body with a store and a face', async () => {
-    const { tabs, registered, dictionaries } = await boot()
+    const { tabs, registered, factories, dictionaries } = await boot()
+    expect([...factories.keys()]).toEqual(['document.markdown.reader', 'document.image.reader',
+      'document.pdf.page', 'document.pdf.reader', 'document.code.reader'])
     expect(tabs.get(TEXTPREVIEW_KIND)?.priority).toBe('fallback')
     expect(tabs.get(TEXTPREVIEW_KIND)?.id).toBe(TEXTPREVIEW_ID)
     expect(dictionaries.get('sidebarDocumentPreview')).toEqual({ zh, en })

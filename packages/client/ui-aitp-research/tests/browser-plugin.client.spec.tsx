@@ -5,13 +5,15 @@
  * loaded, the research protocols read through the real resource service; and
  * unloading either plugin removes exactly what it added.
  */
-import { expect, vi } from 'vitest'
+import { act, within } from '@testing-library/react'
+import { expect } from 'vitest'
 import { ClientRoster, createClientTest, webApp, type TestClient } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { noteAddress, topicAddress, topicsAddress } from '../src/client/protocol.ts'
-import { ResearchPanel, type ResearchPanelFace } from '../src/client/ResearchPanel.tsx'
+import { ResearchPanel } from '../src/client/ResearchPanel.tsx'
 import { WorkspaceSidebar } from '../src/client/WorkspaceSidebar.tsx'
 import { workspaceProjectAddress } from '../src/client/workspace-resources.ts'
 import { apply as nodeApply } from '../src/index.ts'
@@ -27,20 +29,12 @@ const it = createClientTest({ roster: ClientRoster.of([
     inject: [
       '@deepseek-ai/dsh-client-ui-renderer', '@deepseek-ai/dsh-client-ui-sidebar', '@deepseek-ai/dsh-client-ui-sidebar-right',
       '@deepseek-ai/dsh-client-ui-workspace', '@deepseek-ai/dsh-client-resources', '@deepseek-ai/dsh-client-locale',
+      '@deepseek-ai/dsh-api-session-controller', '@deepseek-ai/dsh-client-ui-conversation', '@deepseek-ai/dsh-client-ui-chat',
     ],
     immediately: false,
   },
   { name: FIXTURES, inject: ['@deepseek-ai/dsh-client-resources'], immediately: false },
-]) })
-
-/**
- * Narrow a registration's inject face to the panel's navigation face.
- * @param face - what the entry's inject returned.
- * @returns whether it carries both navigation callbacks.
- */
-function isPanelFace(face: Record<string, unknown> | undefined): face is Record<string, unknown> & ResearchPanelFace {
-  return typeof face?.['openSession'] === 'function' && typeof face['startDraft'] === 'function'
-}
+]) }, { mount: true })
 
 /**
  * Hold one address open until its first settled frame.
@@ -73,20 +67,18 @@ it('registers the panel, its sidebar entry and the note tab type, and removes th
   expect(client.ctx.sidebarRightTabs.get('aitp-note')?.title(address)).toBe('research.md')
   expect(client.ctx.sidebarRightTabs.candidates('dsh-resource://aitp-topic/workspace/w1/topic/x')).toEqual([])
   expect(client.ctx.sidebarRightTabs.get('aitp-note')?.title('elsewhere')).toBe('Note')
-  const openSession = vi.spyOn(client.ctx.uiWorkspace, 'openSession').mockImplementation(() => undefined)
-  const startSession = vi.spyOn(client.ctx.uiWorkspace, 'startSession').mockImplementation(() => undefined)
-  const face = client.ctx.slots.entries('main').find(item => item.component === ResearchPanel)?.inject?.()
-  if (!isPanelFace(face)) throw new Error('the Research panel entry carries no navigation face')
-  face.openSession('s1' as never)
-  face.startDraft(WS, 'Working on @research.md: ')
-  expect(openSession).toHaveBeenCalledWith('s1')
-  expect(startSession).toHaveBeenCalledWith(WS, { prompt: 'Working on @research.md: ' })
+  // Render the real main slot so its inject callback receives the framework-owned actions.
+  act(() => { client.ctx.layout.selectPanel('aitp-research' as MainPanelId) })
+  await client.flush()
+  expect(within(client.container!).getByRole('region', { name: 'Research' })).toBeDefined()
+  expect(client.ctx.researchDiscussions).toBeDefined()
   expect(client.ctx.locale.bind('aitp.research')('panel')).toBe('Research')
   await client.unload(RESEARCH)
   await client.flush()
   expect(client.ctx.slots.entries('main').filter(entry => entry.component === ResearchPanel)).toHaveLength(0)
   expect(client.ctx.slots.entries('sidebar.panellist').map(entry => entry.options.id)).not.toContain('aitp-research')
   expect(client.ctx.sidebarRightTabs.get('aitp-note')).toBeUndefined()
+  expect(client.ctx.get('researchDiscussions')).toBeUndefined()
   expect(() => { nodeApply() }).not.toThrow()
 }, 60_000)
 

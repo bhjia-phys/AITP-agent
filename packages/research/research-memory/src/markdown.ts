@@ -40,6 +40,12 @@ export interface MarkdownIndexStatus {
   readonly issues: readonly ScanIssue[]
 }
 
+/** Explicit material uses in recognized topic accounts, before cross-root resolution. */
+export interface MarkdownMaterialLinks {
+  readonly revision: Revision
+  readonly links: readonly { readonly topicId: TopicId; readonly accountPath: string; readonly href: string; readonly reason: string }[]
+}
+
 /** Original user question and optional displayed origin; supplying text does not establish ownership or a decision. */
 export interface OriginQuery {
   readonly topicId?: TopicId
@@ -175,6 +181,23 @@ export class MarkdownWorkspace {
     }
     this.root = resolve(config.root)
     this.files = new MarkdownFiles(this.root, config.maxFiles, config.maxFileBytes)
+  }
+
+  /**
+   * Project authored links from the latest rebuilt topic index without guessing cross-root ownership.
+   * @returns original using passages and their research-topic identity; source resolution remains shared-service work.
+   * @throws {SourceError} before the first successful index rebuild.
+   */
+  materialLinks(): MarkdownMaterialLinks {
+    const index = this.index
+    if (index === undefined) throw new SourceError('unavailable', 'The research topic index has not been built.')
+    return { revision: index.status.revision, links: [...index.topicPaths].flatMap((path) => {
+      const note = index.notes.get(path)
+      return note === undefined ? [] : note.parsed.authoredLinks.map(link => ({
+        topicId: topicIdForPath(path), accountPath: path, href: link.href,
+        reason: link.context || link.title || link.section,
+      }))
+    }) }
   }
 
   /**

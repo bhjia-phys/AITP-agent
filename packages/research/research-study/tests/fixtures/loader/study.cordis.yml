@@ -1,0 +1,26 @@
+- id: 2ad8c450
+  name: cordis:typert
+- id: 2ad8c451
+  name: cordis:resources
+  config:
+    roots:
+      - id: knowledge
+        path: !!js process.cwd() + '/scientific'
+        domains:
+          - knowledge
+      - id: literature
+        path: !!js process.cwd() + '/papers'
+        domains:
+          - literature
+      - id: code
+        path: !!js process.cwd() + '/checkout'
+        domains:
+          - code
+- id: 2ad8c452
+  name: cordis:knowledge
+- id: 2ad8c453
+  name: cordis:literature
+- id: 2ad8c454
+  name: cordis:code
+- id: 2ad8c455
+  name: cordis:study

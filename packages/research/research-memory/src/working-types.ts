@@ -1,11 +1,14 @@
 /** Research context and recoverable working-state contracts. */
-import type { Session } from '@deepseek-ai/dsh-session'
-import type { UserMessage } from '@deepseek-ai/dsh-llm'
 import type { ResearchSourceRange } from './types.ts'
+import type { SourceSelection } from '@deepseek-ai/dsh-research-resources/types'
 
 /** Human-selected research location; a resource refines evidence within a topic and never grants authority. */
 export interface ResearchOrigin {
-  workspaceId: string
+  workspaceId?: string
+  /** Global study has an operational scope without inventing a scientific topic or Workspace. */
+  scope?: 'global'
+  studyId?: string
+  selections?: readonly SourceSelection[]
   topicId?: string
   resourceId?: string
   anchor?: string
@@ -14,9 +17,18 @@ export interface ResearchOrigin {
   selectedRange?: ResearchSourceRange
 }
 
+/** One observed passage; an optional excerpt fitter retains exact source locations under the final request budget. */
+export interface ResearchContextEntry {
+  label: string
+  text: string
+  source: { target: string; locator?: string }
+  /** Refit already observed eligible evidence without new IO; explicit original selections may refuse shortening. */
+  excerpt?: (fits: (entry: ResearchContextEntry) => boolean) => ResearchContextEntry | undefined
+}
+
 /** Source passages with reopenable locators and explicit coverage limits, before final request budgeting. */
 export interface ResearchContextRead {
-  entries: { label: string; text: string; source: { target: string; locator?: string } }[]
+  entries: ResearchContextEntry[]
   omissions: string[]
 }
 
@@ -76,13 +88,6 @@ export interface ResearchWorkingState {
   items: ResearchWorkingItem[]
   pending: ResearchPendingCall[]
   writes: ResearchWriteRecord[]
-}
-
-/** Scoped historical evidence; it never carries executable grants or another conversation's tools. */
-export interface ResearchRecovery {
-  recover(origin: ResearchOrigin, current: Session, signal?: AbortSignal, proposed?: readonly UserMessage[]): Promise<ResearchContextRead>
-  readOriginal(origin: ResearchOrigin, current: Session, sourceId: string, offset: number,
-    signal?: AbortSignal): Promise<string | undefined>
 }
 
 declare module '@deepseek-ai/dsh-llm' {

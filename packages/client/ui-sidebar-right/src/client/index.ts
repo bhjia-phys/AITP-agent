@@ -47,6 +47,12 @@ import { GUIDE_ID, guideDefinition } from './tabs/guide/definition.ts'
 import { guideTabInfoFactory, tabInfoFactory } from './tab-info.ts'
 import type { TabId } from '@deepseek-ai/dsh-client-ui-dockkit'
 import { defaultSeed } from './contract/seed.ts'
+import { SidebarRightRoots } from './root-service.ts'
+import { createSidebarRightRootStore } from './root-store.ts'
+import { RootSidebarSeat, type RootSidebarInjected } from './shell/RootSidebarSeat.tsx'
+import { RootExpandButton } from './shell/RootExpandButton.tsx'
+import { rootExpandControl, visibleRootPane } from './shell/root-focus.ts'
+import type {} from './contract/root.ts'
 
 export type { SidebarRightTarget } from './focus.ts'
 export type { RightbarSeatProps, SidebarRightInjected, SidebarRightPresentation } from './shell/SidebarRight.tsx'
@@ -75,6 +81,8 @@ export type { PinResource, SidebarRightNavigator, TabOccurrence, SidebarRightOcc
 export type { SidebarRightKey } from './locales.ts'
 export type { OpenContentIntent } from './stores.ts'
 export type { SidebarRightOpenTab } from './tab-inventory.ts'
+export type { SidebarRightRoots, SidebarRightRootOpenOptions, SidebarRightRootView } from './root-service.ts'
+export type { SidebarRightRootTabOwner, SidebarRightRootTabProps } from './contract/root.ts'
 
 /** This package's copy namespace. */
 const NS = 'sidebarRight'
@@ -86,6 +94,8 @@ declare module '@deepseek-ai/cordis' {
   interface Context {
     /** Right-Sidebar navigation and presentation face. */
     sidebarRight: SidebarRightController
+    /** Session-independent native document surfaces, owned by global panels and explicit reading scopes. */
+    sidebarRightRoots: SidebarRightRoots
     /** Right-Sidebar tab-type registry (stage one of a tab type's registration). */
     sidebarRightTabs: SidebarRightTabRegistry
   }
@@ -108,6 +118,18 @@ export function apply(ctx: ClientContext): void {
   // its own apply top level for the same reason.
   const t = ctx.locale.bind(NS)
   const tabs = new SidebarRightTabRegistry(ctx)
+  const roots = new SidebarRightRoots(tabs, (address, signal) => { ctx.resources.pin(address, signal) },
+    () => ctx.layout.panelInfo.getSnapshot().activePanelId,
+    (panelId, scopeKey) => {
+      if (typeof document === 'undefined') return
+      const before = document.activeElement
+      queueMicrotask(() => {
+        if (ctx.layout.panelInfo.getSnapshot().activePanelId === panelId
+          && (document.activeElement === before || document.activeElement === document.body)) {
+          (visibleRootPane(document, panelId, scopeKey) ?? rootExpandControl(document, panelId))?.focus({ preventScroll: true })
+        }
+      })
+    })
   const views = new SidebarSessionViews(ctx.sessions)
   ctx.effect(() => {
     const current = ctx.uiSession.adapter.current
@@ -149,12 +171,15 @@ export function apply(ctx: ClientContext): void {
   }, 'ui-sidebar-right: on-screen Session')
   const disposeRegistry = ctx.reflect.provide('sidebarRightTabs', tabs)
   const disposeService = ctx.reflect.provide('sidebarRight', controller)
+  const disposeRoots = ctx.reflect.provide('sidebarRightRoots', roots)
   // Registered first, so it tears down last: the faces outlive every seat and
   // type that reaches for them. provide()'s disposer settles asynchronously;
   // teardown is synchronous fire-and-forget, matching ui-layout's root entry.
   // Unloading aborts every tab occurrence, which releases every pin.
   ctx.effect(() => () => {
     controller.tabDomain.dispose()
+    roots.dispose()
+    void disposeRoots()
     void disposeService()
     void disposeRegistry()
   }, 'ui-sidebar-right: service faces')
@@ -162,10 +187,22 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-sidebar-right: dictionaries')
   ctx.effect(() => registerSidebarShortcuts(ctx.shortcuts, controller, t, () => {
     void ctx.shortcuts.closeWindow().catch((error: unknown) => { console.error('Window close failed', error) })
-  }), 'ui-sidebar-right: shortcuts')
+  }, roots), 'ui-sidebar-right: shortcuts')
   if (typeof document !== 'undefined') ctx.effect(() => observeSidebarFocus(document), 'ui-sidebar-right: focus')
 
   ctx.effect(() => {
+    const rootHandle = createSidebarRightRootStore()
+    let releaseRoot = (): void => {}
+    const rootStore: typeof rootHandle = { ...rootHandle, create: (scopeKey) => {
+      releaseRoot()
+      const instance = rootHandle.create(scopeKey)
+      releaseRoot = roots.adopt(instance)
+      return instance
+    } }
+    ctx.effect(() => () => { releaseRoot() })
+    ctx.slots.registerFactory({ name: 'sidebar.right.root.expand', scope: 'root', locale: NS, store: rootStore,
+      inject: () => ({ hooks: { shortcuts: ctx.shortcuts.catalog } }),
+    }, RootExpandButton)
     const handle = createSidebarRightStore(() => defaultSeed(tabs))
     // Each Session Context generation owns one Store. Background tab actions
     // use the latest adoption for that Session.
@@ -204,12 +241,33 @@ export function apply(ctx: ClientContext): void {
     const disposeSeat = ctx.slots.inject('rightbar', function* () {
       yield ctx.slots.register({
         name: 'rightbar',
-        children: { 'rightbar.session': { kind: 'single', scope: 'session' } },
+        children: { 'rightbar.session': { kind: 'single', scope: 'session' }, 'rightbar.root': { kind: 'single', scope: 'root' } },
         inject: (): RightbarRootInjected => ({
           hooks: { views: views.source },
           mountView: reference => views.mount(reference),
         }),
       }, RightbarRoot)
+      yield ctx.slots.register({
+        name: 'rightbar.root', locale: NS, store: rootStore,
+        children: {
+          'sidebar.right.root.tab': { kind: 'keyed', scope: 'root' },
+          'sidebar.right.root.tab.title': { kind: 'keyed', scope: 'root' },
+        },
+        inject: (): RootSidebarInjected => ({
+          hooks: {
+            tabTypes: { subscribe: listener => tabs.subscribe(listener), getSnapshot: () => tabs.entries() },
+            shortcuts: ctx.shortcuts.catalog,
+          },
+          openIn: (panelId, scopeKey, address, options) => { roots.openIn(panelId, scopeKey, address, options) },
+          measureRoom: (panelId, scopeKey, canSplitPane) => { roots.measure(panelId, scopeKey, canSplitPane) },
+          syncPresentation: (panelId, scopeKey, value) => {
+            if (layout.panelInfo.getSnapshot().activePanelId !== panelId
+              || (roots.views.getSnapshot()[panelId]?.scopeKey ?? '') !== scopeKey) return
+            if (value.shown) layout.openRightbar(value.track, value.fullscreen)
+            else layout.closeRightbar()
+          },
+        }),
+      }, RootSidebarSeat)
       yield ctx.slots.register({
         name: 'rightbar.session',
         locale: NS,

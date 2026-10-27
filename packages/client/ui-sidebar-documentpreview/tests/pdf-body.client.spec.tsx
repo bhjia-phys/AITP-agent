@@ -15,7 +15,8 @@ const overlay = vi.hoisted(() => ({ create: vi.fn(), render: vi.fn(), cancel: vi
 vi.mock('../src/client/pdf/text.ts', () => ({ pdfTextRenderer: (host: HTMLDivElement) => { overlay.create(host); return overlay.render } }))
 vi.mock('../src/client/pdf/runtime.ts', () => ({ openPdf: engine.open }))
 vi.mock('../src/client/pdf/document.ts', () => ({ renderPdfPage: engine.render }))
-import { PdfBody, type PdfBodyProps } from '../src/client/pdf/pdf.tsx'
+import { PdfBody, SourcePdfReader, type PdfBodyProps } from '../src/client/pdf/pdf.tsx'
+import type { SourcePdfReaderInput } from '../src/client/pdf/source-reader.ts'
 import { createPdfStore, type PdfState } from '../src/client/pdf/store.ts'
 import { en } from '../src/client/pdf/locales.ts'
 import { LoadingIndicator } from '../src/client/LoadingIndicator.tsx'
@@ -102,6 +103,158 @@ function harness() {
 }
 
 const documentOf = (numPages = 3): PdfDocument => ({ numPages, getPage: vi.fn() })
+
+/** Give the real scrollport deterministic physical page geometry without replacing its behavior. */
+function sourceGeometry(): void {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    if (this.hasAttribute('data-document-zoom-scrollport')) return new DOMRect(0, 0, 124, 120)
+    const page = Number(this.dataset.pdfPage)
+    const scrollport = this.closest<HTMLElement>('[data-document-zoom-scrollport]')
+    return Number.isSafeInteger(page) && page > 0 && scrollport !== null
+      ? new DOMRect(0, (page - 1) * 140 - scrollport.scrollTop, 100, 100) : new DOMRect()
+  })
+}
+
+function SourceReader(props: SourcePdfReaderInput) {
+  return <SourcePdfReader {...props} t={makeTranslate(en)} loading={<LoadingIndicator label={en.loading} />}
+    ZoomViewport={ZoomViewport} zoomSurfaceClass={zoomSurfaceClass} />
+}
+
+describe('authorized source PDF reader', () => {
+  it('keeps an explicitly chosen page when a short document cannot scroll', async () => {
+    sourceGeometry()
+    const onPageChange = vi.fn()
+    const input: SourcePdfReaderInput = { data: new Uint8Array([8, 9]), page: 1, onPageChange }
+    const view = render(<SourceReader {...input} />)
+    const load = loads[0]
+    if (load === undefined) throw new Error('Expected a source document load.')
+    await act(async () => { load.deferred.resolve(documentOf(2)) })
+    const scrollport = view.container.querySelector('[data-document-zoom-scrollport]')
+    if (!(scrollport instanceof HTMLElement)) throw new Error('Expected the native PDF scrollport.')
+    Object.defineProperties(scrollport, {
+      scrollTop: { configurable: true, get: () => 0, set: () => {} },
+      clientHeight: { configurable: true, value: 500 },
+      scrollHeight: { configurable: true, value: 300 },
+    })
+    onPageChange.mockClear()
+    view.rerender(<SourceReader {...input} page={2} />)
+    fireEvent.scroll(scrollport)
+    expect(onPageChange).not.toHaveBeenCalled()
+    Object.defineProperty(scrollport, 'clientHeight', { configurable: true, value: 120 })
+    fireEvent.scroll(scrollport)
+    expect(onPageChange).toHaveBeenLastCalledWith(1)
+  })
+
+  it('keeps an explicit last page when bottom clamping leaves the previous page at the reading line', async () => {
+    sourceGeometry()
+    const onPageChange = vi.fn()
+    const input: SourcePdfReaderInput = { data: new Uint8Array([7, 8]), page: 1, onPageChange }
+    const view = render(<SourceReader {...input} />)
+    await act(async () => { loads[0]!.deferred.resolve(documentOf(3)) })
+    const scrollport = view.container.querySelector('[data-document-zoom-scrollport]')
+    if (!(scrollport instanceof HTMLElement)) throw new Error('Expected the native PDF scrollport.')
+    let top = 0
+    Object.defineProperties(scrollport, {
+      scrollTop: { configurable: true, get: () => top, set: (value: number) => { top = Math.max(0, Math.min(160, value)) } },
+      clientHeight: { configurable: true, value: 220 },
+      scrollHeight: { configurable: true, value: 380 },
+    })
+    scrollport.getBoundingClientRect = () => new DOMRect(0, 0, 124, 220)
+    onPageChange.mockClear()
+    view.rerender(<SourceReader {...input} page={3} />)
+    fireEvent.scroll(scrollport)
+    expect(scrollport.scrollTop).toBe(160)
+    expect(onPageChange).not.toHaveBeenCalled()
+    scrollport.scrollTop = 100
+    fireEvent.scroll(scrollport)
+    expect(onPageChange).toHaveBeenLastCalledWith(2)
+  })
+
+  it('keeps an explicit last page while the native viewport settles at its bottom limit', async () => {
+    sourceGeometry()
+    const onPageChange = vi.fn()
+    const input: SourcePdfReaderInput = { data: new Uint8Array([6, 7]), page: 1, onPageChange }
+    const view = render(<SourceReader {...input} />)
+    await act(async () => { loads[0]!.deferred.resolve(documentOf(3)) })
+    const scrollport = view.container.querySelector('[data-document-zoom-scrollport]')
+    if (!(scrollport instanceof HTMLElement)) throw new Error('Expected the native PDF scrollport.')
+    let top = 0, height = 220, contentHeight = 380
+    Object.defineProperties(scrollport, {
+      scrollTop: { configurable: true, get: () => top,
+        set: (value: number) => { top = Math.max(0, Math.min(contentHeight - height, value)) } },
+      clientHeight: { configurable: true, get: () => height },
+      scrollHeight: { configurable: true, get: () => contentHeight },
+    })
+    scrollport.getBoundingClientRect = () => new DOMRect(0, 0, 124, height)
+    onPageChange.mockClear()
+    view.rerender(<SourceReader {...input} page={3} />)
+    expect(scrollport.scrollTop).toBe(160)
+    height = 0
+    fireEvent.scroll(scrollport)
+    height = 220
+    fireEvent.scroll(scrollport)
+    expect(onPageChange).not.toHaveBeenCalled()
+    height = 240
+    scrollport.scrollTop = 160
+    fireEvent.scroll(scrollport)
+    expect(scrollport.scrollTop).toBe(140)
+    expect(onPageChange).not.toHaveBeenCalled()
+    contentHeight = 400
+    scrollport.scrollTop = 160
+    fireEvent.scroll(scrollport)
+    expect(onPageChange).not.toHaveBeenCalled()
+    scrollport.scrollTop = 100
+    fireEvent.scroll(scrollport)
+    expect(onPageChange).toHaveBeenLastCalledWith(2)
+  })
+
+  it('restores a physical page and ignores controlled feedback echoes while accepting new page requests', async () => {
+    sourceGeometry()
+    const input: SourcePdfReaderInput = { data: new Uint8Array([1, 2]), page: 2,
+      onPageChange: vi.fn(), onScrollTopChange: vi.fn() }
+    const view = render(<SourceReader {...input} />)
+    const load = loads[0]
+    if (load === undefined) throw new Error('Expected an owned source document load.')
+    await act(async () => { load.deferred.resolve(documentOf(3)) })
+    const scrollport = view.container.querySelector('[data-document-zoom-scrollport]')
+    if (!(scrollport instanceof HTMLElement)) throw new Error('Expected the native PDF scrollport.')
+    expect(scrollport.scrollTop).toBe(140)
+    expect(view.container.querySelectorAll('[data-pdf-text]')).toHaveLength(3)
+    scrollport.scrollTop = 310
+    fireEvent.scroll(scrollport)
+    expect(input.onPageChange).toHaveBeenLastCalledWith(3)
+    expect(input.onScrollTopChange).toHaveBeenLastCalledWith(310)
+    view.rerender(<SourceReader {...input} page={3} scrollTop={310} />)
+    expect(scrollport.scrollTop).toBe(310)
+    view.rerender(<SourceReader {...input} page={1} scrollTop={310} />)
+    expect(scrollport.scrollTop).toBe(0)
+    view.unmount()
+    expect(load.dispose).toHaveBeenCalledOnce()
+    expect(engine.open.mock.calls[0]?.[1].aborted).toBe(true)
+  })
+
+  it('restores exact scroll and zoom, reports native zoom choices, and ignores a replaced document completion', async () => {
+    sourceGeometry()
+    const input: SourcePdfReaderInput = { data: new Uint8Array([3, 4]), page: 3, scrollTop: 310,
+      zoom: { kind: 'fixed', scale: 1.5 }, onPageChange: vi.fn(), onZoomChange: vi.fn() }
+    const view = render(<SourceReader {...input} />)
+    const oldLoad = loads[0]
+    const next = { ...input, data: new Uint8Array([5, 6]) }
+    view.rerender(<SourceReader {...next} />)
+    const latest = loads[1]
+    if (oldLoad === undefined || latest === undefined) throw new Error('Expected independent old and replacement loads.')
+    await act(async () => { latest.deferred.resolve(documentOf(3)); oldLoad.deferred.resolve(documentOf(99)) })
+    expect(view.container.querySelectorAll('[data-pdf-page]')).toHaveLength(3)
+    const scrollport = view.container.querySelector('[data-document-zoom-scrollport]')
+    if (!(scrollport instanceof HTMLElement)) throw new Error('Expected the native PDF scrollport.')
+    expect(scrollport.scrollTop).toBe(310)
+    expect(screen.getByRole('button', { name: 'Choose zoom' }).textContent).toContain('150%')
+    fireEvent.click(screen.getByRole('button', { name: 'Choose zoom' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fit width' }))
+    expect(input.onZoomChange).toHaveBeenLastCalledWith({ kind: 'fit-width' })
+    expect(oldLoad.dispose).toHaveBeenCalledOnce()
+  })
+})
 
 describe('PDF body', () => {
   it('reports non-byte contents without starting PDF.js', () => {
@@ -360,7 +513,7 @@ describe('PDF body', () => {
     expect(screen.getByRole('alert').textContent).toContain(en.password)
   })
 
-  it('renders later pages only when they approach the viewport and records the reached page', async () => {
+  it('prefetches nearby pages without reporting them as the page currently read', async () => {
     IntersectionObserverStub.instances = []
     vi.stubGlobal('IntersectionObserver', IntersectionObserverStub)
     const h = harness()
@@ -373,6 +526,12 @@ describe('PDF body', () => {
     expect(engine.render.mock.calls.map(([, page]) => page)).toEqual([1])
     await act(async () => { observer.intersect(second, true) })
     expect(engine.render.mock.calls.map(([, page]) => page)).toEqual([1, 2])
+    expect(h.instance.getSnapshot().byTab[h.tabId]?.page).toBeUndefined()
+    const scrollport = view.container.querySelector('[data-document-zoom-scrollport]')
+    if (!(scrollport instanceof HTMLElement)) throw new Error('Expected the native PDF scrollport.')
+    scrollport.getBoundingClientRect = () => new DOMRect(0, 0, 124, 120)
+    second.getBoundingClientRect = () => new DOMRect(0, 0, 100, 100)
+    fireEvent.scroll(scrollport)
     expect(h.instance.getSnapshot().byTab[h.tabId]?.page).toBe(2)
     expect(screen.getByRole('img', { name: 'PDF page 2' })).toBeTruthy()
     view.unmount()

@@ -5,6 +5,7 @@ import { closeTopModal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SidebarRightController } from './service.ts'
 import type { SidebarRightTarget } from './focus.ts'
 import type {} from './locales.ts'
+import type { SidebarRightRoots } from './root-service.ts'
 
 /**
  * Register the sidebar commands over the controller used by its visible controls.
@@ -15,7 +16,7 @@ import type {} from './locales.ts'
  * @returns release callback for the commands.
  */
 export function registerSidebarShortcuts(shortcuts: Pick<Shortcuts, 'register' | 'runtime'>, sidebar: SidebarRightController,
-  t: TranslateNS<'sidebarRight'>, closeWindow: () => void): () => void {
+  t: TranslateNS<'sidebarRight'>, closeWindow: () => void, roots?: SidebarRightRoots): () => void {
   const reason = (kind: 'split' | 'fullscreen', target: SidebarRightTarget): string | null => {
     if (kind === 'split') {
       const block = sidebar.splitBlock(target)
@@ -35,6 +36,8 @@ export function registerSidebarShortcuts(shortcuts: Pick<Shortcuts, 'register' |
     },
     regions: ['page', 'editable', 'terminal'], modals: [],
     resolve: () => {
+      const root = roots?.command('toggle', null)
+      if (root !== undefined) return { status: 'handled', run: root }
       const target = sidebar.commandTarget(null)
       if (target === undefined) return { status: 'blocked', reason: t('command.noSession') }
       return { status: 'handled', run: () => { if (sidebar.isTargetCurrent(target)) sidebar.toggleExpanded() } }
@@ -50,6 +53,8 @@ export function registerSidebarShortcuts(shortcuts: Pick<Shortcuts, 'register' |
         'web:macos': binding, 'web:windows': binding },
       regions: ['page', 'editable', 'terminal'], modals: [],
       resolve: ({ target: element }) => {
+        const root = roots?.command(kind, element ?? null)
+        if (root !== undefined) return { status: 'handled', run: root }
         const target = sidebar.focusedTarget(element)
         if (target === undefined) return { status: 'blocked', reason: t('command.noFocus') }
         const unavailable = reason(kind, target)
@@ -73,6 +78,11 @@ export function registerSidebarShortcuts(shortcuts: Pick<Shortcuts, 'register' |
       resolve: ({ target: element, source, modal }) => {
         if (kind === 'close' && modal !== null) {
           return { status: 'handled', run: () => { closeTopModal(document) } }
+        }
+        const root = kind === 'close' ? roots?.command('close', element ?? null) : undefined
+        if (root !== undefined) return { status: 'handled', run: root }
+        if (element?.closest('[data-sidebar-right-root]')) {
+          return { status: 'blocked', reason: t(kind === 'refresh' ? 'command.noRefresh' : 'command.noFocus') }
         }
         const target = sidebar.focusedTarget(element)
         if (target === undefined && (source === 'iframe' || element?.closest('[data-sidebar-right-session]'))) {
