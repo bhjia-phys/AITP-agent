@@ -110,10 +110,10 @@ export class BoundedSourceWatcher extends EventEmitter {
   sync(directories: readonly string[]): void {
     const desired = new Set(['', ...directories, ...this.selected])
     if (desired.size > this.limit) throw new SourceError('unavailable', 'The bounded source watch limit was reached.')
-    for (const path of desired) this.add(path)
     for (const [path, watcher] of this.watchers) if (!desired.has(path)) {
       watcher.close(); this.watchers.delete(path); this.identities.delete(path)
     }
+    for (const path of desired) this.add(path)
   }
   /**
    * Retain one separately validated opened file's parent even when discovery was partial.

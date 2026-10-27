@@ -30,6 +30,19 @@ it('watches only observed directories and an explicitly opened deeper source, in
   } finally { observer?.close(); await rm(root, { recursive: true, force: true }) }
 })
 
+it('replaces an obsolete watch before allocating a renamed directory at the limit', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'aitp-watch-rename-'))
+  let observer: BoundedSourceWatcher | undefined
+  try {
+    await mkdir(join(root, 'old'))
+    observer = new BoundedSourceWatcher(root, 2, () => {})
+    observer.sync(['', 'old'])
+    await rename(join(root, 'old'), join(root, 'new'))
+    expect(() => observer?.sync(['', 'new'])).not.toThrow()
+    expect(observer.count).toBe(2)
+  } finally { observer?.close(); await rm(root, { recursive: true, force: true }) }
+})
+
 it('reattaches a watch when a discovered directory is replaced', async () => {
   const root = await mkdtemp(join(tmpdir(), 'aitp-replaced-watch-'))
   const changed = vi.fn()
