@@ -60,7 +60,7 @@ kind: "package-reference"
 
 root 作用域的 `rightbar` 入口通过独立的 `rightbar.session` 子树渲染选中的 Session，以及拥有已初始化 `keepMounted` 正文的后台 Session。每个 View 拥有自身的 Session reference。只有前台子树上报框架列宽；其他子树保持隐藏，不删除 tab 状态。
 
-全局面板通过 `rightbar.root` 阅读资料，与普通会话共用原生侧栏框架、标签条、分栏和浮窗控件及窄窗口全屏行为。面板可以在自己的页头以 `panelId` 渲染 `sidebar.right.root.expand`；仅当该面板当前范围存在已折叠的资料时，它才显示同一个原生展开按钮。折叠后键盘焦点返回此按钮，再展开时焦点进入资料阅读区域。
+全局面板通过 `rightbar.root` 阅读资料，与普通会话共用原生侧栏框架、标签条、分栏和浮窗控件及窄窗口全屏行为。面板可以在自己的页头以 `panelId` 渲染 `sidebar.right.root.expand`；该面板当前范围存在已折叠的资料时，它显示同一个原生展开按钮。折叠后键盘焦点返回此按钮，再展开时焦点进入资料阅读区域。 面板可提供 `openInitial`，在还没有标签时显示同一个原生按钮；回调只打开所属面板获准的初始资源。已有标签时优先恢复标签，不再次调用初始回调；不会创建会话或授予文件权限。
 
 <a id="state"></a>
 ## 状态

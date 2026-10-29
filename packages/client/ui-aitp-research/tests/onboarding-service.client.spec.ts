@@ -5,7 +5,7 @@ import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/clie
 import { ResourceRegistry } from '@deepseek-ai/dsh-client-resources/src/client/resources.ts'
 import type { CreateTopicRequest, ResearchEvent, ResearchWorkspaceAdapter, ResourceId, Result, TopicId } from '../src/client/workspace-contract.ts'
 import { ResearchWorkspaceRegistry } from '../src/client/workspace-service.ts'
-import { registerWorkspaceResources, workspaceSetupAddress } from '../src/client/workspace-resources.ts'
+import { registerWorkspaceResources, workspaceProviderAddress, workspaceSetupAddress } from '../src/client/workspace-resources.ts'
 
 const WS = 'new workspace' as WorkspaceId
 const failure: Result<never> = { ok: false, error: { code: 'unavailable', message: 'Research is unavailable.', retryable: true } }
@@ -19,7 +19,7 @@ function harness() {
   registerWorkspaceResources(ctx, registry)
   const adapter: ResearchWorkspaceAdapter = {
     workspaceId: WS,
-    provider: { id: 'test', origin: 'runtime', capabilities: { read: false, readActivity: false, readContext: false, previewChanges: false, applyChanges: false, changeEvents: false, commands: [] } },
+    provider: { id: 'test', origin: 'runtime', capabilities: { automaticResearch: true, read: false, readActivity: false, readContext: false, previewChanges: false, applyChanges: false, changeEvents: false, commands: [] } },
     getProject: vi.fn(async () => failure), listTopics: async () => failure, getTopic: async () => failure,
     getResource: async () => failure, getActivity: async () => failure, readContext: async () => failure,
     previewChange: async () => failure, applyChange: async () => failure, subscribeChanges: () => () => {},
@@ -28,6 +28,28 @@ function harness() {
 }
 
 async function flush(): Promise<void> { for (let round = 0; round < 30; round += 1) await Promise.resolve() }
+
+it('observes actual automatic Research availability before enrollment and withdraws it with its provider', async () => {
+  const { registry, adapter, resources } = harness()
+  let provider = adapter.provider
+  const source = resources.source(workspaceProviderAddress(WS))
+  const unsubscribe = source.subscribe(() => {})
+  await flush()
+  expect(source.getSnapshot()).toMatchObject({ status: 'failed', value: undefined })
+  const release = registry.register(() => ({ ...adapter, get provider() { return provider } }))
+  await flush()
+  expect(source.getSnapshot()).toMatchObject({ status: 'live', value: { capabilities: { automaticResearch: true, read: false } } })
+  provider = { ...provider, capabilities: { ...provider.capabilities, automaticResearch: false } }
+  registry.retry(WS)
+  await flush()
+  expect(source.getSnapshot()).toMatchObject({ status: 'live', value: { capabilities: { automaticResearch: false } } })
+  expect(vi.mocked(adapter).getProject.mock.calls).toHaveLength(0)
+  release()
+  await flush()
+  expect(source.getSnapshot()).toMatchObject({ status: 'failed', failure: { details: { code: 'not-connected' } } })
+  unsubscribe()
+  registry.dispose()
+})
 
 it('reports a missing connection and absent optional mutations without inventing a capability', async () => {
   const { registry, adapter } = harness()

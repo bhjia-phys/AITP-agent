@@ -10,6 +10,7 @@ export interface TopicCreationDraft {
   title: string
   question: string
   scope: string
+  directory?: string
   request: CreateTopicRequest | null
   pending: boolean
   uncertain: boolean
@@ -39,7 +40,7 @@ export const topicCreationActions = {
   ): void {
     const existing = owner.topicDrafts[workspaceId]
     if (existing !== undefined) { existing.hidden = false; return }
-    owner.topicDrafts[workspaceId] = { parentTopicId, currentTopicId, currentTitle, title: '', question: '', scope: '', request: null, pending: false, uncertain: false, failure: null, receipt: null, hidden: false }
+    owner.topicDrafts[workspaceId] = { parentTopicId, currentTopicId, currentTitle, title: '', question: '', scope: '', directory: '', request: null, pending: false, uncertain: false, failure: null, receipt: null, hidden: false }
   },
   /**
    * Change only a request whose outcome is known and no longer pending.
@@ -48,7 +49,7 @@ export const topicCreationActions = {
    * @param field - researcher-authored field.
    * @param value - entered text.
    */
-  changeTopic(owner: TopicCreationOwner, workspaceId: WorkspaceId, field: 'title' | 'question' | 'scope', value: string): void {
+  changeTopic(owner: TopicCreationOwner, workspaceId: WorkspaceId, field: 'title' | 'question' | 'scope' | 'directory', value: string): void {
     const draft = owner.topicDrafts[workspaceId]
     if (draft === undefined || draft.pending || draft.uncertain || draft.receipt !== null) return
     draft[field] = value

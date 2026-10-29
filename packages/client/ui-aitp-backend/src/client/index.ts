@@ -32,6 +32,14 @@ function bindWorkspaceProvider(ctx: Context): void {
   const { remote } = ctx
   const { researchMemory } = remote
   registerSessionResources(ctx, researchMemory, t)
+  const releaseWorkflow = ctx.reflect.provide('researchWorkflowTransport', {
+    submit: workspaceId => (request, signal) => researchMemory.promptWorkflow({ ...request, workspaceId }, signal),
+    setMode: async (sessionId, enabled) => {
+      const result = await researchMemory.setResearchMode({ sessionId, enabled })
+      if (!result.ok) throw result.error
+    },
+  } satisfies Context['researchWorkflowTransport'])
+  ctx.effect(() => releaseWorkflow, 'ui-aitp-backend: default Research transport')
   const transport = { researchMemory, $stream: remote.$stream.bind(remote) }
   ctx.effect(() => {
     const adapters = new Set<RuntimeWorkspaceAdapter>()

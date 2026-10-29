@@ -1,6 +1,9 @@
 /** Pure source-address encoding shared by Host context and browser readers. */
 import type { ResourceDomain, ResourceReadRequest, SourceLocator, SourceRef, SourceRootId, SourceId } from './types.ts'
 
+/** Navigation identity for an admitted collection; it is not a selectable file source. */
+export const COLLECTION_SOURCE_ID = 'collection:root' as SourceId
+
 const enc = encodeURIComponent
 
 /** An observed source watcher failure, carried to reading surfaces without implying missing content. */

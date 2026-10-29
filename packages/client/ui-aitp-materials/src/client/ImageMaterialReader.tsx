@@ -1,15 +1,15 @@
 /** Research actions around the native image/zoom reader, using only guarded source bytes. */
 import { useState, type ReactNode } from 'react'
-import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ZoomPreference } from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'
 import { Button, IconLoadingOutlineRegular, IconNewChatOutlineRegular, IconPlusOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { materialBytesAddress, materialSourcePath } from '@deepseek-ai/dsh-research-resources/protocol'
 import { MaterialReaderHeader, MaterialReaderLinks } from './MaterialReaderHeader.tsx'
+import { MaterialSourceDetails, type LocatedMaterialReaderProps } from './MaterialSourceDetails.tsx'
 import type {} from './resources.ts'
 import css from './materials.module.css'
 
 /** @param props - observed source and retained image position. @returns a native image reader. */
-export function ImageMaterialReader(props: FactoryComponentPropsOf<'aitp.materials.reader'>): ReactNode {
+export function ImageMaterialReader(props: LocatedMaterialReaderProps): ReactNode {
   const { reading, t } = props
   const dock = props.presentation === 'dock'
   const [zoom, setZoom] = useState<ZoomPreference>()
@@ -23,6 +23,7 @@ export function ImageMaterialReader(props: FactoryComponentPropsOf<'aitp.materia
   return <article className={dock ? `${css.reader} ${css.dockReader}` : css.reader}
     data-material-presentation={props.presentation} data-material-domain={reading.resource.domain}>
     {!dock && <MaterialReaderHeader {...props} />}
+    <MaterialSourceDetails {...props} />
     {(props.onDiscuss !== undefined || props.onSelect !== undefined) && <div className={css.readerActions}>
       {props.onDiscuss !== undefined && <Button size="sm" variant="primary" icon={<IconNewChatOutlineRegular />}
         onClick={() => { props.onDiscuss?.(selection) }}>{t('discussSource')}</Button>}
@@ -53,7 +54,6 @@ export function ImageMaterialReader(props: FactoryComponentPropsOf<'aitp.materia
         <p className={css.muted}>{t('imageContext')}</p>
         <MaterialReaderLinks {...props} onFailure={() => { setFailure(true) }} />
       </>}
-      <p className={css.muted}>{t('path')}: {materialSourcePath(reading.resource.ref.sourceId)}</p>
       <p className={css.muted}>{t('observed', { time: reading.observedAt })}</p>
     </details>
   </article>

@@ -14,11 +14,13 @@ import { ListingStatus, TopicListingView, type TopicListing } from './TopicListi
 import type { Project, Topic, TopicId, TopicSummary, WorkspaceRead } from './workspace-contract.ts'
 import { workspaceProjectAddress, workspaceTopicAddress, workspaceTopicsAddress } from './workspace-resources.ts'
 import {
-  ContributionNote, MaterialLinks, openTopicResource, QualifiedAnswerView, ReadAt, unavailableCopy, WorkspaceReadingMeta,
+  ContributionNote, MaterialLinks, openTopicResource, QualifiedAnswerView, unavailableCopy, WorkspaceReadingMeta,
   WorkspaceUnavailable, WorkStateLabel, type WorkspaceViewProps,
 } from './WorkspaceViews.tsx'
 import css from './workspace.module.css'
+import { RelatedLibraries } from './RelatedLibraries.tsx'
 import { selectionSource } from './workspace-selection.ts'
+import { absentTopicQualification, overviewQuestion, topicExcerpt, topicSectionLabels } from './topic-presentation.ts'
 
 /** Move between map nodes with the arrow, Home and End keys; Tab order is unchanged. */
 function moveBetweenNodes(event: KeyboardEvent<HTMLElement>): void {
@@ -77,13 +79,15 @@ function MapOverview(props: WorkspaceViewProps & { project: WorkspaceRead<Projec
           <p>{seed.title}</p><p>{seed.summary}</p>
         </li>)}</ul>
       </section>}
-      <details className={css.topicManagement}><summary>{t('topic.readingDetails')}</summary><ReadAt t={t} read={props.project} /></details>
     </div>
   )
 }
 
 function DirectionLanes(props: WorkspaceViewProps & { project: Project; listing: TopicListing }): ReactNode {
   const { t, project, listing } = props
+  const disclosure = props.useStore(state => state.disclosure)
+  const expandable = listing.items.filter(topic => topic.childIds.length > 0)
+  const allOpen = expandable.length > 0 && expandable.every(topic => disclosure[disclosureKey(props.workspaceId, 'map', topic.id)] === true)
   const known = new Set(project.directions.map(direction => direction.id))
   const lanes = project.directions.map(direction => ({
     id: direction.id, title: direction.title, topics: listing.items.filter(topic => topic.directionId === direction.id),
@@ -93,6 +97,9 @@ function DirectionLanes(props: WorkspaceViewProps & { project: Project; listing:
   return (
     <section aria-label={t('map.directions')}>
       {lanes.length === 0 && !listing.partial && <p className={css.note}>{t('workspace.noTopics')}</p>}
+      {expandable.length > 0 && <div className={css.mapControls}><Button variant="ghost" size="sm" onClick={() => {
+        for (const topic of expandable) props.actions.setDisclosed(disclosureKey(props.workspaceId, 'map', topic.id), !allOpen)
+      }}>{t(allOpen ? 'map.collapseShown' : 'map.expandShown')}</Button></div>}
       <div className={css.lanes}>
         {lanes.map(lane => <section key={lane.id} className={css.lane} aria-label={lane.title}>
           <h3 className={css.laneTitle}>{lane.title}</h3>
@@ -118,10 +125,10 @@ function MapNode(props: WorkspaceViewProps & { topic: TopicSummary }): ReactNode
       <div className={css.nodeCard}>
         <button type="button" className={css.nodeButton} data-map-node="" onClick={() => { props.navigate({ kind: 'map', focusId: topic.id }) }}>
           <span className={css.nodeTitle} {...selectionSource(topic.id)}>{title}</span>
-          <span className={css.nodeMeta}>
-            <WorkStateLabel t={t} work={topic.work} />
+          {(topic.work.state !== 'unknown' || topic.work.label !== '' || relation !== undefined) && <span className={css.nodeMeta}>
+            {(topic.work.state !== 'unknown' || topic.work.label !== '') && <WorkStateLabel t={t} work={topic.work} />}
             {relation !== undefined && <span className={css.relation}>{t(`map.relation.${relation}`)}</span>}
-          </span>
+          </span>}
         </button>
         {count > 0 && <button type="button" className={css.branchToggle} aria-expanded={open}
           aria-label={t(count === 1 ? 'map.toggle.one' : 'map.toggle.other', { count, title })}
@@ -177,29 +184,37 @@ function MapFocus(props: WorkspaceViewProps & { project: Project; topicId: Topic
   const topic = read.value
   const { accountResourceId } = topic
   const relation = topic.parentContribution?.relation
+  const answer = topic.currentAnswer === null ? null : { ...topic.currentAnswer,
+    text: topicExcerpt(topic.currentAnswer.text, topicSectionLabels.answer),
+    qualification: topic.currentAnswer.qualification === absentTopicQualification ? t('topic.noQualification')
+      : topicExcerpt(topic.currentAnswer.qualification, topicSectionLabels.gap) }
+  const gap = topic.gap === null ? null : topicExcerpt(topic.gap, topicSectionLabels.gap)
+  const gapIsQualification = gap !== null && gap.trim() !== '' && gap.trim() === answer?.qualification.trim()
+  const materials = topic.resources.filter(resource => resource.id !== accountResourceId && resource.id !== props.project.accountResourceId)
   return (
     <div className={clsx(css.enter, css.focusLayout)} {...selectionSource(topic.id, accountResourceId)}>
       <WorkspaceReadingMeta t={t} read={read} stale={result.status === 'failed'} retry={retry} />
       <article className={css.focusCard}>
-        <p className={css.cardMeta}>
-          <WorkStateLabel t={t} work={topic.work} />
+        {(topic.work.state !== 'unknown' || topic.work.label !== '' || relation !== undefined) && <p className={css.cardMeta}>
+          {(topic.work.state !== 'unknown' || topic.work.label !== '') && <WorkStateLabel t={t} work={topic.work} />}
           {relation !== undefined && <span className={css.relation}>{t(`map.relation.${relation}`)}</span>}
-        </p>
+        </p>}
         <h2 className={css.focusTitle} tabIndex={-1} data-arrival="">{topic.title}</h2>
-        <div className={css.question}><MarkdownText text={topic.question} labels={markdownLabels(t)} /></div>
+        <div className={css.question}><MarkdownText text={overviewQuestion(topic.question)} labels={markdownLabels(t)} /></div>
         <ContributionNote {...props} parentId={topic.parentId} contribution={topic.parentContribution} />
       </article>
       <aside className={css.summary} aria-labelledby={summaryId}>
         <div>
           <h3 id={summaryId} className={css.label}>{t('workspace.answer')}</h3>
-          <QualifiedAnswerView t={t} answer={topic.currentAnswer} topicId={topic.id} />
+          <QualifiedAnswerView t={t} answer={answer} topicId={topic.id} qualificationLabel={gapIsQualification ? t('workspace.gap') : undefined} />
         </div>
-        {topic.gap !== null && <div><h3 className={css.label}>{t('workspace.gap')}</h3><p {...selectionSource(topic.id, accountResourceId, 'source')}>{topic.gap}</p></div>}
+        {gap !== null && !gapIsQualification && <div><h3 className={css.label}>{t('workspace.gap')}</h3><div {...selectionSource(topic.id, accountResourceId, 'source')}><MarkdownText text={gap} labels={markdownLabels(t)} /></div></div>}
         {topic.work.nextAction !== undefined && <div><h3 className={css.label}>{t('workspace.next')}</h3><p>{topic.work.nextAction}</p></div>}
-        {topic.resources.length > 0 && <div>
+        {materials.length > 0 && <div>
           <h3 className={css.label}>{t('workspace.section.materials')}</h3>
           <MaterialLinks t={t} navigate={props.navigate} openMaterialReference={props.openMaterialReference}
-            topicId={topic.id} resources={topic.resources} showLocator={false} />
+            topicId={topic.id} resources={materials.slice(0, 3)} showLocator={false} />
+          {materials.length > 3 && <p>{t('map.materialSummary.other', { count: materials.length })}</p>}
         </div>}
         <div className={css.actions}>
           <Button variant="primary" size="sm" onClick={() => { props.navigate({ kind: 'topic', topicId: topic.id }) }}>{t('map.openTopic')}</Button>
@@ -208,8 +223,10 @@ function MapFocus(props: WorkspaceViewProps & { project: Project; topicId: Topic
         </div>
       </aside>
       <section className={css.focusBranches} aria-label={t('map.branches', { title: topic.shortTitle ?? topic.title })}>
+        <h3 className={css.label}>{t('workspace.section.branches')}</h3>
         {topic.childIds.length === 0 ? <p className={css.note}>{t('map.noBranches')}</p> : <BranchList {...props} parent={topic} />}
       </section>
+      <RelatedLibraries {...props} title={topic.title} topic={topic} />
       <Siblings {...props} topic={topic} />
     </div>
   )
@@ -233,7 +250,8 @@ function Siblings(props: WorkspaceViewProps & { topic: Topic }): ReactNode {
       <h3 id={headingId} className={css.label}>{t(topic.parentId === null ? 'map.siblings.root' : 'map.siblings')}</h3>
       <ul className={css.siblingList}>{siblings.map(sibling => <li key={sibling.id}>
         <button type="button" className={css.sibling} data-map-node="" onClick={() => { props.navigate({ kind: 'map', focusId: sibling.id }) }}>
-          <span {...selectionSource(sibling.id)}>{sibling.shortTitle ?? sibling.title}</span><WorkStateLabel t={t} work={sibling.work} />
+          <span {...selectionSource(sibling.id)}>{sibling.shortTitle ?? sibling.title}</span>
+          {(sibling.work.state !== 'unknown' || sibling.work.label !== '') && <WorkStateLabel t={t} work={sibling.work} />}
         </button>
       </li>)}
       {more && <li className={css.siblingMore}><button type="button" className={css.linkButton}

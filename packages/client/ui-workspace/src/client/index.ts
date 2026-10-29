@@ -46,6 +46,7 @@ import {
 import { createWorkspaceShortcutControls, installWorkspaceShortcuts } from './shortcuts.ts'
 import { UiWorkspaceService } from './navigation.ts'
 import { createWorkspaceViewStore } from './stores.ts'
+import { DefaultWorkspaceBrowser } from './rows/DefaultWorkspaceBrowser.tsx'
 import { WorkspaceBrowser } from './rows/WorkspaceBrowser.tsx'
 import { ArchiveSessionMenuItem, ArchiveSessionRowButton, SessionArchiveConfirmDialog } from './session-actions/ArchiveSession.tsx'
 import { derive } from './session-actions/derived.ts'
@@ -289,9 +290,9 @@ export function apply(ctx: Context): void {
   })
   // Each registration declares its owned children in the same call; slot
   // injection follows both the owner and declaration HMR lifetimes.
-  ctx.slots.inject('sidebar.workspaces', () => ctx.slots.register(
+  ctx.slots.registerFactory(
     {
-      name: 'sidebar.workspaces',
+      name: 'workspace.browser', scope: 'root',
       children: {
         'sidebar.workspaces.directoryFlow': { kind: 'single', scope: 'root' },
         // Every row entry reads the menu's open state through a hook bound
@@ -309,7 +310,8 @@ export function apply(ctx: Context): void {
       locale: NS,
     },
     WorkspaceBrowser,
-  ))
+  )
+  ctx.slots.inject('sidebar.workspaces', () => ctx.slots.register({ name: 'sidebar.workspaces', store: viewStore, inject: browserInjected, locale: NS }, DefaultWorkspaceBrowser))
   // The shipped row actions take the same route as a plugin's: `slots.inject`
   // waits for the browser registration above to declare each list, and the
   // entries leave with it. Explicit orders leave room for plugin entries.

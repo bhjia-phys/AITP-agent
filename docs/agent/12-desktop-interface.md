@@ -18,7 +18,7 @@ Evidence labels used below:
 
 Two earlier isolated prototypes remain available. The [Harness-frame prototype](prototype/harness-frame/README.md) demonstrates this revision with seven deep-linkable walkthroughs and a browser check. The [earlier prototype](prototype/README.md) demonstrates the superseded shell and its selection-provenance checks; its interactions remain useful evidence for reader behavior, not for the frame.
 
-The [topic-centred redesign](16-topic-centred-redesign.md#navigation) prioritizes project overview → topic → subtopic → material. The [formal research client](../../packages/client/ui-aitp-research/README.md) implements that navigation as the [research map](#research-map): an overview of directions and topics, a branch focus, topic pages and a material reader. Its adapter supplies hierarchy and material identity independently of note layout. The generic host `sidebar.context` slot supports the topic tree in the existing sidebar footprint; switching to Conversations restores the host browser. UI-1's note reader and Session views remain reusable. The [standalone prototype](prototype/topic-workspace/README.md) remains a design reference; application evidence is separate and owned by [14](14-implementation-blueprint.md#topic-redesign-review).
+The [topic-centred redesign](16-topic-centred-redesign.md#navigation) prioritizes project overview → topic → subtopic → material. The [formal research client](../../packages/client/ui-aitp-research/README.md) implements that navigation as the [research map](#research-map): an overview of directions and topics, a branch focus, topic pages and a material reader. Its adapter supplies hierarchy and material identity independently of note layout. The native new-conversation Home supplies project entry points above the unchanged composer; there is no separate Research mode switch. The left sidebar reuses native flat Session rows. Projects and their topic/discussion trees live in a native right-Sidebar tab, available from its guide and the project header. Browsing that tree does not change the question scope of an open Session. UI-1's note reader and Session views remain reusable. The [standalone prototype](prototype/topic-workspace/README.md) remains a design reference; application evidence is separate and owned by [14](14-implementation-blueprint.md#topic-redesign-review).
 
 <a id="ui-1-implementation-status"></a>
 ### Client and backend boundary
@@ -31,7 +31,7 @@ The client reads through framework resources and a workspace-bound asynchronous 
 - **Every scientific display is a view of an owner.** The topic home, thread rows and context views show source passages with locators. They keep no second editable summary; edits go to the owning note through the selected writing flow.
 - **Provenance is visible by kind.** Researcher words, provisional agent working items, source observations and generated summaries look and read differently, by label and icon as well as colour.
 - **The compact surface keeps what changes the next decision**: the task, applicable researcher instructions, conditions attached to a displayed conclusion, consequential gaps, a pending choice and unapplied outcomes. Operational detail is one deliberate expansion away.
-- **No ceremony.** There is no mode selection, no fixed research sequence and no approval dialog for ordinary authorized work or a preference edit. A source gap informs the next step; it never locks unrelated work.
+- **No ceremony.** The single Research option and independent tool preset do not introduce fixed scientific stages or approval dialogs for ordinary authorized work or a preference edit. A source gap informs the next step; it never locks unrelated work.
 - **Honest states.** Unknown coverage, missing files, disconnected backends, unsaved drafts and unimplemented capabilities are shown as such, never as empty results or success.
 
 <a id="layout-and-navigation"></a>
@@ -40,17 +40,19 @@ The client reads through framework resources and a workspace-bound asynchronous 
 The researcher authorized a unified topic-and-conversation workbench on 2026-10-26. It is implemented with bounded application validation; [14](14-implementation-blueprint.md#topic-discussion-workbench) owns acceptance evidence and remaining limits. The existing Harness sidebar and ordinary Session remain the owners of navigation and execution. Within Research, the centre reads the research object and the right region embeds the complete normal Conversation. Library panels instead keep their catalogue on the left and open sources in the native document dock on the right. Asking about a source presents the same normal Conversation in the left area; **Back to library** restores its catalogue while the document remains open. Entering a catalogue temporarily hides the discussion presentation, and returning to the topic restores the previously visible discussion without creating a Session or altering its draft. A discussion can be renamed through the existing Session title service; both the topic list and right-hand picker reflect the same title. An actual research-writer operation shows a qualified update notice with a **View changes** action exposing the recorded before/after text. Prepared, partial and unknown outcomes retain their own labels; they are never reported as saved or scientifically integrated. Generic external file edits can refresh readers but do not manufacture an operation receipt or historical diff.
 
 ```text
-┌ Harness sidebar ─────────┬ reading region ──────────────────┬ research discussion ────────────┐
-│ ▾ Project                │ Topic / note / paper / code      │ Topic name                      │
-│   ▾ Subdirection         │                                  │ [Conversation ▾] [+ New]        │
-│       Discussion A       │ A cited answer opens its source  │ [Expand] [Collapse]              │
-│       Discussion B · run │ here, preserving the discussion. │ Full native Conversation:       │
-│   ▾ Another direction    │                                  │ tools, questions, permissions,  │
-│       Discussion C       │ Saved records reread in place.   │ model, stop, draft and messages │
+┌ Native Sessions ─────────┬ reading region ──────────────────┬ research discussion ────────────┐
+│ Recent conversations     │ Topic / note / paper / code      │ Topic name                      │
+│ Search / sort / archive  │                                  │ [Conversation ▾] [+ New]        │
+│                          │ A cited answer opens its source  │ [Expand] [Collapse]              │
+│                          │ here, preserving the discussion. │ Full native Conversation:       │
+│                          │                                  │ tools, questions, permissions,  │
+│                          │ Saved records reread in place.   │ model, stop, draft and messages │
 └──────────────────────────┴──────────────────────────────────┴─────────────────────────────────┘
 ```
 
-Each topic directly exposes its discussions in the existing tree; no separate conversation mode is required for this route. Selecting a discussion changes the right region and highlights the same item in the tree. The right title menu selects another discussion of that direction. New is available beside the topic and in the discussion header. Opening a topic or material never starts a model request. Explicit New/Ask may open the host's blank draft Session; the first actual submitted input durably establishes its research origin, without manufacturing a human message.
+Each topic directly exposes its discussions in the right-Sidebar project tree; no separate conversation mode is required for this route. Selecting a discussion changes the right region and highlights the same item in the tree. The right title menu selects another discussion of that direction. New is available beside the topic and in the discussion header. Opening a topic or material never starts a model request. Explicit New/Ask may open the host's blank draft Session; the first actual submitted input durably establishes its research origin, without manufacturing a human message.
+
+**One Session across presentations.** Full conversation reveals the reading-side Session in the native main Conversation. Its Session identity, draft, source transport and running work remain owned by Harness. A compact disclosure exposes the current question scope and next-message sources, with Back to reading restoring the previous panel. A scoped blank draft shows its topic introduction rather than the ordinary Home's chat instructions. Research captures the exact reading return point before this transition; arrival observes the document's eventual size as well as DOM changes, until the reader takes control. The backend retains a recorded research origin on ordinary later human inputs; changing the viewed project never reassigns an unrelated conversation. Home's native composer uses the [default Research admission](#research-workflow-entry) on submission unless Research is off; explicit project/source transport takes precedence, and existing ordinary history is not retrospectively reassigned. An unsent draft has no durable research origin yet.
 
 The shared discussion presentation belongs to `ui-aitp-research`; its root factory is reused by the independently owned library panels. It uses Harness's `conversation.content` embedded surface under a real Session provider, keeping the normal composer, attachment admission, approvals, pending questions and stop controls. Library providers continue to own catalog/read behavior. No new agent loop or second transcript store is introduced.
 
@@ -83,7 +85,61 @@ AITP commands register through the Harness [shortcut service](../../packages/cli
 | Attach the current selection to a Session draft | Mod+Alt+A |
 | Toggle Sources & memory for the current Session | Mod+Alt+M |
 
+<a id="coordinated-research-views"></a>
+## Coordinating the map, libraries and current conversation
+
+This refinement retains the existing unified workbench, native sidebar locations, library document dock and full/reading-side Conversation presentations. [14](14-implementation-blueprint.md#research-coordination-plan) owns its remaining implementation work; already accepted navigation and default Research entry are dependencies to reuse. The default display answers three questions: what research is being pursued, what evidence is being read, and what the person and model are trying to settle now.
+
+| View | Default content | Detail on demand |
+| --- | --- | --- |
+| Research map | Question titles, recorded parent/branch structure and useful work indicators | Focused question, qualified current understanding, decisive gap, actual material uses and related Sessions |
+| Topic account | Readable question and scientific account; conditions remain beside any displayed result | Full derivations, retained alternatives, known uses, source locations and changes |
+| Literature | Papers and reading notes; the selected page or passage | Work/edition information when established, source-reading coverage and linked research uses |
+| Knowledge | Existing explanations, derivations and research pointers | Original support, assumptions, examples and the actual owning note |
+| Code | Actual checkout and selected source/diff | Observed revision, code locations and explicitly linked equations or reports |
+| Current Conversation | The native conversation and next-message sources; a concise task interpretation when useful | Original instructions, provisional working items, delivered-source history and diagnostics |
+
+Use one compact context disclosure across these presentations. It distinguishes the question scope, the current material and the sources prepared for the next message. An independent reading has an explicit global scope, without a fabricated project. A topic-linked discussion retains its scope while browsing shared materials or another library. Keep native Session IDs, drafts and question/answer history when switching presentation. Opening a map node only navigates; starting work on a different question is an explicit conversation action.
+
+Reuse source-selection precedence: an explicitly selected passage or source set overrides the automatic reading reference. The composer shows what the next message will include and supports clearing it. A submitted message retains its original source snapshot while the reader moves elsewhere. Browsing, selection and saving a reference set alone submit no question. A source-set restore preserves missing members and does not silently replace them with similarly named files.
+
+The model may briefly state its current task interpretation when an ambiguous or consequential request warrants it. **Clarify or correct** opens the existing composer with an attributed quotation of that statement and its condition; the researcher writes and submits a correction as an ordinary message. No recurring confirmation blocks routine work. This control neither edits the scientific account nor exposes a private reasoning trace. The implemented card uses the most recently revised active next-step item and labels it as an earlier approach after subsequent human input. Routine counts remain in Details; required gaps and pending integration remain visible. Preparing a correction preserves an occupied or busy composer and never submits the draft automatically. Model-generated orientation stays labelled and linked to its sources.
+
+Contextual actions such as Explain this step, Check assumptions or Compare passages prepare an editable message in the same conversation. They do not switch research modes, authorize execution or choose a new write owner. Citations reopen the exact delivered location where retained; a changed current source is distinguished. Navigation back restores the originating topic/material, reading position and draft. A narrow layout may use an overlay without creating another Session.
+
+Show source problems beside the inference they affect. Compact source lists expand to exact ranges and delivery facts; routine read counts, method-adoption bookkeeping, summary counts and diagnostic state tables do not occupy the default task card. Do not label an unmatched heading as an absent scientific answer. Local symbol comparisons, focused argument diagrams and scientific plots can be requested within the normal conversation; every proposed relation retains source support and qualification, without requiring a corpus-wide graph.
+
+After confirmed source publication, invalidate affected account, map and material-use readings through existing services. A streamed answer does not update the map's saved scientific state. Pending, partial or unknown writes remain distinct, while unrelated readable content and drafts remain usable. An external source edit may refresh the view without a writer receipt; it must not acquire an invented historical diff. The full source remains reachable when a compact projection cannot represent it.
+
+<a id="research-plugin-controls"></a>
+### Plugin availability and the Session Research choice
+
+The settings page composes research capabilities through the existing plugin/profile controls. Present a coherent default research suite and make the availability of sources, research integration, workbench and installed library domains understandable without exposing every implementation package. A dependency failure names the missing capability; a supported restart-only change says when it takes effect. Configuration changes must preserve existing scientific files and historical Sessions.
+
+The implemented Research settings page offers Skills, Browse research and Full research workbench, with optional literature, knowledge and code views. Running capabilities are an expandable observation, separate from the next-start preference. Saving uses the existing profile and does not hot-switch capabilities. Skills retains the settings entry. At narrow widths the native Settings navigation moves above the full-width content; the content remains vertically scrollable and save controls remain keyboard reachable.
+
+The conversation retains one Research choice, default-on for a new Session when the integration is available. After the Session begins, its own recorded choice governs subsequent automatic handling; a preference for another new Session cannot change it. Changing the current choice applies at a documented turn boundary and preserves historical sources and text. Tool presets remain independent. Browsing materials or selecting a deeper topic does not change an existing discussion's question.
+
+At every depth, use the same focused topic page and a breadcrumb back to its ancestors. Show the current question, qualified understanding, obstacle and recorded continuation before direct branches and material groups. Expand material rows to actual locations and authored using passages. Display intended destination and actual save outcome through existing actions/readers; permit a destination correction before executing the write without forcing a new approval form for ordinary authorized work. Keep source selection, delivered evidence, changed files and scientific conclusions distinguishable. Test four or more nested levels and shared sources rather than relying on a shallow fixture.
+
+<a id="subtopic-material-placement"></a>
+### Subtopic materials and research direction
+
+The researcher requires each subtopic to make its materials' actual locations and roles in the research clear. The focused page presents the question, qualified current understanding and next unresolved step from the owning account, followed by the materials used there. A paper's role can be background, a method to try, support for a particular step, or a conflicting result. Display the authored using passage; an inferred role remains a labelled suggestion, and an unrecorded role stays unknown. Folder membership and recent modification alone establish neither scientific support nor research direction.
+
+Use the subtopic's existing folder arrangement and recorded shared-library links. Show useful groups such as papers and reading notes, derivations, code and calculation results only when present. Each material has a readable title, its local or shared location and an opening action; expand to the exact root-qualified path and PDF page, note section or code range. Opening the containing folder reuses native file browsing. The material grouping is a view of actual files and references, not a second general file tree or a separate editable catalog.
+
+For new materials, expose the intended destination under the adopted layout before saving and report the actual saved path. Reuse an existing shared paper or checkout by reference, allowing its uses in several subtopics without copying or moving it. A new subtopic may adopt a small suggested layout, with directories created as needed; existing topics keep their established names and locations. Record placement choices and meaningful links in the existing account or README, without requiring a new manifest, fixed headings or per-file metadata forms. Reading or associating existing material does not authorize reorganizing its files.
+
+The Map leads from the parent question to the selected subtopic; the subtopic then connects its current argument and unresolved step to the relevant materials. Retain qualifications, failed routes and competing interpretations when the account contains them. Missing sources and unrecorded relationships remain visible rather than being filled by an invented narrative. Preserve the originating subtopic, reading position and conversation when opening shared materials and returning. [R4's follow-up](14-implementation-blueprint.md#subtopic-material-follow-up) owns implementation status and acceptance.
+
+The following state vocabulary remains available for precise detail views; the compact-display rules above supersede earlier proposals to show all counts and states by default.
+
 <a id="provenance-and-states"></a>
+The implemented material controls remain collapsed until needed. A file save shows the actual project root, explicit relative filename and optional current-account link; the PDF action explicitly imports a copy of the selected authorized source. File, association and current read-back outcomes have separate labels. An uncertain request retains its original operation identity across reload and can be rechecked; completed forms close after inspection and do not reopen when browsing another library. Knowledge-index inclusion remains a separate authored operation. Catalog forms use the surrounding page scroll; a PDF-side import may use its bounded reader scroll.
+
+The single Research checkbox sits on the native composer width axis for both blank and existing bound conversations. It reflects the recorded Session choice and actual Host capability, with temporary pending/error UI only. Switching does not send a new model request. The current main-record path is visible on topic pages, and topic creation accepts an optional explicit single directory name without silently deriving one from the title.
+
 ## What the interface distinguishes
 
 The same vocabulary appears in every view; its copy is locale-owned.
@@ -122,14 +178,16 @@ The kinds and their lifecycle are defined by [11's working items](11-research-me
 
 | Depth | Where | Content |
 | --- | --- | --- |
-| Current work surface | Topic home header sections; Session task card; one-line transcript rows | Question and qualified answer, active task, researcher instructions count, provisional notes count, consequential gaps, pending choice, unapplied outcome, the method relationship in one line |
-| On demand | Sources & memory page; resource tabs; Skill and distillation pages; rule “Why this rule?” | Verbatim instructions and their turns, rules in effect with adoption, agent notes, every source with state and requirement level, summaries, selected Skill portions with dependencies |
+| Current work surface | Topic home header sections; Session task card; one-line transcript rows | Question and qualified answer, active task and source, an optional revisable task interpretation, consequential gaps, pending choice and unapplied outcome |
+| On demand | Sources & memory page; resource tabs; Skill and distillation pages; rule “Why this rule?” | Verbatim instructions and their turns, provisional items and counts, rules in effect with adoption, every source with state and requirement level, summaries, selected Skill portions with dependencies and consequential method assessments |
 | Diagnostics | Collapsed section at the end of Sources & memory; Harness Trajectory view | Event identifiers, token accounting, transport and checkpoint details |
 
 Empty regions are absent rather than shown empty. Routine reads group into one row (“Read 3 passages”) that expands to exact sources. A decisive caveat stays beside its conclusion; a critical omission is never mixed into optional background. Presentation follows explicit task and source states, not a model choosing which inconvenient facts to hide. Hiding a panel changes no storage, source text, model context or permission.
 
 <a id="research-map"></a>
 ## Research map, topic pages and materials
+
+General file browsing uses the native Harness Workspace files entry. Its current root comes from the actual Session workspace; no other Session is borrowed and no Session is created to browse. The duplicate Research file tree and page-local file sections are removed. Research keeps scientific topic navigation, related-library entries and Session-independent native source reading under the existing source-root grants.
 
 **Revision 2026-10-23; application with fixture.** The [formal research client](../../packages/client/ui-aitp-research/README.md) organizes the workspace views as a focus map. It replaces the earlier client's project grid of answer cards and its five-tab topic view. Those views placed each topic's answer, qualification, gap, next step and child links on every overview card, divided topic detail among tabs, and showed the hierarchy only in the sidebar, with directions as labels unconnected to topics.
 
@@ -151,7 +209,7 @@ The map has four levels, each with one purpose:
 
 **Structure from records only.** Lanes come from `directionId`, the spine from the primary `parentId`/`childIds`, and labels such as Prerequisite, Alternative route, Control or Application from the optional recorded `parentContribution`. Nothing is drawn or labelled from parenthood, order or chronology; a topic without a recorded contribution shows no role. A page that is partial or has a further page says so: the next page is offered on request, branches a parent names but the reading lacks are counted as not loaded or not available, and the provider's reason is shown. The sibling row links to the complete level when its first page is incomplete.
 
-**Continuity.** The trail above each view lists Research map, the direction and the recorded parents. Its steps stay in the current mode: on the map they refocus the map, on a page they open pages, and Show on map or Open topic switches mode explicitly. Back returns to the previous location with its scroll offset and focused control. Node expansion, section state and requested pages are kept in the panel's interaction store. Arrival waits for the location's content. It re-applies while that content is replaced, for example when a resource held only by the previous view reloads once, and the reader's first wheel, touch, pointer or key input ends it. The sidebar outline in `sidebar.context` opens along the current path, keeps the branches the reader opens or closes, and shows titles only. No additional navigation column is added.
+**Continuity.** The trail above each view lists Research map, the direction and the recorded parents. Its steps stay in the current mode: on the map they refocus the map, on a page they open pages, and Show on map or Open topic switches mode explicitly. Back returns to the previous location with its scroll offset and focused control. Node expansion, section state and requested pages are kept in the panel's interaction store. Arrival waits for the location's content. It re-applies while that content is replaced, for example when a resource held only by the previous view reloads once, and the reader's first wheel, touch, pointer or key input ends it. The right-Sidebar project outline opens along the current path, keeps the branches the reader opens or closes, and shows titles only. No additional navigation column is added.
 
 **Motion, keyboard and width.** Changing location fades the new view in over 180 ms and opening branches over 140 ms; both are removed under reduced motion, and no animation blocks input. Every node, toggle, trail step and section header is a button reachable by Tab; arrow, Home and End keys move between map nodes. Hover only reveals affordances. At container widths below 880 px the focus summary moves between the focus card and its branches; below 640 px padding and title sizes reduce, and the views keep a 16 px gutter without horizontal scrolling.
 
@@ -172,7 +230,7 @@ Leaving for a library captures the topic's scroll position and focused control; 
 
 This section specifies the UI-1 topic home over the note projection; the workspace adapter's views follow the [research map](#research-map).
 
-**Entry.** Research in the sidebar panel list. Opening it sends no prompt and creates no Session.
+**Entry.** An enrolled project on Home, or Research projects in the native right Sidebar. Opening the project or its tree sends no prompt and creates no Session. A separate Research mode is not required. The project/map header always offers the native right-Sidebar expand control, including before any document has been opened. Its initial callback opens Research projects; after tabs exist, expansion restores the retained tab.
 
 **Project setup and creation.** The workspace adapter first reports whether the selected Harness Workspace has been enabled for research. The owner explicitly enables read-only access or saving; existing host-configured limits remain visible. New topic and New subdirection collect a title, research question, optional scope and the current parent. Successful creation opens the new topic and focuses its question composer without contacting a model. Unconfirmed outcomes retain the original creation request for inspection and retry. Providers without creation support retain their existing reading views. [14](14-implementation-blueprint.md#topic-onboarding) owns implementation evidence and boundaries.
 
@@ -209,13 +267,11 @@ The conversation is the Harness Session view. AITP adds only what makes the rese
 The single `lineage` seat stays with Harness subagent breadcrumbs.
 
 **Task card** (`conversation.input.dock`, placed before whichever Todo, Goal and Queue contributions are enabled). It renders the active projection of [working items](11-research-memory.md#working-memory-items) and never edits it except through the researcher's own actions. Collapsed, it shows:
-- the task statement as written;
-- counts “From you · n” and “Agent notes · provisional · n”;
-- the most consequential gap with its requirement level;
-- rules changed since the last request and whether they were used;
-- “n generated summaries”.
+- the actual question scope and the sources prepared for the next message;
+- a short provisional task interpretation when useful, with the correction action defined [above](#coordinated-research-views);
+- a consequential gap, changed instruction or pending user choice only when it affects the current work.
 
-Expanded, it lists researcher items verbatim with their turns, agent items with Mark wrong, and gaps with their effect (“not needed for the current comparison · the session continues”). When Sources & memory is open in the dock, the card shows only its summary line, so detail appears in one place.
+Expanded, it lists researcher items verbatim with their turns, provisional agent items, their source references and gaps with their effect (“not needed for the current comparison · the session continues”). Counts and summary diagnostics remain here rather than in the collapsed card. Corrections enter the actual conversation; hiding or retiring a model item never edits the user's original instruction. When Sources & memory is open in the dock, the card shows only its summary line, so detail appears in one place.
 
 **Transcript contributions** (`tool.call.toolview`) for AITP tools:
 - grouped reads with exact sources;
@@ -259,12 +315,32 @@ Library, Knowledge and Code each need a stable direct destination and a global o
 <a id="source-study"></a>
 ### Study selected sources
 
-Literature and knowledge share a Notebook-style study interface, with code passages available through the same source selection. A named source set retains references, selected passages and reading position in application operational storage under [11's ownership rules](11-research-memory.md#2-ownership-what-persists-where). It can be associated with several topics without copying their sources or owning a second research main line. In a project or topic, the shared navigation lists topics and their conversations. Library catalogues remain on the left and sources open in the native right document dock. An explicit question presents the normal Harness Conversation in the left area beside the retained document; citations open native source tabs with the question scope intact. Unscoped global browsing uses the same root document dock and retains its explicit conversation handoff.
+Literature and knowledge share a Notebook-style study interface, with code passages available through the same source selection. A named source set retains references, selected passages and reading position in application operational storage under [11's ownership rules](11-research-memory.md#2-ownership-what-persists-where). It can be associated with several topics without copying their sources or owning a second research main line. In a project or topic, the native right-Sidebar Research projects tab lists topics and their conversations; library filter navigation keeps its own source collections. Library catalogues remain on the left and sources open in the native right document dock. An explicit question presents the normal Harness Conversation in the left area beside the retained document; citations open native source tabs with the question scope intact. Unscoped global browsing uses the same root document dock and retains its explicit conversation handoff.
 
 Source checkboxes select the material eligible for a question or generated reading aid. Actual request delivery remains separately visible through Sources & memory. The current topic and selected sources stay visible; entering from a subdirection preserves its question, while global browsing keeps Global until a topic is explicitly chosen. Cited answers, comparisons, derivation outlines and reading drafts retain their exact source observations and attribution. Saved answer drafts live with the existing operational records; integrating a reading note or knowledge correction writes to its existing scientific owner through the [scoped authoring increments](14-implementation-blueprint.md#p3). P2 supplies browsing, source selection and runtime-held drafts; it does not authorize scientific-file writes. A named real collection follows P4's existing pilot policy.
 
+<a id="research-workflow-entry"></a>
+### Automatic research workflow from folders and reading
+
+**Implemented, with [bounded running acceptance](../../agent/notes/harness-integration.md#default-research-workflow); real-model initiative and scientific usefulness remain to be assessed.** Research is a conversation workflow over the existing Harness Session and AITP context service, initially using the Standard tool preset. The interface has one Research workflow option, enabled by default for new conversations. Standard remains the default independent tool preset; the existing preset choices remain available. Default-on enables scope recognition and the agreed research workflow within existing access, not automatic creation of a project in every folder or additional write authority. Missing project choices are confirmed in the initialization dialogue. Turning the workflow off permits ordinary conversation; existing recorded scope, source attribution and delivered history are preserved rather than retrospectively relabelled. Tool presets continue to own tool composition. Starting a question from a paper, knowledge explanation, code passage, study note or existing research record should activate this workflow directly; the researcher need not visit a map or enable it separately in each library. Reading alone creates no Session, submits no question and writes no scientific files.
+
+A topic-scoped reader keeps its explicit project and direction when entering any library. Global reading can begin a source-study conversation without inventing a topic or requiring a new project account. The source's maintenance owner, folder and other topic associations do not select the question's topic. When one source serves several topics, retain an existing explicit question scope or ask for the unresolved choice. A later explicit association preserves the original conversation/source attribution rather than retrospectively relabelling ordinary history.
+
+The next question stages the current source edition, reading locator and selected passage; an explicitly selected source set takes precedence when comparing several materials. Submission freezes this selection before asynchronous preparation. Subsequent reading can prepare a later question but cannot move an in-flight request to another source or topic. The existing context service combines these references with relevant project/topic accounts, applicable original instructions and corrections, and provisional working items within its authorized bounds. Source selection, actual reads and model delivery remain distinct observations; unavailable or omitted context remains visible.
+
+For a new folder, inspect the available structure and records before asking only for missing research choices. An initializing research conversation must retain its original questions and answers before an account exists; the recorded workflow marker extends the existing Session-scope protection, not a silent rebind of a used ordinary chat. After the necessary details and write authority are established, reuse project/topic onboarding and source services to create the missing account and record library relationships. Literature and shared knowledge stay in external collections; code links to an actual checkout only when needed. Establishing these relationships does not imply copying sources, creating empty directory trees or initializing Git.
+
+Meaningful decisions, results with their limitations and retained failures feed the existing scoped writeback flow at natural handoff points. Provisional model judgments remain provisional, and saving a reading draft does not establish an accepted knowledge atom. Updated source observations feed later context reads. A compact current-topic or independent-study label and expandable next-question sources keep this workflow visible across native Conversation, reading and return navigation.
+
+<a id="full-account-editing"></a>
+The retained full-account editing proposal is not implemented or included in the current workflow task: provide an edit entry beside the account title, original Markdown editing with preview, a comparison before save, explicit read-only treatment and conflict handling for externally changed files. After saving, refresh the account while retaining reading location, Session and draft. Existing bounded section-edit controls do not satisfy this proposal.
+
 <a id="library-presentation"></a>
 ### Library presentation
+
+Library empty states distinguish topic association, incomplete discovery and actual read failure. An incomplete query cannot establish an empty library. A scoped empty view offers an explicit all-library action that clears root and text filters while leaving scientific sources unchanged.
+
+
 
 **Implemented 2026-10-26; running-app checks passed, researcher visual acceptance pending.** Literature, code and knowledge retain separate plugins, but use the same Harness type scale, native icons, buttons, source selection, search, folder filtering, return controls and loading/error treatment. Shared material resources own reads; the presentation plugins do not create separate indexes, source copies or conversation systems. [14](14-implementation-blueprint.md#library-ui) owns implementation evidence.
 
@@ -305,7 +381,7 @@ The Host reads complete PDF bytes under the existing source-root grant and binar
 
 ### Literature library and reader
 
-A configured shared paper directory can live outside topic workspaces without moving files. The initial PDF-only view excludes extracted source-figure directories and displays a real arXiv identifier when available. Existing records without verified bibliographic fields remain unknown; the fuller collection and metadata behavior below is a design target, not an assertion that those fields have been imported.
+The current WSL configuration uses the existing shared paper directory outside topic workspaces; it does not move files. The initial PDF-only view excludes extracted source-figure directories and displays a real arXiv identifier when available. Existing records without verified bibliographic fields remain unknown; the fuller collection and metadata behavior below is a design target, not an assertion that those fields have been imported.
 
 Collection views and search filter by title, author, year, identifier, known edition, local availability and recorded reading state. Filters and list position survive returning from a paper. The indexed scope is visible: an incomplete index is never an empty library ([s2.1](prototype/harness-frame/screenshots/s2-1.png)). A work shows its editions and files, existing reading notes, linked knowledge entries and the project passages that use it. Collection membership points to the existing owner. Duplicate candidates stay separate and unresolved; a filename never proves edition identity.
 
@@ -544,7 +620,7 @@ These are a workspace without a root note ([s7.1](prototype/harness-frame/screen
 
 | Component (proposed client contribution) | Harness extension point used | Data and actions it needs | Backend status |
 | --- | --- | --- | --- |
-| Panel entries and global panels | `sidebar.panellist`, `main` keyed slot, `ctx.layout.selectPanel` | Current Workspace; whether it is a research root | Research map and explicitly configured Markdown roots connected; general automatic root discovery remains limited |
+| Home, project navigation and global readers | `conversation.hero.introduction`, native right-Sidebar tabs, `main`, `ctx.layout.selectPanel` | Current Workspace; whether it is a research root | Research map and explicitly configured Markdown roots connected; general automatic root discovery remains limited |
 | Topic navigator and topic home | Global panel; `useResource` | Topic projection: topics, opening passages with spans, Current work entries with clauses, pending choices, failed-route and branch passages, linked materials, Sessions by origin | Workspace map/topic/material provider implemented for Markdown; full legacy note projections and topic Session listings remain unconnected |
 | Note reader | Panel region and dock tab type; `ResourceProtocolMap` | Note resource by address with spans and anchors; Session-independent read authority for configured research roots | Workspace and dock note readers have configured-root access; unique supported rendered selections map to raw intervals. Mathematical/cross-source selections and broader note projections remain incomplete |
 | Session hover card | `sidebar.session.row.hover` | Session origin and task summary by Session id | Runtime origin retained; production bridge to the legacy hover-card resource missing |
@@ -678,7 +754,7 @@ Every package derives what it shows from backend projections or resources and ke
 
 | Owner | Passage | Required alignment |
 | --- | --- | --- |
-| [10](10-project-workspace.md) | Opening paragraph on the three entrances; section “One interface, three entrances and independently navigable resources” and its shell diagram | Replace explorer, editor-group, inspector and activity-panel wording with the Harness frame; keep Research, Materials and Rules as `sidebar.panellist` panels |
+| [10](10-project-workspace.md) | Opening paragraph on the three entrances; section “One interface, three entrances and independently navigable resources” and its shell diagram | Replace explorer, editor-group, inspector and activity-panel wording with the Harness frame; use native Home and right-Sidebar project navigation; retain direct library destinations and distinguish proposed Rules authoring |
 | 10 | [Harness service mapping](10-project-workspace.md#harness-service-mapping): Workbench and native host row; plugin table Workbench presentation and Desktop host rows | Name the ordinary Session dock and root-scoped native document slots, while keeping Session-independent source-root read authority explicit |
 | 10 | Same table, Skill catalog row | Point to the use view's need for all-candidate listing and source-qualified loading |
 | [11](11-research-memory.md) | [Memory user view](11-research-memory.md#memory-user-view) | Replace “Research record / Current sources / Pending integration” with the topic home, the task card and Sources & memory, and adopt the provenance and state vocabulary above |

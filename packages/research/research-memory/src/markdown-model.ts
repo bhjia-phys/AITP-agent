@@ -11,7 +11,9 @@ export interface SourceSection {
   readonly text: string
 }
 /** A root-relative local link whose explicit label or enclosing heading supplies its relationship role. */
-export interface SourceLink { readonly path: string; readonly title: string; readonly section: string; readonly role: 'parent' | 'child' | 'reference'; readonly text: string }
+export interface SourceLink { readonly path: string; readonly title: string; readonly section: string; readonly role: 'parent' | 'child' | 'reference'; readonly text: string; readonly curated: boolean }
+/** Authored material-list headings used to avoid treating unrelated body links as a curated bibliography. */
+export const curatedMaterialsHeading = /^(精选资料|curated materials)$/i
 /** An authored link retained before root-bound resolution; its passage is not an inferred scientific dependency. */
 export interface AuthoredSourceLink { readonly href: string; readonly title: string; readonly section: string; readonly context: string }
 /** Authored title, opening and spans; anchor entries retain all matches rather than silently resolving duplicates. */
@@ -95,7 +97,9 @@ export function parseMarkdown(path: string, text: string): ParsedMarkdown {
         const target = posix.normalize(posix.join(posix.dirname(path), decoded)).replace(/\/+$/, '')
         if (target !== '' && target !== '.' && target !== '..' && !target.startsWith('../')) {
           const label = nodeText(node)
-          links.push({ path: target, title: label, section: section?.title ?? '', role: role(label, section?.title ?? ''), text: text.slice(node.position?.start.offset ?? 0, node.position?.end.offset ?? 0) })
+          const curated = sections.some(candidate => curatedMaterialsHeading.test(candidate.title.trim())
+            && candidate.start <= offset && candidate.end > offset)
+          links.push({ path: target, title: label, section: section?.title ?? '', role: role(label, section?.title ?? ''), text: text.slice(node.position?.start.offset ?? 0, node.position?.end.offset ?? 0), curated })
         }
       }
     }

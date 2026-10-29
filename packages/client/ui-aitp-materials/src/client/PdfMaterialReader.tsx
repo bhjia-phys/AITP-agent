@@ -1,12 +1,12 @@
 /** Research scope and exact page citations around the same PDF reader used by native documents. */
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ZoomPreference } from '@deepseek-ai/dsh-client-ui-sidebar-documentpreview/client'
 import { Button, IconLoadingOutlineRegular, IconNewChatOutlineRegular, IconPlusOutlineRegular,
   IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
-import { materialBytesAddress, materialSourceAddress, materialSourcePath } from '@deepseek-ai/dsh-research-resources/protocol'
+import { materialBytesAddress, materialSourceAddress } from '@deepseek-ai/dsh-research-resources/protocol'
 import { selectMaterialPassage } from './selection.ts'
 import { MaterialReaderHeader, MaterialReaderLinks } from './MaterialReaderHeader.tsx'
+import { MaterialSourceDetails, type LocatedMaterialReaderProps } from './MaterialSourceDetails.tsx'
 import type {} from './resources.ts'
 import css from './materials.module.css'
 
@@ -18,7 +18,7 @@ function selectedPage(node: Node | null): number | undefined {
 }
 
 /** @param props - authorized source and retained view callbacks. @returns native PDF reading with explicit research actions. */
-export function PdfMaterialReader(props: FactoryComponentPropsOf<'aitp.materials.reader'>): ReactNode {
+export function PdfMaterialReader(props: LocatedMaterialReaderProps): ReactNode {
   const { reading, t } = props
   const { resource, body } = reading
   const dock = props.presentation === 'dock'
@@ -95,6 +95,7 @@ export function PdfMaterialReader(props: FactoryComponentPropsOf<'aitp.materials
       choosePage(Math.max(1, Math.min(pageCount, page + (event.key === 'PageDown' ? 1 : -1))))
     }}>
     {!dock && <MaterialReaderHeader {...props} />}
+    <MaterialSourceDetails {...props} />
     {(props.onDiscuss !== undefined || props.onSelect !== undefined) && <div className={css.readerActions}>
       {props.onDiscuss !== undefined && <Button size="sm" variant="primary" icon={<IconNewChatOutlineRegular />}
         onClick={() => { props.onDiscuss?.({ ref: resource.ref, locator: { kind: 'pdf-page', page } }) }}>{t('discussPage')}</Button>}
@@ -153,7 +154,6 @@ export function PdfMaterialReader(props: FactoryComponentPropsOf<'aitp.materials
         {reading.issues.length > 0 && <ul className={css.notice}>{reading.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
         <MaterialReaderLinks {...props} onFailure={() => { setFailure(t('unresolved')) }} />
       </>}
-      <p className={css.muted}>{t('path')}: {materialSourcePath(resource.ref.sourceId)}</p>
       <p className={css.muted}>{t('observed', { time: reading.observedAt })}</p>
       <p className={css.muted}>{t('sourceChanged')}</p>
     </details>

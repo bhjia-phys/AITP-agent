@@ -7,14 +7,14 @@ kind: "package-reference"
 
 ## Summary
 
-See what a Session's research work rests on while you work in it. Use this package in the aitp-agent Web application to keep the task in view above the composer, to see where the Session started, and to open a page that separates your instructions, the agent's provisional notes, gaps, rules in effect, sources and generated summaries. The views only read; they change neither the Session nor its requests.
+See what a Session's research work rests on while you work in it. Use this package in the aitp-agent Web application to keep the task in view above the composer, to see where the Session started, and to open a page that separates your instructions, the agent's provisional notes, gaps, rules in effect, sources and generated summaries. The views read research state; the correction action prepares an editable draft in the same Session without submitting it or editing a research record.
 
 ## Use and behavior
 
 The plugin contributes three Session views, all fed by the `aitp-session` resource at `dsh-resource://aitp-session/session/<session>`:
 
 - A header action shows where the Session started (topic and thread, a source, or global) and opens Sources & memory. The origin text yields first when the title row narrows.
-- A task card joins the composer's context stack ahead of Todo and Goal. It shows the task in one line, counts of the researcher's other items and active agent notes, the first gap, a saved rule not yet used, and the number of generated summaries. Details expands the researcher's words, active agent notes and gaps.
+- A task card joins the composer's context stack ahead of Todo and Goal. It keeps the original task, declared non-optional gaps and pending integration visible. When an active next-step item exists, the most recently revised turn supplies a provisional current approach with its stated condition; a later human input labels it as earlier. Clarify or correct prepares an attributed-message draft through the native composer. Existing text, attachments and busy submissions are preserved. Routine counts and generated-summary totals appear in Details, alongside the researcher's words, active agent notes and all gaps.
 - The Sources & memory dock page lists the researcher's instructions verbatim with their turns, gaps with their requirement level, rules with their actual adoption, agent working notes (superseded ones stay visible and labelled), sources with their availability, and generated summaries.
 
 Provenance is shown by both label and rule style: researcher items use a solid accent rule and the reading face, agent items a dashed rule labelled provisional, summaries a dotted rule, and gaps the warning color. Source availability keeps found, attached, in context now, condensed, missing and link-only distinct, and each source states why it is present. Opening a note source uses the `aitp-note` dock tab from the Research views package.

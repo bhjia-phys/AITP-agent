@@ -19,7 +19,7 @@ import {
   type RenameSessionInjected, type RowToastInjected, type SessionArchiveConfirmInjected, type SessionRenameDialogInjected,
   type SessionIdInjected, type WorkspaceViewStoreHandle,
 } from '../src/client/contract/slots.ts'
-import { WorkspaceBrowser } from '../src/client/rows/WorkspaceBrowser.tsx'
+import { DefaultWorkspaceBrowser } from '../src/client/rows/DefaultWorkspaceBrowser.tsx'
 import { ArchiveSessionMenuItem, ArchiveSessionRowButton, SessionArchiveConfirmDialog } from '../src/client/session-actions/ArchiveSession.tsx'
 import { ForkSessionMenuItem } from '../src/client/session-actions/ForkSession.tsx'
 import { PinSessionMenuItem, PinSessionRowButton } from '../src/client/session-actions/PinSession.tsx'
@@ -253,7 +253,7 @@ describe('ui-workspace apply', () => {
     const before = await bench()
     declare(before.slots, 'sidebar.workspaces')
     await before.ctx.plugin({ inject: [...inject], apply }).await()
-    expect(before.slots.entries('sidebar.workspaces')[0]!.component).toBe(WorkspaceBrowser)
+    expect(before.slots.entries('sidebar.workspaces')[0]!.component).toBe(DefaultWorkspaceBrowser)
     // Copy rides the standard locale seat: the entry declares the namespace
     // and apply registered both dictionaries.
     expect(before.slots.entries('sidebar.workspaces')[0]!.locale).toBe('workspace')

@@ -2,7 +2,7 @@
 import { useState, type ReactNode } from 'react'
 import clsx from 'clsx'
 import {
-  Button, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconGlobeOutlineRegular,
+  Button, Menu, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconGlobeOutlineRegular,
   IconNewChatOutlineRegular, StateDot, Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { brandString } from '@deepseek-ai/dsh-brand'
@@ -48,6 +48,7 @@ export type WorkspaceSidebarProps =
 export function WorkspaceSidebar(props: WorkspaceSidebarProps): ReactNode {
   const { t, useWorkspaces, useStore, wide } = props
   const workspaces = useWorkspaces(snapshot => snapshot.items)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const selected = useStore(state => state.workspaceId)
   const shown = props.navigationScope?.workspaceId ?? selected
   const workspace = workspaces.find(item => item.workspaceId === shown) ?? workspaces[0]
@@ -70,6 +71,13 @@ export function WorkspaceSidebar(props: WorkspaceSidebarProps): ReactNode {
           {t('allConversations')}
         </Button>
       </div>
+      {workspace !== undefined && <div className={css.workspacePicker}><Menu open={pickerOpen} autoFocus align="start"
+        onClose={() => { setPickerOpen(false) }} selectedId={workspace.workspaceId}
+        items={workspaces.map(item => ({ id: item.workspaceId, label: item.title }))}
+        onSelect={(id) => { setPickerOpen(false); props.actions.selectWorkspace(id as WorkspaceId) }}
+        anchor={<Button variant="ghost" size="sm" aria-label={t('chooseProject')} aria-haspopup="menu" aria-expanded={pickerOpen}
+          onClick={() => { setPickerOpen(!pickerOpen) }}>
+          <span>{workspace.title}</span><IconChevronDownOutlineRegular size={14} /></Button>} /></div>}
       {workspace === undefined
         ? <p className={css.notice}>{t('noWorkspace')}</p>
         : <WorkspaceTreeSetup key={workspace.workspaceId} {...props}
@@ -84,11 +92,11 @@ function WorkspaceTreeSetup(props: WorkspaceSidebarProps & { workspaceId: Worksp
     || (setup.failure?.code === 'aitp/workspace' && setup.failure.details.code === 'unsupported')
   if (legacy || setup.value?.configured === true) return <WorkspaceTree {...props} />
   return <div className={css.treeRegion}>
-    <p className={css.projectTitle}>{props.workspaceTitle}</p>
     <p className={css.notice}>{props.t('setupRequired')}</p>
     {setup.status === 'failed' && <Button variant="ghost" size="sm" onClick={() => { props.retry(props.workspaceId) }}>{props.t('retry')}</Button>}
   </div>
 }
+
 
 function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId; workspaceTitle: string }): ReactNode {
   const { t, useResource, useStore, actions, workspaceId, workspaceTitle } = props
@@ -122,7 +130,8 @@ function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId
   }
   return (
     <div className={css.treeRegion}>
-      <p className={css.projectTitle}>{project.value?.value.title ?? workspaceTitle}</p>
+      {project.value?.value.title !== undefined && project.value.value.title !== workspaceTitle
+        && <p className={css.projectTitle}>{project.value.value.title}</p>}
       {(current?.origin ?? project.value?.origin) === 'fixture' && <p className={css.fixture}>{t('fixture')}</p>}
       <button
         type="button"

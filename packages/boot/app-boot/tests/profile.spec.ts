@@ -356,6 +356,50 @@ describe('loadProfile', () => {
       .toEqual([...PROFILE_TEMPLATES.web?.bundles ?? []])
   })
 
+  it('previews an absent shipped profile without creating its home', () => {
+    const anchor = stageInstallation({
+      '@deepseek-ai/dsh-base': { patch: '- insert: [{ id: base, name: base }]\n' },
+      '@deepseek-ai/dsh-web-app': { patch: '- insert: [{ id: web, name: web }]\n' },
+    })
+    const home = join(tmp(), 'not-created')
+    const profile = loadProfile('t', 'web', anchor, home, { readOnly: true })
+    expect(profile.layers.map(layer => layer.packageName)).toEqual(PROFILE_TEMPLATES.web?.bundles)
+    expect(composeEntries(profile.layers.map(layer => layer.patches)).map(row => row.id)).toEqual(['base', 'web'])
+    expect(existsSync(home)).toBe(false)
+    expect(() => loadProfile('t', 'custom', anchor, home, { readOnly: true })).toThrow('profile "custom" does not exist')
+    expect(existsSync(home)).toBe(false)
+  })
+
+  it('previews normalization without changing stored manifests, patches or link projections', () => {
+    const anchor = stageInstallation({
+      '@deepseek-ai/dsh-base': { patch: '[]\n' },
+      '@deepseek-ai/dsh-web-app': { patch: '[]\n' },
+      '@deepseek-ai/dsh-headless': { patch: '[]\n' },
+    })
+    const home = tmp()
+    const dir = resolveProfileDir('headless', home)
+    initProfile(dir, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-headless'])
+    const saved = readFileSync(join(dir, 'package.json'), 'utf8')
+    const patch = readFileSync(join(dir, PROFILE_PATCH_FILENAME), 'utf8')
+    const projection = join(dir, '.dsh-module-fallback/node_modules/projected')
+    mkdirSync(projection, { recursive: true })
+    mkdirSync(join(dir, 'node_modules'), { recursive: true })
+    symlinkSync(projection, join(dir, 'node_modules/projected'), 'junction')
+    const profile = loadProfile('t', 'headless', anchor, home, { readOnly: true })
+    expect(profile.layers.map(layer => layer.packageName)).toEqual(PROFILE_TEMPLATES.headless?.bundles)
+    expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe(saved)
+    expect(readFileSync(join(dir, PROFILE_PATCH_FILENAME), 'utf8')).toBe(patch)
+    expect(existsSync(projection)).toBe(true)
+    expect(lstatSync(join(dir, 'node_modules/projected')).isSymbolicLink()).toBe(true)
+
+    const applicationDir = join(home, 'application')
+    initProfile(applicationDir, ['@deepseek-ai/dsh-base', '@deepseek-ai/dsh-experimental-schedule-bundle'])
+    const applicationSaved = readFileSync(join(applicationDir, 'package.json'), 'utf8')
+    const application = loadProfileDirectory('t', applicationDir, anchor, { readOnly: true })
+    expect(application.layers.map(layer => layer.packageName)).toEqual(['@deepseek-ai/dsh-base'])
+    expect(readFileSync(join(applicationDir, 'package.json'), 'utf8')).toBe(applicationSaved)
+  })
+
   it('normalizes only the exact installation-owned headless bundle tuple', () => {
     const anchor = stageInstallation({
       '@deepseek-ai/dsh-base': { patch: '[]\n' },

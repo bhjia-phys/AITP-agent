@@ -39,7 +39,7 @@ export class RuntimeWorkspaceAdapter implements ResearchWorkspaceAdapter {
   get provider(): ResearchProvider {
     return this.observedProvider ?? {
       id: 'unobserved-research-provider', origin: 'runtime', capabilities: {
-        read: false, readContext: false, readActivity: false, previewChanges: false,
+        automaticResearch: false, read: false, readContext: false, readActivity: false, previewChanges: false,
         applyChanges: false, changeEvents: false, commands: [],
       },
     }

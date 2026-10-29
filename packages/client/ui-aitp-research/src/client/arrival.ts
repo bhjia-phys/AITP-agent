@@ -64,8 +64,12 @@ export function settleArrival(region: HTMLElement | null, arrival: ResearchArriv
   apply()
   const observer = new MutationObserver(apply)
   observer.observe(region, { childList: true, subtree: true })
+  // Native document layout can finish after its light-DOM arrival marker appears.
+  const size = new ResizeObserver(apply)
+  if (region.firstElementChild !== null) size.observe(region.firstElementChild)
   const stop = (): void => {
     observer.disconnect()
+    size.disconnect()
     for (const type of INTERRUPTIONS) region.removeEventListener(type, stop, true)
   }
   for (const type of INTERRUPTIONS) region.addEventListener(type, stop, true)

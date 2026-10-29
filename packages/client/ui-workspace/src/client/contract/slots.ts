@@ -54,6 +54,7 @@ import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/cli
 import type { WorkspaceShortcutState } from '../shortcuts.ts'
 import type { StartSessionOptions } from '../navigation.ts'
 import type {} from './toast.ts'
+import type { SidebarSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { createWorkspaceViewStore } from '../stores.ts'
 
 /**
@@ -114,6 +115,30 @@ export interface SessionRowScheduleOwnerProps {
 }
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface SlotFactoryMap {
+    /** Native workspace/session browser reused by products without copying its rows or actions. */
+    'workspace.browser': {
+      scope: 'root'
+      props: SidebarSectionOwnerProps & { readonly presentation?: 'sessions' | undefined }
+      locale: 'workspace'
+      store: ReturnType<typeof createWorkspaceViewStore>
+      inject: WorkspaceBrowserInjected
+      children: {
+        'sidebar.workspaces.directoryFlow': { kind: 'single'; scope: 'root' }
+        'sidebar.workspaces.session.menu.item': {
+          kind: 'list'
+          scope: 'root'
+          inject: { hooks: {
+            menuOpenState: SlotHookFactory<'sidebar.workspaces.session.menu.item', UseMenuOpenState>
+            shortcuts: HostObservable<readonly ShortcutCatalogEntry[]>
+          } }
+        }
+        'sidebar.workspaces.session.row.action': { kind: 'list'; scope: 'root' }
+        'sidebar.session.row.leading': { kind: 'list'; scope: 'root' }
+        'sidebar.session.row.hover': { kind: 'list'; scope: 'root' }
+      }
+    }
+  }
   interface SlotMap {
     /** Directory-flow hole under the conversation empty-state picker (declared by the WorkspacePicker entry). */
     'conversation.hero.workspace.directoryFlow': { kind: 'single'; scope: 'root'; owner: DirectoryFlowOwnerProps }
@@ -465,8 +490,8 @@ export type RowToastProps =
   & PropsHooks<RowToastInjected['hooks']>
 
 /** Full browser props: shell owner share + viewing store + injected actions + the locale seat. */
-export type WorkspaceBrowserProps =
-  PropsRuntime<'sidebar.workspaces'>
+export type WorkspaceBrowserProps = { readonly presentation?: 'sessions' | undefined }
+  &   PropsRuntime<'sidebar.workspaces'>
   & PropsRenderSlots<
     | 'sidebar.workspaces.directoryFlow'
     | 'sidebar.workspaces.session.menu.item'

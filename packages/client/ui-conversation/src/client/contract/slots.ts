@@ -260,6 +260,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     'conversation.composer': { kind: 'chain'; scope: 'session'; owner: ComposerChainProps }
     /** Workspace picker shown by the blank-session Hero. */
     'conversation.hero.workspace': { kind: 'single'; scope: 'root'; owner: EmptyWorkspaceOwnerProps }
+    /** Optional product introduction above the unchanged native new-session composer. */
+    'conversation.hero.introduction': { kind: 'single'; scope: 'root'; owner: { readonly sessionId?: SessionId | undefined } }
     /** Brand mark shown before the blank-session headline. */
     'conversation.hero.brand.mark': { kind: 'single'; scope: 'root'; owner: HeroBrandMarkOwnerProps }
     /** Agent-preset control staged for a New Session. */
@@ -308,6 +310,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
         'conversation.composer': { kind: 'chain'; scope: 'session' }
         'conversation.composer.bar': { kind: 'single'; scope: 'session-maybe' }
         'conversation.input.dock': { kind: 'list'; scope: 'session' }
+        'conversation.hero.introduction': { kind: 'single'; scope: 'root' }
         'conversation.hero.brand.mark': { kind: 'single'; scope: 'root' }
         'conversation.hero.workspace': { kind: 'single'; scope: 'root' }
         'conversation.hero.agentPreset': { kind: 'single'; scope: 'session-maybe' }

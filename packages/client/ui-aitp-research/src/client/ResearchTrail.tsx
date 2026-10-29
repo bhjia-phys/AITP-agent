@@ -3,15 +3,16 @@
  * recorded parents to the current item. Each step stays in the current mode,
  * so map steps refocus the map and page steps open topic pages.
  */
-import type { ReactNode } from 'react'
-import { Button, IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ResearchLocation } from './store.ts'
+import { useId, type ReactNode } from 'react'
+import { Button, IconChevronDownOutlineRegular, IconChevronLeftOutlineRegular, IconChevronRightOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { disclosureKey, type ResearchLocation } from './store.ts'
 import type { ResourceId, TopicId } from './workspace-contract.ts'
 import { workspaceProjectAddress, workspaceResourceAddress, workspaceTopicAddress } from './workspace-resources.ts'
 import type { WorkspaceViewProps } from './WorkspaceViews.tsx'
 import css from './workspace.module.css'
 
-type TrailProps = WorkspaceViewProps & { mode: 'map' | 'topic' }
+type TrailProps = WorkspaceViewProps & { mode: 'map' | 'topic'; ancestryKey: string }
+type TrailTopicProps = TrailProps & { topicId: TopicId; current: boolean; inlineLevels: number | null }
 
 /**
  * The location trail above the reading region.
@@ -25,6 +26,7 @@ export function ResearchTrail(props: WorkspaceViewProps & {
 }): ReactNode {
   const { t, location } = props
   const atOverview = location.kind === 'map' && location.focusId === null
+  const ancestryKey = disclosureKey(props.workspaceId, 'section', 'trail', JSON.stringify(location))
   if (atOverview && !props.canGoBack) return null
   return (
     <nav className={css.trail} aria-label={t('workspace.breadcrumb')}>
@@ -33,10 +35,10 @@ export function ResearchTrail(props: WorkspaceViewProps & {
       </Button>}
       {!atOverview && <ol className={css.trailList}>
         <li><button type="button" className={css.trailLink} onClick={() => { props.navigate({ kind: 'map', focusId: null }) }}>{t('map.eyebrow')}</button></li>
-        {location.kind === 'map' && location.focusId !== null && <TrailTopic {...props} mode="map" topicId={location.focusId} current />}
-        {location.kind === 'topic' && <TrailTopic {...props} mode="topic" topicId={location.topicId} current />}
+        {location.kind === 'map' && location.focusId !== null && <TrailTopic {...props} ancestryKey={ancestryKey} mode="map" topicId={location.focusId} current inlineLevels={2} />}
+        {location.kind === 'topic' && <TrailTopic {...props} ancestryKey={ancestryKey} mode="topic" topicId={location.topicId} current inlineLevels={2} />}
         {location.kind === 'resource' && <>
-          {location.topicId !== null && <TrailTopic {...props} mode="topic" topicId={location.topicId} current={false} />}
+          {location.topicId !== null && <TrailTopic {...props} ancestryKey={ancestryKey} mode="topic" topicId={location.topicId} current={false} inlineLevels={1} />}
           <TrailMaterial {...props} resourceId={location.resourceId} />
         </>}
       </ol>}
@@ -48,7 +50,29 @@ function Separator(): ReactNode {
   return <IconChevronRightOutlineRegular size={12} className={css.trailSeparator} />
 }
 
-function TrailTopic(props: TrailProps & { topicId: TopicId; current: boolean }): ReactNode {
+function TrailTopic(props: TrailTopicProps): ReactNode {
+  return props.inlineLevels === 0 ? <TrailAncestors {...props} /> : <TrailTopicEntry {...props} />
+}
+
+function TrailAncestors(props: TrailTopicProps): ReactNode {
+  const open = props.useStore(state => state.disclosure[props.ancestryKey] ?? false)
+  const listId = useId()
+  return <li className={css.trailAncestors}>
+    <Separator />
+    <div className={css.trailDisclosure}>
+      <button type="button" className={css.trailSummary} aria-expanded={open} aria-controls={open ? listId : undefined}
+        onClick={() => { props.actions.setDisclosed(props.ancestryKey, !open) }}>
+        {open ? <IconChevronDownOutlineRegular size={12} /> : <IconChevronRightOutlineRegular size={12} />}
+        {props.t('workspace.earlierTopics')}
+      </button>
+      {open && <ol id={listId} className={css.trailAncestorList} aria-label={props.t('workspace.ancestorPath')}>
+        <TrailTopic {...props} inlineLevels={null} />
+      </ol>}
+    </div>
+  </li>
+}
+
+function TrailTopicEntry(props: TrailTopicProps): ReactNode {
   const result = props.useResource<'aitp-workspace-topic'>(workspaceTopicAddress(props.workspaceId, props.topicId))
   const topic = result.value?.value
   const label = topic === undefined ? props.t('workspace.parent') : topic.shortTitle ?? topic.title
@@ -56,7 +80,8 @@ function TrailTopic(props: TrailProps & { topicId: TopicId; current: boolean }):
   return <>
     {topic !== undefined && (topic.parentId === null
       ? <TrailDirection {...props} directionId={topic.directionId} />
-      : <TrailTopic {...props} topicId={topic.parentId} current={false} />)}
+      : <TrailTopic {...props} topicId={topic.parentId} current={false}
+        inlineLevels={props.inlineLevels === null ? null : props.inlineLevels - 1} />)}
     <li>
       <Separator />
       {props.current

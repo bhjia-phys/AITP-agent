@@ -7,6 +7,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { memoryAddress } from './protocol.ts'
 import { AgentItems, GapItems, ResearcherItems } from './sections.tsx'
 import type {} from './locales.ts'
+import type { AgentItem } from './protocol.ts'
 import css from './memory.module.css'
 
 /** Callbacks the task card and header action receive from their registration. */
@@ -15,6 +16,8 @@ export interface MemoryActionsFace {
   openMemory: () => void
   /** Open an `aitp-note` address in the dock. */
   openNote: (address: string) => void
+  /** Prepare a correction in this Session's existing composer, preserving any current draft. */
+  correctItem?: (text: string) => void | 'applied' | 'preserved'
 }
 
 /** Full props of the task card. */
@@ -25,9 +28,10 @@ export type TaskCardProps = PropsRuntime<'conversation.input.dock'> & PropsLocal
  * @param props - dock runtime, locale and actions.
  * @returns the card, or nothing.
  */
-export function TaskCard({ t, sessionId, useResource, openMemory }: TaskCardProps): ReactNode {
+export function TaskCard({ t, sessionId, useResource, openMemory, correctItem }: TaskCardProps): ReactNode {
   const memory = useResource<'aitp-session'>(memoryAddress(sessionId))
   const [open, setOpen] = useState(false)
+  const [preservedAt, setPreservedAt] = useState<number>()
   if (memory.value === undefined && memory.failure !== undefined) {
     return (
       <div className={css.dock}>
@@ -42,7 +46,11 @@ export function TaskCard({ t, sessionId, useResource, openMemory }: TaskCardProp
   const task = value.researcher.find(item => item.kind === 'task')
   const others = value.researcher.filter(item => item !== task)
   const active = value.agent.filter(item => item.status === 'active')
-  const gap = value.gaps[0]
+  const gap = value.gaps.find(item => item.requirement !== 'optional')
+  const approach = active.filter(item => item.kind === 'next-step')
+    .reduce<AgentItem | undefined>((latest, item) => latest === undefined || item.turn >= latest.turn ? item : latest, undefined)
+  const humanTurn = Math.max(0, ...value.researcher.map(item => item.turn))
+  const earlier = approach !== undefined && approach.turn > 0 && approach.turn < humanTurn
   const pendingRule = value.rules.some(rule => rule.adoption.kind === 'saved-not-used')
   const omittedItems = value.coverage?.omittedItems ?? 0
   const facts: { key: string; text: string; gap?: boolean }[] = []
@@ -52,10 +60,12 @@ export function TaskCard({ t, sessionId, useResource, openMemory }: TaskCardProp
   if (active.length > 0) facts.push({ key: 'agent', text: active.length === 1 ? t('task.agent.one') : t('task.agent.other', { count: active.length }) })
   if (gap !== undefined) facts.push({ key: 'gap', text: `${t('gap.label')}: ${gap.text}`, gap: true })
   if (pendingRule) facts.push({ key: 'rule', text: t('task.rulePending') })
+  if (active.some(item => item.kind === 'pending-integration')) facts.push({ key: 'pending', text: t('task.pendingIntegration') })
   if (omittedItems > 0) facts.push({ key: 'omitted', text: t('task.omitted', { count: omittedItems }) })
   if (value.summaries.length > 0) {
     facts.push({ key: 'summaries', text: value.summaries.length === 1 ? t('task.summaries.one') : t('task.summaries.other', { count: value.summaries.length }) })
   }
+  const visibleFacts = open ? facts : facts.filter(fact => ['gap', 'rule', 'omitted', 'pending'].includes(fact.key))
   return (
     <div className={css.dock}>
       <section className={css.card} aria-label={t('task.label')}>
@@ -67,9 +77,20 @@ export function TaskCard({ t, sessionId, useResource, openMemory }: TaskCardProp
             {open ? t('task.hide') : t('task.details')}
           </Button>
         </div>
-        {facts.length > 0 && (
+        {approach !== undefined && <div className={css.approach}>
+          <div className={css.approachHeader}><span>{t(earlier ? 'task.earlierApproach' : 'task.approach')}</span>
+            {correctItem !== undefined && <Button variant="ghost" size="sm" onClick={() => {
+              const result = correctItem(approach.text
+                + (approach.condition === undefined ? '' : `\n${t('agent.condition')}: ${approach.condition}`))
+              setPreservedAt(result === 'preserved' ? humanTurn : undefined)
+            }}>{t('task.correct')}</Button>}</div>
+          <p className={css.approachText} title={approach.text}>{approach.text}</p>
+          {approach.condition !== undefined && <p className={css.approachCondition}>{approach.condition}</p>}
+        </div>}
+        {preservedAt === humanTurn && <p className={css.textMuted} role="status">{t('task.correctionPreserved')}</p>}
+        {visibleFacts.length > 0 && (
           <p className={css.cardFacts}>
-            {facts.map(fact => <span key={fact.key} className={fact.gap === true ? css.factGap : undefined}>{fact.text}</span>)}
+            {visibleFacts.map(fact => <span key={fact.key} className={fact.gap === true ? css.factGap : undefined}>{fact.text}</span>)}
           </p>
         )}
         {open && (

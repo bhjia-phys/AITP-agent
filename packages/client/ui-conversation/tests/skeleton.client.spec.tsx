@@ -198,6 +198,7 @@ function mount(
     if (key === 'conversation.input.model' || key === 'conversation.input.plan') {
       seatOwners.push({ key, owner })
     }
+    if (key === 'conversation.hero.introduction') return opts?.fallback ?? null
     if (key === 'conversation.hero.workspace') { pickerOwner = owner; return null }
     if (key === 'conversation.session.header.lineage') {
       lineageOwners.push(owner as ConversationHeaderLineageOwnerProps)
@@ -386,12 +387,22 @@ function mount(
 }
 
 describe('Hero chrome', () => {
+  it('uses an installed product introduction and falls back to the native headline when absent', () => {
+    const renderSlot = vi.fn<HeroShellProps['renderSlot']>((name, _owner, options) =>
+      name === 'conversation.hero.introduction' ? <p>Project introduction</p> : options?.fallback ?? null)
+    const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot} />)
+    expect(view.getByText('Project introduction')).toBeTruthy()
+    expect(view.queryByText('Into the Unknown')).toBeNull()
+    view.rerender(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={(_name, _owner, options) => options?.fallback ?? null} />)
+    expect(view.getByText('Into the Unknown')).toBeTruthy()
+  })
+
   it('renders the English preview badge through the hero locale seat', () => {
-    const renderSlot = vi.fn<HeroShellProps['renderSlot']>(() => null)
+    const renderSlot = vi.fn<HeroShellProps['renderSlot']>((_name, _owner, options) => options?.fallback ?? null)
     const view = render(<HeroShell t={makeTranslate(en, commonEn)} renderSlot={renderSlot} />)
     expect(view.getByText('Into the Unknown')).toBeTruthy()
     expect(view.getByText('Preview')).toBeTruthy()
-    expect(renderSlot).toHaveBeenCalledOnce()
+    expect(renderSlot).toHaveBeenCalledTimes(2)
     expect(renderSlot.mock.calls[0]?.[0]).toBe('conversation.hero.brand.mark')
     const brandMarkOwner = renderSlot.mock.calls[0]?.[1]
     if (brandMarkOwner === undefined || !('size' in brandMarkOwner) || !('className' in brandMarkOwner)) {

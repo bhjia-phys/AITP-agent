@@ -20,6 +20,7 @@ const START: ResearchReturnPoint = { scrollTop: 0, focusIndex: null }
  */
 export function researchCitationLocation(scope: ResearchDiscussionScope, address: string,
   workspacePath?: string): ResearchLocation | undefined {
+  if (scope.workspaceId === undefined) return undefined
   const topicId = scope.topicId === undefined ? null : brandString<TopicId>(scope.topicId)
   let resourceId: ResourceId | undefined
   try {
@@ -60,7 +61,7 @@ export class ResearchNavigationController {
   bind(actions: BoundActions<ReturnType<typeof createResearchPanelStore>>): void {
     this.actions = actions
     const pending = this.pending
-    if (pending === undefined) return
+    if (pending?.scope.workspaceId === undefined) return
     this.pending = undefined
     actions.open(pending.scope.workspaceId, pending.location, pending.leave)
   }
@@ -73,6 +74,7 @@ export class ResearchNavigationController {
    * @returns whether Research owns and opened this centre-reader route.
    */
   open(scope: ResearchDiscussionScope, address: string, leave: ResearchReturnPoint = START): boolean {
+    if (scope.workspaceId === undefined) return false
     const workspace = this.ctx.workspaces.list.getSnapshot().items.find(item => item.workspaceId === scope.workspaceId)
     const location = researchCitationLocation(scope, address, workspace?.path)
     if (location === undefined) return false

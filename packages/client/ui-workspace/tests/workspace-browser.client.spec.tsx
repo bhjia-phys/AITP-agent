@@ -152,6 +152,19 @@ function rerender(b: ReturnType<typeof mount>, overrides: Partial<WorkspaceBrows
 }
 
 describe('WorkspaceBrowser', () => {
+  it('presents native flat conversations for a product host without overwriting saved workspace grouping', () => {
+    localStorage.clear()
+    const b = mount({ presentation: 'sessions' })
+    expect(b.view.getByText('会话')).toBeTruthy()
+    expect(b.store.getSnapshot().groupBy).toBe('workspace')
+    fireEvent.click(b.view.getByRole('button', { name: '视图选项' }))
+    expect(b.view.queryByText('分组方式')).toBeNull()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    rerender(b, { presentation: undefined })
+    expect(b.view.getByText('工作区')).toBeTruthy()
+    expect(b.store.getSnapshot().groupBy).toBe('workspace')
+  })
+
   it.each(['workspace', 'flat', 'ungrouped'] as const)('keeps %s recency independent of arrival order and saved manual positions', (mode) => {
     localStorage.clear()
     const preferences = createWorkspaceViewStore().create()

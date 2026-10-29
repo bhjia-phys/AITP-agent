@@ -15,7 +15,7 @@ This table connects model-visible tool names to the plugin package and service s
 
 | Tool package | Model-visible names | Requires | Writes / affects | Shipped aliases | Deployment note |
 | --- | --- | --- | --- | --- | --- |
-| `@deepseek-ai/dsh-research-memory` | `research_apply_change`, `research_prepare_change`, `research_read_context`, `research_read_source`, `research_recover_change`, `research_working_update` | `ctx.agents`, `ctx.sessions`, `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionProjections`, `ctx.researchResources (selected-source reads)`, `ctx.sandboxPolicy (write execution)` | `tool/call`, `tool/result`, `existing runtime-context messages`, `configured scratch sources and operation receipts` | - | research_read_source is contributed only while research-resources is connected; this catalog mounts the genuine optional bridge with no directory grants. |
+| `@deepseek-ai/dsh-research-memory` | `research_apply_change`, `research_import_pdf`, `research_initialize_project`, `research_material_location`, `research_prepare_change`, `research_read_context`, `research_read_local_source`, `research_read_source`, `research_recover_change`, `research_save_material`, `research_search_sources`, `research_working_update` | `ctx.agents`, `ctx.sessions`, `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionProjections`, `ctx.researchResources (source discovery and reads)`, `ctx.sandboxPolicy (write execution)` | `tool/call`, `tool/result`, `existing runtime-context messages`, `configured scratch sources and operation receipts` | - | Source selection reads, body discovery and located rereads are contributed while research-resources is connected; this catalog mounts that bridge with no directory grants. |
 | `@deepseek-ai/dsh-plugin-manager` | `plugin_manager` | `ctx.tools`, `ctx.pluginManager`, `ctx.sandboxPolicy` | `tool/call`, `tool/result`, `user/message` | - | - |
 | `@deepseek-ai/dsh-plugin-market` | `plugin_market` | `ctx.tools`, `ctx.pluginMarket` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-mcp-resources` | `list_mcp_resource_templates`, `list_mcp_resources`, `read_mcp_resource` | `ctx.tools`, `ctx.mcpResources` | `tool/call`, `tool/result` | - | - |
@@ -73,6 +73,140 @@ Apply a prepared source edit from this conversation and research direction. Exis
 ```
 
 Source: [`packages/research/research-memory/src/write-tools.ts`](../packages/research/research-memory/src/write-tools.ts)
+
+### `research_import_pdf`
+
+Import original bytes from an explicitly selected authorized PDF source to an adopted new .pdf path in this conversation's research root. Supply the exact rootId/sourceId from an admitted source; this never grants new source access or moves the original. Optional account linking is a separate outcome. Reuse the same operationId and request on retry; inspect unknown outcomes before another write.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operationId": {
+      "type": "string",
+      "description": "Stable 1–128 character operation identity using letters, digits, underscores or hyphens. Reuse it unchanged to inspect or retry this exact request."
+    },
+    "relativePath": {
+      "type": "string",
+      "description": "Explicit adopted destination relative to the current research root, including filename. Existing names are never replaced."
+    },
+    "association": {
+      "type": "object",
+      "description": "Optional ordinary Markdown account or index receiving a link and your stated use. No association is written when omitted.",
+      "additionalProperties": false,
+      "properties": {
+        "accountPath": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "accountPath",
+        "title"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rootId": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "rootId",
+        "sourceId"
+      ]
+    }
+  },
+  "required": [
+    "operationId",
+    "relativePath",
+    "source"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/material-tools.ts`](../packages/research/research-memory/src/material-tools.ts)
+
+### `research_initialize_project`
+
+Propose initialization of this research conversation's missing research.md. Supply the research title/question and optional admitted library roots after discussing missing details. The tool presents the exact choices through the native human question UI, checks current file permissions, preserves existing accounts, and creates no Git repository or copied library. A declined or unknown result is not a saved account.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "question": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "string"
+    },
+    "language": {
+      "type": "string",
+      "enum": [
+        "zh",
+        "en"
+      ]
+    },
+    "libraries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "rootId": {
+            "type": "string"
+          },
+          "domain": {
+            "type": "string",
+            "enum": [
+              "literature",
+              "knowledge",
+              "code"
+            ]
+          }
+        },
+        "required": [
+          "rootId",
+          "domain"
+        ]
+      }
+    }
+  },
+  "required": [
+    "title",
+    "question"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/workflow.ts`](../packages/research/research-memory/src/workflow.ts)
+
+### `research_material_location`
+
+Read the actual main record, directory and current write availability for this conversation's research topic. Existing local and shared material links remain authoritative; this tool does not choose a new directory or grant write access.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/research/research-memory/src/material-tools.ts`](../packages/research/research-memory/src/material-tools.ts)
 
 ### `research_prepare_change`
 
@@ -169,6 +303,36 @@ Recover the current research direction, source-backed context and exact resource
 
 Source: [`packages/research/research-memory/src/runtime.ts`](../packages/research/research-memory/src/runtime.ts)
 
+### `research_read_local_source`
+
+Read an admitted source found through research_search_sources or an actual source link. Use its exact rootId and sourceId; location is optional locator JSON from the search result. offset reads a further character window. This does not select a source on the researcher’s behalf, grant writes, or certify the science.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "rootId": {
+      "type": "string"
+    },
+    "sourceId": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "offset": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "rootId",
+    "sourceId"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/study-tools.ts`](../packages/research/research-memory/src/study-tools.ts)
+
 ### `research_read_source`
 
 Read a current source already selected for this research conversation. sourceIndex is its one-based selected-source number. Optionally specify location as JSON: {"kind":"pdf-page","page":2}, {"kind":"anchor","anchor":"proof"}, or {"kind":"code","startLine":10,"endLine":30,"revision":"commit-id"}. PDF pages and code lines are one-based. offset reopens a bounded character window within the requested passage. This reads evidence, not permission to write or a claim that the whole source was inspected.
@@ -215,9 +379,85 @@ Inspect an operation from this conversation and research direction without apply
 
 Source: [`packages/research/research-memory/src/write-tools.ts`](../packages/research/research-memory/src/write-tools.ts)
 
+### `research_save_material`
+
+Save an explicitly authored note, derivation, code artifact or result at an adopted new path in this conversation's research root. Optionally append an ordinary Markdown link and stated use. Existing files are never overwritten. File publication, account linking and current read-back are reported separately. Reuse the same operationId and exact request after interruption; an unknown outcome requires inspection and is never replayed automatically. A saved file is not scientific acceptance.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operationId": {
+      "type": "string",
+      "description": "Stable 1–128 character operation identity using letters, digits, underscores or hyphens. Reuse it unchanged to inspect or retry this exact request."
+    },
+    "relativePath": {
+      "type": "string",
+      "description": "Explicit adopted destination relative to the current research root, including filename. Existing names are never replaced."
+    },
+    "association": {
+      "type": "object",
+      "description": "Optional ordinary Markdown account or index receiving a link and your stated use. No association is written when omitted.",
+      "additionalProperties": false,
+      "properties": {
+        "accountPath": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "accountPath",
+        "title"
+      ]
+    },
+    "text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "operationId",
+    "relativePath",
+    "text"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/material-tools.ts`](../packages/research/research-memory/src/material-tools.ts)
+
+### `research_search_sources`
+
+Find literal terms in the bodies of admitted local research notes, TeX, code and extracted PDF pages. Use short scientific terms; every whitespace-separated term must occur in the same file/page. Optionally narrow rootId or a relative folder. Results contain exact refs and locators for research_read_local_source. Coverage, exclusions and budgets are explicit; a zero-hit partial search does not establish absence. Byte counts are logical observation charges, not physical disk traffic. This grants no new root or write access.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string"
+    },
+    "rootId": {
+      "type": "string"
+    },
+    "folder": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/research/research-memory/src/study-tools.ts`](../packages/research/research-memory/src/study-tools.ts)
+
 ### `research_working_update`
 
-Keep a concise provisional working item for the current research direction: a gap, result and limitation, failed route and reopening condition, next step, or pending integration. Update only your own items. Original human instructions and decisions remain unchanged. This does not write scientific notes or pause work. Cite original input source IDs when they constrain the item.
+Keep a concise provisional working item for the current research direction: a gap, result and limitation, failed route and reopening condition, next step, or pending integration. For a consequential or corrected request, a next-step item may state your understood objective, binding conditions and intended check; reuse it until it changes. Update only your own items. Original human instructions and decisions remain unchanged. This does not write scientific notes or pause work. Cite original input source IDs when they constrain the item.
 
 ```json
 {
@@ -265,7 +505,7 @@ Keep a concise provisional working item for the current research direction: a ga
 
 Source: [`packages/research/research-memory/src/runtime.ts`](../packages/research/research-memory/src/runtime.ts)
 
-research_read_source is contributed only while research-resources is connected; this catalog mounts the genuine optional bridge with no directory grants.
+Source selection reads, body discovery and located rereads are contributed while research-resources is connected; this catalog mounts that bridge with no directory grants.
 
 <a id="deepseek-aidsh-plugin-manager"></a>
 

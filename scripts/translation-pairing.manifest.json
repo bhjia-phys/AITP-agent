@@ -12,6 +12,7 @@
     "packages/client/ui-aitp-fixtures/README.md",
     "packages/research/",
     "packages/client/ui-aitp-backend/README.md",
+    "packages/client/ui-aitp-settings/README.md",
     "docs/subsystems/research-memory.md",
     "docs/subsystems/research-memory.zh.md"
   ],

@@ -1,6 +1,6 @@
 # 16. Topic-centred research environment: assessment and redesign proposal
 
-**Layout revisions, 2026-10-26–27.** This document retains the original redesign assessment and prototype. Its separate Research/Conversations modes and conversation-main/topic-dock placement are superseded by the authorized [topic discussion workbench](14-implementation-blueprint.md#topic-discussion-workbench), whose current layout is defined in [12](12-desktop-interface.md#application-frame-on-harness): conversations live beneath their topics in one sidebar, materials stay in the centre, and the existing native Harness conversation opens on the right. Ordinary unscoped Sessions retain the host layout. Historical screenshots, diagrams and UI-1 observations below are evidence of their original stage, not the current implementation specification. Library catalogues now stay on the left and use the complete native document dock on the right; [12](12-desktop-interface.md#layout-and-navigation) owns this correction and its scope.
+**Layout revisions through 2026-10-28.** This document retains the original redesign assessment and prototype as historical evidence. The current [interface owner](12-desktop-interface.md#application-frame-on-harness) supersedes the body's Research/Conversations mode switch: the native Home offers project entry points, the left uses native flat Sessions, and the native right Sidebar offers project/topic navigation. Reading-side discussion and full Conversation use the same Session, with explicit return to reading and visible question scope. Library catalogues use the complete native document dock. The [implementation receipt](../../agent/notes/harness-integration.md#unified-research-home) records checks and limits; historical screenshots, diagrams and UI-1 observations below do not describe the current implementation.
 
 **Status: design published through PR #11, 2026-10-23; formal client implementation authorized.** The researcher requires a clear topic/subtopic overview, clickable detail and convenient operations for humans and AI, and permits improving beyond the existing research-memory format. The backend is being developed separately. The [formal client and adapter](../../packages/client/ui-aitp-research/README.md) implement the frontend boundary with an opt-in asynchronous fixture; [14](14-implementation-blueprint.md#topic-redesign-review) owns its current validation and remaining integration. The standalone prototype remains a synthetic design reference. Real-note migration, backend storage and production write services remain outside this frontend task.
 
@@ -330,6 +330,8 @@ A detail page retains the full wording, qualification, support and ownership of 
 <a id="direct-operations"></a>
 ### 7.3 Direct operations
 
+The [coordination refinement](14-implementation-blueprint.md#research-coordination-plan) keeps source-preserving authoring but does not require every scientific concept to become a separate editable object. The operations below remain possible task-specific interactions. Current compact presentation and correction behavior are owned by [12](12-desktop-interface.md#coordinated-research-views); broader editing is scoped by [R5](14-implementation-blueprint.md#coordination-r5).
+
 Every edit produces a change request ([§10.3](#change-record)) at the named record field or body passage. Consequential edits show a preview; routine changes can apply with Undo within the existing write scope. Propagation is a task for the agent's memory cycle, visible as waiting on integration until assessed. These are target interactions; actual availability follows the backend capability and authorized write scope. No real source is written by this prototype.
 
 | Scenario | UI operation | Local edit at the owner | Propagation task | Confirmation |
@@ -343,6 +345,8 @@ Every edit produces a change request ([§10.3](#change-record)) at the named rec
 | Routine | Change a disposition, next action or date; pause or resume a work item; fix a link | The owning work item or reference | None, or the parent pointer if the contribution changed | None; Undo for 10 s and Revert later |
 
 ### 7.4 Contextual agent actions
+
+These actions prepare ordinary editable requests. Their names do not select fixed research modes or grant writing authority; the actual user task, existing permissions and portable guidance determine scope. This supersedes reading the earlier per-action table as a runtime action whitelist. The same native conversation and next-message source selection serve the map and all three libraries.
 
 Object menus offer: Explain, Challenge assumptions, Derive, Find literature, Compare with another route, Verify, Update dependent notes, Start an investigation. **All of them open in the conversation**: the current topic Session if one is shown, otherwise a new Session whose origin is the object, with a draft that names the object's locator and the intended operation. The researcher can edit the draft before sending. The topic state stays visible beside the conversation in the dock.
 

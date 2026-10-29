@@ -1,6 +1,7 @@
 /** Small operational controls; the Host owns grants and durable source sets. */
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
+import { randomUUID } from '@deepseek-ai/dsh-util-crypto'
 import type { SaveSourceSetRequest, SourceSetId } from '@deepseek-ai/dsh-research-resources/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { MaterialsManagementFace, MaterialsPanelProps } from './MaterialsPanel.tsx'
@@ -50,7 +51,7 @@ export function LibraryManagement(props: ManagedProps): ReactNode {
       && current?.sourceSetTitle === draft?.sourceSetTitle && current?.sourceSetTopics === draft?.sourceSetTopics) {
       props.actions.loadSourceSet(key, result.value.sourceSet.id,
         result.value.sourceSet.title, result.value.selections, result.value.sourceSet.topics, scope)
-      if (scope.workspaceId !== undefined) props.discussion?.setSources({ ...scope, workspaceId: scope.workspaceId },
+      props.discussion?.setSources(scope,
         result.value.selections.map(({ ref, locator, selectedText }) => ({ ref,
           ...locator === undefined ? {} : { locator }, ...selectedText === undefined ? {} : { selectedText },
         })))
@@ -114,7 +115,7 @@ export function SourceSetSave(props: ManagedProps): ReactNode {
   const save = async (): Promise<void> => {
     if (draft.saving || draft.sending) return
     const request: SaveSourceSetRequest = draft.pendingSave ?? {
-      operationId: globalThis.crypto.randomUUID(),
+      operationId: randomUUID(),
       ...draft.sourceSetId === null ? {} : { id: draft.sourceSetId },
       title: draft.sourceSetTitle,
       selections: draft.selections.map(({ ref, locator, selectedText }) => ({ ref,

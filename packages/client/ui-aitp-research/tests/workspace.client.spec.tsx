@@ -10,7 +10,7 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
 import { en } from '../src/client/locales.ts'
 import { ResearchPanel, type ResearchPanelFace, type ResearchPanelProps } from '../src/client/ResearchPanel.tsx'
-import { createResearchPanelStore } from '../src/client/store.ts'
+import { createResearchPanelStore, type ResearchLocation } from '../src/client/store.ts'
 import { workspaceEditKey } from '../src/client/workspace-edit-state.ts'
 import type { ApplyReceipt, ChangePreview, Project, ReadEnvelope, ResearchProvider, Resource, ResourceId, Result, Revision, Topic, TopicId, TopicPage, WorkspaceRead } from '../src/client/workspace-contract.ts'
 import { workspaceActivityAddress, workspaceProjectAddress, workspaceResourceAddress, workspaceSetupAddress, workspaceTopicAddress, workspaceTopicsAddress } from '../src/client/workspace-resources.ts'
@@ -35,7 +35,8 @@ const PDF = 'paper' as ResourceId
 const REVISION = 'r1' as Revision
 const provider: ResearchProvider = {
   id: 'test', origin: 'fixture', capabilities: {
-    read: true, readContext: false, readActivity: true, previewChanges: true, applyChanges: true, changeEvents: true,
+    automaticResearch: true, read: true, readContext: false, readActivity: true,
+    previewChanges: true, applyChanges: true, changeEvents: true,
     commands: ['update-scope', 'record-answer'],
   },
 }
@@ -118,6 +119,58 @@ function topicAction(name: 'Edit scope' | 'Update understanding' | 'Show on map'
 
 const trail = (): HTMLElement => screen.getByRole('navigation', { name: 'Research location' })
 const section = (name: string): HTMLElement => screen.getByRole('button', { name: new RegExp(`^${name}`) })
+
+it.each(['map', 'topic', 'resource'] as const)('discloses a deep %s path without navigation, then restores its ancestors and reading point on Back', (kind) => {
+  const values = resources()
+  const middleId = 'nested-comparison' as TopicId
+  const leafId = 'fine-limit' as TopicId
+  const middle: Topic = { ...child, id: middleId, title: 'Nested comparison', parentId: CHILD, childIds: [leafId] }
+  const leaf: Topic = { ...child, id: leafId, title: 'Fine limit', parentId: middleId }
+  const nestedChild: Topic = { ...child, childIds: [middleId] }
+  for (const topic of [nestedChild, middle, leaf]) values[workspaceTopicAddress(WS, topic.id)] = live(read(topic))
+  values[workspaceTopicsAddress(WS, { parentId: ROOT })] = live(read(page(nestedChild)))
+  values[workspaceTopicsAddress(WS, { parentId: CHILD })] = live(read(page(middle)))
+  values[workspaceTopicsAddress(WS, { parentId: middleId })] = live(read(page(leaf)))
+  values[workspaceTopicsAddress(WS, { parentId: leafId })] = live(read(page()))
+  const beginDiscussion = vi.fn<NonNullable<ResearchPanelFace['beginDiscussion']>>()
+  const { store, face } = panel(values, { beginDiscussion })
+  const location: ResearchLocation = kind === 'map' ? { kind: 'map', focusId: leafId }
+    : kind === 'topic' ? { kind: 'topic', topicId: leafId } : { kind: 'resource', topicId: leafId, resourceId: NOTE }
+  act(() => { store.actions.open(WS, location, { scrollTop: 0, focusIndex: null }) })
+  const history = store.getSnapshot().back
+  const toggle = within(trail()).getByRole<HTMLButtonElement>('button', { name: 'Earlier topics' })
+  expect(toggle.getAttribute('aria-expanded')).toBe('false')
+  expect(within(trail()).queryByRole('button', { name: 'Main question' })).toBeNull()
+  expect(within(trail()).getByText('Fine limit')).toBeDefined()
+  if (kind !== 'resource') expect(within(trail()).getByRole('button', { name: 'Nested comparison' })).toBeDefined()
+  act(() => { toggle.focus() })
+  expect(document.activeElement).toBe(toggle)
+  fireEvent.click(toggle)
+  expect(toggle.getAttribute('aria-expanded')).toBe('true')
+  const ancestors = within(trail()).getByRole('list', { name: 'Earlier topics in this research path' })
+  expect(toggle.getAttribute('aria-controls')).toBe(ancestors.id)
+  expect(within(ancestors).getByText('Theory')).toBeDefined()
+  expect(within(ancestors).getByRole('button', { name: 'Controlled limit' })).toBeDefined()
+  expect(store.getSnapshot().location).toEqual(location)
+  expect(store.getSnapshot().back).toBe(history)
+  expect(beginDiscussion).not.toHaveBeenCalled()
+  expect(face.openSession).not.toHaveBeenCalled()
+  const reading = document.querySelector<HTMLElement>('[data-research-reading]')!
+  reading.scrollTop = 375
+  fireEvent.scroll(reading)
+  const ancestor = within(ancestors).getByRole('button', { name: 'Main question' })
+  act(() => { ancestor.focus() })
+  fireEvent.click(ancestor)
+  expect(store.getSnapshot().location).toEqual(kind === 'map' ? { kind: 'map', focusId: ROOT } : { kind: 'topic', topicId: ROOT })
+  fireEvent.click(within(trail()).getByRole('button', { name: 'Back' }))
+  expect(store.getSnapshot().location).toEqual(location)
+  expect(reading.scrollTop).toBe(375)
+  expect(within(trail()).getByRole('button', { name: 'Earlier topics' }).getAttribute('aria-expanded')).toBe('true')
+  expect(document.activeElement).toBe(within(trail()).getByRole('button', { name: 'Main question' }))
+  fireEvent.click(within(trail()).getByRole('button', { name: 'Earlier topics' }))
+  expect(within(trail()).queryByRole('button', { name: 'Main question' })).toBeNull()
+  expect(store.getSnapshot().location).toEqual(location)
+})
 
 describe('research discussion entry', () => {
   it.each(['automatic', 'source set', 'passage'] as const)('returns from material reading with the correct %s source in native admission', async (choice) => {
@@ -247,8 +300,15 @@ describe('workspace enrollment and new topics', () => {
     expect(face.openSession).not.toHaveBeenCalled()
   })
 
-  it('opens the created topic, focuses its question composer and asks through the normal bound conversation', async () => {
+  it('shows the chosen parent folder and saved account, then asks through the created topic’s normal conversation', async () => {
     const values = resources()
+    const parentAccount = { ...note, id: 'parent-account' as ResourceId, ownerTopicId: ROOT,
+      target: { kind: 'workspace-path' as const, path: 'theory/symmetry/finite/research.md' } }
+    const savedAccount = { ...note, target: { kind: 'workspace-path' as const, path: 'theory/symmetry/finite/精细 极限/research.md' } }
+    values[workspaceTopicAddress(WS, ROOT)] = live(read({ ...root, accountResourceId: parentAccount.id, resources: [parentAccount] }))
+    values[workspaceResourceAddress(WS, parentAccount.id)] = live(read(parentAccount))
+    values[workspaceTopicAddress(WS, CHILD)] = live(read({ ...child, resources: [savedAccount] }))
+    values[workspaceResourceAddress(WS, NOTE)] = live(read(savedAccount))
     values[workspaceSetupAddress(WS)] = live({ configured: true, writable: true, canInitialize: true })
     const createTopic = vi.fn<NonNullable<ResearchPanelFace['createTopic']>>(async (_workspaceId, request) => ({ ok: true, value: { operationId: request.operationId, topicId: CHILD, resourceId: NOTE } }))
     const askQuestion = vi.fn<NonNullable<ResearchPanelFace['askQuestion']>>(async () => ({ ok: true, value: { sessionId: 'created-question' as SessionId } }))
@@ -256,6 +316,8 @@ describe('workspace enrollment and new topics', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Main question/ }))
     fireEvent.click(screen.getByRole('button', { name: 'New subdirection' }))
     expect(screen.getByRole('button', { name: 'Place in project Under “Main question”' })).toBeDefined()
+    expect(screen.getByText('theory/symmetry/finite').parentElement?.textContent).toBe('Parent folder in this project: theory/symmetry/finite')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Folder name (optional)' }), { target: { value: '精细 极限' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'New limit' } })
     fireEvent.change(screen.getByRole('textbox', { name: 'Research question' }), { target: { value: 'What should we control?' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create topic' }))
@@ -265,7 +327,8 @@ describe('workspace enrollment and new topics', () => {
     expect(submitted?.operationId).toBeTypeOf('string')
     expect(submitted?.operationId).not.toBe('')
     expect(createTopic).toHaveBeenCalledExactlyOnceWith(WS, { operationId: submitted?.operationId,
-      parentTopicId: ROOT, title: 'New limit', question: 'What should we control?' })
+      parentTopicId: ROOT, title: 'New limit', question: 'What should we control?', directory: '精细 极限' })
+    expect(screen.getByText('Research record:').parentElement?.textContent).toBe('Research record: theory/symmetry/finite/精细 极限/research.md')
     expect(askQuestion).not.toHaveBeenCalled()
     const input = screen.getByRole('textbox', { name: 'Ask about this research' })
     expect(document.activeElement).toBe(input)
@@ -456,6 +519,36 @@ describe('research map overview', () => {
 })
 
 describe('branch focus', () => {
+  it('presents a concise source-backed overview without repeating headings, limits or the full reference list', () => {
+    const values = resources()
+    const gap = '## 未解决问题\n\nThe stated limit remains open.'
+    const refs = Array.from({ length: 8 }, (_, index) => ({ id: `note-${index}` as ResourceId, ownerTopicId: ROOT,
+      title: `Reference ${index}`, kind: 'note' as const, target: { kind: 'workspace-path' as const, path: `notes/${index}.md` } }))
+    const projectAccount = 'project-account' as ResourceId
+    values[workspaceProjectAddress(WS)] = live(read({ ...project, accountResourceId: projectAccount }))
+    values[workspaceTopicsAddress(WS, { parentId: null })] = live(read(page(root,
+      { ...root, id: 'sibling' as TopicId, title: 'Other direction', work: { state: 'unknown', label: '' } })))
+    values[workspaceTopicAddress(WS, ROOT)] = live(read({ ...root,
+      question: '<a id="abstract"></a>\n\nThe actual research question.\n\nLong background remains in the full account.',
+      currentAnswer: { text: '## 当前认识\n\nThe qualified result.', qualification: gap, attribution }, gap,
+      resources: [{ id: projectAccount, ownerTopicId: null, title: 'Project map', kind: 'note', target: { kind: 'workspace-path', path: 'research.md' } }, ...refs],
+      work: { state: 'unknown', label: '' },
+    }))
+    panel(values)
+    fireEvent.click(screen.getByRole('button', { name: /^Main question/ }))
+    const summary = screen.getByRole('complementary', { name: 'Current understanding' })
+    expect(screen.getByText('The actual research question.')).toBeDefined()
+    expect(screen.queryByText(/Long background remains/)).toBeNull()
+    expect(screen.queryByText(/<a id=/)).toBeNull()
+    expect(within(summary).getAllByText('The stated limit remains open.')).toHaveLength(1)
+    expect(within(summary).queryByRole('heading', { name: '当前认识' })).toBeNull()
+    expect(within(summary).getByText('8 linked sources are listed on the topic page; their availability may need checking.')).toBeDefined()
+    expect(within(summary).getByText('Reference 0')).toBeDefined()
+    expect(within(summary).queryByText('Reference 3')).toBeNull()
+    expect(within(summary).queryByText('Project map')).toBeNull()
+    expect(screen.queryByText('Status not recorded')).toBeNull()
+  })
+
   it('summarises a focused topic with its conditions beside its branches', () => {
     panel()
     fireEvent.click(screen.getByRole('button', { name: /^Main question/ }))
@@ -593,6 +686,21 @@ describe('branch focus', () => {
 })
 
 describe('topic page', () => {
+  it('shows a bounded list of source links and lets the reader reveal the rest', () => {
+    const values = resources()
+    const refs = Array.from({ length: 8 }, (_, index) => ({ id: `note-${index}` as ResourceId, ownerTopicId: CHILD,
+      title: `Reference ${index}`, kind: 'note' as const, target: { kind: 'workspace-path' as const, path: `notes/${index}.md` } }))
+    values[workspaceTopicAddress(WS, CHILD)] = live(read({ ...child, resources: refs }))
+    panel(values)
+    openChild()
+    expect(screen.getByText('These links are recorded in the source; some files may be unavailable or not yet migrated.')).toBeDefined()
+    expect(screen.getByText('Reference 0')).toBeDefined()
+    expect(screen.queryByText('Reference 7')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 8 links' }))
+    expect(screen.getByText('Reference 7')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Show fewer links' }))
+    expect(screen.queryByText('Reference 7')).toBeNull()
+  })
   it('presents section bodies once while editing and the full account retain the authored sections', () => {
     const values = resources()
     const scope = 'Scope\n-----\n\nFinite systems.'
@@ -638,7 +746,8 @@ describe('topic page', () => {
     expect(screen.getByText('Finite systems.')).toBeDefined()
     expect(screen.getByText('Read the control.')).toBeDefined()
     expect(screen.queryByText('Compare a control.')).toBeNull()
-    expect(screen.queryByRole('button', { name: /^Branches/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /^Branches/ }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByText('No branches are recorded under this topic.')).toBeDefined()
     expect(section('Materials').getAttribute('aria-expanded')).toBe('true')
     expect(section('Claims & routes').getAttribute('aria-expanded')).toBe('false')
     fireEvent.click(section('Claims & routes'))
@@ -703,8 +812,8 @@ describe('topic page', () => {
     values[workspaceTopicAddress(WS, CHILD)] = live(read(detailed))
     const { store } = panel(values)
     act(() => { store.actions.open(WS, { kind: 'topic', topicId: CHILD }, { scrollTop: 0, focusIndex: null }) })
-    expect(screen.getByText('No current answer recorded')).toBeDefined()
-    expect(screen.getByText('No gap recorded')).toBeDefined()
+    expect(screen.getByText('No summary is available here. Open the research record for details.')).toBeDefined()
+    expect(screen.getByText('No gap summary is available here. Check the research record.')).toBeDefined()
     expect(section('Work & choices').getAttribute('aria-expanded')).toBe('true')
     expect(screen.getByText('Route A')).toBeDefined()
     expect(screen.getByText('The run finishes.')).toBeDefined()
@@ -841,7 +950,7 @@ describe('workspace reading states', () => {
     values[workspaceProjectAddress(WS)] = { status: 'failed', value: read(project), failure: new RemoteError('aitp/workspace', 'Connection lost.', { code: 'not-connected', message: 'Connection lost.', retryable: true }) }
     const { face } = panel(values)
     expect(screen.getByText(/Showing the last reading/)).toBeDefined()
-    expect(screen.getByText(/^Read /, { selector: 'p' })).toBeDefined()
+    expect(screen.queryByText(/^Read /, { selector: 'p' })).toBeNull()
     expect(screen.queryByText(/revision r1/)).toBeNull()
     expect(screen.getByRole('heading', { name: 'Research programme' })).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Read again' }))

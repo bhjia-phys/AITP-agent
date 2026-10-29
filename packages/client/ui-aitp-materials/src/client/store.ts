@@ -4,9 +4,13 @@ import { defineStore, type EngineStoreHandle } from '@deepseek-ai/dsh-client-sto
 import type { ResourceDomain, SaveSourceSetRequest, SourceLocator, SourceRef, SourceSelection, SourceSetId, SourceSetReceipt, SourceSetTopic } from '@deepseek-ai/dsh-research-resources/types'
 import type { MaterialLocation, MaterialsScope, SelectedMaterial } from './contracts.ts'
 import type { SourceSetJournal } from './source-set-journal.ts'
+import type { MaterialWriteAttempt, MaterialWriteCommand } from './material-write-contracts.ts'
+import type { MaterialWriteJournal } from './material-write-journal.ts'
 
 /** One library's retained view. */
 export interface LibraryView {
+  /** Explicit collection navigation broadens only this catalog, never the question scope. */
+  allInCollection?: boolean
   catalogScrollTop: number
   query: string
   folderPath: string
@@ -40,6 +44,8 @@ export interface MaterialsState {
   inactiveViews: Record<string, Record<ResourceDomain, LibraryView>>
   drafts: Record<string, StudyDraft>
   recoveryProblem: string | null
+  materialWrites: Record<string, MaterialWriteAttempt>
+  materialWriteRecoveryProblem: string | null
 }
 
 /** Captured reading identity prevents retired viewer callbacks from changing another source or topic. */
@@ -47,10 +53,15 @@ export interface MaterialViewIdentity { readonly scope: string; readonly source:
 
 /** Complete mutation interface for the framework-owned state. */
 export type MaterialsActions = {
+  beginMaterialWrite: (draft: MaterialsState, key: string, command: MaterialWriteCommand) => void
+  finishMaterialWrite: (draft: MaterialsState, key: string, operationId: string, result: NonNullable<MaterialWriteAttempt['result']>) => void
+  clearMaterialWrite: (draft: MaterialsState, key: string) => void
   setCatalogScroll: (draft: MaterialsState, domain: ResourceDomain, top: number, scopeKey: string) => void
   selectForScope: (draft: MaterialsState, scope: MaterialsScope, selection: SelectedMaterial, selected: boolean) => void
   setScope: (draft: MaterialsState, scope: MaterialsScope) => void
   setQuery: (draft: MaterialsState, domain: ResourceDomain, query: string) => void
+  setCollection: (draft: MaterialsState, domain: ResourceDomain, rootId: string) => void
+  setAllInCollection: (draft: MaterialsState, domain: ResourceDomain, all: boolean) => void
   setRoot: (draft: MaterialsState, domain: ResourceDomain, rootId: string | null) => void
   setFolder: (draft: MaterialsState, domain: ResourceDomain, path: string) => void
   open: (draft: MaterialsState, domain: ResourceDomain, location: MaterialLocation) => void
@@ -139,17 +150,29 @@ function view(): LibraryView {
 /**
  * Declare shared viewing state and bounded pending-operation recovery.
  * @param journal - optional same-tab recovery of unconfirmed source-set commands.
+ * @param writeJournal - optional same-tab recovery of original file requests.
  * @returns a registration-owned store; production instances are created by the renderer.
  */
-export function createMaterialsStore(journal?: SourceSetJournal): EngineStoreHandle<MaterialsState, MaterialsActions> {
+export function createMaterialsStore(journal?: SourceSetJournal,
+  writeJournal?: MaterialWriteJournal): EngineStoreHandle<MaterialsState, MaterialsActions> {
   const persist = (state: MaterialsState): void => {
     state.recoveryProblem = journal?.write(Object.values(state.drafts).flatMap(draft => draft.pendingSave === null ? [] : [{
       scope: draft.scope, request: draft.pendingSave, labels: draft.selections.map(({ title, domain }) => ({ title, domain })),
     }])) ?? null
   }
+  const persistWrites = (state: MaterialsState): void => {
+    const pendingCommands = Object.entries(state.materialWrites).flatMap<readonly [string, MaterialWriteCommand]>(([key, attempt]) => {
+      const result = attempt.result
+      const pending = result === undefined || (result.ok ? result.value.retry === 'same-request' || result.value.file.state === 'unknown' || result.value.association.state === 'unknown'
+        : result.error.code === 'outcome-unknown' || result.error.code === 'partial-apply' || 'retryable' in result.error && result.error.retryable)
+      return pending ? [[key, attempt.command]] : []
+    })
+    state.materialWriteRecoveryProblem = writeJournal?.write(Object.fromEntries(pendingCommands)) ?? null
+  }
   return defineStore({
     init: (): MaterialsState => {
       const recovery = journal?.read()
+      const writeRecovery = writeJournal?.read()
       const drafts: MaterialsState['drafts'] = {}
       for (const entry of recovery?.entries ?? []) {
         drafts[materialsScopeKey(entry.scope)] = { ...emptyStudyDraft(entry.scope), pendingSave: entry.request,
@@ -159,9 +182,28 @@ export function createMaterialsStore(journal?: SourceSetJournal): EngineStoreHan
         }
       }
       return { scope: {}, views: { knowledge: view(), literature: view(), code: view() }, inactiveViews: {}, drafts,
-        recoveryProblem: recovery?.problem ?? null }
+        recoveryProblem: recovery?.problem ?? null,
+        materialWrites: Object.fromEntries(Object.entries(writeRecovery?.commands ?? {}).map(([key, command]) =>
+          [key, { command, busy: false }])),
+        materialWriteRecoveryProblem: writeRecovery?.problem ?? null }
     },
     actions: {
+      beginMaterialWrite: (draft, key, command) => {
+        if (draft.materialWrites[key]?.busy) return
+        draft.materialWrites[key] = { command, busy: true }
+        persistWrites(draft)
+      },
+      finishMaterialWrite: (draft, key, operationId, result) => {
+        const current = draft.materialWrites[key]
+        if (current?.command.operationId !== operationId) return
+        draft.materialWrites[key] = { command: current.command, busy: false, result }
+        persistWrites(draft)
+      },
+      clearMaterialWrite: (draft, key) => {
+        if (draft.materialWrites[key]?.busy) return
+        draft.materialWrites = Object.fromEntries(Object.entries(draft.materialWrites).filter(([current]) => current !== key))
+        persistWrites(draft)
+      },
       setCatalogScroll: (draft, domain, top, scopeKey) => {
         if (scopeKey === materialsScopeKey(draft.scope)) draft.views[domain].catalogScrollTop = top
       },
@@ -185,6 +227,11 @@ export function createMaterialsStore(journal?: SourceSetJournal): EngineStoreHan
         draft.scope = scope
       },
       setQuery: (draft, domain: ResourceDomain, query: string) => { draft.views[domain].query = query; draft.views[domain].cursor = null; draft.views[domain].location = { kind: 'list' } },
+      setCollection: (draft, domain: ResourceDomain, rootId: string) => { draft.views[domain].rootId = rootId; draft.views[domain].allInCollection = true; draft.views[domain].folderPath = ''; draft.views[domain].cursor = null; draft.views[domain].location = { kind: 'list' } },
+      setAllInCollection: (draft, domain: ResourceDomain, all: boolean) => {
+        draft.views[domain].allInCollection = all; draft.views[domain].cursor = null
+        draft.views[domain].catalogScrollTop = 0; draft.views[domain].location = { kind: 'list' }
+      },
       setRoot: (draft, domain: ResourceDomain, rootId: string | null) => { draft.views[domain].rootId = rootId; draft.views[domain].folderPath = ''; draft.views[domain].cursor = null; draft.views[domain].location = { kind: 'list' } },
       setFolder: (draft, domain: ResourceDomain, path: string) => {
         draft.views[domain].folderPath = path; draft.views[domain].cursor = null

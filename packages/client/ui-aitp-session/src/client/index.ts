@@ -62,6 +62,16 @@ export function apply(ctx: ClientContext): void {
       cancelMemoryOpen = ctx.sidebarRight.requestOpenTab(sessionId, MEMORY_KIND)
     },
     openNote,
+    ...ctx.get('conversation') === undefined || ctx.get('sessions') === undefined ? {} : { correctItem: (text: string) => {
+      const binding = ctx.get('sessions')?.binding(sessionId)
+      const conversation = ctx.get('conversation')
+      if (binding === undefined || conversation === undefined) return
+      const quote = text.split(/\r?\n/).map(line => `> ${line}`).join('\n')
+      const result = conversation.input.requestDraftInitialization(binding, { prompt: t('task.correctionPrompt', { text: quote }) })
+      const input = conversation.input.for(binding.ctx)
+      input.focus()
+      return result === 'applied' ? 'applied' : 'preserved'
+    } },
   })
   ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
     name: 'conversation.session.header.actions',

@@ -6,7 +6,7 @@
  * focus on return, waiting for and re-applying over content that is still
  * loading or replaced, until the reader acts).
  */
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi, onTestFinished } from 'vitest'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -172,6 +172,27 @@ function region(content = ''): HTMLElement {
 const PAGE = '<h2 data-arrival tabindex="-1">Title</h2><button>One</button><button disabled>Off</button><a href="#x">Two</a><button>Three</button>'
 
 describe('reading-region arrival', () => {
+  it('reapplies the return offset when a native document finishes layout, until the reader takes control', () => {
+    let resized: (() => void) | undefined
+    const disconnect = vi.fn()
+    class SizeObserver implements ResizeObserver {
+      constructor(callback: ResizeObserverCallback) { resized = () => { callback([], this) } }
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void { disconnect() }
+    }
+    vi.stubGlobal('ResizeObserver', SizeObserver)
+    onTestFinished(() => { vi.unstubAllGlobals() })
+    const reading = region(PAGE)
+    const stop = settleArrival(reading, { kind: 'return', scrollTop: 120, focusIndex: null })
+    reading.scrollTop = 0
+    resized?.()
+    expect(reading.scrollTop).toBe(120)
+    reading.dispatchEvent(new Event('wheel'))
+    expect(disconnect).toHaveBeenCalledOnce()
+    stop()
+  })
+
   it('records the scroll offset and the focused control, or none when focus is elsewhere', () => {
     expect(returnPoint(null)).toEqual({ scrollTop: 0, focusIndex: null })
     const reading = region(PAGE)

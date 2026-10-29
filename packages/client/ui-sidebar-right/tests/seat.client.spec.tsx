@@ -30,7 +30,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** A Conversation-column stand-in rendered before the seat, opening a resource as soon as a seat is mounted. */
     'sidebar-right.test.opener': { kind: 'single'; scope: 'session'; owner: { armed: boolean } }
-    'sidebar-right.test.root-header': { kind: 'single'; scope: 'root'; owner: { panelId: MainPanelId } }
+    'sidebar-right.test.root-header': { kind: 'single'; scope: 'root'; owner: { panelId: MainPanelId; openInitial?: () => void } }
   }
 }
 
@@ -273,6 +273,29 @@ function element(container: HTMLElement, selector: string): HTMLElement {
   if (node === null) throw new Error(`expected ${selector}`)
   return node
 }
+
+it('offers the native root expand control before any resource tab exists and resumes the retained tab afterwards', async () => {
+  const h = await mountSeat()
+  const panelId = 'research-map' as MainPanelId
+  const created = vi.spyOn(h.runtime.ctx.sessions, 'create')
+  const openInitial = vi.fn(() => { h.runtime.ctx.sidebarRightRoots.openResource(panelId, 'dsh-resource://file/source/start.md') })
+  function Header(props: PropsRuntime<'sidebar-right.test.root-header'> & PropsRenderFactories) {
+    return props.renderFactorySlot('sidebar.right.root.expand', { panelId: props.panelId,
+      ...(props.openInitial === undefined ? {} : { openInitial: props.openInitial }),
+    })
+  }
+  await act(async () => { h.runtime.slots.register({ name: 'sidebar-right.test.root-header' }, Header) })
+  act(() => { h.runtime.panelInfo.set({ activePanelId: panelId }) })
+  const header = h.runtime.renderSlot('sidebar-right.test.root-header', { panelId, openInitial })
+  fireEvent.click(element(header.container, '[data-sidebar-right-root-expand]'))
+  expect(openInitial).toHaveBeenCalledOnce()
+  expect(header.container.querySelector('[data-sidebar-right-root-expand]')).toBeNull()
+  act(() => { h.runtime.ctx.sidebarRightRoots.toggleExpanded(panelId) })
+  fireEvent.click(element(header.container, '[data-sidebar-right-root-expand]'))
+  expect(openInitial).toHaveBeenCalledOnce()
+  expect(created).not.toHaveBeenCalled()
+  expect(h.controller.mounted.getSnapshot()).toBeUndefined()
+})
 
 it('uses the native frame for global documents and retains body state through tabs, scopes and ordinary Sessions', async () => {
   const h = await mountSeat()

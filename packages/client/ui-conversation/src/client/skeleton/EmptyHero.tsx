@@ -67,6 +67,8 @@ export interface HeroShellProps {
   t: HeroTranslate
   /** Authorized renderer for the hero brand-mark slot. */
   renderSlot: ConversationContentProps['renderSlot']
+  /** Current blank Session when the native hero already has a binding. */
+  sessionId?: import('@deepseek-ai/dsh-session/types').SessionId | undefined
   /** Overlay content after the stack (modals). */
   children?: ReactNode
 }
@@ -129,12 +131,12 @@ function HeroFish({ hovering }: { hovering: boolean }) {
  * @param props - see {@link HeroShellProps}.
  * @returns the centered hero element tree.
  */
-export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
+export function HeroShell({ t, renderSlot, children, sessionId }: HeroShellProps) {
   const [hovering, setHovering] = useState(false)
   return (
     <div className={css.root}>
       <div className={css.stack}>
-        <div className={css.headline}>
+        {renderSlot('conversation.hero.introduction', { sessionId }, { fallback: <div className={css.headline}>
           {/* figma 34:10412: fish 34×25 leading the headline, gap 10. */}
           <span
             className={css.fishHitbox}
@@ -154,7 +156,7 @@ export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
             <span>{t('hero.headline')}</span>
             <span className={css.previewBadge}>{t('hero.preview')}</span>
           </span>
-        </div>
+        </div> })}
         <div className={css.body}>
           {/* The composer remains mounted outside this component. */}
         </div>

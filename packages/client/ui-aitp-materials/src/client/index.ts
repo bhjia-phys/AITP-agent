@@ -19,7 +19,7 @@ import { createMaterialsStore, materialsScopeKey } from './store.ts'
 import { MaterialsConnection } from './connection.ts'
 import { MaterialsController } from './controller.ts'
 import { en, zh } from './locales.ts'
-import { registerMaterialResources } from './resources.ts'
+import { registerMaterialResources, workspaceMaterialRoot } from './resources.ts'
 import { MaterialReader } from './MaterialReader.tsx'
 import { MaterialMarkdown } from './MaterialMarkdown.tsx'
 import { MaterialsCatalog } from './MaterialsCatalog.tsx'
@@ -27,12 +27,16 @@ import { SourceTab, SourceTabTitle, type SourceTabFace } from './SourceTab.tsx'
 import { RootSourceTab, RootSourceTabTitle, type RootSourceTabFace } from './RootSourceTab.tsx'
 import { MaterialTasks } from './MaterialTasks.tsx'
 import { createSourceSetJournal } from './source-set-journal.ts'
+import type { MaterialWriteFace, MaterialWriteInput } from './material-write-contracts.ts'
+import { registerMaterialWriting } from './material-write-connection.ts'
+import { createMaterialWriteJournal } from './material-write-journal.ts'
 
 export type { LibraryModule, LibraryLabels, MaterialField, MaterialsScope, OpenMaterials, MaterialStudyTaskOwner, MaterialsCatalogInput, MaterialHeaderInput, MaterialBodyInput } from './contracts.ts'
 export type { MaterialsLibraryService } from './controller.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotFactoryMap {
+    'aitp.materials.write': { scope: 'root'; props: MaterialWriteInput; locale: 'aitp.materials'; store: MaterialsStore; inject: MaterialWriteFace }
     'aitp.materials.catalog': {
       scope: 'root'
       props: MaterialsCatalogInput
@@ -72,25 +76,24 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   const connection = new MaterialsConnection(() => t('disconnected'), (error) => { ctx.logger.error(error) })
   let storage: Storage | undefined
   try { storage = globalThis.sessionStorage } catch { /* The first pending write reports unavailable tab storage. */ }
-  const handle = createMaterialsStore(createSourceSetJournal(storage, { unavailable: t('journalUnavailable'), invalid: t('journalInvalid') }))
+  const handle = createMaterialsStore(createSourceSetJournal(storage, { unavailable: t('journalUnavailable'), invalid: t('journalInvalid') }),
+    createMaterialWriteJournal(storage, { unavailable: t('writeRecoveryUnavailable'), invalid: t('writeRecoveryInvalid') }))
   const store: MaterialsStore = { ...handle, create(scopeKey) {
     const instance = handle.create(scopeKey)
     controller.observeState(() => instance.getSnapshot())
     return instance
   } }
   const controller = new MaterialsController(ctx, store, connection)
+  registerMaterialWriting(ctx, store, controller, connection)
   const researchNavigation: ResearchMaterialNavigation = {
     async open(scope, resource, isCurrent) {
-      if (resource.target.kind !== 'workspace-path') return false
+      if (scope.workspaceId === undefined || resource.target.kind !== 'workspace-path') return false
       const sourceId = `source:${encodeURIComponent(resource.target.path)}` as SourceId
       if (materialSourcePath(sourceId) === undefined) return false
       const signal = AbortSignal.any([ctx.layout.beginNavigation(), controller.lifetime.signal])
       const roots = await connection.run(transport => transport.listRoots(signal))
       if (!roots.ok || signal.aborted || isCurrent?.() === false || ctx.layout.panelInfo.getSnapshot().activePanelId !== 'aitp-research') return false
-      const matches = roots.value.filter(root => root.grants?.some(grant =>
-        grant.kind === 'workspace-connection' && grant.workspaceId === scope.workspaceId))
-      if (matches.length !== 1) return false
-      const root = matches[0]
+      const root = workspaceMaterialRoot(roots.value, scope.workspaceId)
       if (root === undefined) return false
       const ref = { rootId: root.id, sourceId }
       const domain = resource.kind === 'paper' ? 'literature' : resource.kind === 'code' ? 'code' : 'knowledge'
@@ -115,32 +118,36 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       name: 'sidebar.right.root.tab', key: TAB, priority: -1, locale: 'aitp.materials', store,
       inject: (): RootSourceTabFace => ({
         fields: domain => controller.fields(domain),
+        openCollection: (ref, scope, domain) => {
+          const panel = ctx.layout.panelInfo.getSnapshot().activePanelId
+          return controller.openSource({ ref, scope, ...domain === undefined ? {} : { domain },
+            returnTo: () => { ctx.layout.selectPanel(panel) } })
+        },
         refresh: () => { void connection.refresh(controller.lifetime.signal) },
         discuss: (scope, selections) => {
-          if (scope.workspaceId !== undefined) {
-            void child.researchDiscussions.open({ ...scope, workspaceId: scope.workspaceId }, { ...scope, selections })
-          }
+          void child.researchDiscussions.open(scope, { ...scope, selections })
         },
         stage: (scope, selections) => {
-          if (scope.workspaceId !== undefined) {
-            child.researchDiscussions.setSource({ ...scope, workspaceId: scope.workspaceId }, { ...scope, selections })
-          }
+          child.researchDiscussions.setSource(scope, { ...scope, selections })
         },
       }),
     }, RootSourceTab))
     child.effect(() => child.researchDiscussions.registerStudySubmission((origin, request, signal) => connection.ask({
       ...origin.workspaceId === undefined ? {} : { workspaceId: origin.workspaceId as WorkspaceId },
       ...origin.topicId === undefined ? {} : { topicId: origin.topicId as SourceTopicId },
-      ...origin.workspaceId !== undefined && origin.topicId === undefined ? { scope: 'workspace' } : {},
+      ...origin.scope === 'global' ? { scope: 'global' } : {},
+      ...origin.scope !== 'global' && origin.workspaceId !== undefined && origin.topicId === undefined ? { scope: 'workspace' } : {},
       question: request.content.flatMap(part => part.type === 'text' ? [part.text] : []).join('\n'),
       sessionId: request.sessionId, mode: request.mode, requestId: request.requestId, content: request.content,
-      selections: origin.selections ?? [],
+      ...(request.clientTimeZone === undefined ? {} : { clientTimeZone: request.clientTimeZone }),
+      selections: origin.selections ?? [], ...(origin.workflow === undefined ? {} : { workflow: origin.workflow === 'research' }),
     }, signal === undefined ? controller.lifetime.signal : AbortSignal.any([signal, controller.lifetime.signal]))))
     child.effect(() => child.researchDiscussions.registerResourceNavigation((scope, address, _params, returnTo) => {
       const source = parseMaterialSource(address)
       if (source === undefined) return false
       return controller.openSource({ ...source, ...returnTo === undefined ? {} : { returnTo }, scope: {
-        workspaceId: scope.workspaceId, ...scope.title === undefined ? {} : { title: scope.title },
+        ...scope.workspaceId === undefined ? {} : { workspaceId: scope.workspaceId },
+        ...scope.title === undefined ? {} : { title: scope.title },
         ...scope.topicId === undefined ? {} : { topicId: scope.topicId as SourceTopicId },
       } }).then((opened) => {
         if (!opened) throw new Error(t('unresolved'))
@@ -177,7 +184,12 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
   }, SourceTab))
   ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register({ name: 'sidebar.right.pane.tab.title', key: TAB }, SourceTabTitle))
   ctx.slots.inject('sidebar.right.root.tab', () => ctx.slots.register({ name: 'sidebar.right.root.tab', key: TAB,
-    locale: 'aitp.materials', store, inject: (): RootSourceTabFace => ({ fields: domain => controller.fields(domain), refresh: () => { void connection.refresh(controller.lifetime.signal) } }),
+    locale: 'aitp.materials', store, inject: (): RootSourceTabFace => ({ fields: domain => controller.fields(domain),
+      openCollection: (ref, scope, domain) => {
+        const panel = ctx.layout.panelInfo.getSnapshot().activePanelId
+        return controller.openSource({ ref, scope, ...domain === undefined ? {} : { domain },
+          returnTo: () => { ctx.layout.selectPanel(panel) } })
+      }, refresh: () => { void connection.refresh(controller.lifetime.signal) } }),
   }, RootSourceTab))
   ctx.slots.inject('sidebar.right.root.tab.title', () => ctx.slots.register({ name: 'sidebar.right.root.tab.title', key: TAB }, RootSourceTabTitle))
   const unmount = await ctx.remote.$mount(resourcesRemote)

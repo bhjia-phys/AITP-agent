@@ -1,0 +1,12 @@
+.control {
+  box-sizing: border-box;
+  flex: none;
+  min-width: 0;
+  width: calc(100% - 2 * var(--dsh-composer-side-clearance) - 4 * var(--dsh-composer-dock-inset));
+  max-width: calc(var(--dsh-composer-card-max-width) - 4 * var(--dsh-composer-dock-inset));
+  margin: 0 auto;
+  padding: 0 12px;
+}
+.choice { display: inline-flex; align-items: center; min-width: 0; font-size: 12px; }
+.status { display: inline-flex; align-items: center; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); white-space: nowrap; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.error { margin: 6px 0 0; color: var(--dsw-alias-state-error-primary); font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }

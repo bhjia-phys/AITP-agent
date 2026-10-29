@@ -4,9 +4,9 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ResearchOrigin } from '@deepseek-ai/dsh-research-memory/types'
 import type { SessionPromptRequest } from '@deepseek-ai/dsh-api-session-controller/types'
 
-/** A scientific location; opening it does not create a Session or send a prompt. */
+/** A scientific location; an absent Workspace denotes independent reading. Browsing submits no prompt. */
 export interface ResearchDiscussionScope {
-  readonly workspaceId: WorkspaceId
+  readonly workspaceId?: WorkspaceId
   readonly topicId?: string
   readonly title?: string
 }
@@ -40,6 +40,8 @@ export interface ResearchMaterialNavigation {
 
 /** Shared discussion used by topic and scoped-library pages. */
 export interface ResearchDiscussions {
+  /** Freeze the independent Research choice when a library submits a new or existing discussion. */
+  readonly workflowEnabled: (sessionId?: SessionId) => boolean
   /**
    * Open or resume the selected scope's discussion without submitting a message.
    * @param scope - selected scientific scope.
@@ -117,6 +119,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
         readonly scope: ResearchDiscussionScope
         /** Libraries keep their document dock on the right and show the conversation in the main area. */
         readonly presentation?: 'side' | 'main'
+        readonly prepareFullConversation?: () => (() => void)
         readonly openResource?: DiscussionResourceNavigation
         readonly returnTo?: () => void
       }
@@ -127,16 +130,20 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     /** Existing discussions of one topic, used beneath its navigation row. */
     'aitp.research.topic-discussions': {
       scope: 'root'
-      props: { readonly scope: ResearchDiscussionScope; readonly onActivate?: () => void; readonly active?: boolean }
+      props: {
+        readonly scope: ResearchDiscussionScope & { readonly workspaceId: WorkspaceId }
+        readonly onActivate?: () => void
+        readonly active?: boolean
+      }
       locale: 'aitp.research.discussion'
       inject: import('./discussion-controller.ts').DiscussionFace
     }
   }
   interface SlotMap {
     /**
-     * Replace the scoped discussion's conversation body using its real Session binding and supplied Workspace id.
+     * Replace the discussion body using its real Session binding and optional research Workspace.
      * Absence renders no conversation content.
      */
-    'aitp.research.discussion.conversation': { kind: 'single'; scope: 'session'; owner: { readonly workspaceId: WorkspaceId } }
+    'aitp.research.discussion.conversation': { kind: 'single'; scope: 'session'; owner: { readonly workspaceId?: WorkspaceId } }
   }
 }

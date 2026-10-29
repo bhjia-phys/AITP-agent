@@ -76,6 +76,9 @@
     },
     {
       "path": "../../research/research-resources"
+    },
+    {
+      "path": "../ui-aitp-session"
     }
   ]
 }

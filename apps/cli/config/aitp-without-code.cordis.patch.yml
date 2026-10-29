@@ -1,0 +1,5 @@
+# Optional domain: disable both provider and presentation without removing files.
+- id: research-code
+  disabled: true
+- id: ui-aitp-code
+  disabled: true

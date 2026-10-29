@@ -72,6 +72,8 @@ profile 导入插件前，DSH 会将其声明的 DSH 版本要求与 `getDshRunt
 
 启动前，你可以打印应用将挂载的确切配置：dump 会以 `!!js` 表达式原样展示组合后的条目列表，并按注释分组标明每个源文件及其 patch 层，输出是一份可加载的 YAML 文档。未匹配到任何行的 patch 会连同其层标签一起报告；配置缺失、无法解析或字段无效都会使 dump 失败。
 
+需要读取有序 profile 层而不准备磁盘配置的启动器，可调用 `loadProfile(..., { readOnly: true })`。缺失的官方 profile 使用内存模板；现有 manifest 也只在内存中归一化，不创建目录、不重写 manifest、不删除旧链接投影。缺失的自定义 profile 仍会报错。对于现有的应用自有 profile，`loadProfileDirectory(..., { readOnly: true })` 提供相同的不写入行为。这些选项不求值插件配置表达式，也不激活插件。
+
 ### 检查插件配置 schema
 
 `generateConfigSchema` 接收用于诊断的 bin 名称、已准备好的磁盘 profile、有序 patch 列表和安装锚点，返回 `ConfigSchemaDump`。App-boot 负责组合、运行时解析和收集诊断。调用方负责 profile 准备、home/argv 层选择、进程流及退出策略。`createConfigProjector`、`isNativeConfigSchema` 与 `LOADER_EXPRESSION_SCHEMA` 供不经 profile 收集、只投影单个运行中插件 Config 的调用方使用；投影后的取值位置会引用 `#/$defs/loaderExpression`，外层文档必须定义它。

@@ -1,6 +1,9 @@
 - region "Research":
-  - heading "Research" [level=1]
+  - button "Conversations"
+  - heading "Research projects" [level=1]
+  - button "Browse projects"
   - text: workspace
+  - button "Open right sidebar"
   - button "Discuss this research"
   - paragraph:
     - strong: Demo workspace
@@ -9,6 +12,7 @@
   - heading "Interaction, chaos and correlation in finite systems" [level=2]
   - paragraph: "A synthetic demonstration programme: how interaction range, symmetry and approximation choices limit what finite calculations can establish. It is not an actual research record."
   - region "Research directions":
+    - button "Expand shown branches"
     - region "Many-body dynamics":
       - heading "Many-body dynamics" [level=3]
       - list:
@@ -36,4 +40,3 @@
       - listitem:
         - paragraph: Boundary conditions as a variable
         - paragraph: Every current answer assumes open boundaries; a periodic comparison may change several of them.
-  - group: Source and reading details

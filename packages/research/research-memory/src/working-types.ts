@@ -4,6 +4,8 @@ import type { SourceSelection } from '@deepseek-ai/dsh-research-resources/types'
 
 /** Human-selected research location; a resource refines evidence within a topic and never grants authority. */
 export interface ResearchOrigin {
+  /** Explicit research-workflow intent recorded on the original human input. */
+  workflow?: 'research' | 'ordinary'
   workspaceId?: string
   /** Global study has an operational scope without inventing a scientific topic or Workspace. */
   scope?: 'global'
@@ -34,6 +36,8 @@ export interface ResearchContextRead {
 
 /** Request delivery bounds; original inputs outside the window remain retrievable in their owning Session. */
 export interface ResearchRuntimeConfig {
+  /** Explicit deployment choice; omission preserves automatic context in existing runtime compositions. */
+  automaticResearch?: boolean
   maxContextCharacters: number
   maxWorkingItems: number
   maxItemCharacters: number
@@ -93,7 +97,7 @@ export interface ResearchWorkingState {
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
     /** Human input submitted from a specific research location; never a grant. */
-    'aitp-research': { kind: 'aitp-research'; actor: 'human'; origin: ResearchOrigin }
+    'aitp-research': { kind: 'aitp-research'; actor: 'human'; origin: ResearchOrigin; modeSelection?: true }
   }
 }
 

@@ -20,8 +20,13 @@ export function SourceTab(props: PropsRuntime<'sidebar.right.pane.tab'> & PropsR
   const { tab } = props.useTabInfo()
   const reading = props.useResource<'aitp-material-source'>(tab.contentId)
   if (reading.value === undefined) return <MaterialUnavailable t={props.t} refresh={props.refresh} snapshot={reading} />
-  return <div className={css.sourceTab}>{props.renderFactorySlot('aitp.materials.reader', { reading: reading.value, fields: [], presentation: 'dock',
-    onLink: props.onLink })}</div>
+  return <div className={css.sourceTab}>
+    {reading.value.body.kind === 'pdf' && props.renderFactorySlot('aitp.materials.write', {
+      scope: {}, source: { ref: reading.value.resource.ref, title: reading.value.resource.title },
+      onInspect: (ref) => { props.onLink({ href: '', label: '', target: ref }) },
+    })}
+    {props.renderFactorySlot('aitp.materials.reader', { reading: reading.value, fields: [], presentation: 'dock',
+      onLink: props.onLink })}</div>
 }
 
 /**

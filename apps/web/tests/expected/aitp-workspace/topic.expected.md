@@ -1,16 +1,16 @@
 - region "Research":
-  - heading "Research" [level=1]
+  - button "Conversations"
+  - heading "Research projects" [level=1]
+  - button "Browse projects"
   - text: workspace
+  - button "Open right sidebar"
   - navigation "Research location":
     - button "Back"
     - list:
       - listitem:
         - button "Research map"
-      - listitem: Many-body dynamics
       - listitem:
-        - button "Quantum chaos"
-      - listitem:
-        - button "Long-range chains"
+        - button "Earlier topics"
       - listitem:
         - button "Operator Krylov dynamics"
       - listitem: Small-system control (N ≤ 12)
@@ -19,6 +19,7 @@
     - text: · Synthetic data. Changes last only for this preview and do not modify your research files.
   - paragraph: Concluded Control
   - heading "Small-system control (N ≤ 12)" [level=2]
+  - paragraph: "Research record: demo/krylov-control/research.md"
   - paragraph: Does the implementation reproduce a case with a known answer?
   - button "Ask about this topic"
   - button "More actions"
@@ -29,7 +30,7 @@
     - paragraph: Conditions and limits
     - paragraph: This validates the implementation only; it says nothing about interacting chains at larger sizes.
     - heading "What remains open" [level=3]
-    - paragraph: No gap recorded
+    - paragraph: No gap summary is available here. Check the research record.
   - complementary "Scope":
     - heading "Scope" [level=3]
     - paragraph:
@@ -39,6 +40,9 @@
     - paragraph:
       - strong: "Role in Operator Krylov dynamics:"
       - text: Separates implementation errors from physical behaviour before larger sizes are interpreted.
+  - heading "Branches 0" [level=3]:
+    - button "Branches 0" [expanded]
+  - paragraph: No branches are recorded under this topic.
   - heading "Materials 1" [level=3]:
     - button "Materials 1" [expanded]
   - button "Related Literature library"

@@ -97,16 +97,28 @@ describe('task card', () => {
     expect(screen.getByRole('status').textContent).toBe('Couldn’t read this Session’s research memory (aitp/stale).')
   })
 
-  it('keeps the task in one line with counts, the first gap and summaries, labelled as fixture data', () => {
+  it('keeps the task and consequential gaps visible while putting routine counts in details', () => {
     render(<TaskCard {...taskProps(live(MEMORY))} />)
     const card = screen.getByRole('region', { name: 'Task' })
     expect(within(card).getByText('Fixture data, not this Session’s record')).toBeDefined()
     expect(within(card).getByText('Compare both schedules on system C.')).toBeDefined()
+    expect(within(card).queryByText('2 from you')).toBeNull()
+    expect(within(card).queryByText('1 provisional note')).toBeNull()
+    expect(within(card).queryByText('Gap: basis-convergence.md is missing.')).toBeNull()
+    expect(within(card).getByText('Rule saved, not yet used')).toBeDefined()
+    expect(within(card).queryByText('2 generated summaries')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
     expect(within(card).getByText('2 from you')).toBeDefined()
     expect(within(card).getByText('1 provisional note')).toBeDefined()
-    expect(within(card).getByText('Gap: basis-convergence.md is missing.')).toBeDefined()
-    expect(within(card).getByText('Rule saved, not yet used')).toBeDefined()
     expect(within(card).getByText('2 generated summaries')).toBeDefined()
+  })
+
+  it('keeps a required gap visible even when an optional background gap comes first', () => {
+    render(<TaskCard {...taskProps(live({ ...EMPTY, gaps: [
+      MEMORY.gaps[0]!, { id: 'required', text: 'The selected premise is unavailable.', requirement: 'researcher', effect: 'The comparison is conditional.' },
+    ] }))} />)
+    expect(screen.getByText('Gap: The selected premise is unavailable.')).toBeDefined()
+    expect(screen.queryByText('Gap: basis-convergence.md is missing.')).toBeNull()
   })
 
   it('expands to the researcher’s words, active agent notes and gaps, and opens the full page', () => {
@@ -136,11 +148,35 @@ describe('task card', () => {
     }
     render(<TaskCard {...taskProps(live(memory))} />)
     expect(screen.getByText('No task statement recorded')).toBeDefined()
+    expect(screen.getByText('The model has marked content for integration')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
     expect(screen.getByText('1 original human inputs')).toBeDefined()
     expect(screen.getByText('2 provisional notes')).toBeDefined()
     expect(screen.getByText('1 generated summary')).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: 'Details' }))
     expect(screen.queryByText(/^Gap ·/u)).toBeNull()
+  })
+
+  it('shows a revisable provisional approach with its condition and identifies an older plan after a human correction', () => {
+    const correctItem = vi.fn()
+    const memory: SessionMemoryView = { ...EMPTY,
+      researcher: [{ id: 'human', kind: 'task', text: 'Check the perturbative order.', turn: 1 }],
+      agent: [
+        { id: 'earlier', kind: 'next-step', text: 'Inspect system size.', turn: 2, status: 'active' },
+        { id: 'current', kind: 'next-step', text: 'Check normalization through order two.', condition: 'Finite control only.', turn: 4, status: 'active' },
+      ],
+    }
+    const view = render(<TaskCard {...taskProps(live(memory))} correctItem={correctItem} />)
+    expect(screen.getByText('Current approach · provisional')).toBeDefined()
+    expect(screen.getByText('Check normalization through order two.')).toBeDefined()
+    expect(screen.queryByText('Inspect system size.')).toBeNull()
+    expect(screen.getByText('Finite control only.')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Clarify or correct' }))
+    expect(correctItem).toHaveBeenCalledExactlyOnceWith(
+      'Check normalization through order two.\nCondition or reopening criterion: Finite control only.')
+    view.rerender(<TaskCard {...taskProps(live({ ...memory, researcher: [...memory.researcher,
+      { id: 'correction', kind: 'input', text: 'Include the order-two normalization term.', turn: 5 },
+    ] }))} correctItem={correctItem} />)
+    expect(screen.getByText('Earlier approach · provisional')).toBeDefined()
   })
 
   it('omits the facts line and the agent section when there is nothing to count', () => {

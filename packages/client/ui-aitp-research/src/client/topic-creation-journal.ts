@@ -20,7 +20,7 @@ const optionalString = (value: unknown): boolean => value === undefined || typeo
 
 function request(value: unknown): value is CreateTopicRequest {
   return record(value) && typeof value['operationId'] === 'string' && typeof value['title'] === 'string'
-    && typeof value['question'] === 'string' && optionalString(value['scope']) && optionalString(value['parentTopicId'])
+    && typeof value['question'] === 'string' && optionalString(value['directory']) && optionalString(value['scope']) && optionalString(value['parentTopicId'])
 }
 
 function target(value: unknown): value is Target {
@@ -44,7 +44,7 @@ function failure(value: unknown): value is WorkspaceError {
 
 function draft(value: unknown): value is TopicCreationDraft {
   if (!record(value) || typeof value['title'] !== 'string' || typeof value['question'] !== 'string'
-    || typeof value['scope'] !== 'string' || !optionalString(value['currentTopicId']) || !optionalString(value['currentTitle'])
+    || typeof value['scope'] !== 'string' || !optionalString(value['directory']) || !optionalString(value['currentTopicId']) || !optionalString(value['currentTitle'])
     || !optionalString(value['parentTopicId']) || typeof value['pending'] !== 'boolean'
     || typeof value['uncertain'] !== 'boolean' || typeof value['hidden'] !== 'boolean' || value['receipt'] !== null
     || !(value['failure'] === null || failure(value['failure']))) return false

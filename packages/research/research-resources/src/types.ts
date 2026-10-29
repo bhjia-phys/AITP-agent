@@ -73,6 +73,7 @@ export interface TopicAssociation {
 export interface ResourceLink {
   readonly label: string
   readonly href: string
+  /** A file source or the virtual collection-root navigation identity; collections are not selectable documents. */
   readonly target?: SourceRef
   readonly locator?: SourceLocator
   readonly reason?: string
@@ -197,6 +198,8 @@ export type ResourceResult<T> = { readonly ok: true; readonly value: T } | { rea
 /** Discovery or provider limitation; missing coverage is never an empty-library claim. */
 export interface ResourceIssue {
   readonly rootId?: SourceRootId
+  /** Exact candidate when a body read was omitted or failed; no content delivery is implied. */
+  readonly ref?: SourceRef
   readonly providerId?: string
   readonly path?: string
   readonly reason: string
@@ -212,6 +215,42 @@ export interface ResourceQuery {
   readonly cursor?: string
   readonly limit?: number
   readonly topic?: { readonly workspaceId: WorkspaceId; readonly topicId: SourceTopicId }
+}
+
+/** Literal body search inside admitted source roots, independent of catalog title matching. */
+export interface SourceBodyQuery {
+  readonly query: string
+  readonly rootId?: SourceRootId
+  /** Optional normalized relative directory to narrow a further search. */
+  readonly folder?: string
+  readonly limit?: number
+}
+
+/** A candidate excerpt; opening its exact source remains a separate read. */
+export interface SourceBodyHit {
+  readonly ref: SourceRef
+  readonly path: string
+  readonly locator: SourceLocator
+  readonly excerpt: string
+  readonly observedAt: string
+}
+
+/** Search coverage never asserts absence beyond the inspected types, roots and budgets. */
+export interface SourceBodySearch {
+  readonly hits: readonly SourceBodyHit[]
+  readonly roots: readonly SourceRootId[]
+  /** Admitted root identities that can be searched separately after a bounded all-root query. */
+  readonly availableRoots: readonly SourceRootId[]
+  readonly excludedDirectories: readonly string[]
+  readonly inspectedFiles: number
+  /** Logical observation sizes plus initial file sizes charged to failed body attempts; not physical disk traffic. */
+  readonly bytesExamined: number
+  /** Newly observed/attempted bytes; cache reuse contributes zero here. */
+  readonly bytesRead: number
+  readonly failedReadBytes: number
+  readonly cacheHits: number
+  readonly completeness: 'complete' | 'partial'
+  readonly issues: readonly ResourceIssue[]
 }
 
 /** Query page and its actual discovery coverage. */
@@ -247,6 +286,8 @@ export interface ResourceProvider {
   readonly domain: ResourceDomain
   /** Project source observations into this domain's catalog. */
   list(context: SourceProviderContext, signal: AbortSignal): Promise<readonly ResourceSummary[]>
+  /** Combine already authorized observations after explicit topic associations have been applied. */
+  projectCatalog?(items: readonly ResourceSummary[]): readonly ResourceSummary[]
   /** Optionally list one immediate directory using the same authorized source context. */
   listDirectory?(context: SourceProviderContext, folder: string, signal: AbortSignal): Promise<readonly ResourceSummary[]>
   /** Observe provider-owned metadata and report changes without extending source read authority. */
@@ -279,6 +320,10 @@ export interface SourceSelection {
 
 /** Normal Harness conversation request; absence of a topic keeps the question global. */
 export interface StudyRequest {
+  /** Explicit Research workflow choice, independent of the selected source scope. */
+  readonly workflow?: boolean
+  /** Native timezone captured with the submitted prompt. */
+  readonly clientTimeZone?: string
   /** Explicit root research scope; omission preserves legacy global source-study behavior without a topic. */
   readonly scope?: 'workspace' | 'global'
   readonly workspaceId?: WorkspaceId

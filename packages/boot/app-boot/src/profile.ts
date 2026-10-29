@@ -656,7 +656,7 @@ function withBundles(manifest: ProfileManifest, bundles: readonly string[]): Pro
  * Normalize an exact installation-owned bundle tuple to its shipped template,
  * preserving all other manifest fields. Other bundle lists remain untouched.
  */
-function normalizeShippedProfile(name: string, dir: string, manifest: ProfileManifest): ProfileManifest {
+function normalizeShippedProfile(name: string, dir: string, manifest: ProfileManifest, readOnly = false): ProfileManifest {
   const installationOwned = INSTALLATION_OWNED_PROFILE_TUPLES[name]
   const template = PROFILE_TEMPLATES[name]
   const bundles = manifest.dsh?.profile?.bundles
@@ -664,7 +664,7 @@ function normalizeShippedProfile(name: string, dir: string, manifest: ProfileMan
   const isRetiredTuple = installationOwned !== undefined && sameBundles(bundles, installationOwned)
   if (!isRetiredTuple) return manifest
   const normalized = withBundles(manifest, template.bundles)
-  writeProfileManifest(dir, normalized)
+  if (!readOnly) writeProfileManifest(dir, normalized)
   return normalized
 }
 
@@ -672,12 +672,12 @@ function normalizeShippedProfile(name: string, dir: string, manifest: ProfileMan
  * Remove {@link RETIRED_BUNDLES} from a profile's bundle list, writing the
  * manifest back only when it listed one.
  */
-function dropRetiredBundles(dir: string, manifest: ProfileManifest): ProfileManifest {
+function dropRetiredBundles(dir: string, manifest: ProfileManifest, readOnly = false): ProfileManifest {
   const bundles = manifest.dsh?.profile?.bundles ?? []
   const kept = bundles.filter(bundle => !RETIRED_BUNDLES.has(bundle))
   if (kept.length === bundles.length) return manifest
   const normalized = withBundles(manifest, kept)
-  writeProfileManifest(dir, normalized)
+  if (!readOnly) writeProfileManifest(dir, normalized)
   return normalized
 }
 
@@ -734,16 +734,24 @@ export function resolveBundleDir(
  * @param binName - the diagnostic prefix on thrown errors.
  * @param dir - absolute profile package directory.
  * @param installAnchor - absolute path of the owning dsh app's package.json.
- * @param options - `userLayer: false` skips reading `cordis.patch.yml`.
+ * @param options - `userLayer: false` skips reading `cordis.patch.yml`; `readOnly: true` keeps retired-bundle normalization in memory.
  * @returns the successfully loaded bundle layers and optional user patch layer.
  */
 export function loadProfileDirectory(
   binName: string,
   dir: string,
   installAnchor: string,
-  options: { userLayer?: boolean } = {},
+  options: { userLayer?: boolean; readOnly?: boolean } = {},
 ): Profile {
-  const manifest = dropRetiredBundles(dir, readProfileManifest(binName, dir))
+  return readProfileLayers(binName, dir, installAnchor, readProfileManifest(binName, dir), options)
+}
+
+/** Resolve the same bundle layers from a stored manifest or an in-memory shipped template. */
+function readProfileLayers(
+  binName: string, dir: string, installAnchor: string, input: ProfileManifest,
+  options: { userLayer?: boolean; readOnly?: boolean },
+): Profile {
+  const manifest = dropRetiredBundles(dir, input, options.readOnly)
   const bundles = manifest.dsh?.profile?.bundles ?? []
   const layers: ProfileLayer[] = []
   const skippedBundles: SkippedBundle[] = []
@@ -783,12 +791,14 @@ export function loadProfileDirectory(
  * @param home - the Harness home; defaults to {@link resolveDshHome}.
  * @param options - `userLayer: false` skips reading `cordis.patch.yml`, so a
  * bundles-only consumer (`--dump-default-config`, a recovery diagnostic)
- * cannot fail on a broken user layer.
+ * cannot fail on a broken user layer. `readOnly: true` previews the same
+ * layers without initializing, migrating, writing manifests or removing link
+ * projections; a missing shipped profile uses its template in memory.
  * @returns the loaded profile (empty `patches` when the user layer is skipped).
  */
 export function loadProfile(
   binName: string, name: string, installAnchor: string, home: string = resolveDshHome(),
-  options: { userLayer?: boolean } = {},
+  options: { userLayer?: boolean; readOnly?: boolean } = {},
 ): Profile {
   const dir = resolveProfileDir(name, home)
   if (!existsSync(join(dir, 'package.json'))) {
@@ -798,11 +808,14 @@ export function loadProfile(
         `${binName}: profile ${JSON.stringify(name)} does not exist; create it with 'dsh plugin --profile ${name} add <package>'`,
       )
     }
+    if (options.readOnly) {
+      return readProfileLayers(binName, dir, installAnchor, { dsh: { profile: { bundles: [...template.bundles] } } }, options)
+    }
     initProfile(dir, template.bundles)
   }
-  removeLinkProjections(dir)
-  normalizeShippedProfile(name, dir, readProfileManifest(binName, dir))
-  return loadProfileDirectory(binName, dir, installAnchor, options)
+  if (!options.readOnly) removeLinkProjections(dir)
+  const manifest = normalizeShippedProfile(name, dir, readProfileManifest(binName, dir), options.readOnly)
+  return readProfileLayers(binName, dir, installAnchor, manifest, options)
 }
 
 /**

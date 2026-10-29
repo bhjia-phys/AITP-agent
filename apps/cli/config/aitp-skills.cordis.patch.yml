@@ -1,0 +1,39 @@
+# Startup composition: native DSH plus portable AITP Skills.
+# Re-launch to apply; source files and existing Session history are retained.
+- id: ui-brand-official
+  disabled: false
+- id: ui-brand-aitp
+  disabled: true
+- id: ui-aitp-research
+  disabled: true
+- id: ui-aitp-session
+  disabled: true
+- id: research-study
+  disabled: true
+- id: ui-aitp-study
+  disabled: true
+- id: research-resources
+  disabled: true
+- id: research-knowledge
+  disabled: true
+- id: research-literature
+  disabled: true
+- id: research-code
+  disabled: true
+- id: ui-aitp-materials
+  disabled: true
+- id: ui-aitp-literature
+  disabled: true
+- id: ui-aitp-knowledge
+  disabled: true
+- id: ui-aitp-code
+  disabled: true
+- id: research-memory
+  disabled: true
+- id: ui-aitp-backend
+  disabled: true
+- id: ui-aitp-fixtures
+  disabled: true
+# Settings stay available in every AITP suite.
+- id: ui-aitp-settings
+  disabled: false

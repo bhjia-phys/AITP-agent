@@ -1,14 +1,16 @@
 - region "Research":
-  - heading "Research" [level=1]
+  - button "Conversations"
+  - heading "Research projects" [level=1]
+  - button "Browse projects"
   - text: workspace
+  - button "Open right sidebar"
   - navigation "Research location":
     - button "Back"
     - list:
       - listitem:
         - button "Research map"
-      - listitem: Many-body dynamics
       - listitem:
-        - button "Quantum chaos"
+        - button "Earlier topics"
       - listitem:
         - button "Long-range chains"
       - listitem: Long-range-chain literature reference

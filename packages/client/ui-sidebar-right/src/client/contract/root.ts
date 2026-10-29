@@ -24,7 +24,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     /** Native header control for reopening one global panel's retained document Sidebar. */
     'sidebar.right.root.expand': {
       scope: 'root'
-      props: { readonly panelId: MainPanelId }
+      props: { readonly panelId: MainPanelId; readonly openInitial?: () => void }
       locale: 'sidebarRight'
       store: ReturnType<typeof createSidebarRightRootStore>
       inject: { hooks: { shortcuts: HostObservable<readonly ShortcutCatalogEntry[]> } }

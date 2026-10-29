@@ -29,6 +29,37 @@
 .metadata > div { display: flex; gap: 6px; max-width: 100%; }
 .metadata dt { flex-shrink: 0; }
 .metadata dd { margin: 0; overflow-wrap: anywhere; }
+.sourceLocation { flex: none; min-width: 0; margin: 8px 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.5; }
+.sourceLocation > summary { display: flex; align-items: baseline; gap: 8px; cursor: pointer; min-width: 0; }
+.sourceLocation > summary > span { flex: none; }
+.sourceLocation > summary > svg { flex: none; align-self: center; }
+.sourceLocation[open] > summary > svg { transform: rotate(90deg); }
+.sourceLocation > summary > .sourceRootLabel { flex: 0 1 auto; max-width: 35%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sourceLocation > summary > code { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sourceLocation > summary:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+.sourceLocation .metadata { font-size: inherit; }
+.sourceLocation h3 { font-size: inherit; font-weight: 500; }
+.sourceLocation .links { margin: 8px 0; }
+.dockReader > .sourceLocation { margin: 0; padding: 6px 12px; }
+.materialWrite { flex: none; min-width: 0; margin: 10px 0; font-size: 13px; color: var(--dsw-alias-label-secondary); }
+.readerWrite { max-height: 65vh; overflow: auto; }
+.materialWrite > summary { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; }
+.materialWrite[open] > summary > svg { transform: rotate(90deg); }
+.materialWrite > summary:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+.writeForm { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 12px; border: 0.5px solid var(--dsw-alias-border-l1); border-radius: var(--dsw-radius-md); }
+.writeForm > label, .writeForm > label > select { display: block; }
+.writeForm input:not([type='checkbox']), .writeForm select, .writeForm textarea { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-layer-1); color: var(--dsw-alias-label-primary); font: inherit; }
+.writeForm textarea { resize: vertical; }
+.writeForm input:focus-visible, .writeForm select:focus-visible, .writeForm textarea:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+.writeForm > .writeCheck { display: flex; align-items: baseline; gap: 8px; }
+.writeForm input[type='checkbox'] { flex: none; }
+.writeForm .metadata, .writeForm .toolbar { margin: 4px 0; }
+.writeForm .metadata { font-size: inherit; }
+.writeHelp { line-height: 1.6; margin: 4px 0; }
+.writePath { margin: 4px 0; overflow-wrap: anywhere; line-height: 1.6; font-family: var(--dsw-font-family-mono); }
+.writePaging { display: flex; flex-wrap: wrap; gap: 8px; }
+.writeOutcome { min-width: 0; overflow-wrap: anywhere; border-top: 0.5px solid var(--dsw-alias-border-l1); padding-top: 8px; }
+.writeOutcome .metadata { flex-direction: column; }
 .reader { max-width: 880px; margin: 20px auto; }
 .reader > header h2 { margin: 14px 0; font-size: 22px; line-height: 1.4; font-weight: 500; font-family: inherit; overflow-wrap: anywhere; }
 .reader h3 { margin: 24px 0 12px; font-size: 14px; font-weight: 500; }
@@ -131,3 +162,8 @@
 
 .management select, .collection input { box-sizing: border-box; max-width: 100%; min-width: 0; padding: 8px 10px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); color: inherit; background: var(--dsw-alias-bg-base); font: inherit; }
 .management summary:focus-visible, .observation summary:focus-visible, .management select:focus-visible, .rootFilter select:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+
+.coverage { margin: 12px 0 16px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 1.6; }
+.coverage > summary { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; cursor: pointer; padding: 6px 0; }
+.coverage > summary > span:last-child { flex-shrink: 0; text-decoration: underline; text-underline-offset: 3px; }
+.coverage p, .coverage li { overflow-wrap: anywhere; }

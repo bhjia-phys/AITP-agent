@@ -15,7 +15,7 @@ afterEach(async () => { await Promise.all(adapters.splice(0).map(adapter => adap
 
 const readProvider: ResearchProvider = {
   id: 'runtime-provider', origin: 'runtime', capabilities: {
-    read: true, readContext: true, readActivity: false, previewChanges: false,
+    automaticResearch: false, read: true, readContext: true, readActivity: false, previewChanges: false,
     applyChanges: false, changeEvents: true, commands: [],
   },
 }
@@ -59,6 +59,8 @@ function harness() {
     code: 'unsupported' as const, message: 'This source does not provide that operation.', retryable: false,
   } } }
   const remote = {
+    setResearchMode: vi.fn<ResearchRemote['setResearchMode']>().mockResolvedValue({ ok: true, value: { enabled: false } }),
+    promptWorkflow: vi.fn<ResearchRemote['promptWorkflow']>().mockResolvedValue({ ok: true, value: { accepted: true } }),
     getSetup: vi.fn<ResearchRemote['getSetup']>().mockResolvedValue({ ok: true, value: { ok: true, value: { configured: false, writable: false, canInitialize: true } } }),
     initialize: vi.fn<ResearchRemote['initialize']>().mockResolvedValue({ ok: true, value: { ok: true, value: { configured: true, writable: true, canInitialize: true } } }),
     createTopic: vi.fn<ResearchRemote['createTopic']>().mockResolvedValue(unsupported),

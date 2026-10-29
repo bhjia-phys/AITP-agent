@@ -125,6 +125,11 @@
   color: var(--dsw-alias-label-secondary);
 }
 
+.approach { margin: 6px 0; padding-top: 6px; border-top: 0.5px solid var(--dsw-alias-border-l1); font-size: 12px; }
+.approachHeader { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; color: var(--dsw-alias-label-secondary); }
+.approachText { margin: 4px 0; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.approachCondition { margin: 4px 0; max-height: 80px; overflow: auto; overflow-wrap: anywhere; color: var(--dsw-alias-label-secondary); }
+
 .fixtureTag {
   margin: 0 0 2px;
   font-size: 12px;

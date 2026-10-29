@@ -13,6 +13,8 @@ export interface Config {
   readonly primaryPdfOnly: boolean
   /** Existing root-relative Markdown reading-index entry points. */
   readonly readingIndexPaths: string[]
+  /** Include existing top-level Markdown reading maps in a dedicated reading root. */
+  readonly includeRootReadingNotes: boolean
   /** Maximum explicitly linked reading notes inspected per admitted root. */
   readonly maxReadingNotes: number
   /** Maximum original PDF bytes accepted before page extraction. */
@@ -28,6 +30,7 @@ export interface Config {
 export const Config: z<Partial<Config>, Config> = z.object({
   primaryPdfOnly: z.boolean().default(false),
   readingIndexPaths: z.array(z.string()).default(['index.md', 'README.md']),
+  includeRootReadingNotes: z.boolean().default(false),
   maxReadingNotes: z.number().step(1).min(1).max(10000).default(256),
   maxPdfBytes: z.number().step(1).min(1).max(268435456).default(33554432),
   initialPdfPages: z.number().step(1).min(1).max(1000).default(4),
@@ -37,6 +40,41 @@ export const Config: z<Partial<Config>, Config> = z.object({
 export const name = 'research-literature'
 export const inject = ['researchResources']
 
+/** Enrich only an exact PDF linked by one authored paper map, retaining the map itself. */
+function projectCatalog(items: readonly ResourceSummary[]): readonly ResourceSummary[] {
+  const key = (ref: SourceRef): string => JSON.stringify([ref.rootId, ref.sourceId])
+  const maps = new Map<string, ResourceSummary[]>()
+  for (const item of items) {
+    if (item.providerId !== name || item.metadata.recordKind !== 'source-reading' || item.metadata.kind !== 'paper') continue
+    const targets = new Map(item.links.flatMap(link => link.target !== undefined && link.target.sourceId.startsWith('source:')
+      && /\.pdf$/i.test(pathForSourceId(link.target.sourceId)) ? [[key(link.target), link.target] as const] : []))
+    if (targets.size !== 1) continue
+    const target = targets.keys().next().value
+    if (target === undefined) continue
+    const entries = maps.get(target) ?? []
+    entries.push(item)
+    maps.set(target, entries)
+  }
+  return items.map((item) => {
+    if (item.providerId !== name || item.metadata.format !== 'pdf') return item
+    const candidates = maps.get(key(item.ref)) ?? []
+    if (candidates.length !== 1) return item
+    const map = candidates[0]
+    if (map === undefined) return item
+    const metadata = { ...item.metadata, titleSource: 'reading-note', readingNote: map.title }
+    for (const field of ['authors', 'year', 'reading_depth', 'close_reading', 'support', 'review', 'version']) {
+      const value = map.metadata[field]
+      if (value !== undefined) Object.assign(metadata, { [field]: value })
+    }
+    const topics = [...item.topics]
+    for (const topic of map.topics) {
+      if (!topics.some(existing => existing.workspaceId === topic.workspaceId && existing.topicId === topic.topicId
+        && existing.reason === topic.reason)) topics.push(topic)
+    }
+    return { ...item, title: map.title, metadata, topics }
+  })
+}
+
 /**
  * Project local paper artifacts and explicit source-reading links without guessing their edition.
  * @param config - existing note entry points and complete extraction limits.
@@ -44,6 +82,7 @@ export const inject = ['researchResources']
  */
 export function createLiteratureProvider(config: Config): ResourceProvider {
   return { id: name, domain: 'literature',
+    projectCatalog,
     async list(context, signal) {
       const summaries: ResourceSummary[] = []
       for (const path of context.paths) {
@@ -57,7 +96,10 @@ export function createLiteratureProvider(config: Config): ResourceProvider {
             ...arxiv === undefined ? {} : { arxiv }, work: 'unknown', edition: 'unknown',
           }, links: [], topics: [] })
       }
-      const queue = config.readingIndexPaths.filter(path => context.paths.includes(path))
+      const queue = [...new Set([
+        ...config.readingIndexPaths.filter(path => context.paths.includes(path)),
+        ...config.includeRootReadingNotes ? context.paths.filter(path => !path.includes('/') && /\.md$/i.test(path)) : [],
+      ])]
       const visited = new Set<string>()
       while (queue.length > 0 && visited.size < config.maxReadingNotes) {
         signal.throwIfAborted()
@@ -86,12 +128,12 @@ export function createLiteratureProvider(config: Config): ResourceProvider {
         if (!/^(paper|paper-map|section|section-note|source-reading|reading)$/i.test(kind ?? '')
           && !document.links.some(link => /\.(pdf|tex|bib)(?:#|$)/i.test(link.href))) continue
         const metadata: Record<string, string> = { recordKind: 'source-reading' }
-        for (const key of ['kind', 'authors', 'year', 'arxiv', 'doi', 'edition', 'reading_depth', 'close_reading', 'support', 'review']) {
+        for (const key of ['kind', 'authors', 'year', 'arxiv', 'doi', 'edition', 'version', 'reading_depth', 'close_reading', 'support', 'review']) {
           const value = markupAttribute(document, key)
           if (value !== undefined) metadata[key] = value
         }
         const reference: SourceRef = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
-        summaries.push({ id: resourceEntryId(reference), ref: reference, title: document.title ?? path,
+        summaries.push({ id: resourceEntryId(reference), ref: reference, title: markupAttribute(document, 'title') ?? document.title ?? path,
           kind: 'literature', domain: 'literature', providerId: name, metadata, links, topics: [] })
       }
       if (queue.length > 0) context.reportIssue('', 'The literature reading-note traversal reached its configured bound; further linked notes remain uninspected.')

@@ -1,0 +1,48 @@
+- region "Research plugins":
+  - heading "Research plugins" [level=2]
+  - paragraph: Choose how much of the research workbench to use alongside your conversations and AITP Skills.
+  - group:
+    - text: "Running now Research overview: On"
+    - term: Material reading
+    - definition: "On"
+    - term: Research overview
+    - definition: "On"
+    - term: Literature
+    - definition: "On"
+    - term: Knowledge
+    - definition: "On"
+    - term: Code
+    - definition: "On"
+    - term: Automatic Research
+    - definition: "On"
+    - paragraph: Plugin status is from the latest check. Automatic Research reflects the configuration when this page loaded.
+    - paragraph: After restarting aitp-agent, reload this page to update Automatic Research.
+    - button "Check running plugins"
+  - group "For the next start":
+    - text: For the next start
+    - status: Saved for the next start
+    - radio "Skills Conversations with installed AITP Skills. Research panels and automatic Research are off."
+    - strong: Skills
+    - text: Conversations with installed AITP Skills. Research panels and automatic Research are off.
+    - radio "Browse research View research records and selected libraries. Automatic Research is off." [checked]
+    - strong: Browse research
+    - text: View research records and selected libraries. Automatic Research is off.
+    - radio "Full research workbench Research records, selected libraries, and automatic context recovery for new research conversations."
+    - strong: Full research workbench
+    - text: Research records, selected libraries, and automatic context recovery for new research conversations.
+  - group:
+    - text: Optional libraries2 selected
+    - paragraph: Choose the views you need. This choice does not move or delete any research files.
+    - group "Optional libraries":
+      - checkbox "Literature Papers, PDFs, and reading notes" [checked]
+      - strong: Literature
+      - text: Papers, PDFs, and reading notes
+      - checkbox "Knowledge Indexed concepts, derivations, and reusable results" [checked]
+      - strong: Knowledge
+      - text: Indexed concepts, derivations, and reusable results
+      - checkbox "Code Code checkouts and source files"
+      - strong: Code
+      - text: Code checkouts and source files
+  - paragraph: Save, then restart aitp-agent to apply this choice. Saving does not change the running plugins.
+  - paragraph: Explicit --research-suite and --research-libraries startup options take priority over the corresponding saved choices.
+  - button "Save for next start" [disabled]

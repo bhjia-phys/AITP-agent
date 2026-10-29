@@ -16,23 +16,56 @@ import { materialSourceAddress } from '@deepseek-ai/dsh-research-resources/proto
 import ResearchMemory from '../src/index.ts'
 import { promptAdmission } from './fixtures/admission.ts'
 import ExactSessionQuery from './fixtures/runtime/query-plugin.ts'
-import { topicIdForPath } from '../src/markdown.ts'
+import { resourceIdForPath, topicIdForPath } from '../src/markdown.ts'
+import { replaySessionWorkingState } from '../src/session-view.ts'
+import { sourceSelectionSchema } from '../src/study-schema.ts'
+import type { Result } from '../src/types.ts'
 
 const cleanup: (() => Promise<unknown>)[] = []
 afterEach(async () => { for (const dispose of cleanup.splice(0).reverse()) await dispose() })
 const signal = (): AbortSignal => new AbortController().signal
 const workspaceId = 'study-project' as WorkspaceId
 
-function value<T>(result: ResourceResult<T>): T {
+function value<T>(result: ResourceResult<T> | Result<T>): T {
   if (!result.ok) throw new Error(result.error.message)
   return result.value
 }
 
+function foundSelection(value: unknown): SourceSelection | undefined {
+  if (typeof value === 'string') {
+    try { const parsed: unknown = JSON.parse(value); return foundSelection(parsed) }
+    catch { return undefined }
+  }
+  if (typeof value !== 'object' || value === null) return undefined
+  if ('hits' in value && Array.isArray(value.hits)) {
+    const first: unknown = value.hits[0]
+    const parsed = sourceSelectionSchema.safeParse(first)
+    if (parsed.success) return parsed.data
+  }
+  for (const child of Object.values(value)) {
+    const result = foundSelection(child)
+    if (result !== undefined) return result
+  }
+  return undefined
+}
+
 class Capture extends LlmAdapter {
   requests: GenerateOptions[] = []
-  constructor(private readonly readSecond: boolean) { super() }
+  constructor(private readonly readSecond: boolean, private readonly search = false) { super() }
   override async *stream(request: GenerateOptions): AsyncIterable<StreamChunk> {
     this.requests.push(request)
+    if (this.search && this.requests.length <= 2) {
+      const selection = this.requests.length === 2 ? foundSelection(request.messages) : undefined
+      if (this.requests.length === 2 && selection === undefined) throw new Error('The source-search result did not supply a located candidate.')
+      yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+      yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId(`discover-${this.requests.length}`),
+        name: selection === undefined ? 'research_search_sources' : 'research_read_local_source',
+        arguments: selection === undefined ? JSON.stringify({ query: 'degenerate subspace' })
+          : JSON.stringify({ rootId: selection.ref.rootId, sourceId: selection.ref.sourceId,
+            location: JSON.stringify(selection.locator) }) } }
+      yield { type: 'finish', reason: { kind: 'tool-calls' } }
+      return
+    }
     if (this.readSecond && this.requests.length === 1) {
       yield { type: 'block-start', index: 0, blockType: 'tool-call' }
       yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId('study-read'),
@@ -46,7 +79,7 @@ class Capture extends LlmAdapter {
   }
 }
 
-async function fixture(readSecond = false) {
+async function fixture(readSecond = false, search = false, automaticResearch = true) {
   const path = await mkdtemp(join(tmpdir(), 'source-study-'))
   cleanup.push(() => rm(path, { recursive: true, force: true }))
   for (const name of ['project/a', 'project/b', 'first', 'second']) await mkdir(join(path, name), { recursive: true })
@@ -61,7 +94,7 @@ async function fixture(readSecond = false) {
   await ctx.plugin(TypertRegistry)
   await ctx.plugin(ExactSessionQuery)
   await ctx.plugin(AgentLoop, { agents: [] })
-  const model = new Capture(readSecond)
+  const model = new Capture(readSecond, search)
   ctx.llm.registerAdapter(['study-capture'], model)
   const create = vi.fn(async (request: { workspaceId?: WorkspaceId }) => {
     const agent = await ctx.agentLoop.create(SessionId(`source-study-${create.mock.calls.length}`),
@@ -74,7 +107,7 @@ async function fixture(readSecond = false) {
     { id: 'first', path: join(path, 'first') }, { id: 'second', path: join(path, 'second') },
   ] })
   const resources = ctx.researchResources
-  await ctx.plugin(ResearchMemory, { roots: [{ id: workspaceId,
+  await ctx.plugin(ResearchMemory, { automaticResearch, roots: [{ id: workspaceId,
     path: join(path, 'project'), writable: false }] })
   await ctx.fiber.await()
   const memory = ctx.researchMemory
@@ -106,6 +139,19 @@ async function pdfFixture() {
     : { kind: 'pdf', pageCount: pages.length, pages: pages.filter(page => page.page === locator.page) } })
   return { ...source, firstQuote, quote, locator: { kind: 'pdf-page' as const, page: 2, quote } }
 }
+
+it('discovers a body-only condition and follows its tool-supplied locator without a supplied path', async () => {
+  const { ask, selections, path, model } = await fixture(false, true)
+  await mkdir(join(path, 'second/deep'))
+  await writeFile(join(path, 'second/deep/unnamed.tex'),
+    '\\section{Unfamiliar orientation}\n\nThe obstruction applies only to the degenerate subspace at first order.\n')
+  await ask({ question: 'Find the retained constraint on the degenerate subspace and read its qualifications.', selections: selections.slice(0, 1) })
+  expect(model.requests).toHaveLength(3)
+  const delivered = JSON.stringify(model.requests.at(-1)?.messages)
+  expect(delivered).toContain('only to the degenerate subspace at first order')
+  expect(delivered).toContain('Current source:')
+  expect(delivered).toContain('delivered window starts at character')
+})
 
 it('delivers two same-named cross-root sources to a genuine Global scope and permits bounded follow-up source reads', async () => {
   const { ask, selections, model, ctx, create } = await fixture(true)
@@ -250,6 +296,141 @@ it('rejects invalid selections and topic-less Workspace fabrication before creat
 })
 
 
+it('keeps explicit source reads and recorded scope while automatic Research is disabled', async () => {
+  const { memory, ctx, model } = await fixture(false, false, false)
+  const topicId = topicIdForPath('a/research.md')
+  expect((await memory.provider({ workspaceId }, signal())).capabilities).toMatchObject({ automaticResearch: false, read: true })
+  expect(value(await memory.readContext({ workspaceId, query: { topicId } }, signal())).value.entries.length).toBeGreaterThan(0)
+  const receipt = value(await memory.ask({ workspaceId, topicId, question: 'Discuss the selected question.' }, signal()))
+  const agent = ctx.agents.get(receipt.sessionId)
+  if (agent === undefined) throw new Error('The source discussion was not created.')
+  await agent.whenIdle()
+  expect(ctx.sessionProjections.stateOf(agent.session, 'researchWorking')?.origin?.topicId).toBe(topicId)
+  expect(JSON.stringify(model.requests[0])).not.toContain('ALPHA_RESEARCH_QUESTION')
+  await expect(memory.promptWorkflow({ workspaceId, sessionId: receipt.sessionId,
+    content: [{ type: 'text', text: 'Try automatic handling.' }], mode: 'queue',
+    requestId: 'disabled-automatic-research' as import('@deepseek-ai/dsh-api-session-controller/types').SessionRequestId,
+  }, signal())).rejects.toThrow('Automatic Research is disabled')
+})
+
+it.each([true, false])('retains the recorded Session Research mode %s when a source composer carries another default', async (enabled) => {
+  const { memory, ctx } = await fixture()
+  const topicId = topicIdForPath('a/research.md')
+  const first = value(await memory.ask({ workspaceId, topicId, workflow: enabled, question: 'Start with this question.' }, signal()))
+  const agent = ctx.agents.get(first.sessionId)
+  if (agent === undefined) throw new Error('The research Session was not created.')
+  await agent.whenIdle()
+  await memory.ask({ workspaceId, topicId, sessionId: first.sessionId, workflow: !enabled, question: 'Continue the same question.' }, signal())
+  await agent.whenIdle()
+  expect(ctx.sessionProjections.stateOf(agent.session, 'researchWorking')?.origin?.workflow).toBe(enabled ? 'research' : 'ordinary')
+})
+
+it('records mode choices without running the model and keeps them through queued source preferences and native replay', async () => {
+  const { memory, ctx, model, path } = await fixture()
+  const topicId = topicIdForPath('a/research.md')
+  const receipt = value(await memory.ask({ workspaceId, topicId, workflow: true, question: 'Start our research.' }, signal()))
+  const agent = ctx.agents.get(receipt.sessionId)!
+  await agent.whenIdle()
+  const original = agent.session.snapshotEvents()
+  expect(ctx.sessionProjections.stateOf(agent.session, 'researchWorking')?.origin?.resourceId).toBeUndefined()
+  agent.inject(createUserMessage({ source: { kind: 'aitp-research', actor: 'human', origin: { workspaceId, topicId, workflow: 'research' } },
+    content: [{ type: 'text', text: 'A source message admitted with the old preference.' }] }))
+  const questionsBeforeOff = replaySessionWorkingState(agent.session.snapshotEvents()).humans
+  expect(await memory.setResearchMode({ sessionId: agent.id, enabled: false }, signal())).toEqual({ enabled: false })
+  expect(replaySessionWorkingState(agent.session.snapshotEvents()).humans).toEqual(questionsBeforeOff)
+  const changedSeq = agent.session.seq
+  await memory.setResearchMode({ sessionId: agent.id, enabled: false }, signal())
+  expect(agent.session.seq).toBe(changedSeq)
+  expect(agent.status).toBe('idle')
+  expect(model.requests).toHaveLength(1)
+  expect(agent.session.snapshotEvents().slice(0, original.length)).toEqual(original)
+  await writeFile(join(path, 'project/a/research.md'), '# Alpha\n\n## Question\n\nNEW_ACCOUNT_AFTER_RESEARCH_OFF\n')
+  await memory.refresh({ workspaceId }, signal())
+  agent.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'Continue without automatic research.' }] }))
+  await agent.whenIdle()
+  expect(model.requests).toHaveLength(2)
+  expect(JSON.stringify(model.requests.at(-1))).not.toContain('NEW_ACCOUNT_AFTER_RESEARCH_OFF')
+  expect(JSON.stringify(model.requests.at(-1))).toContain('ALPHA_RESEARCH_QUESTION')
+  expect(replaySessionWorkingState(agent.session.snapshotEvents()).origin).toMatchObject({ workspaceId, topicId, workflow: 'ordinary' })
+  expect(value(await memory.getSessionMemory({ sessionId: agent.id }, signal()))?.researchLocation?.workflow).toBe(false)
+  await writeFile(join(path, 'project/a/research.md'), '# Alpha\n\n## Question\n\nNEW_ACCOUNT_AFTER_RESEARCH_ON\n')
+  await memory.refresh({ workspaceId }, signal())
+  agent.inject(createUserMessage({ source: { kind: 'aitp-research', actor: 'human', origin: { workspaceId, topicId, workflow: 'ordinary' } },
+    content: [{ type: 'text', text: 'A queued source message with the old off preference.' }] }))
+  const questionsBeforeOn = replaySessionWorkingState(agent.session.snapshotEvents()).humans
+  await memory.setResearchMode({ sessionId: agent.id, enabled: true }, signal())
+  expect(replaySessionWorkingState(agent.session.snapshotEvents()).humans).toEqual(questionsBeforeOn)
+  expect(model.requests).toHaveLength(2)
+  agent.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'Resume automatic research.' }] }))
+  await agent.whenIdle()
+  expect(JSON.stringify(model.requests.at(-1))).toContain('NEW_ACCOUNT_AFTER_RESEARCH_ON')
+  expect(replaySessionWorkingState(agent.session.snapshotEvents()).origin?.workflow).toBe('research')
+  expect(value(await memory.getSessionMemory({ sessionId: agent.id }, signal()))?.researchLocation?.workflow).toBe(true)
+})
+
+it('keeps explicitly selected library sources while leaving newly changed topic accounts out after mode off', async () => {
+  const { ask, memory, model, path, selections } = await fixture()
+  const topicId = topicIdForPath('a/research.md')
+  const agent = await ask({ workspaceId, topicId, workflow: true, selections: selections.slice(0, 1), question: 'Read this evidence for Alpha.' })
+  await memory.setResearchMode({ sessionId: agent.id, enabled: false }, signal())
+  await writeFile(join(path, 'project/a/research.md'), '# Alpha\n\n## Question\n\nNEW_TOPIC_SHOULD_NOT_BE_DELIVERED\n')
+  await writeFile(join(path, 'first/note.md'), '# First\n\nEXPLICIT_SOURCE_AFTER_MODE_OFF\n')
+  await memory.refresh({ workspaceId }, signal())
+  await ask({ workspaceId, topicId, sessionId: agent.id, workflow: true, selections: selections.slice(0, 1), question: 'Continue with this explicit evidence.' })
+  expect(JSON.stringify(model.requests.at(-1))).toContain('EXPLICIT_SOURCE_AFTER_MODE_OFF')
+  expect(JSON.stringify(model.requests.at(-1))).not.toContain('NEW_TOPIC_SHOULD_NOT_BE_DELIVERED')
+  expect(replaySessionWorkingState(agent.session.snapshotEvents()).origin).toMatchObject({ workflow: 'ordinary', selections: selections.slice(0, 1) })
+})
+
+it('delivers only the explicit account passage while Research is off, without its newly changed surrounding account', async () => {
+  const { memory, ctx, model, path } = await fixture()
+  const topicId = topicIdForPath('a/research.md')
+  const receipt = value(await memory.ask({ workspaceId, topicId, resourceId: resourceIdForPath('a/research.md'), workflow: false,
+    selectedText: 'Finite systems only.', question: 'Explain just this selected condition.' }, signal()))
+  const agent = ctx.agents.get(receipt.sessionId)!
+  await agent.whenIdle()
+  expect(JSON.stringify(model.requests.at(-1))).toContain('Finite systems only.')
+  expect(JSON.stringify(model.requests.at(-1))).not.toContain('ALPHA_RESEARCH_QUESTION')
+  await writeFile(join(path, 'project/a/research.md'), '# Alpha\n\n## Question\n\nNEW_UNSELECTED_ACCOUNT_TEXT\n\n## Scope\n\nFinite systems only.\n')
+  await memory.refresh({ workspaceId }, signal())
+  agent.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'Keep the same selection.' }] }))
+  await agent.whenIdle()
+  expect(JSON.stringify(model.requests.at(-1))).not.toContain('NEW_UNSELECTED_ACCOUNT_TEXT')
+})
+
+it('keeps legacy unspecified mode visible as automatic and refuses to bind an ordinary existing Session by toggling', async () => {
+  const { memory, ctx, model } = await fixture()
+  const legacy = value(await memory.ask({ workspaceId, topicId: topicIdForPath('a/research.md'), question: 'Legacy source discussion.' }, signal()))
+  await ctx.agents.get(legacy.sessionId)!.whenIdle()
+  expect(value(await memory.getSessionMemory({ sessionId: legacy.sessionId }, signal()))?.researchLocation?.workflow).toBe(true)
+  const ordinary = await ctx.agentLoop.create(SessionId('unbound-ordinary'), { provider: 'study-capture', model: 'study-capture' })
+  ordinary.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'An ordinary task.' }] }))
+  await ordinary.whenIdle()
+  const seq = ordinary.session.seq, requests = model.requests.length
+  await expect(memory.setResearchMode({ sessionId: ordinary.id, enabled: true }, signal())).rejects.toThrow('no owner-selected research location')
+  expect(ordinary.session.seq).toBe(seq)
+  expect(model.requests).toHaveLength(requests)
+})
+
+it.each([650, 850])('keeps the actual account condition after final request overhead for %i free-form lines', async (lines) => {
+  const { path, memory, ctx, model } = await fixture()
+  const text = '# Finite charge\n\nThe original condition is Delta > 0 and finite dimension.\n\n'
+    + '## Derivation in our notation\n\n' + 'Formula detail and constraints.\n'.repeat(lines)
+  await writeFile(join(path, 'project/a/research.md'), text)
+  await memory.refresh({ workspaceId }, signal())
+  const receipt = value(await memory.ask({ workspaceId, topicId: topicIdForPath('a/research.md'),
+    question: 'Recover the original condition. ' + 'Preserve this original user constraint. '.repeat(96),
+  }, signal()))
+  const agent = ctx.agents.get(receipt.sessionId)
+  if (agent === undefined) throw new Error('The research Session was not created.')
+  await agent.whenIdle()
+  const contexts = model.requests[0]?.messages.filter(message => message.role === 'user' && message.source?.kind === 'runtime-context')
+  const delivered = JSON.stringify(contexts)
+  expect(delivered).toContain('Delta > 0 and finite dimension')
+  expect(delivered).toContain('UTF-16 characters [0,')
+  expect(delivered).toContain('Reading coverage: only this located excerpt')
+})
+
 it('projects only authored topic uses across authorized library roots, and removes changed links on refresh', async () => {
   const { path, memory, resources, selections } = await fixture()
   resources.registerProvider({ id: 'relationship-fixture', domain: 'knowledge', list: async context => context.paths
@@ -327,6 +508,26 @@ it('continues global source study with its original durable scope and fresh per-
 })
 
 
+it('continues an established global question after sources are cleared while keeping the legacy first-source contract', async () => {
+  const { ask, selections, resources, ctx, model } = await fixture()
+  expect(await resources.askStudy({ question: 'Start without any sources', selections: [] }, signal()))
+    .toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+  const first = await ask({ question: 'Read the finite control.', selections: selections.slice(0, 1) })
+  const before = ctx.sessionProjections.stateOf(first.session, 'researchWorking')?.origin
+  const continued = await ask({ sessionId: first.id, question: 'Continue our reasoning, with no new source selected.', selections: [] })
+  const after = ctx.sessionProjections.stateOf(continued.session, 'researchWorking')?.origin
+  expect(continued.id).toBe(first.id)
+  expect(after).toMatchObject({ scope: 'global', studyId: before?.studyId, selections: [] })
+  expect(JSON.stringify(model.requests.at(-1))).toContain('Continue our reasoning, with no new source selected.')
+})
+
+it('allows an explicitly independent new discussion without requiring a source before reasoning', async () => {
+  const { ask, ctx } = await fixture()
+  const agent = await ask({ scope: 'global', question: 'Help derive the normalized charge for this finite example.', selections: [] })
+  expect(ctx.sessionProjections.stateOf(agent.session, 'researchWorking')?.origin)
+    .toMatchObject({ scope: 'global', selections: [] })
+})
+
 it('keeps explicit Workspace-root material questions in root research rather than a global study', async () => {
   const { memory, resources, selections, ctx, create } = await fixture()
   const initial = await memory.ask({ workspaceId, question: 'Root research question.' }, signal())
@@ -362,4 +563,47 @@ it.each([undefined, ['code'] as const])('associates an explicitly linked source 
   const beta = value(await resources.listResources({ domain: 'code', rootId: checkout.rootId,
     topic: { workspaceId, topicId: topicIdForPath('b/research.md') } }, signal()))
   expect(beta.items).toEqual([])
+})
+
+it('connects grouped research-map links to authorized literature, knowledge and code without assigning them to another direction', async () => {
+  const { path, resources, memory } = await fixture()
+  const repo = join(path, 'repo')
+  await mkdir(repo)
+  await writeFile(join(repo, 'driver.cpp'), 'int driver = 1;\n')
+  await resources.registerRoot({ id: 'code-map-checkout', path: repo, domains: ['code'] })
+  for (const domain of ['literature', 'knowledge'] as const) {
+    resources.registerProvider({ id: `map-${domain}`, domain, list: async context => context.paths.filter(path => path === 'note.md').map((path) => {
+      const ref = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
+      return { id: resourceEntryId(ref), ref, title: path, domain, kind: domain === 'knowledge' ? 'note' : 'literature',
+        providerId: `map-${domain}`, metadata: {}, links: [], topics: [] }
+    }) })
+  }
+  resources.registerProvider({ id: 'map-code', domain: 'code', list: async (context) => {
+    const ref = { rootId: context.root.id, sourceId: 'git:checkout' as SourceSelection['ref']['sourceId'] }
+    return [{ id: resourceEntryId(ref), ref, title: 'Checkout', domain: 'code', kind: 'code', providerId: 'map-code', metadata: {}, links: [], topics: [] }]
+  } })
+  await writeFile(join(path, 'project/a/research.md'), '# Alpha\n\n## 研究问题\n\nWhy?\n\n## 当前认识\n\nA qualified answer.\n\n## 相关资料\n\n### 文献\n\n[Paper](../../first/note.md) supports the question.\n\n### 知识\n\n[Knowledge](../../second/note.md) explains the prerequisite.\n\n### 代码\n\n[Driver](../../repo/driver.cpp) is the implementation.\n')
+  await memory.refresh({ workspaceId }, signal())
+  const topicId = topicIdForPath('a/research.md')
+  const topic = await memory.getTopic({ workspaceId, topicId }, signal())
+  if (!topic.ok) throw new Error(topic.error.message)
+  expect(topic.value.value.currentAnswer?.text).toContain('A qualified answer.')
+  for (const [domain, rootId] of [['literature', sourceRootId('first')], ['knowledge', sourceRootId('second')], ['code', sourceRootId('code-map-checkout')]] as const) {
+    const page = value(await resources.listResources({ domain, rootId, topic: { workspaceId, topicId } }, signal()))
+    expect(page.items).toHaveLength(1)
+    expect(page.items[0]?.topics[0]?.reason).toMatch(/supports|prerequisite|implementation/)
+    const other = value(await resources.listResources({ domain, rootId, topic: { workspaceId, topicId: topicIdForPath('b/research.md') } }, signal()))
+    expect(other.items).toHaveLength(0)
+  }
+})
+
+
+it('activates the same workflow for global source study without inventing a project owner', async () => {
+  const f = await fixture()
+  const agent = await f.ask({ workflow: true, question: 'Discuss these actual sources before selecting a topic.', selections: f.selections })
+  expect(f.ctx.sessionProjections.stateOf(agent.session, 'researchWorking')?.origin)
+    .toMatchObject({ scope: 'global', workflow: 'research' })
+  expect(f.ctx.sessionProjections.stateOf(agent.session, 'researchWorking')?.origin?.workspaceId).toBeUndefined()
+  expect(JSON.stringify(f.model.requests.at(-1))).toContain('Research workflow is enabled')
+  expect(JSON.stringify(f.model.requests.at(-1))).not.toContain('Direct folder entries')
 })

@@ -1,7 +1,7 @@
 /** Explicit owner enrollment and durable creation of ordinary linked research accounts. */
 import { randomUUID } from 'node:crypto'
-import { mkdir } from 'node:fs/promises'
-import { basename, dirname, join, posix } from 'node:path'
+import { lstat, mkdir } from 'node:fs/promises'
+import { basename, dirname, join, posix, sep } from 'node:path'
 import { z } from 'zod'
 import { pathForTopicId, resourceIdForPath, topicIdForPath } from './markdown-files.ts'
 import type { MarkdownWorkspace } from './markdown.ts'
@@ -13,7 +13,7 @@ const enrollmentSchema = z.object({ format: z.literal(1), roots: z.array(z.objec
   path: z.string(), writable: z.boolean(), stateDirectory: z.string(),
 })) })
 const requestSchema = z.object({ operationId: z.string(), title: z.string(), question: z.string(),
-  scope: z.string().optional(), parentTopicId: z.string().optional() })
+  scope: z.string().optional(), parentTopicId: z.string().optional(), directory: z.string().optional() })
 const operationSchema = z.object({ format: z.literal(1), sourceRoot: z.string(), request: requestSchema,
   relativePath: z.string(), state: z.enum(['reserved', 'published', 'complete', 'partial', 'unknown']),
   receipt: z.object({ operationId: z.string(), topicId: z.string(), resourceId: z.string() }),
@@ -26,9 +26,27 @@ function markdownText(text: string): string {
   return text.replace(/[\\`*_{}[\]<>#!|]/g, '\\$&')
 }
 
+/**
+ * Build only the confirmed opening and optional collection links for a missing account.
+ * @param account - confirmed project choices.
+ * @returns the initial account, without invented scientific findings.
+ */
+export function initialAccountText(account: NonNullable<ResearchInitializeRequest['account']>): string {
+  const sources = account.libraries ?? []
+  return `# ${markdownText(account.title.trim())}\n\n${markdownText(account.question.trim())}\n`
+    + (account.scope?.trim() ? `\n${markdownText(account.scope.trim())}\n` : '')
+    + '\n## 当前工作\n\n课题信息已确认，研究结论尚未记录。\n\n## 子方向\n'
+    + (['literature', 'knowledge', 'code'] as const).map((domain) => {
+      const selected = sources.filter(source => source.domain === domain)
+      if (selected.length === 0) return ''
+      return `\n## ${domain === 'literature' ? '文献库' : domain === 'knowledge' ? '知识库' : '代码库'}\n\n`
+        + selected.map(source => `- [${markdownText(source.title)}](<${source.path.split(sep).map(encodeURIComponent).join('/')}>)\n`).join('')
+    }).join('')
+}
+
 function sameRequest(left: Operation['request'], right: CreateTopicRequest): boolean {
   return left.operationId === right.operationId && left.title === right.title && left.question === right.question
-    && left.scope === right.scope && left.parentTopicId === right.parentTopicId
+    && left.scope === right.scope && left.parentTopicId === right.parentTopicId && left.directory === right.directory
 }
 
 /** Owns enrollment storage and creation receipts; source writes use the root's shared writer serialization. */
@@ -79,14 +97,27 @@ export class ResearchOnboarding {
         catch (error) { if (!missing(error)) throw error }
         await safeSource(root, root, 'directory')
         const account = join(root, 'research.md')
-        try { await safeSource(root, account, 'file') }
+        const planned = request.account === undefined ? undefined : initialAccountText(request.account)
+        if (request.account !== undefined && (!request.writable || !request.account.title.trim() || !request.account.question.trim()
+          || planned === undefined || Buffer.byteLength(planned, 'utf8') > this.maxSourceBytes)) {
+          return { ok: false, error: { code: 'invalid-request', message: 'A new account requires a title, research question and source-write permission within the file limit.', retryable: false } }
+        }
+        try {
+          await safeSource(root, account, 'file')
+          if (planned !== undefined && await readBoundedText(account, this.maxSourceBytes) !== planned) {
+            return { ok: false, error: { code: 'invalid-request', message: 'A research account already exists. Read it before proposing changes; its contents were preserved.', retryable: false } }
+          }
+        }
         catch (error) {
           if (!missing(error)) throw error
           if (request.writable) {
-            try { await createAccount(root, account, `# ${markdownText(basename(root))}\n\n## Topics\n`) }
+            try { await createAccount(root, account, planned ?? `# ${markdownText(basename(root))}\n\n## Topics\n`) }
             catch (creationError) {
               if (!(creationError instanceof Error && 'code' in creationError && creationError.code === 'EEXIST')) throw creationError
               await safeSource(root, account, 'file')
+              if (planned !== undefined && await readBoundedText(account, this.maxSourceBytes) !== planned) {
+                throw new OnboardingFailure('invalid-request', 'Another account appeared during initialization. Its contents were preserved; read it before continuing.')
+              }
             }
           }
         }
@@ -140,11 +171,15 @@ export class ResearchOnboarding {
         await safeSource(reader.root, parent, 'file')
         // Validate size before any source mutation, including space for the eventual link.
         const parentText = await readBoundedText(parent, this.maxSourceBytes)
-        const directory = `topic-${randomUUID()}`
+        const directory = request.directory ?? `topic-${randomUUID()}`
         const topicPath = posix.join(posix.dirname(parentPath), directory, 'research.md')
+        try {
+          await lstat(dirname(join(reader.root, topicPath)))
+          throw new OnboardingFailure('invalid-request', 'The chosen topic directory already exists. Choose a new name or open its existing records.')
+        } catch (error) { if (!missing(error)) throw error }
         const parentLink = posix.relative(posix.dirname(topicPath), parentPath)
-        const text = `# ${markdownText(request.title.trim())}\n\n## Question\n\n${request.question.trim()}\n\n## Scope\n\n${request.scope?.trim() ?? ''}\n\n## Current work\n\n## Parent\n\n[${request.parentTopicId === undefined ? 'Project' : 'Parent topic'}](${parentLink})\n`
-        const childLink = `- [${markdownText(request.title.trim())}](${posix.relative(posix.dirname(parentPath), topicPath)})`
+        const text = `# ${markdownText(request.title.trim())}\n\n## Question\n\n${request.question.trim()}\n\n## Scope\n\n${request.scope?.trim() ?? ''}\n\n## Current work\n\n<!-- When useful, add a Current answer, Child topics, and Related materials. Group explicit links under Literature, Knowledge and Code only where relevant; describe why each source matters. Links do not grant access. -->\n\n## Parent\n\n[${request.parentTopicId === undefined ? 'Project' : 'Parent topic'}](${parentLink})\n`
+        const childLink = `- [${markdownText(request.title.trim())}](<${posix.relative(posix.dirname(parentPath), topicPath).split('/').map(encodeURIComponent).join('/')}>)`
         if (Buffer.byteLength(text, 'utf8') > this.maxSourceBytes
           || Buffer.byteLength(parentText + childLink + '\r\n\r\n## Child topics\r\n\r\n\r\n', 'utf8') > this.maxSourceBytes) {
           throw new OnboardingFailure('invalid-request', 'The new account or parent link exceeds the source byte bound.')
@@ -202,6 +237,11 @@ export class ResearchOnboarding {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(request.operationId) || !request.title.trim() || /[\r\n\0]/.test(request.title)
       || !request.question.trim() || request.question.includes('\0') || request.scope?.includes('\0')) {
       throw new OnboardingFailure('invalid-request', 'Provide a one-line title, a research question and an operation identity of 1–128 letters, digits, underscores or hyphens.')
+    }
+    if (request.directory !== undefined && (!request.directory.trim() || request.directory !== request.directory.trim()
+      || /[/\\\x00-\x1f<>:"|?*]/.test(request.directory) || request.directory === '.' || request.directory === '..'
+      || request.directory.startsWith('.') || request.directory.endsWith('.') || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(request.directory))) {
+      throw new OnboardingFailure('invalid-request', 'The topic directory must be a new ordinary folder name without separators, reserved names or surrounding spaces.')
     }
   }
 }

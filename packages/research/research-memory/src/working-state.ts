@@ -8,6 +8,8 @@ import type { ResearchHumanInput, ResearchOrigin, ResearchWorkingState, Research
 import { sourceSelectionSchema } from './study-schema.ts'
 
 /** Existing tool-result carrier used for model-owned provisional items; it does not edit original human inputs. */
+export const INITIALIZE_RESEARCH_TOOL = 'research_initialize_project'
+/** Tool name for replayable model-provisional working updates. */
 export const WORKING_TOOL = 'research_working_update'
 const WRITE_TOOLS = new Set(['research_prepare_change', 'research_apply_change', 'research_recover_change'])
 const writeOutcomeSchema = z.object({
@@ -16,6 +18,7 @@ const writeOutcomeSchema = z.object({
 })
 /** Normalizes selected source addressing without treating a location or selected passage as an execution grant. */
 export const originSchema = z.object({
+  workflow: z.enum(['research', 'ordinary']).optional(),
   workspaceId: z.string().min(1).optional(), topicId: z.string().optional(), resourceId: z.string().optional(),
   scope: z.literal('global').optional(), studyId: z.string().min(1).optional(),
   selections: z.array(sourceSelectionSchema).optional(),
@@ -27,6 +30,7 @@ export const originSchema = z.object({
   ? value.studyId !== undefined && value.topicId === undefined
   : value.workspaceId !== undefined, 'A topic origin needs its Workspace; global study needs its own study identity.')
   .transform((value): ResearchOrigin => ({
+    ...(value.workflow === undefined ? {} : { workflow: value.workflow }),
     ...(value.workspaceId === undefined ? {} : { workspaceId: value.workspaceId }),
     ...(value.scope === undefined ? {} : { scope: value.scope }),
     ...(value.studyId === undefined ? {} : { studyId: value.studyId }),
@@ -45,7 +49,9 @@ export const itemSchema = z.object({
   text: z.string(), condition: z.string(), sourceIds: z.array(z.string()),
   origin: originSchema, sourceId: z.string(),
 })
-const humanResearchSourceSchema = z.object({ kind: z.literal('aitp-research'), actor: z.literal('human'), origin: originSchema })
+const humanResearchSourceSchema = z.object({
+  kind: z.literal('aitp-research'), actor: z.literal('human'), origin: originSchema, modeSelection: z.literal(true).optional(),
+})
 /** Schema for a rebuildable Session projection; originals remain in their durable input and tool records. */
 export const workingStateSchema = z.object({
   origin: originSchema.nullable(),
@@ -129,6 +135,12 @@ export function acceptHumanInput(state: ResearchWorkingState, message: UserMessa
   const source = message.source
   const explicit = source.kind === 'aitp-research' ? humanResearchSourceSchema.safeParse(source) : null
   let origin = explicit?.success === true ? explicit.data.origin : state.origin
+  if (explicit?.success === true && explicit.data.modeSelection !== true && origin !== null
+    && state.ownerOrigin && state.origin !== null && scopeKey(origin) === scopeKey(state.origin)) {
+    // Source messages, including already queued ones, cannot undo a later explicit mode selection.
+    const { workflow: _preference, ...selected } = origin
+    origin = { ...selected, ...(state.origin.workflow === undefined ? {} : { workflow: state.origin.workflow }) }
+  }
   let questionSeq: number | undefined
   if (source.kind === 'user-question-reply') {
     const question = state.pending.find(call => call.callId === source.callId && call.name === 'ask_user_question')
@@ -137,6 +149,7 @@ export function acceptHumanInput(state: ResearchWorkingState, message: UserMessa
     questionSeq = question.seq
   }
   if (origin === null || (source.kind !== 'user' && source.kind !== 'user-question-reply' && explicit?.success !== true)) return state
+  if (explicit?.success === true && explicit.data.modeSelection === true) return { ...state, origin, ownerOrigin: true }
   if (state.humans.some(input => input.sourceId === message.id)) return state
   return {
     ...state,
@@ -165,7 +178,7 @@ export function applyWorkingEvent(state: ResearchWorkingState, event: SessionEve
   if (event.type === 'tool/call' || event.type === 'tool/ptc-dispatch-start') {
     if (state.origin === null) return state
     const name = event.data.name
-    if (name !== WORKING_TOOL && name !== 'ask_user_question' && !WRITE_TOOLS.has(name)) return state
+    if (name !== WORKING_TOOL && name !== 'ask_user_question' && name !== INITIALIZE_RESEARCH_TOOL && !WRITE_TOOLS.has(name)) return state
     const callId = event.type === 'tool/call' ? event.data.callId : event.data.subCallId
     if (state.pending.some(call => call.callId === callId)) return state
     return { ...state, pending: [...state.pending, { callId, name, seq: event.seq, origin: originPointer(state.origin) }] }
@@ -192,7 +205,7 @@ export function applyWorkingEvent(state: ResearchWorkingState, event: SessionEve
     }
     return { ...settled, writes: [...state.writes.filter(item => item !== previous), write] }
   }
-  if (call.name === 'ask_user_question') {
+  if (call.name === 'ask_user_question' || call.name === INITIALIZE_RESEARCH_TOOL) {
     if (event.type === 'tool/result' && event.data.error?.code === TOOL_OUTCOME_UNKNOWN) return state
     let answer: unknown
     try { answer = JSON.parse(contentText(content)) } catch { answer = undefined }

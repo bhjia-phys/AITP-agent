@@ -1,0 +1,5 @@
+# Optional domain: disable both provider and presentation without removing files.
+- id: research-literature
+  disabled: true
+- id: ui-aitp-literature
+  disabled: true

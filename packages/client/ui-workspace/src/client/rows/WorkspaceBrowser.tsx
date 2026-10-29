@@ -143,7 +143,7 @@ function ViewOptionsMenu({ groupBy, orderBy, archivedFilter, onGroupPick, onOrde
   groupBy: SessionGroupBy
   orderBy: SessionOrderBy
   archivedFilter: ArchivedFilter
-  onGroupPick: (mode: SessionGroupBy) => void
+  onGroupPick?: ((mode: SessionGroupBy) => void) | undefined
   onOrderPick: (mode: SessionOrderBy) => void
   onArchivedFilterPick: (filter: ArchivedFilter) => void
   t: WorkspaceBrowserProps['t']
@@ -154,11 +154,11 @@ function ViewOptionsMenu({ groupBy, orderBy, archivedFilter, onGroupPick, onOrde
       open={open}
       onClose={() => { setOpen(false) }}
       items={[
-        { type: 'label' as const, id: 'group-by', text: t('groupBy.label') },
-        { id: 'workspace', label: t('groupBy.workspace'), icon: <IconFolderCloseRegular /> },
-        { id: 'workspace-tree', label: t('groupBy.workspaceTree'), icon: <IconWorkspaceTreeOutlineRegular /> },
-        { id: 'flat', label: t('groupBy.flat'), icon: <IconFlatListOutlineRegular /> },
-        { type: 'separator' as const, id: 'order-by-separator' },
+        ...(onGroupPick === undefined ? [] : [{ type: 'label' as const, id: 'group-by', text: t('groupBy.label') },
+          { id: 'workspace', label: t('groupBy.workspace'), icon: <IconFolderCloseRegular /> },
+          { id: 'workspace-tree', label: t('groupBy.workspaceTree'), icon: <IconWorkspaceTreeOutlineRegular /> },
+          { id: 'flat', label: t('groupBy.flat'), icon: <IconFlatListOutlineRegular /> },
+          { type: 'separator' as const, id: 'order-by-separator' }]),
         { type: 'label' as const, id: 'order-by', text: t('orderBy.label') },
         { id: 'manual', label: t('orderBy.manual'), icon: <IconChevronsUpDownOutlineRegular /> },
         { id: 'updated', label: t('orderBy.updated'), icon: <IconClockOutlineRegular /> },
@@ -174,7 +174,7 @@ function ViewOptionsMenu({ groupBy, orderBy, archivedFilter, onGroupPick, onOrde
         { default: 'hide-archived', show: 'show-archived', only: 'only-archived' }[archivedFilter],
       ]}
       onSelect={(id) => {
-        if (id === 'workspace' || id === 'workspace-tree' || id === 'flat') onGroupPick(id)
+        if (id === 'workspace' || id === 'workspace-tree' || id === 'flat') onGroupPick?.(id)
         else if (id === 'manual' || id === 'updated') onOrderPick(id)
         else if (id === 'hide-archived') onArchivedFilterPick('default')
         else if (id === 'show-archived') onArchivedFilterPick('show')
@@ -900,6 +900,7 @@ export function WorkspaceBrowser({
   useSessions,
   useSessionStatus,
   useWorkspaces,
+  presentation,
   useStore,
   actions,
   startSession,
@@ -949,7 +950,8 @@ export function WorkspaceBrowser({
   // Live occupancy of this surface's directory-flow hole (the same source the
   // flow reads): a composition without a picking affordance can add nothing.
   const directoryFlowAvailable = useDirectoryFlow(occupied => occupied)
-  const groupBy = useStore(s => s.groupBy)
+  const savedGroupBy = useStore(s => s.groupBy)
+  const groupBy = presentation === 'sessions' ? 'flat' : savedGroupBy
   const orderBy = useStore(s => s.orderBy)
   // Persisted view blobs written before the archived filter existed rehydrate
   // without the field; they read as the default hide-archived view.
@@ -1334,7 +1336,7 @@ export function WorkspaceBrowser({
               groupBy={groupBy}
               orderBy={orderBy}
               archivedFilter={archivedFilter}
-              onGroupPick={actions.setGroupBy}
+              onGroupPick={presentation === 'sessions' ? undefined : actions.setGroupBy}
               onOrderPick={(mode) => { actions.setOrderBy(mode, activeSessionOrders) }}
               onArchivedFilterPick={actions.setArchivedFilter}
               t={t}

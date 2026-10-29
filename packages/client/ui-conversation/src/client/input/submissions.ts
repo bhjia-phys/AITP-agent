@@ -5,6 +5,7 @@ import type { ComposerSubmissions } from '../contract/submissions.ts'
 
 /** One provider per Session prevents competing owners from silently changing source scope. */
 export class ComposerSubmissionRegistry implements ComposerSubmissions {
+  private readonly fallbacks = new Map<string, (sessionId: SessionId) => SessionPromptTransport | undefined>()
   private readonly providers = new Map<SessionId, () => SessionPromptTransport | undefined>()
 
   /** @inheritdoc */
@@ -15,5 +16,20 @@ export class ComposerSubmissionRegistry implements ComposerSubmissions {
   }
 
   /** @inheritdoc */
-  capture(sessionId: SessionId): SessionPromptTransport | undefined { return this.providers.get(sessionId)?.() }
+  registerFallback(id: string, capture: (sessionId: SessionId) => SessionPromptTransport | undefined): () => void {
+    if (this.fallbacks.has(id)) throw new Error(`Composer admission fallback already registered: ${id}`)
+    this.fallbacks.set(id, capture)
+    return () => { if (this.fallbacks.get(id) === capture) this.fallbacks.delete(id) }
+  }
+
+  /** @inheritdoc */
+  capture(sessionId: SessionId): SessionPromptTransport | undefined {
+    const provider = this.providers.get(sessionId)
+    if (provider !== undefined) return provider()
+    for (const fallback of this.fallbacks.values()) {
+      const captured = fallback(sessionId)
+      if (captured !== undefined) return captured
+    }
+    return undefined
+  }
 }

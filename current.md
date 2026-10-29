@@ -8,6 +8,10 @@
 
 本文供接手者共同质疑、开发和纠错。它集中记录问题、依据、后果和可区分的修正验证，不取代架构、开发规划或科研场景文档。下文的“漏洞”包括**设计未闭合、已查明的实现缺口、尚无验证证据**，并不表示每一项都是已触发的运行故障或安全漏洞。
 
+**2026-10-28 后续实施规划已整理。** 用户确认另一个会话已完成默认 Research 入口；其[交接证据](agent/notes/harness-integration.md#default-research-workflow)作为起点，不重复实现开关、初始化或原生会话。新的[详细任务包 R0–R6](docs/agent/14-implementation-blueprint.md#research-coordination-plan)依次安排剩余跨库会话衔接、本地正文检索与非模板笔记读取、上下文及 Skills 的针对性调整、Map/三库/会话的人类可视化，以及有界记录维护与综合验证。总表逐项说明使用者应获得的目标效果和具体完成演示，细节保留模块归属、依赖与失败边界。它取代旧的 Skill 目录优先和统一写前审阅依赖；实现状态与顺序只由 14 维护。
+
+用户随后要求设置 Goal 实施上述规划，并强调前端清晰明了；实施已接通全局/课题原生会话、本地正文检索与按位置回读、非模板主记录兜底，以及可纠正的简明任务卡片；上下文现在优先保留原话和证据。实际检查、失败和适用边界见[原有集成记录](agent/notes/harness-integration.md#research-coordination-implementation)，阶段状态与剩余工作只由 14 维护。已有默认入口的确定性测试不能说明真实模型已自然理解新课题、选对资料或形成正确推导。新的[RC01–RC12 场景](docs/agent/13-research-journeys.md#coordination-acceptance)分别检查机制、有限科学行为和研究者使用体验；Q02/Q03/Q04/Q06/Q09/Q16 仍按实际证据逐项关闭。架构分工见 [10](docs/agent/10-project-workspace.md#model-led-coordination)，上下文与意图见 [11](docs/agent/11-research-memory.md#adaptive-context)，可视化与纠正见 [12](docs/agent/12-desktop-interface.md#coordinated-research-views)。
+
 ## 进入仓库先读什么
 
 先读 [AGENTS.md](AGENTS.md) 和仓库自带的 [develop-aitp-agent Skill](.agents/skills/develop-aitp-agent/SKILL.md)。随后按实际任务读取：
@@ -216,9 +220,31 @@
 <a id="q09"></a>
 ### Q09：本地三库、统一阅读界面与研读插件已有首版，研究者使用评价和更深科研关联仍待完善
 
+研究者进一步明确：子课题应清楚展示 PDF 等资料在既定目录架构中的实际位置，以及它们与当前论证、研究走向的关系。已有布局和共享资料保留，新增资料遵循该课题的放置约定；资料关联本身不迁移文件。具体呈现由[子课题资料与走向](docs/agent/12-desktop-interface.md#subtopic-material-placement)拥有，具体实施与 RC13 验收由[14](docs/agent/14-implementation-blueprint.md#subtopic-material-follow-up)维护。新增要求现有[本轮插件交付证据](agent/notes/harness-integration.md#research-plugin-delivery)，覆盖深层目录、显式资料保存与导入、实际路径和返回；其[当前状态](docs/agent/14-implementation-blueprint.md#research-plugin-delivery)仍区分有界工程验证与研究者使用评价，不借用原有三库或 Map 测试替代。
+
+研究者进一步要求：从文献、知识、代码或已有研究记录开始提问时，直接接续同一个科研工作流程；从课题进入保留范围，全局阅读允许先做独立研读，不因资料的维护归属自动指定课题。界面确定只提供一个 Research 选项，新对话默认开启，工具预设默认仍为标准模式。这与新文件夹的识别、初始化问答和三库关联共同构成[科研入口](docs/agent/12-desktop-interface.md#research-workflow-entry)，复用现有上下文和会话服务。具体顺序与验收由[14](docs/agent/14-implementation-blueprint.md#research-plugin-delivery)维护，默认输入框路由、只读目录关联、原生确认建档与共享库目录导航已通过[隔离机制验收](agent/notes/harness-integration.md#default-research-workflow)，并已重启当前服务。已有记录不覆盖，普通旧会话不追认课题归属；原有写回沿用当前文件权限。真实模型能否自然问出缺失信息、识别上级方向并选择合适三库，尚未由确定性模型适配器测试证明，仍需真实科研使用评价。
+
+按研究者要求，普通文件夹浏览复用 DSH 原生 Workspace files，移除重复的 Research 文件树、页面目录和专用读取入口。原生文件浏览仍绑定实际会话工作区，不为预览造会话或借用其他会话权限。知识列表精简为条目与类型筛选，索引范围和来源依据按需展开，真实错误保留明确提示。详见 [12](docs/agent/12-desktop-interface.md#research-map-topic-pages-and-materials) 和 [14](docs/agent/14-implementation-blueprint.md#three-library-presentation)。
+
+资料库空结果现区分当前课题未关联、索引尚不完整与真实读取失败，提供显式查看全库并清除筛选的入口。已知资料需经实际来源注册和主记录引用建立关联，单纯能打开本地 PDF 不表示已进入课题文献列表；索引仍采用有界扫描，不能以空查询结果推断全库无资料。规则与验证范围见 [12](docs/agent/12-desktop-interface.md#library-presentation) 和 [14](docs/agent/14-implementation-blueprint.md#three-library-presentation)。
+
+入口现已统一到原生首页、右侧科研项目导航与同一个原生会话：移除左侧模式切换，保留每条问题的资料和科研归属。Research map 页头在首次进入、尚无资料标签时也有原生右栏展开入口；首次打开科研项目，之后恢复已有标签。普通对话不会因浏览课题而自动成为该课题记录。新目录试点与前一轮验证的已知范围见[现有验收记录](agent/notes/harness-integration.md#fresh-folder-library-pilot)，本轮实际浏览器路径和草稿／位置恢复见[工程记录](agent/notes/harness-integration.md#unified-research-home)，实现范围由[14](docs/agent/14-implementation-blueprint.md)维护。
+
 2026-10-27 研究者进一步明确：左侧浏览资料库，右侧通过完整的 DSH 原生文档侧栏查看详情。此前只复用 PDF/Markdown 正文组件、仍在中央自定义详情页阅读，并未满足这个要求。现已接入不依赖 Session 的原生资料标签、收起/展开、全屏和布局；三个库保持左侧目录，明确提问时会话在左侧展开，返回课题恢复原会话和草稿。六个真实应用场景已通过；保留状态限于本次应用运行，整页重载后的阅读标签恢复尚未实现。见[界面规则](docs/agent/12-desktop-interface.md#layout-and-navigation)与[本轮证据](agent/notes/harness-integration.md#native-library-dock)。
 
-研究者随后明确三库应使用课题外的共享来源，代码库则管理与子方向明确关联的实际 Git 检出，而非把课题目录当仓库。资源服务现可将工作区授权与全局目录展示分开，按指定来源／领域读取，代码目录逐层按需加载；研究笔记实际引用的检出才可关联到对应课题。可配置已有共享目录而不迁移资料；真实分支和修改只读展示。当前文献条目仍缺少许多论文题名、作者、年份及人工课题分类，检出关联也仅覆盖已明确引用且已配置的仓库；这不是完整 Zotero 同步或自动归类。范围和验证见[工程记录](agent/notes/harness-integration.md#shared-library-roots)。
+研究者随后明确三库应使用课题外的共享来源，代码库则管理与子方向明确关联的实际 Git 检出，而非把课题目录当仓库。资源服务现可将工作区授权与全局目录展示分开，按指定来源／领域读取，代码目录逐层按需加载；研究笔记实际引用的检出才可关联到对应课题。WSL 配置选择已有 `physics/knowledge/library` 和 `physics/knowledge`，不迁移资料；真实分支和修改只读展示。当前文献条目仍缺少许多论文题名、作者、年份及人工课题分类，检出关联也仅覆盖已明确引用且已配置的仓库；这不是完整 Zotero 同步或自动归类。范围和验证见[工程记录](agent/notes/harness-integration.md#shared-library-roots)。
+
+后续实现允许单独接入已有论文研读笔记：当一份论文笔记明确指向唯一 PDF、且该 PDF 只有一份对应笔记时，目录可显示笔记所记录的题名、作者和阅读状态，并沿这条明确链接投影课题引用；冲突或多个 PDF 不猜测。用户明确关联课题的已保存资料集也参与目录筛选，保存在宿主状态而非科研笔记中。自动课题分组、上级汇总与独立的逐篇添加移除界面仍未完成；现有课题发现还可能收录历史快照并受扫描上限影响，不能把它当作完整分组结果。
+
+研究地图采用可选的普通 Markdown 约定：新方向保留问题、范围和当前工作，提示按需增加子方向及文献、知识、代码链接；现有无模板记录仍可读。“当前认识”与既有当前答案标题一样可被方向概览读取。三个库只关联已授权来源中实际写出的链接，不创建空资料或赋予新权限。当前还不能区分普通链接里的“可能相关”和已确认引用；未完成的树发现、跨方向汇总和会话迁移仍不能据此视为完成。
+
+研究者逐页调整时要求项目总览不显示例行读取时间；现已移除总览底部的来源和读取时间折叠栏，保留读取失败和覆盖不完整等实际状态。总览下一步应呈现的研究内容仍需结合实际记录逐项确定。
+
+项目总览提供对本页已加载方向的一级分支批量展开或收起，不替代分页或递归扫描。可写方向已有通过“更多操作”修改范围与当前认识的预览/应用流程；[项目主记录和完整 Markdown 的直接编辑方案](docs/agent/12-desktop-interface.md#full-account-editing)仍未实现，不能把这两个受限入口说成完整编辑器。
+
+方向概览改为展示问题的首段、去除重复标题的当前认识和限制、最多三条原文资料链接，以及完整方向入口；详情页的长资料列表默认只展开五项。链接是否可读取未由列表逐项验证，界面提示可能尚未迁入，实际打开仍显示真实错误。隔离 GW 副本仍有大量未复制资料，精简页面不等于修复缺失文件。
+
+隔离测试中确认重复的 README 行来自研究记录对不同报告的引用；仅按文件名展示会丢失用途。通用 README 或 index 的方向资料投影优先使用原文中有意义的链接标签，已有的实际文档标题继续保留；缺失文件仍不假装可用。已把用户指出的 cRPA 直接引用说明文件补入隔离区，其后续引用和其他类型材料仍需逐项检查。
 
 研究者随后要求[全面审查并直接优化工作台](docs/agent/14-implementation-blueprint.md#workbench-ui-review)。本轮已将统一布局和渐进披露推广到 Research、三个库、原生阅读、研读笔记与右侧会话，保留真实接口和独立插件职责；[页面与状态清单](docs/agent/12-desktop-interface.md#workbench-ui-review)规定覆盖面，[当前验收记录](agent/notes/harness-integration.md#workbench-ui-review)区分此前通过、本轮发现、修复与复测，不能沿用此前通过记录代替此次验收。
 
@@ -232,26 +258,28 @@
 
 研究者认为当前布局、信息密度和视觉完成度仍不足，已要求先做一个有代表性的[课题详情页试改](docs/agent/12-desktop-interface.md#topic-page-pilot)，借鉴实际 Harness 插件管理／详情页，保留现有接口和会话机制。此次同步修复跨库返回的滚动、焦点和重复历史问题，以及 PDF 阅读页在会话往返后的保留；阅读页不改变实际选给模型的来源范围。实际应用中的“课题 → 资料 → 提问 → 返回”、键盘菜单、深色主题、390px 窄窗、长标题、空内容和延迟读取已通过验收测试，[11 张截图与证据](agent/notes/harness-integration.md#topic-page-pilot)供研究者判断视觉方向；研究者随后授权的[三个库统一改版](docs/agent/14-implementation-blueprint.md#library-ui)也已实现，分别采用文献条目、代码目录与 wiki 正文的阅读结构，共用 Harness 图标、按钮、选源和返回机制。[本次独立浏览器证据](agent/notes/harness-integration.md#library-ui)覆盖三库、真实元数据与来源链接、源码及 Git 差异、窄窗与深色主题，并回归课题会话和保存恢复路径；这仍不替代研究者的实际视觉评价或科研质量检验。[14](docs/agent/14-implementation-blueprint.md#topic-redesign-review)维护验收进度。
 
-知识库沿用 [AITP 原有知识集合](docs/agent/11-research-memory.md#knowledge-collection)，界面保留知识原子、文献精读、学习问题链和可选作者研究的[各自阅读路线](docs/agent/12-desktop-interface.md#knowledge)。Notebook 式选源、引用问答与笔记作为研读界面加入；研究结果仍先以问题命名的临时索引指针指向课题原文，提升为 atom 遵循原协议的研究者确认规则。此约束不扩展为每次精读、修正或普通笔记写入都要确认；实现验收见 C19/P2a。[本地库实施切片](docs/agent/14-implementation-blueprint.md#local-libraries)已加入共享来源、三个独立领域提供者与客户端、资料集及暂定研读草稿；实际课题入口、PDF/Git 引用跳转、真实回答捕获、重启与草稿复用路径已通过[浏览器联调](agent/notes/harness-integration.md#local-libraries)，研究者使用评价和科学回答质量仍待实际科研任务检验。导入、完整语义检索、OCR 和音视频提供者尚未实现。研究者随后要求内容打开方式与 DSH 原生一致；[原生阅读适配](docs/agent/14-implementation-blueprint.md#native-source-readers)先完成 PDF 连续阅读、选字、缩放与当前页引用，随后按其要求扩展到 Markdown、图片和相对文件链接。实现让链接在当前库内按实际格式打开，保留阅读返回路径、位置和右侧课题会话；本地插图与图片仍受来源根授权约束，不通过创建会话取得文件权限，也不因显示图片便把像素交给模型。Markdown／图片的新应用路径已独立验证：相对笔记、唯一小节、本地插图和原图、源码、窄窗口及连续返回均通过，同一会话和草稿得以保留；验收证据仍归上述原生阅读记录。
+知识库沿用 [AITP 原有知识集合](docs/agent/11-research-memory.md#knowledge-collection)，界面保留知识原子、文献精读、学习问题链和可选作者研究的[各自阅读路线](docs/agent/12-desktop-interface.md#knowledge)。Notebook 式选源、引用问答与笔记作为研读界面加入；研究结果仍先以问题命名的临时索引指针指向课题原文，提升为 atom 遵循原协议的研究者确认规则。此约束不扩展为每次精读、修正或普通笔记写入都要确认；实现验收见 C19/P2a。[本地库实施切片](docs/agent/14-implementation-blueprint.md#local-libraries)已加入共享来源、三个独立领域提供者与客户端、资料集及暂定研读草稿；实际课题入口、PDF/Git 引用跳转、真实回答捕获、重启与草稿复用路径已通过[浏览器联调](agent/notes/harness-integration.md#local-libraries)，研究者使用评价和科学回答质量仍待实际科研任务检验。本轮已实现授权来源 PDF 的显式副本导入、文本保存和普通关联；完整书目／分类导入、语义检索、OCR 和音视频提供者仍未实现，边界见[插件交付记录](agent/notes/harness-integration.md#research-plugin-delivery)。研究者随后要求内容打开方式与 DSH 原生一致；[原生阅读适配](docs/agent/14-implementation-blueprint.md#native-source-readers)先完成 PDF 连续阅读、选字、缩放与当前页引用，随后按其要求扩展到 Markdown、图片和相对文件链接。实现让链接在当前库内按实际格式打开，保留阅读返回路径、位置和右侧课题会话；本地插图与图片仍受来源根授权约束，不通过创建会话取得文件权限，也不因显示图片便把像素交给模型。Markdown／图片的新应用路径已独立验证：相对笔记、唯一小节、本地插图和原图、源码、窄窗口及连续返回均通过，同一会话和草稿得以保留；验收证据仍归上述原生阅读记录。
 
 Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)已有通用 PDF、Markdown 和代码展示，可作为复用基础；其浏览器预览不会把内容送入模型，代码预览也不是编辑器。课题／全局资源地址、精确版本与选区、上下文实际交付和公式—实现关联仍属 AITP 的工作，不能把已有预览称为缺失，也不能称为科研文献库已经完成。
 
 **验收反例：**不建项目、不发消息即可浏览；同题不同版本保持分离；本人已读、AI 已读和推导已解释分别表达；未知索引范围不显示为空库。先按 P2 的真实适配器范围完成，写入与外部检索另按具体阶段和授权验证。适用场景为 C03–C05、C19–C21。
 
 <a id="q10"></a>
-### Q10：模块化已经选定，具体研究服务与验收仍要落实
+### Q10：可选科研插件已交付，科研适用性仍有边界
+
+**2026-10-29 新实施请求：** 研究者要求先详细规划，再设置 Goal 完成可选科研插件、实际资料读写与三库联动；开启后保持模型结合 AITP Skills 的科研方式，同时清楚展示任意深度子课题的进程、PDF 和文件位置。[14 的 P0–P6](docs/agent/14-implementation-blueprint.md#research-plugin-delivery)是本轮唯一实施顺序与进度 owner，[10](docs/agent/10-project-workspace.md#optional-research-plugins)定义分工。优先修复已发现的长记录预算、原生会话入口来源隐藏、默认模式串扰和目录收窄检索问题，再验证独立组合、约定位置读写与深层界面。Skills 指导科研判断，不能替代文件写入、上下文预算和会话一致性的程序实现；既有三库和 R1–R6 验收不能直接关闭这些新增要求。 目录、读写、三库来源和会话开关已通过有界真实文件、Loader、浏览器及一次受指导真实模型验证；截图审查发现的布局问题已修正。原生科研设置页已支持保存后重启与三库选择，390px 设置导航挤压正文的问题已在所属布局中修复；真实长科研记录副本的读取、保存与恢复机制也已验证。全仓并发打包及完整 Host 类型检查被内存不足终止，受影响模块构建及完整 Client 类型检查通过；受影响 Host 类型检查和 18 项无 hash 文档检查通过；本地运行版已更新，21 个会话与原科研配置保留，仍需研究者实际使用反馈，见[本轮实施证据](agent/notes/harness-integration.md#research-plugin-delivery)。
 
 **已确定：**模块化用于独立优化、替换和升级核心部分；应用底座现已选定 Harness/Cordis。用户进一步明确要求：各项实现按职责设计相关插件，再通过应用配置组合使用，方便分别维护。新增能力应明确由现有插件扩展还是由新的完整能力插件负责，共享接口和数据各有一个归属，组合层负责接线。具体约定见 [插件实现与组合原则](docs/agent/10-project-workspace.md#plugin-owned-implementation)；这不是要求每个按钮、函数或科学概念各建一个插件。原来的“是否引入 Cordis”不再是待选项。[10](docs/agent/10-project-workspace.md#harness-service-mapping)映射了服务、领域插件和客户端职责；方法规则继续归上游 AITP Skills。Skill 发现、科研蒸馏、主/子文档协同是不同责任，通用 Skill loader 不自动完成后两者。
 
-用户要求结合具体情景细化插件职责。[场景—插件协作设计](docs/agent/10-project-workspace.md#scenario-plugin-map)连接课题主页、文献、知识、代码、Skill 库、蒸馏、协作规则和审阅，共用来源观察、工作记忆、上下文及文档修改服务。课题主页数据和领域视图归科研记录插件，工作台承载视图；知识等插件提供显式链接，由科研记录的有界受影响使用查询统一汇集。Skill 候选 provider 检索并包装相关条件，主模型判断适用性并写入工作项。已有前端插件与模拟适配接口支持这一路线；真实研究服务之间的接口、可替换性和完整场景行为仍需实现验证。唯一责任分配表归 [14](docs/agent/14-implementation-blueprint.md#development-crosswalk)，适用性缺口见 [Q16](#q16)。
+用户要求结合具体情景细化插件职责。[场景—插件协作设计](docs/agent/10-project-workspace.md#scenario-plugin-map)连接课题主页、文献、知识、代码、Skill 库、蒸馏、协作规则和审阅，共用来源观察、工作记忆、上下文及文档修改服务。课题主页数据和领域视图归科研记录插件，工作台承载视图；知识等插件提供显式链接，由科研记录的有界受影响使用查询统一汇集。Skill 候选 provider 检索并包装相关条件，主模型判断适用性并写入工作项。普通文件、来源、上下文和三库接口已有本轮实现与有界验收；更广的科研使用效果与自动方法选择仍需另行验证。唯一责任分配表归 [14](docs/agent/14-implementation-blueprint.md#development-crosswalk)，适用性缺口见 [Q16](#q16)。
 
 用户已要求 AITP 接入底层，并明确反对固定科研动作约束。[运行时接入设计](docs/agent/10-project-workspace.md#aitp-runtime-integration)改以记忆读取、相关性／重要性选择、上下文交付、压缩恢复和结果反馈为主。工具 guard 时序、文件工具不能覆盖全部写入等源码发现保留在集成证据，只有在具体任务明确要求相应硬限制时才需要据此选实现；它们不是当前记忆方案的前置条件。类型化事件内存提交与实际落盘仍须区分。首个 Markdown 服务已实现有界记忆交付与恢复；工程验收不等于科学适用性验收。
 
-**顺序与宿主协调：**旧 P2a→P2b→P2c→P2d→P3 把产品交付顺序误当成技术依赖，当前由 [14 的唯一步骤定义](docs/agent/14-implementation-blueprint.md#next-implementation-slice)取代，本文不另列“先做”的版本。无界面工作记忆与 Markdown 提案／审阅不等待完整阅读器或原生桌面；具体依赖仍须真实接通。已有 goal、goal-round driver、plan mode、todo、workspace grouping 和压缩摘要的复用／扩展边界已加入 10；配置没有因文档修改而改变。目标轮次会重发目标但也要求使用当前持久状态，因此“覆盖后来限制”仍是待检验假设，不能沿用 Pi 复现作为 Harness 结论。
+**顺序与宿主协调：**旧 P2a→P2b→P2c→P2d→P3 把产品交付顺序误当成技术依赖，当前由 [14 的唯一步骤定义](docs/agent/14-implementation-blueprint.md#research-plugin-delivery)取代，本文不另列“先做”的版本。无界面工作记忆与 Markdown 提案／审阅不等待完整阅读器或原生桌面；具体依赖仍须真实接通。已有 goal、goal-round driver、plan mode、todo、workspace grouping 和压缩摘要的复用／扩展边界已加入 10；配置没有因文档修改而改变。目标轮次会重发目标但也要求使用当前持久状态，因此“覆盖后来限制”仍是待检验假设，不能沿用 Pi 复现作为 Harness 结论。
 
 此前提出的 Codex/Claude Code 副本预演与现在要求的 [aitp-agent 对 Codex + AITP 对照](docs/agent/13-research-journeys.md#comparative-evaluation)都可暴露决定归属、caveat 和前提变化问题，但不能互相替代：前者不证明 Harness 已有恢复／写回机制，后者需匹配材料、方法来源、任务和可观察配置，并保留无法匹配的限制。scratch apply 的协作式单写者策略与恢复已有实现；独立审阅／评估仍待接入，真实研究路径另按明确范围进入。
 
-**迁移后的实现边界：**Harness 提供服务依赖、生命周期、模型工具、子任务和 UI 插槽；首个 Markdown 科研记忆服务已接通，更多领域 provider、独立审阅和规则采用仍缺实现。旧 Pi 的静态 `compose`/`registerRuntime` 和 [MethodIndex](agent/packages/core/src/methods/index.ts)、[MethodUseService](agent/packages/runtime/src/methods/index.ts)占位只解释旧基线，不是新宿主能力清单。具体接口须声明数据 owner、依赖、兼容/升级方式、未就绪行为和旧任务处理；插件消失不能放开原本受限的动作。共享进程插件不等于安全隔离。
+**迁移后的实现边界：**Harness 提供服务依赖、生命周期、模型工具、子任务和 UI 插槽；Markdown 科研记忆及文献、知识、代码 provider 已接通；更多领域 provider、自动独立审阅和规则采用仍有未实现范围。旧 Pi 的静态 `compose`/`registerRuntime` 和 [MethodIndex](agent/packages/core/src/methods/index.ts)、[MethodUseService](agent/packages/runtime/src/methods/index.ts)占位只解释旧基线，不是新宿主能力清单。具体接口须声明数据 owner、依赖、兼容/升级方式、未就绪行为和旧任务处理；插件消失不能放开原本受限的动作。共享进程插件不等于安全隔离。
 
 **验收方向：**在接通的科研场景中替换上下文 provider，笔记和文献消费者继续工作；恢复任务时原始约定、来源与实际可用材料仍可检查。覆盖缺少可选插件、工具重名、来源与指令混同、运行中服务失效，以及 UI 修改无需迁移科研记录。旧 `agent/streams.json` 不分配新树的文件责任；实施前确定具体 Harness provider/consumer 路径与单一集成人。当前授权的迁移/GPT 工作及后续科研范围只在 14 维护。
 
@@ -358,6 +386,6 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 ## 建议下一轮共同讨论的焦点
 
-实施顺序只看 [14 的下一实施步骤](docs/agent/14-implementation-blueprint.md#next-implementation-slice)，不在本文另选主文档／资料／UI 的先后。Claude 的研究地图已由 Codex 与后台整合；后续客户端、GPT／底层能力与共享接口工作按 14 的实际文件分工推进。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
+实施顺序只看 [14 的下一实施步骤](docs/agent/14-implementation-blueprint.md#research-plugin-delivery)，不在本文另选主文档／资料／UI 的先后。Claude 的研究地图已由 Codex 与后台整合；后续客户端、GPT／底层能力与共享接口工作按 14 的实际文件分工推进。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
 
 R-A、R-B、R-D 与压缩来源混同仍是 Pi 已复现缺陷；新后台已有对应缺失、预算和恢复工程检查，不能据此称旧程序已修复或所有变体已覆盖。Q06 的 scratch 写回策略已限定，Q07 的独立审阅和真实笔记策略仍待实现；Q03/Q11/Q14 需要真实行为证据，Q15 的外部报告需要对应路线的复现与回归。设计文档补齐归属不关闭这些实现和验证缺口，后续状态随证据更新到原 owner。

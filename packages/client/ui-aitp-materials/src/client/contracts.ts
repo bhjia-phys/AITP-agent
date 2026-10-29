@@ -58,6 +58,8 @@ export type MaterialLocation = { readonly kind: 'list'; readonly scrollTop?: num
 
 /** A navigation request from a topic or another material reader. */
 export interface OpenMaterials {
+  /** Explicit catalog location; it does not associate all sources with the topic. */
+  readonly rootId?: SourceRootId
   readonly domain: ResourceDomain
   readonly readerDomain?: ResourceDomain | null
   readonly scope?: MaterialsScope

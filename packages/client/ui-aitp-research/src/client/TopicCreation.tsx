@@ -8,9 +8,10 @@ import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/clie
 import type { CreateTopicReceipt, CreateTopicRequest, ResourceId, Result, Topic, TopicId, WorkspaceRead } from './workspace-contract.ts'
 import type { ResearchPanelProps } from './ResearchPanel.tsx'
 import type { TopicCreationDraft } from './topic-creation-state.ts'
+import { workspaceProjectAddress, workspaceResourceAddress, workspaceTopicAddress } from './workspace-resources.ts'
 import css from './onboarding.module.css'
 
-type CreationProps = Pick<ResearchPanelProps, 'useStore' | 'actions'> & {
+type CreationProps = Pick<ResearchPanelProps, 'useStore' | 'actions' | 'useResource'> & {
   t: TranslateNS<'aitp.research'>
   workspaceId: WorkspaceId
   currentTopicId: TopicId | null
@@ -60,6 +61,7 @@ function TopicForm(props: CreationProps & { create: NonNullable<CreationProps['c
   const [menu, setMenu] = useState(false)
   const [invalid, setInvalid] = useState(false)
   const occupied = useRef(false)
+  const directory = draft.directory ?? ''
   const { title, question, scope, pending, uncertain, failure, parentTopicId } = draft
   const recovery = props.useStore(state => state.topicRecovery)
   const locked = pending || uncertain
@@ -72,7 +74,7 @@ function TopicForm(props: CreationProps & { create: NonNullable<CreationProps['c
     if (occupied.current || pending) return
     if (!title.trim() || !question.trim()) { setInvalid(true); return }
     const request = draft.request ?? { operationId: randomUUID(), title: title.trim(), question: question.trim(),
-      ...(scope.trim() ? { scope: scope.trim() } : {}), ...(parentTopicId === undefined ? {} : { parentTopicId }),
+      ...(scope.trim() ? { scope: scope.trim() } : {}), ...(directory === '' ? {} : { directory }), ...(parentTopicId === undefined ? {} : { parentTopicId }),
     }
     occupied.current = true
     setInvalid(false)
@@ -99,6 +101,11 @@ function TopicForm(props: CreationProps & { create: NonNullable<CreationProps['c
         aria-haspopup="menu" aria-expanded={menu} onClick={() => { setMenu(!menu) }}>
         <span id={`${id}-choice`}>{parentLabel}</span><IconChevronDownOutlineRegular size={14} />
       </Button>} />
+    <TopicCreationLocation {...props} parentTopicId={parentTopicId} />
+    <label htmlFor={`${id}-directory`}>{t('topic.create.directory')}</label>
+    <Input id={`${id}-directory`} value={directory} disabled={locked} aria-describedby={`${id}-directory-help`}
+      onChange={(event) => { actions.changeTopic(workspaceId, 'directory', event.currentTarget.value) }} />
+    <p id={`${id}-directory-help`} className={css.hint}>{t('topic.create.directoryHelp')}</p>
     {(invalid || failureCopy !== undefined) && <div className={css.error} role="alert">
       <p>{invalid ? t('topic.create.required') : failureCopy}</p>
       {failure !== null && uncertain && <details><summary>{t('topic.create.details')}</summary>
@@ -116,4 +123,21 @@ function TopicForm(props: CreationProps & { create: NonNullable<CreationProps['c
       <Button variant="ghost" onClick={() => { actions.closeTopic(workspaceId) }}>{t(locked ? 'workspace.edit.hide' : 'workspace.edit.cancel')}</Button>
     </div>
   </form>
+}
+
+function TopicCreationLocation(props: CreationProps & { parentTopicId: TopicId | undefined }): ReactNode {
+  const parent = props.useResource<'aitp-workspace-project' | 'aitp-workspace-topic'>(props.parentTopicId === undefined
+    ? workspaceProjectAddress(props.workspaceId) : workspaceTopicAddress(props.workspaceId, props.parentTopicId))
+  const account = parent.value?.value.accountResourceId
+  return parent.status !== 'live' || account === undefined ? <p className={css.hint}>{props.t('topic.create.locationUnavailable')}</p>
+    : <TopicCreationFolder {...props} resourceId={account} />
+}
+
+function TopicCreationFolder(props: CreationProps & { resourceId: ResourceId }): ReactNode {
+  const source = props.useResource<'aitp-workspace-resource'>(workspaceResourceAddress(props.workspaceId, props.resourceId))
+  const target = source.value?.value.target
+  if (target?.kind !== 'workspace-path' || source.status !== 'live') return <p className={css.hint}>{props.t('topic.create.locationUnavailable')}</p>
+  const separator = Math.max(target.path.lastIndexOf('/'), target.path.lastIndexOf('\\'))
+  const folder = separator < 0 ? '.' : target.path.slice(0, separator) || '/'
+  return <p className={css.hint}>{props.t('topic.create.parentFolder')}: <code>{folder}</code></p>
 }

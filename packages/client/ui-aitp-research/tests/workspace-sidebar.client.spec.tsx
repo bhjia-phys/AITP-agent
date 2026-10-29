@@ -21,7 +21,7 @@ const GRANDCHILD = 'grandchild' as TopicId
 const provider: ResearchProvider = {
   id: 'sidebar-fixture', origin: 'fixture',
   capabilities: {
-    read: true, readContext: false, readActivity: false, previewChanges: false,
+    automaticResearch: true, read: true, readContext: false, readActivity: false, previewChanges: false,
     applyChanges: false, changeEvents: true, commands: [],
   },
 }

@@ -14,6 +14,7 @@ import type { CreateTopicReceipt, CreateTopicRequest, ResearchInitializeRequest,
 afterEach(cleanup)
 const t = makeTranslate(en) as TranslateNS<'aitp.research'>
 const parent = 'parent' as TopicId
+const useResource = () => ({ status: 'none' as const, value: undefined, failure: undefined })
 const WS = 'workspace' as WorkspaceId
 const receipt: CreateTopicReceipt = { operationId: 'test', topicId: 'new' as TopicId, resourceId: 'new-account' as ResourceId }
 const failure = { ok: false as const, error: { code: 'unavailable' as const, message: 'The project is unavailable.', retryable: true } }
@@ -78,7 +79,7 @@ function form(initialParent = false) {
   const store = createResearchPanelStore().create()
   const create = vi.fn<(request: CreateTopicRequest) => Promise<Result<CreateTopicReceipt>>>(async () => failure)
   const created = vi.fn()
-  render(<TopicCreation t={t} workspaceId={WS} useStore={bindSnapshotSelector(store)} actions={store.actions}
+  render(<TopicCreation t={t} workspaceId={WS} useResource={useResource} useStore={bindSnapshotSelector(store)} actions={store.actions}
     currentTopicId={parent} writable create={create} created={created} />)
   fireEvent.click(screen.getByRole('button', { name: initialParent ? 'New subdirection' : 'New topic' }))
   return { create, created, store }
@@ -115,11 +116,13 @@ it('blocks duplicate submissions, retains the failed branch draft and retries wi
   let finish!: (result: Result<CreateTopicReceipt>) => void
   create.mockImplementation(() => new Promise((resolve) => { finish = resolve }))
   fill()
+  fireEvent.change(screen.getByRole('textbox', { name: 'Folder name (optional)' }), { target: { value: '有限 系统' } })
   const title = screen.getByRole<HTMLInputElement>('textbox', { name: 'Title' })
   fireEvent.click(screen.getByRole('button', { name: 'Create topic' }))
   fireEvent.submit(title.form!)
   expect(create).toHaveBeenCalledOnce()
   expect(title.disabled).toBe(true)
+  expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Folder name (optional)' }).disabled).toBe(true)
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Creating topic…' }).disabled).toBe(true)
   await act(async () => { finish(failure) })
   expect(title.value).toBe('A controlled limit')
@@ -128,6 +131,7 @@ it('blocks duplicate submissions, retains the failed branch draft and retries wi
   fireEvent.click(screen.getByRole('button', { name: 'Create topic' }))
   expect(create.mock.calls[1]?.[0]).toEqual(create.mock.calls[0]?.[0])
   expect(create.mock.calls[0]?.[0].parentTopicId).toBe(parent)
+  expect(create.mock.calls[0]?.[0].directory).toBe('有限 系统')
   await act(async () => { finish({ ok: true, value: receipt }) })
   expect(created).toHaveBeenCalledExactlyOnceWith(receipt)
   expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
@@ -157,7 +161,7 @@ it('cancels an unsubmitted form and reports unavailable creation honestly', () =
   expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull()
   cleanup()
   const store = createResearchPanelStore().create()
-  render(<TopicCreation t={t} workspaceId={WS} useStore={bindSnapshotSelector(store)} actions={store.actions}
+  render(<TopicCreation t={t} workspaceId={WS} useResource={useResource} useStore={bindSnapshotSelector(store)} actions={store.actions}
     currentTopicId={null} writable create={undefined} created={vi.fn()} />)
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'New topic' }).disabled).toBe(true)
   expect(screen.getByText('Topic creation is unavailable from this connection.')).toBeDefined()

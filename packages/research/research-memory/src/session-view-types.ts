@@ -134,6 +134,17 @@ export interface SessionMemoryCoverage {
 
 /** The research memory of one Session. */
 export interface SessionMemoryView {
+  /** Actual recorded location; no extra file grant or inferred reassignment. */
+  readonly researchLocation?: {
+    readonly workspaceId?: string
+    readonly topicId?: string
+    readonly global: boolean
+    readonly workflow: boolean
+    /** Actual deployment capability; the recorded Session choice remains separate. */
+    readonly automaticResearch: boolean
+    readonly initializing: boolean
+    readonly title?: string
+  }
   /** Origin of this observed value. */
   readonly origin: MemoryDataOrigin
   /** The Session this memory belongs to. */

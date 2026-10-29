@@ -52,6 +52,8 @@ it('requires explicit access, then creates linked parent and child accounts with
   const original = await readFile(join(f.root, 'research.md'), 'utf8')
   const input = request('parent-create')
   const parent = unwrap(await service.createTopic({ workspaceId, ...input }))
+  const createdSource = await readFile(join(f.root, pathForResourceId(parent.resourceId)), 'utf8')
+  expect(createdSource).toContain('Group explicit links under Literature, Knowledge and Code only where relevant')
   expect(unwrap(await service.getTopic({ workspaceId, topicId: parent.topicId }, signal())).value)
     .toMatchObject({ title: input.title, parentId: null, currentAnswer: null })
   const child = unwrap(await service.createTopic({ workspaceId, ...request('child-create'), title: 'Boundary control', parentTopicId: parent.topicId }))
@@ -304,4 +306,78 @@ it.skipIf(process.platform === 'win32')('reports partial creation when the paren
   expect(await readFile(outside, 'utf8')).toBe('# Outside\nUntouched account.\n')
   expect((await readdir(f.root)).filter(path => path.startsWith('topic-'))).toHaveLength(1)
   expect(await service.createTopic({ workspaceId, ...input })).toEqual(result)
+})
+
+it('creates only the confirmed root account and links external collections without copying or inventing results', async () => {
+  const f = await fixture()
+  const { service } = await f.boot()
+  const account = { title: '边界问题', question: '有限系统控制能说明什么？', scope: '只讨论 N=6。', libraries: [
+    { title: '共享文献', path: '/outside/论文 原文', domain: 'literature' as const },
+    { title: '阅读解释', path: '/outside/knowledge', domain: 'knowledge' as const },
+  ] }
+  unwrap(await service.initialize({ workspaceId, writable: false }))
+  unwrap(await service.initialize({ workspaceId, writable: true, account }))
+  expect(await readdir(f.root)).toEqual(['research.md'])
+  const saved = await readFile(join(f.root, 'research.md'), 'utf8')
+  expect(saved).toContain('# 边界问题')
+  expect(saved).toContain('有限系统控制能说明什么？')
+  expect(saved).toContain('研究结论尚未记录')
+  expect(saved).toContain('[共享文献](</outside/%E8%AE%BA%E6%96%87%20%E5%8E%9F%E6%96%87>)')
+  expect(saved).not.toContain('## 代码库')
+  unwrap(await service.initialize({ workspaceId, writable: true, account }))
+  expect(await readFile(join(f.root, 'research.md'), 'utf8')).toBe(saved)
+})
+
+it('refuses a conflicting initialization account without replacing existing bytes or upgrading read-only enrollment', async () => {
+  const f = await fixture()
+  const { service } = await f.boot()
+  const original = '# 已有记录\n\n不能丢失的条件。\n'
+  await writeFile(join(f.root, 'research.md'), original)
+  unwrap(await service.initialize({ workspaceId, writable: false }))
+  expect(await service.initialize({ workspaceId, writable: true, account: { title: 'Other', question: 'New?' } }))
+    .toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+  expect(await readFile(join(f.root, 'research.md'), 'utf8')).toBe(original)
+  expect(unwrap(await service.getSetup({ workspaceId })).writable).toBe(false)
+})
+
+it('creates four named topic levels and keeps each authored parent link at its actual depth', async () => {
+  const f = await fixture()
+  const { service } = await f.boot()
+  unwrap(await service.initialize({ workspaceId, writable: true }))
+  let parentTopicId: CreateTopicRequest['parentTopicId']
+  let currentPath = ''
+  for (const [index, directory] of ['symmetry', 'boundary', 'finite N', '子方向'].entries()) {
+    const input = { ...request(`named-${index}`), directory, ...(parentTopicId === undefined ? {} : { parentTopicId }) }
+    const parentPath = currentPath ? `${currentPath}/research.md` : 'research.md'
+    const before = await readFile(join(f.root, parentPath), 'utf8')
+    const receipt = unwrap(await service.createTopic({ workspaceId, ...input }))
+    currentPath = currentPath ? `${currentPath}/${directory}` : directory
+    expect(pathForResourceId(receipt.resourceId)).toBe(`${currentPath}/research.md`)
+    expect(await readFile(join(f.root, parentPath), 'utf8')).toContain(before.trim())
+    expect(await readFile(join(f.root, parentPath), 'utf8')).toContain(`${encodeURIComponent(directory)}/research.md`)
+    expect(unwrap(await service.getTopic({ workspaceId, topicId: receipt.topicId }, signal())).value.parentId).toBe(parentTopicId ?? null)
+    expect(unwrap(await service.createTopic({ workspaceId, ...input }))).toEqual(receipt)
+    parentTopicId = receipt.topicId
+  }
+})
+
+it('rejects an existing named directory without touching its contents or creating a different folder', async () => {
+  const f = await fixture()
+  const { service } = await f.boot()
+  unwrap(await service.initialize({ workspaceId, writable: true }))
+  await mkdir(join(f.root, 'existing'))
+  await writeFile(join(f.root, 'existing', 'note.md'), 'Keep this older material.\n')
+  const original = await readFile(join(f.root, 'research.md'), 'utf8')
+  expect(await service.createTopic({ workspaceId, ...request('collision'), directory: 'existing' })).toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+  expect(await readdir(join(f.root, 'existing'))).toEqual(['note.md'])
+  expect(await readFile(join(f.root, 'research.md'), 'utf8')).toBe(original)
+  expect((await readdir(f.root)).sort()).toEqual(['existing', 'research.md'])
+})
+
+it.each(['../escape', 'nested/branch', 'x\\branch', '.', '..', '.git', 'CON', 'trailing.'])('rejects an unsafe explicit topic folder %s', async (directory) => {
+  const f = await fixture()
+  const { service } = await f.boot()
+  unwrap(await service.initialize({ workspaceId, writable: true }))
+  expect(await service.createTopic({ workspaceId, ...request('unsafe'), directory })).toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+  expect(await readdir(f.root)).toEqual(['research.md'])
 })

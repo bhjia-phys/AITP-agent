@@ -1,5 +1,6 @@
 /** Copy for the research tree in the host's contextual sidebar. */
 export const sidebarEn = {
+  'chooseProject': 'Choose project or workspace',
   'navigation': 'Research navigation',
   'topics': 'Topics',
   'topicsAndDiscussions': 'Topics and conversations',
@@ -31,6 +32,7 @@ export type WorkspaceSidebarKey = keyof typeof sidebarEn
 
 /** Chinese counterpart of the contextual sidebar copy. */
 export const sidebarZh: Record<WorkspaceSidebarKey, string> = {
+  'chooseProject': '选择项目或工作区',
   'navigation': '科研导航',
   'topics': '课题',
   'topicsAndDiscussions': '课题与会话',

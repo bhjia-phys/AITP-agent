@@ -21,7 +21,7 @@ import { workspaceEditKey } from './workspace-edit-state.ts'
 import css from './workspace.module.css'
 import { selectionSource } from './workspace-selection.ts'
 import topicCss from './topic.module.css'
-import { absentTopicQualification, absentTopicScope, topicExcerpt, topicSectionLabels } from './topic-presentation.ts'
+import { absentTopicQualification, absentTopicScope, omitAnchorMarkers, topicExcerpt, topicSectionLabels } from './topic-presentation.ts'
 
 /** Sections of a topic page, in reading order. */
 export type TopicSection = 'branches' | 'materials' | 'statements' | 'work' | 'activity'
@@ -35,6 +35,8 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
   const [moreOpen, setMoreOpen] = useState(false)
   const readingDetailsKey = disclosureKey(props.workspaceId, 'section', props.topicId, 'reading-details')
   const readingDetailsOpen = props.useStore(state => state.disclosure[readingDetailsKey] ?? false)
+  const materialListKey = disclosureKey(props.workspaceId, 'section', props.topicId, 'all-materials')
+  const allMaterials = props.useStore(state => state.disclosure[materialListKey] ?? false)
   const result = props.useResource<'aitp-workspace-topic'>(workspaceTopicAddress(props.workspaceId, props.topicId))
   const editKey = workspaceEditKey(props.workspaceId, props.topicId)
   const edit = props.useStore(state => state.pendingEdits[editKey])
@@ -47,6 +49,7 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
   const read = result.value
   const topic = read.value
   const { accountResourceId } = topic
+  const account = topic.resources.find(resource => resource.id === accountResourceId)
   const { t } = props
   const canEdit = read.provider.capabilities.previewChanges && read.provider.capabilities.applyChanges && result.status !== 'failed'
   const unresolved = edit !== undefined && (edit.pending !== null || edit.uncertain)
@@ -87,7 +90,10 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
             {relation !== undefined && <span className={css.relation}>{t(`map.relation.${relation}`)}</span>}
           </p>}
           <h2 className={topicCss.title} tabIndex={-1} data-arrival="">{topic.title}</h2>
-          <div className={topicCss.question}><MarkdownText text={question} labels={markdownLabels(t)} /></div>
+          {account?.target.kind === 'workspace-path' && <p className={topicCss.accountLocation}>
+            <span>{t('topic.accountLocation')}: </span><PathLabel path={account.target.path} />
+          </p>}
+          <div className={topicCss.question}><MarkdownText text={omitAnchorMarkers(question)} labels={markdownLabels(t)} /></div>
         </div>
         <div className={topicCss.actions}>
           {props.focusQuestion !== undefined && <Button variant="primary" size="sm"
@@ -133,7 +139,8 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
           <ContributionNote {...props} parentId={topic.parentId} contribution={topic.parentContribution} />
         </aside>
       </div>
-      {topic.childIds.length > 0 && section('branches', true, topic.childIds.length, () => <TopicBranches {...props} topic={topic} />)}
+      {section('branches', true, topic.childIds.length, () => topic.childIds.length === 0
+        ? <p className={css.note}>{t('map.noBranches')}</p> : <TopicBranches {...props} topic={topic} />)}
       {section('materials', true, materials.length, () => (
         <>
           <div className={topicCss.libraries}>{props.renderFactorySlot('aitp.research.topic-libraries', {
@@ -144,7 +151,7 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
             }),
           })}</div>
           {materials.length === 0 ? <p className={topicCss.empty}>{t('workspace.noMaterials')}</p>
-            : <ul className={topicCss.materials}>{materials.map(resource => <li key={resource.id}>
+            : <>{materials.length > 5 && <p className={topicCss.empty}>{t('topic.materialAvailability')}</p>}<ul className={topicCss.materials}>{(allMaterials ? materials : materials.slice(0, 5)).map(resource => <li key={resource.id}>
               <button type="button" className={topicCss.material} onClick={() => { if (props.openMaterialReference === undefined) props.navigate({ kind: 'resource', topicId: topic.id, resourceId: resource.id }); else props.openMaterialReference(resource, topic.id) }}>
                 <span className={topicCss.fileIcon}><FileTypeIcon path={materialLocator(resource)} size={20} /></span>
                 <span className={topicCss.materialBody}><strong>{resource.title}</strong>
@@ -152,7 +159,8 @@ export function WorkspaceTopic(props: WorkspaceViewProps & { topicId: TopicId })
                 <span className={topicCss.kind}>{t(`workspace.material.${resource.kind}`)}</span>
                 <IconChevronRightOutlineRegular size={14} />
               </button>
-            </li>)}</ul>}
+            </li>)}</ul>{materials.length > 5 && <Button variant="ghost" size="sm" onClick={() => { props.actions.setDisclosed(materialListKey, !allMaterials) }}>
+              {t(allMaterials ? 'topic.fewerMaterials' : 'topic.moreMaterials', { count: materials.length })}</Button>}</>}
         </>
       ))}
       {section('statements', false, topic.statements.length, () => <TopicStatements {...props} topic={topic} />)}

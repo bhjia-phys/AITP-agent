@@ -69,12 +69,37 @@ it('mounts the actual endpoint, follows real resource reads and withdraws only t
   } finally { release() }
 }, 60_000)
 
+it('keeps a cross-library source readable after its domain presentation is unloaded', async ({ mock, start }) => {
+  const client = await start()
+  const scope = { workspaceId: 'project' as WorkspaceId, title: 'Original question' }
+  const ref = { rootId: 'shared' as SourceRootId, sourceId: 'source:paper.md' as SourceId }
+  const reading: ResourceReading = {
+    resource: { id: 'paper' as ResourceEntryId, ref, title: 'Shared source', kind: 'literature', domain: 'literature',
+      providerId: 'literature', metadata: {}, links: [], topics: [] },
+    body: { kind: 'text', format: 'markdown', text: 'Only the finite control is established.' }, observedAt: 'now', issues: [],
+  }
+  mock.unary('researchResources/readResource', ok({ ok: true, value: reading }))
+  mock.load({ stream: { 'researchResources/follow': openStream([]) } })
+  await client.unload(packages[0]!)
+  await client.flush()
+  expect(client.ctx.researchMaterials.open({ domain: 'literature', scope })).toBe(false)
+  expect(client.ctx.researchMaterials.open({ domain: 'knowledge', scope })).toBe(true)
+  expect(await client.ctx.researchMaterials.openSource({ ref, scope })).toBe(true)
+  expect(client.ctx.layout.panelInfo.getSnapshot().activePanelId).toBe('aitp-knowledge')
+  const source = client.ctx.resources.source(materialSourceAddress(ref))
+  const release = source.subscribe(() => {})
+  try {
+    await vi.waitFor(() => { expect(source.getSnapshot()).toMatchObject({ status: 'live', value: reading }) })
+  } finally { release() }
+})
+
 it('admits selected sources through the existing Session transport and releases the optional discussion bridge on unload', async ({ mock, start }) => {
   const client = await start()
   mock.load({ stream: { 'researchResources/follow': openStream([]) } })
   const submissions = new Set<Parameters<ResearchDiscussions['registerStudySubmission']>[0]>()
   const readers = new Set<Parameters<ResearchDiscussions['registerResourceNavigation']>[0]>()
   const service: ResearchDiscussions = {
+    workflowEnabled: () => true,
     open: vi.fn(async () => {}), select: vi.fn(async () => {}), newDiscussion: vi.fn(async () => {}),
     showSession: vi.fn(async () => {}), setSource: vi.fn(), collapse: vi.fn(), suspend: vi.fn(() => () => {}),
     registerStudySubmission: (submit) => { submissions.add(submit); return () => { submissions.delete(submit) } },
@@ -188,3 +213,14 @@ it('maps a research reference only through its authorized workspace root and ope
   expect(await client.ctx.researchMaterialNavigation.open(scope, material)).toBe(false)
   expect(open).toHaveBeenCalledTimes(1)
 }, 60_000)
+
+it('opens an admitted collection in its own library instead of sending a directory to the file reader', async ({ mock, start }) => {
+  const client = await start()
+  const rootId = 'chosen-collection' as SourceRootId
+  mock.unary('researchResources/listRoots', ok({ ok: true, value: [{ id: rootId, title: 'Shared papers', displayPath: '/admitted/papers', domains: ['literature'] }] }))
+  mock.load({ stream: { 'researchResources/follow': openStream([]) } })
+  expect(await client.ctx.researchMaterials.openSource({ ref: { rootId, sourceId: 'collection:root' as SourceId } })).toBe(true)
+  await client.flush()
+  expect(mock.log.requests('researchResources/readResource')).toEqual([])
+  expect(client.ctx.layout.panelInfo.getSnapshot().activePanelId).toBe('aitp-literature')
+})

@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createElement, type ComponentProps } from 'react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { RemoteError } from '@deepseek-ai/dsh-typert-protocol'
-import { SlotTestRuntime, makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { SlotTestRuntime, makeTranslate, bindSnapshotSelector } from '@deepseek-ai/dsh-client-test-runtime'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { SessionSeq, type SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SessionFace } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
@@ -13,17 +17,19 @@ import { InputHub } from '../../ui-conversation/src/client/input/hub.ts'
 import { ComposerBlockRegistry } from '../../ui-conversation/src/client/input/blocks.ts'
 import { ChatNavigationRegistry } from '../../ui-chat/src/client/resource-navigation.ts'
 import { ResearchDiscussionController, discussionView } from '../src/client/discussion-controller.ts'
+import { NativeDiscussionContext } from '../src/client/NativeDiscussionContext.tsx'
+import { createWorkflowStore } from '../src/client/workflow-store.ts'
 import { ResearchWorkspaceRegistry } from '../src/client/workspace-service.ts'
 import type { ResearchDiscussionScope } from '../src/client/discussion-contract.ts'
 
-const scope: ResearchDiscussionScope = { workspaceId: brandString<WorkspaceId>('workspace'), topicId: 'topic', title: 'Topic' }
+const scope = { workspaceId: brandString<WorkspaceId>('workspace'), topicId: 'topic', title: 'Topic' } satisfies ResearchDiscussionScope
 const runtimes: SlotTestRuntime[] = []
 let fixtureId = 0
 type SourceRef = NonNullable<ResearchOrigin['selections']>[number]['ref']
-afterEach(async () => { for (const runtime of runtimes.splice(0)) await runtime.dispose() })
+afterEach(async () => { cleanup(); for (const runtime of runtimes.splice(0)) await runtime.dispose() })
 
 /** Keep real Session generations, native draft machines and service registration in the test. */
-async function setup() {
+async function setup(workflowEnabled?: (sessionId?: SessionId) => boolean) {
   let next = 0
   const prefix = `research-discussion-${++fixtureId}`
   const runtime = await SlotTestRuntime.create()
@@ -52,7 +58,13 @@ async function setup() {
   }
   const registry = new Workspaces(runtime.ctx)
   const fallback = vi.fn(() => false)
-  const controller = new ResearchDiscussionController(runtime.ctx, registry, fallback, makeTranslate())
+  const openSession = vi.fn()
+  const selectPanel = vi.fn()
+  runtime.ctx.provide('uiWorkspace', { openSession })
+  runtime.ctx.provide('layout', {
+    panelInfo: createSnapshotStore({ activePanelId: 'aitp-research' as MainPanelId }), selectPanel,
+  })
+  const controller = new ResearchDiscussionController(runtime.ctx, registry, fallback, makeTranslate(), workflowEnabled)
   const capture = (id: SessionId) => {
     const send = conversation.submissions.capture(id)
     if (send === undefined) throw new Error('Expected a registered research admission route')
@@ -64,13 +76,101 @@ async function setup() {
     return input.shellFor(binding)
   }
   return { controller, create, list: registry.listDiscussions, ask: registry.ask, retry: registry.retry,
-    fallback, capture, navigation, draft, runtime, conversation, rename }
+    fallback, capture, navigation, draft, runtime, conversation, rename, openSession, selectPanel }
 }
 function request(id: SessionId): SessionPromptRequest {
   return { sessionId: id, requestId: brandString<SessionRequestId>('request'), content: [{ type: 'text', text: 'Question' }], mode: 'steer' }
 }
 
 describe('reading-side discussions', () => {
+  it('keeps an opened reading draft’s initial Research choice before its first message', async () => {
+    localStorage.removeItem('aitp.research.workflow.v1')
+    const choices = createWorkflowStore().create()
+    const fixture = await setup((sessionId) => {
+      if (sessionId === undefined) return choices.getSnapshot().enabledByDefault
+      choices.actions.capture(sessionId)
+      return choices.getSnapshot().drafts[sessionId]!
+    })
+    try {
+      await fixture.controller.open(scope)
+      const first = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+      choices.actions.choose(brandString<SessionId>('another-new-draft'), false)
+      await fixture.capture(first)(request(first))
+      expect(fixture.ask).toHaveBeenLastCalledWith(expect.objectContaining({ sessionId: first, workflow: true }), {})
+      await fixture.controller.newDiscussion(scope)
+      const second = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+      await fixture.capture(second)(request(second))
+      expect(fixture.ask.mock.calls.at(-1)?.[0].workflow).toBe(false)
+    } finally {
+      await fixture.controller.dispose()
+      localStorage.removeItem('aitp.research.workflow.v1')
+    }
+  })
+
+  it('keeps global reading independent across native presentations and immutable per-message source selection', async () => {
+    const fixture = await setup()
+    const global = {}
+    const first = { ref: { rootId: brandString<SourceRef['rootId']>('papers'), sourceId: brandString<SourceRef['sourceId']>('paper-a') },
+      locator: { kind: 'pdf-page' as const, page: 4 } }
+    const second = { ref: { rootId: brandString<SourceRef['rootId']>('knowledge'), sourceId: brandString<SourceRef['sourceId']>('note-b') } }
+    await fixture.controller.open(global, { workspaceId: 'unrelated', topicId: 'unrelated', selections: [first] }, 'A global physics question')
+    const view = discussionView(fixture.controller.views.getSnapshot(), global)
+    const id = view.reference!.sessionId
+    const study = vi.fn(async () => ({ ok: true as const, value: { sessionId: id } }))
+    fixture.controller.registerStudySubmission(study)
+    const admitted = fixture.capture(id)
+    fixture.controller.setSource(global, { selections: [second] })
+    fixture.controller.openFullDiscussion(global)
+    expect(fixture.openSession).toHaveBeenCalledWith(id)
+    expect(fixture.draft(id).snapshot.draft).toBe('A global physics question')
+    expect(await admitted(request(id))).toEqual({ ok: true, value: { accepted: true } })
+    expect(study).toHaveBeenLastCalledWith({ scope: 'global', workflow: 'ordinary', selections: [first] }, request(id), undefined)
+    await fixture.capture(id)(request(id))
+    expect(study).toHaveBeenLastCalledWith({ scope: 'global', workflow: 'ordinary', selections: [second] }, request(id), undefined)
+    fixture.controller.setSource(global, {})
+    await fixture.capture(id)(request(id))
+    expect(study).toHaveBeenLastCalledWith({ scope: 'global', workflow: 'ordinary' }, request(id), undefined)
+    fixture.controller.returnToReading(global)
+    expect(fixture.create).toHaveBeenCalledExactlyOnceWith({})
+    expect(fixture.list).not.toHaveBeenCalled()
+    expect(fixture.ask).not.toHaveBeenCalled()
+    expect(fixture.retry).not.toHaveBeenCalled()
+    await fixture.controller.dispose()
+  })
+
+  it('moves the same scoped Session and draft into native conversation and returns without creating another Session', async () => {
+    const fixture = await setup()
+    fixture.controller.openFullDiscussion(scope)
+    expect(fixture.openSession).not.toHaveBeenCalled()
+    await fixture.controller.open(scope, { resourceId: 'paper.md' }, 'Unsent research question')
+    const id = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+    const before = fixture.capture(id)
+    fixture.controller.openFullDiscussion(scope)
+    expect(fixture.openSession).toHaveBeenCalledWith(id)
+    expect(discussionView(fixture.controller.views.getSnapshot(), scope).native).toBe(true)
+    expect(fixture.draft(id).snapshot.draft).toBe('Unsent research question')
+    fixture.controller.setSource(scope, { resourceId: 'other.md' })
+    await before(request(id))
+    expect(fixture.ask).toHaveBeenCalledWith(expect.objectContaining({ sessionId: id, topicId: 'topic', resourceId: 'paper.md' }), {})
+    fixture.controller.returnToReading(scope)
+    expect(fixture.selectPanel).toHaveBeenCalledWith('aitp-research')
+    expect(discussionView(fixture.controller.views.getSnapshot(), scope).native).toBe(false)
+    expect(fixture.create).toHaveBeenCalledOnce()
+    expect(fixture.draft(id).snapshot.draft).toBe('Unsent research question')
+    await fixture.controller.dispose()
+  })
+
+  it('uses the captured source owner to restore the reading location after other navigation', async () => {
+    const fixture = await setup()
+    await fixture.controller.open(scope)
+    const restore = vi.fn()
+    fixture.controller.openFullDiscussion(scope, restore)
+    fixture.controller.returnToReading(scope)
+    expect(restore).toHaveBeenCalledOnce()
+    expect(fixture.selectPanel).not.toHaveBeenCalled()
+    await fixture.controller.dispose()
+  })
+
   it('temporarily shows a catalogue and restores the prior discussion without creating or sending a Session', async () => {
     const fixture = await setup()
     const restoreEmpty = fixture.controller.suspend(scope)
@@ -348,6 +448,63 @@ describe('reading-side discussions', () => {
     expect(discussionView(fixture.controller.views.getSnapshot(), scope).reference).toBe(first)
   })
 
+  it('shows and clears the actual native Session source while another discussion is selected in the same scope', async () => {
+    const fixture = await setup()
+    await fixture.controller.open(scope, { resourceId: 'first.md' }, 'First draft')
+    const first = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+    await fixture.controller.newDiscussion(scope)
+    await fixture.controller.open(scope, { resourceId: 'second.md' }, 'Second draft')
+    const second = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+    const beforeClear = fixture.capture(first)
+    render(createElement(NativeDiscussionContext, {
+      sessionId: first, t: makeTranslate(),
+      useDiscussionViews: bindSnapshotSelector(fixture.controller.views),
+      useDiscussionSessions: bindSnapshotSelector(fixture.controller.sessionViews),
+      clearSessionSource: (id) => { fixture.controller.clearSessionSource(id) },
+      returnSessionToReading: id => fixture.controller.returnSessionToReading(id),
+    } as ComponentProps<typeof NativeDiscussionContext>))
+    expect(screen.getByText('first.md')).toBeTruthy()
+    expect(screen.queryByText('second.md')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'backToReading' })).toBeNull()
+    fireEvent.click(screen.getByText('sources'))
+    fireEvent.click(screen.getByRole('button', { name: 'clear' }))
+    expect(screen.queryByText('first.md')).toBeNull()
+    expect(discussionView(fixture.controller.views.getSnapshot(), scope)).toMatchObject({
+      reference: { sessionId: second }, origin: { resourceId: 'second.md' },
+    })
+    expect(fixture.controller.sessionViews.getSnapshot()[second]?.origin.resourceId).toBe('second.md')
+    await beforeClear(request(first))
+    expect(fixture.ask).toHaveBeenLastCalledWith(expect.objectContaining({ sessionId: first, resourceId: 'first.md' }), {})
+    await fixture.capture(first)(request(first))
+    expect(fixture.ask.mock.lastCall?.[0].resourceId).toBeUndefined()
+    expect(fixture.draft(first).snapshot.draft).toBe('First draft')
+    expect(fixture.draft(second).snapshot.draft).toBe('Second draft')
+    await act(async () => { await fixture.controller.dispose() })
+    expect(fixture.controller.sessionViews.getSnapshot()).toEqual({})
+    expect(screen.queryByText('sources')).toBeNull()
+  })
+
+  it('returns the addressed native Session to its own captured reader after another discussion becomes selected', async () => {
+    const fixture = await setup()
+    await fixture.controller.open(scope, { resourceId: 'first.md' })
+    const first = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+    const restoreFirst = vi.fn()
+    fixture.controller.openFullDiscussion(scope, restoreFirst)
+    await fixture.controller.newDiscussion(scope)
+    fixture.controller.setSource(scope, { resourceId: 'second.md' })
+    const second = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+    const restoreSecond = vi.fn()
+    fixture.controller.openFullDiscussion(scope, restoreSecond)
+    await fixture.controller.returnSessionToReading(first)
+    expect(restoreFirst).toHaveBeenCalledOnce()
+    expect(restoreSecond).not.toHaveBeenCalled()
+    expect(discussionView(fixture.controller.views.getSnapshot(), scope)).toMatchObject({
+      reference: { sessionId: first }, origin: { resourceId: 'first.md' }, native: false,
+    })
+    expect(fixture.controller.sessionViews.getSnapshot()[second]?.origin.resourceId).toBe('second.md')
+    expect(fixture.create).toHaveBeenCalledTimes(2)
+  })
+
   it('keeps the selected-source transport and full native content fixed for the submitted question', async () => {
     const fixture = await setup()
     await fixture.controller.newDiscussion(scope)
@@ -361,7 +518,7 @@ describe('reading-side discussions', () => {
     const signal = new AbortController().signal
     const submitted = request(id)
     expect(await send(submitted, signal)).toEqual({ ok: true, value: { accepted: true } })
-    expect(study).toHaveBeenCalledWith({ workspaceId: scope.workspaceId, topicId: scope.topicId,
+    expect(study).toHaveBeenCalledWith({ workspaceId: scope.workspaceId, topicId: scope.topicId, workflow: 'ordinary',
       selections: [{ ref: { rootId: 'root', sourceId: 'paper' }, locator: { kind: 'pdf-page', page: 8 }, selectedText: 'An explicit assumption' }] }, submitted, signal)
     expect(fixture.ask).not.toHaveBeenCalled()
   })
@@ -380,7 +537,7 @@ describe('reading-side discussions', () => {
     const submitted = request(id)
     const signal = new AbortController().signal
     expect(await fixture.capture(id)(submitted, signal)).toEqual({ ok: true, value: { accepted: true } })
-    expect(study).toHaveBeenCalledExactlyOnceWith({ ...scope, selections: [second] }, submitted, signal)
+    expect(study).toHaveBeenCalledExactlyOnceWith({ ...scope, workflow: 'ordinary', selections: [second] }, submitted, signal)
     expect(fixture.create).toHaveBeenCalledOnce()
     expect(fixture.ask).not.toHaveBeenCalled()
   })

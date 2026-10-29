@@ -62,6 +62,8 @@ Queue 预览启用空白折叠和文档边缘 trim，保留 emoji，并使用 CS
 <a id="shell-and-standard-props"></a>
 ## Shell 与标准 props
 
+root 层的 `conversation.hero.introduction` slot 允许用产品入口替换空白会话标题。owner 提供当前可选的 Session id，产品可区分带科研范围的空白草稿与普通首页；没有贡献时仍显示原生标题与标志。输入框、工作区选择器和权限控件保留原有归属。
+
 嵌入式界面可以通过 `conversation.submissions.register(sessionId, capture)` 为原生输入框提供带来源的提交入口。捕获在命令处理、引用展开和上传之前同步执行；被冻结的发送器随该次提交经过已有附件、乐观回显、排队或引导及失败恢复流程，必须保留请求的 Session 和请求身份。释放注册后恢复普通提交入口。这是原生输入框的扩展，不另建草稿或会话记录。
 
 共享图片插槽属性将展示选择与持久化引用分开：`thumbnail` 请求完整缩放的附件列表缩略图，`compact` 请求裁剪的图片方块。每张图片可通过可选的 `label` 提供无障碍展示名称；加载和缓存标识仍使用原始附件引用。`MessageImagesContentInput` 为 root 作用域的 `conversation.images.content` Factory 增加可选的完整 `MessageImageLabels`。消息、工具及 Factory 输入显式携带视图提供的授权 `loadImage` 回调；读取和 URL 缓存仍由资源所有者负责。[ui-attachment](../ui-attachment/README.zh.md) 提供该 Factory，负责渲染与灯箱。

@@ -56,7 +56,7 @@ it('reads a healthy canonical match and applies its scratch preview despite an u
   expect(await service.getProject({ workspaceId }, signal())).toMatchObject({ ok: true })
   expect(await service.getTopic({ workspaceId, topicId }, signal())).toMatchObject({ ok: true })
   expect(await service.provider({ workspaceId }, signal())).toMatchObject({ capabilities: {
-    read: true, readContext: true, previewChanges: true, applyChanges: true, commands: ['update-scope', 'record-answer'],
+    automaticResearch: true, read: true, readContext: true, previewChanges: true, applyChanges: true, commands: ['update-scope', 'record-answer'],
   } })
   const prepared = value(await preview())
   expect(await readFile(source, 'utf8')).toContain('Finite N only.')

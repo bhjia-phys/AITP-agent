@@ -72,6 +72,8 @@ Before mounting profile rows, the `dsh` launcher computes one immutable runtime 
 
 Before you boot, you can print the exact configuration the app will mount: the dump shows the composed entry list with `!!js` expressions verbatim, grouped under comments naming each source file and the patch layers that changed it, as one loadable YAML document. Patches that match no row are reported with their layer label; a missing, unparsable, or invalid config fails the dump.
 
+Launchers that need the ordered profile layers without preparing a profile can call `loadProfile(..., { readOnly: true })`. It resolves a missing shipped profile from its template in memory and performs existing manifest normalization in memory, without creating directories, rewriting manifests or removing old link projections. Unknown missing profiles still fail. `loadProfileDirectory(..., { readOnly: true })` provides the same no-write behavior for an existing application-owned profile. These options do not evaluate plugin configuration expressions or activate plugins.
+
 ### Inspecting plugin configuration schemas
 
 `generateConfigSchema` takes a diagnostic bin name, a prepared on-disk profile, ordered patch lists, and an installation anchor, and returns `ConfigSchemaDump`. App-boot owns composition, runtime resolution, and collection diagnostics. The caller owns profile preparation, home/argv layer selection, process streams, and exit policy. `createConfigProjector`, `isNativeConfigSchema`, and `LOADER_EXPRESSION_SCHEMA` are exported for callers that project one live plugin Config without profile collection; projected value positions reference `#/$defs/loaderExpression`, so the enclosing document must define it.

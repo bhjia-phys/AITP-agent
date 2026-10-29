@@ -4,6 +4,7 @@ import clsx from 'clsx'
 import { Button, IconChevronDownOutlineRegular, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore, PropsRenderFactories, TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ResearchOrigin } from '@deepseek-ai/dsh-research-memory/types'
 import type { DiscussionResourceNavigation, ResearchDiscussionScope } from './discussion-contract.ts'
@@ -29,6 +30,8 @@ import page from './workspace.module.css'
 
 /** Narrow application callbacks bound by the panel registration. */
 export interface ResearchPanelFace {
+  /** Native right Sidebar owner of the project reader. */
+  readonly panelId?: MainPanelId
   /** Open the shared native composer with this explicit scientific location and source. */
   beginDiscussion?: (scope: ResearchDiscussionScope, origin?: ResearchOrigin) => void
   /** Stage the current reading for the next message without replacing explicitly selected sources. */
@@ -37,6 +40,8 @@ export interface ResearchPanelFace {
   openMaterial?: (scope: ResearchDiscussionScope, resource: ResourceReference, isCurrent?: () => boolean) => Promise<boolean>
   /** Open a research-owned source in the centre reader. */
   openDiscussionResource?: (scope: ResearchDiscussionScope, address: string, leave?: ResearchReturnPoint) => boolean
+  /** Reveal the shared project tree in the native right Sidebar. */
+  showProjects?: (workspaceId: WorkspaceId) => void
   /** Return from an independent library to this retained research view. */
   showResearch?: () => void
   /** Return to the host's existing Workspace browser and directory-picker flow. */
@@ -75,10 +80,16 @@ export function ResearchPanel(props: ResearchPanelProps): ReactNode {
   return (
     <section className={css.panel} aria-label={props.t('panel')}>
       <header className={css.header}>
-        <h1 className={css.headerTitle}>{props.t('panel')}</h1>
+        <Button variant="ghost" size="sm" onClick={props.showWorkspaces}>{props.t('home.back')}</Button>
+        <h1 className={css.headerTitle}>{props.t('home.projects')}</h1>
         <span className={css.headerSpacer} />
+        {workspace !== undefined && props.showProjects !== undefined && <Button variant="ghost" size="sm" onClick={() => { props.showProjects?.(workspace.workspaceId) }}>{props.t('home.navigate')}</Button>}
         {workspace !== undefined && <WorkspacePicker t={props.t} workspaces={workspaces}
           current={workspace} onSelect={props.actions.selectWorkspace} />}
+        {workspace !== undefined && props.panelId !== undefined && props.showProjects !== undefined
+          && props.renderFactorySlot('sidebar.right.root.expand', { panelId: props.panelId,
+            openInitial: () => { props.showProjects?.(workspace.workspaceId) },
+          })}
       </header>
       {workspace === undefined
         ? <div className={css.center}><div className={css.empty}>
@@ -183,7 +194,8 @@ function WorkspaceContent(props: ResearchPanelProps & {
   const creationDraft = props.useStore(state => state.topicDrafts[props.workspaceId])
   const createTopic = props.createTopic
   const creation = {
-    t: props.t, workspaceId: props.workspaceId, useStore: props.useStore, actions: props.actions, writable: props.setup?.writable,
+    t: props.t, workspaceId: props.workspaceId, useStore: props.useStore, actions: props.actions,
+    useResource: props.useResource, writable: props.setup?.writable,
     create: createTopic === undefined ? undefined : (request: CreateTopicRequest) => createTopic(props.workspaceId, request),
     created: (receipt: CreateTopicReceipt) => {
       if (props.beginDiscussion === undefined) props.questionArrival.current = receipt.topicId
@@ -319,6 +331,13 @@ function WorkspaceContent(props: ResearchPanelProps & {
       </div>
       {props.beginDiscussion !== undefined && props.renderFactorySlot('aitp.research.discussion', {
         scope, openResource, returnTo: libraryNavigation.returnTo,
+        prepareFullConversation: () => {
+          const point = returnPoint(reading.current)
+          return () => {
+            props.actions.restore(props.workspaceId, location, point)
+            props.showResearch?.()
+          }
+        },
       })}
     </div>
   )

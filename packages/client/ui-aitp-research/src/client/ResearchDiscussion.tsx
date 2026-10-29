@@ -4,8 +4,9 @@ import clsx from 'clsx'
 import { Button, IconChevronDownOutlineRegular, IconEditOutlineRegular, IconEllipsisOutlineRegular, IconFullscreenOutlineRegular, IconChevronLeftOutlineRegular, IconNewChatOutlineRegular, Menu, Tooltip, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { FactoryComponentPropsOf, PropsRenderFactories, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ConversationViewsProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { materialSourcePath } from '@deepseek-ai/dsh-research-resources/protocol'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
+import type { DiscussionPage } from './workspace-contract.ts'
 import { discussionScopeKey, discussionView } from './discussion-controller.ts'
 import { workspaceDiscussionsAddress } from './workspace-resources.ts'
 import { DiscussionRename } from './DiscussionRename.tsx'
@@ -23,8 +24,9 @@ export function ResearchDiscussion(props: FactoryComponentPropsOf<'aitp.research
   return <aside className={clsx(css.pane, view.expanded && css.expanded)} aria-label={props.t('title')}
     data-research-discussion="" data-presentation={props.presentation} data-expanded={view.expanded ? 'true' : undefined}>
     <header className={css.header}>
-      <div className={css.heading}><span>{props.t('title')}</span><span className={css.scope} title={props.scope.title ?? view.title}>{props.scope.title ?? view.title ?? props.t(props.scope.topicId === undefined ? 'project' : 'topic')}</span></div>
+      <div className={css.heading}><span>{props.t('title')}</span><span className={css.scope} title={props.scope.title ?? view.title}>{props.scope.title ?? view.title ?? props.t(props.scope.workspaceId === undefined ? 'global' : props.scope.topicId === undefined ? 'project' : 'topic')}</span></div>
       <div className={css.actions}>
+        {view.reference !== undefined && <Button variant="ghost" size="sm" onClick={() => { props.openFullDiscussion(props.scope, props.prepareFullConversation?.()) }}>{props.t('fullConversation')}</Button>}
         {props.presentation !== 'main' && <Tooltip label={props.t(view.expanded ? 'restore' : 'expand')}><Button variant="ghost" size="sm" aria-label={props.t(view.expanded ? 'restore' : 'expand')} aria-pressed={view.expanded}
           onClick={() => { props.expandDiscussion(props.scope) }}><IconFullscreenOutlineRegular /></Button></Tooltip>
         }
@@ -33,41 +35,44 @@ export function ResearchDiscussion(props: FactoryComponentPropsOf<'aitp.research
       </div>
     </header>
     <DiscussionPicker {...props} />
-    {view.origin !== undefined && <details className={css.context}>
-      <summary>{props.t('sources')}<span>{view.origin.selections?.length
-        ? props.t('selected', { count: view.origin.selections.length })
-        : props.t(view.origin.resourceId === undefined ? 'topicOnly' : 'material')}</span></summary>
-      <p>{props.t('topicOnly')}</p>
-      {view.origin.selections !== undefined && <ul>{view.origin.selections.map((source, index) => <li key={`${source.ref.rootId}:${source.ref.sourceId}:${index}`}>
-        <span>{materialSourcePath(source.ref.sourceId) ?? props.t('sourceNumber', { number: index + 1 })}</span>
-        {source.locator?.kind === 'pdf-page' && <span> · {props.t('page', { page: source.locator.page })}</span>}
-        {source.locator?.kind === 'code' && <span> · {props.t('lines', { start: source.locator.startLine, end: source.locator.endLine })}</span>}
-        {source.selectedText && <blockquote>{source.selectedText}</blockquote>}
-      </li>)}</ul>}
-      {view.origin.selectedText && <blockquote>{view.origin.selectedText}</blockquote>}
-      {(view.origin.resourceId !== undefined || (view.origin.selections?.length ?? 0) > 0) && <Button variant="ghost" size="sm" onClick={() => { props.clearDiscussionSource(props.scope) }}>{props.t('clear')}</Button>}
-    </details>}
     {view.error && <div role="alert" className={css.notice}>{view.error}<Button variant="ghost" size="sm" onClick={() => { void props.openDiscussion(props.scope) }}>{props.t('retry')}</Button></div>}
     {view.loading && <div className={css.loading} role="status" aria-label={props.t('loading')}><StateDot state="ongoing" /></div>}
     <div className={css.conversation} aria-busy={view.loading} {...{ inert: view.loading ? '' : undefined }}>
       {view.reference !== undefined && <props.SessionProvider session={view.reference}>
-        {props.renderSlot('aitp.research.discussion.conversation', { workspaceId: props.scope.workspaceId })}
+        {props.renderSlot('aitp.research.discussion.conversation', props.scope.workspaceId === undefined ? {} : { workspaceId: props.scope.workspaceId })}
       </props.SessionProvider>}
     </div>
   </aside>
 }
 
 function DiscussionPicker(props: FactoryComponentPropsOf<'aitp.research.discussion'>) {
+  return props.scope.workspaceId === undefined ? <GlobalDiscussionPicker {...props} />
+    : <WorkspaceDiscussionPicker {...props} workspaceId={props.scope.workspaceId} />
+}
+
+function GlobalDiscussionPicker(props: FactoryComponentPropsOf<'aitp.research.discussion'>) {
+  const view = props.useDiscussionViews(views => discussionView(views, props.scope))
+  return <DiscussionControls {...props} rows={(view.sessionIds ?? []).map(sessionId => ({ sessionId, title: '' }))} />
+}
+
+function WorkspaceDiscussionPicker(props: FactoryComponentPropsOf<'aitp.research.discussion'> & { readonly workspaceId: WorkspaceId }) {
+  const list = props.useResource<'aitp-workspace-discussions'>(workspaceDiscussionsAddress(props.workspaceId, props.scope.topicId))
+  return <DiscussionControls {...props} rows={list.value?.items ?? []} />
+}
+
+function DiscussionControls(props: FactoryComponentPropsOf<'aitp.research.discussion'> & {
+  readonly rows: readonly Pick<DiscussionPage['items'][number], 'sessionId' | 'title'>[]
+}) {
   const [open, setOpen] = useState(false)
   const [actionsOpen, setActionsOpen] = useState(false)
   const [rename, setRename] = useState<{ sessionId: SessionId; title: string; scope: typeof props.scope } | undefined>(undefined)
   const view = props.useDiscussionViews(views => discussionView(views, props.scope))
-  const list = props.useResource<'aitp-workspace-discussions'>(workspaceDiscussionsAddress(props.scope.workspaceId, props.scope.topicId))
   const selectedId = view.reference?.sessionId
-  const nativeTitle = props.useSessions(state => selectedId === undefined ? undefined : state.byId[selectedId]?.title)
-  const rows = list.value?.items ?? []
+  const nativeSessions = props.useSessions(state => state.byId)
+  const nativeTitle = selectedId === undefined ? undefined : nativeSessions[selectedId]?.title
+  const rows = props.rows
   const current = rows.find(item => item.sessionId === selectedId)
-  const items = rows.map(item => ({ id: item.sessionId, label: item.title || props.t('unnamed') }))
+  const items = rows.map(item => ({ id: item.sessionId, label: nativeSessions[item.sessionId]?.title || item.title || props.t('unnamed') }))
   if (selectedId !== undefined && current === undefined) items.unshift({ id: selectedId, label: nativeTitle || props.t('unnamed') })
   return <div className={css.picker}>
     <Menu open={open} autoFocus onClose={() => { setOpen(false) }} selectedId={selectedId} items={items}
@@ -76,7 +81,7 @@ function DiscussionPicker(props: FactoryComponentPropsOf<'aitp.research.discussi
         const item = items.find(candidate => candidate.id === id)
         if (item !== undefined) void props.selectDiscussion(props.scope, item.id)
       }}
-      anchor={<Button variant="ghost" size="sm" className={css.current} aria-label={props.t('choose')}
+      anchor={<Button variant="ghost" size="sm" className={css.current} aria-label={props.t(props.scope.workspaceId === undefined ? 'chooseGlobal' : 'choose')}
         aria-expanded={open} aria-haspopup="menu" onClick={() => { setOpen(!open) }}>
         <span>{nativeTitle || current?.title || props.t('unnamed')}</span><IconChevronDownOutlineRegular size={14} />
       </Button>} />
@@ -130,7 +135,7 @@ export function DiscussionConversation({ useSession, renderFactorySlot, workspac
   PropsRuntime<'aitp.research.discussion.conversation'> & PropsRenderFactories) {
   const session = useSession(value => value)
   // The scope is already selected by the reading surface; the global hero's Workspace switcher does not belong here.
-  return <>{renderFactorySlot('aitp.research.change-notice', { workspaceId })}
+  return <>{workspaceId !== undefined && renderFactorySlot('aitp.research.change-notice', { workspaceId })}
     {renderFactorySlot('conversation.content', { variant: 'embedded', phase: session.openState === 'loading' ? 'settling' : 'active', hero: false },
       { slots: { views: FixedChatView } })}</>
 }

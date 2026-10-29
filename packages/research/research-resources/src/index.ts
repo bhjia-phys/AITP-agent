@@ -11,12 +11,15 @@ import { Remote, RemoteError, principalOf, TypertRemoteService } from '@deepseek
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type {} from '@deepseek-ai/dsh-app-boot'
-import { BoundedSourceWatcher, GuardedFiles, normalizedPath, SourceError, sourceFailure } from './files.ts'
+import { BoundedSourceWatcher, excludedSourceDirectories, GuardedFiles, normalizedPath,
+  SourceError, sourceFailure, type SourceScan } from './files.ts'
+import { COLLECTION_SOURCE_ID, materialSourcePath } from './protocol.ts'
 import { pathForSourceId, resourceEntryId, sourceIdForPath, sourceRootId } from './identity.ts'
 import { parseSourceMarkup } from './markup.ts'
 import { checkedPreviewMediaType, previewMediaType } from './preview.ts'
 import { MATERIAL_WATCH_UNAVAILABLE } from './protocol.ts'
 import { OperationalOutcomeUnknown, ResourceState, type StoredConnection } from './state.ts'
+import { BodySearchReadFailure, bodyMatch, searchableSource, SourceBodyCache } from './body-search.ts'
 import type {
   ResourceBody, ResourceBytes, ResourceDomain, ResourceEvent, ResourceIssue, ResourcePage, ResourceProvider,
   ResourceQuery, ResourceReadRequest, ResourceReading, ResourceResult, ResourceSummary, SourceLocator, SourceProviderContext,
@@ -24,6 +27,7 @@ import type {
   TopicAssociationProvider,
   ResourceSetup, RootConnection, SourceSet, SourceSetId, SourceSetQuery, SourceSetPage,
   SaveSourceSetRequest, RemoveSourceSetRequest, SourceSetReceipt,
+  SourceBodyQuery, SourceBodySearch, SourceBodyHit,
 } from './types.ts'
 
 export type * from './types.ts'
@@ -55,6 +59,8 @@ export interface Config {
   watchMode?: 'recursive' | 'bounded'
   /** Maximum UTF-8 bytes in one complete source-text reading. */
   maxFileBytes?: number
+  /** Maximum logical source bytes examined by one body query and retained per-root body cache. */
+  maxSearchBytes?: number
   /** Maximum bytes in one complete source-binary reading. */
   maxBinaryBytes?: number
   /** Maximum projected catalog entries per root and local-link pairs per Host batch. */
@@ -90,6 +96,8 @@ interface RootEntry {
   readonly aliases: Set<SourceRootId>
   readonly grants: Map<object, SourceRootRegistration>
   readonly files: GuardedFiles
+  bodyCache: SourceBodyCache
+  searchScan: SourceScan | undefined
   readonly lifetime: AbortController
   readonly providerWatches: Map<string, Promise<() => void>>
   watcher: FSWatcher | BoundedSourceWatcher | undefined
@@ -143,6 +151,7 @@ export class ResearchResources extends TypertRemoteService {
     watchSources: z.boolean().default(true),
     watchMode: (z.union(['recursive', 'bounded']) as z<'recursive' | 'bounded'>).default('recursive'),
     maxFileBytes: z.natural().min(1).default(1_048_576),
+    maxSearchBytes: z.natural().min(1).default(8_388_608),
     maxBinaryBytes: z.natural().min(1).default(20_971_520),
     maxCatalogEntries: z.natural().min(1).default(5000),
     maxPageSize: z.natural().min(1).default(100),
@@ -250,8 +259,9 @@ export class ResearchResources extends TypertRemoteService {
     if (alias !== undefined && alias.path !== path) throw new SourceError('invalid-request', 'This source-root identity already names another directory.')
     let entry = this.canonicalRoots.get(path)
     if (entry === undefined) {
+      const files = new GuardedFiles(path, this.config.maxFiles, this.config.maxFileBytes, this.config.maxBinaryBytes)
       entry = { id: requestedId, path, aliases: new Set(), grants: new Map(),
-        files: new GuardedFiles(path, this.config.maxFiles, this.config.maxFileBytes, this.config.maxBinaryBytes),
+        files, bodyCache: new SourceBodyCache(files, this.config.maxSearchBytes), searchScan: undefined,
         lifetime: new AbortController(), providerWatches: new Map(), watcher: undefined, watchFailure: false,
         dirty: true, snapshot: undefined, refreshing: undefined }
       this.canonicalRoots.set(path, entry)
@@ -383,6 +393,7 @@ export class ResearchResources extends TypertRemoteService {
 
   private invalidate(root: RootEntry): void {
     this.closeProviderWatches(root)
+    root.searchScan = undefined
     root.dirty = true
     this.revision++
     this.events.emit('change', { kind: 'invalidated', rootId: root.id } satisfies ResourceEvent)
@@ -413,7 +424,12 @@ export class ResearchResources extends TypertRemoteService {
   }
 
   private invalidateAll(): void {
-    for (const root of this.canonicalRoots.values()) { this.closeProviderWatches(root); root.dirty = true }
+    for (const root of this.canonicalRoots.values()) {
+      this.closeProviderWatches(root)
+      root.bodyCache = new SourceBodyCache(root.files, this.config.maxSearchBytes)
+      root.searchScan = undefined
+      root.dirty = true
+    }
     this.revision++
     this.events.emit('change', { kind: 'resync-required', reason: 'Source providers changed.' } satisfies ResourceEvent)
   }
@@ -511,10 +527,14 @@ export class ResearchResources extends TypertRemoteService {
         if (/^[a-z][a-z0-9+.-]*:/i.test(location) || location.includes('?') || location.includes('\0')) return undefined
         absolute = location ? resolve(root.path, dirname(basePath), decodeURIComponent(location)) : resolve(root.path, basePath)
       }
-      const target = roots.filter(candidate => isWithin(candidate.path, absolute))
+      const target = roots.filter(candidate => candidate.path === absolute || isWithin(candidate.path, absolute))
         .sort((a, b) => b.path.length - a.path.length)[0]
       if (target === undefined) return undefined
       const path = relative(target.path, absolute).split(sep).join('/')
+      if (path === '') {
+        const metadata = this.rootMetadata(target, [...target.grants.values()])
+        return metadata.domains?.length === 0 ? undefined : { ref: { rootId: target.id, sourceId: COLLECTION_SOURCE_ID } }
+      }
       const pageDigits = /\.pdf$/i.test(path) ? /^page=(\d+)$/.exec(anchor ?? '')?.[1] : undefined
       const page = pageDigits === undefined ? undefined : Number(pageDigits)
       const locator: SourceLocator | undefined = page !== undefined && Number.isSafeInteger(page) && page > 0
@@ -526,6 +546,18 @@ export class ResearchResources extends TypertRemoteService {
       void error
       return undefined
     }
+  }
+
+  private async scan(entry: RootEntry, signal: AbortSignal): Promise<SourceScan> {
+    if (entry.watcher !== undefined && entry.searchScan !== undefined) return entry.searchScan
+    const revision = this.revision
+    const scan = await entry.files.scan(signal)
+    if (entry.watcher instanceof BoundedSourceWatcher) {
+      try { entry.watcher.sync(scan.directories ?? ['']) }
+      catch (error) { entry.watchFailure = true; entry.watcher.close(); entry.watcher = undefined; this.invalidate(entry); void error }
+    }
+    if (entry.watcher !== undefined && revision === this.revision) entry.searchScan = scan
+    return scan
   }
 
   private async snapshot(entry: RootEntry, signal: AbortSignal, metadata?: SourceRoot,
@@ -541,11 +573,7 @@ export class ResearchResources extends TypertRemoteService {
     if (entry.refreshing === undefined && (entry.dirty || entry.snapshot === undefined)) {
       entry.dirty = false
       entry.refreshing = (async () => {
-        const scan = await entry.files.scan(shared)
-        if (entry.watcher instanceof BoundedSourceWatcher) {
-          try { entry.watcher.sync(scan.directories ?? ['']) }
-          catch (error) { entry.watchFailure = true; entry.watcher.close(); entry.watcher = undefined; this.invalidate(entry); void error }
-        }
+        const scan = await this.scan(entry, shared)
         const issues: ResourceIssue[] = scan.issues.map(issue => ({ rootId: entry.id, ...issue }))
         const items: ResourceSummary[] = []
         const base = { root: current, rootPath: entry.path, paths: scan.paths, issues: scan.issues,
@@ -795,8 +823,10 @@ export class ResearchResources extends TypertRemoteService {
       }
     }
     const linkRoots = authorized.map(item => item.root)
+    const needsDomainProjection = selection?.domain !== undefined && [...this.providers.values()]
+      .some(provider => provider.domain === selection.domain && provider.projectCatalog !== undefined)
     for (const { root, metadata } of authorized) {
-      if (selectedRoot !== undefined && root !== selectedRoot) continue
+      if (selectedRoot !== undefined && root !== selectedRoot && !needsDomainProjection) continue
       if (metadata.domains?.length === 0 || selection?.domain !== undefined
         && metadata.domains !== undefined && !metadata.domains.includes(selection.domain)) continue
       try {
@@ -844,16 +874,40 @@ export class ResearchResources extends TypertRemoteService {
         }
       }
     }
+    if (this.state.supported) {
+      try {
+        for (const relationship of await this.state.catalogAssociations()) {
+          const root = this.roots.get(relationship.ref.rootId)
+          if (root === undefined || !authorizedRoots.has(root)) continue
+          for (const index of sourceEntries.get(JSON.stringify([root.id, relationship.ref.sourceId])) ?? []) {
+            const item = items[index]
+            if (item === undefined) continue
+            const topic = { ...relationship.topic, reason: `Saved source set: ${relationship.title}` }
+            if (!item.topics.some(current => current.workspaceId === topic.workspaceId
+              && current.topicId === topic.topicId && current.reason === topic.reason)) {
+              items[index] = { ...item, topics: [...item.topics, topic] }
+            }
+          }
+        }
+      } catch (error) {
+        signal.throwIfAborted()
+        issues.push({ reason: `Saved source-set relationships are unavailable: ${sourceFailure(error).message}` })
+      }
+    }
     const stillAuthorized = new Set<RootEntry>()
     for (const root of linkRoots) {
       try { await this.authorizedMetadata(root, signal); stillAuthorized.add(root) }
       catch (error) { signal.throwIfAborted(); issues.push({ rootId: root.id, reason: sourceFailure(error).message }) }
     }
-    const current = items.filter((item) => {
+    let current = items.filter((item) => {
       const sourceRoot = this.roots.get(item.ref.rootId)
       const catalogRoot = this.roots.get(item.catalogRootId ?? item.ref.rootId)
       return sourceRoot !== undefined && catalogRoot !== undefined && stillAuthorized.has(sourceRoot) && stillAuthorized.has(catalogRoot)
     })
+    for (const provider of this.providers.values()) {
+      if (provider.projectCatalog === undefined || selection?.domain !== undefined && selection.domain !== provider.domain) continue
+      current = [...provider.projectCatalog(current)]
+    }
     return { items: current, issues, observedAt: new Date().toISOString(), roots: [...stillAuthorized], snapshots }
   }
 
@@ -930,6 +984,101 @@ export class ResearchResources extends TypertRemoteService {
   }
 
   /**
+   * Search observed source bodies without changing catalog title-search semantics.
+   * @param request - literal terms, optional admitted root/directory and result limit.
+   * @param signal - cancels discovery, metadata checks and body reads.
+   * @returns located candidates with actual byte/file coverage and exclusions.
+   */
+  @Remote({ name: 'searchBodies' })
+  async searchBodies(request: SourceBodyQuery, signal: AbortSignal): Promise<ResourceResult<SourceBodySearch>> {
+    this.requireOwner()
+    return this.attempt(signal, async (observed) => {
+      const terms = request.query.trim().split(/\s+/u).filter(Boolean)
+      if (terms.length === 0 || request.query.length > this.config.maxQuestionCharacters) {
+        throw new SourceError('invalid-request', 'Body search requires nonempty literal terms within the configured query limit.')
+      }
+      const limit = request.limit ?? Math.min(20, this.config.maxPageSize)
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > this.config.maxPageSize) {
+        throw new SourceError('invalid-request', 'The body-search result limit is outside the configured page bounds.')
+      }
+      const folder = request.folder === undefined || request.folder === '' ? '' : normalizedPath(request.folder)
+      if (request.rootId !== undefined && !this.roots.has(request.rootId)) {
+        throw new SourceError('permission-denied', 'The requested source root is not registered.')
+      }
+      const hits: SourceBodyHit[] = [], roots: SourceRootId[] = [], issues: ResourceIssue[] = []
+      const observedRoots: RootEntry[] = []
+      let inspectedFiles = 0, bytesExamined = 0, bytesRead = 0, cacheHits = 0, partial = false
+      let failedReadBytes = 0
+      for (const root of this.canonicalRoots.values()) {
+        observed.throwIfAborted()
+        if (request.rootId !== undefined && this.roots.get(request.rootId) !== root) continue
+        try { await this.authorizedMetadata(root, observed) }
+        catch (error) { observed.throwIfAborted(); if (request.rootId !== undefined) throw error; continue }
+        roots.push(root.id)
+        observedRoots.push(root)
+        const sourceSignal = AbortSignal.any([observed, root.lifetime.signal])
+        const scan = folder === '' ? await this.scan(root, sourceSignal) : await root.files.scan(sourceSignal, folder)
+        issues.push(...scan.issues.map(issue => ({ rootId: root.id, ...issue })))
+        partial ||= scan.partial
+        let excluded = 0
+        for (const path of scan.paths) {
+          sourceSignal.throwIfAborted()
+          if (folder !== '' && path !== folder && !path.startsWith(`${folder}/`)) continue
+          if (!searchableSource(path)) { excluded++; continue }
+          const ref = { rootId: root.id, sourceId: sourceIdForPath(path) }
+          try {
+            const { body, cached } = await root.bodyCache.read(ref, path, this.config.maxSearchBytes - bytesExamined,
+              (ref, signal) => this.readResource({ ref }, signal), sourceSignal)
+            sourceSignal.throwIfAborted()
+            inspectedFiles++
+            bytesExamined += body.bytes
+            if (cached) cacheHits++
+            else bytesRead += body.bytes
+            for (const reason of body.issues) { issues.push({ rootId: root.id, path, reason }); partial = true }
+            for (const passage of body.passages) {
+              const match = bodyMatch(passage.text, terms, passage.page)
+              if (match !== undefined) hits.push({ ref, path, ...match, observedAt: body.observedAt })
+              if (hits.length >= limit) break
+            }
+          } catch (error) {
+            sourceSignal.throwIfAborted()
+            if (error instanceof BodySearchReadFailure) {
+              failedReadBytes += error.bytes; bytesExamined += error.bytes; bytesRead += error.bytes
+            }
+            const failure = sourceFailure(error instanceof BodySearchReadFailure ? error.cause : error)
+            issues.push({ rootId: root.id, ref, path, reason: failure.message }); partial = true
+          }
+          if (hits.length >= limit || bytesExamined >= this.config.maxSearchBytes) break
+        }
+        if (excluded > 0) {
+          issues.push({ rootId: root.id, reason: `${excluded} files have formats outside the body-search text/PDF coverage.` })
+          partial = true
+        }
+        if (hits.length >= limit || bytesExamined >= this.config.maxSearchBytes) {
+          issues.push({ reason: 'The body-search result or byte budget was reached; uninspected sources or further matches may remain.' })
+          partial = true; break
+        }
+      }
+      for (const root of observedRoots) {
+        root.lifetime.signal.throwIfAborted()
+        await this.authorizedMetadata(root, observed)
+      }
+      const availableRoots: SourceRootId[] = []
+      for (const root of this.canonicalRoots.values()) {
+        try { availableRoots.push((await this.authorizedMetadata(root, observed)).id) }
+        catch (error) { observed.throwIfAborted(); void error }
+      }
+      const result: SourceBodySearch = { hits, roots, availableRoots, excludedDirectories: excludedSourceDirectories,
+        inspectedFiles, bytesExamined, bytesRead, cacheHits, failedReadBytes,
+        completeness: partial ? 'partial' : 'complete', issues }
+      if (JSON.stringify(result).length > this.config.maxResultCharacters) {
+        throw new SourceError('unavailable', 'Body-search coverage and results exceed the configured result limit; narrow the root/directory or result count.')
+      }
+      return result
+    })
+  }
+
+  /**
    * Browse a bounded domain catalog with explicit missing discovery coverage.
    * @param request - source/root/topic filters and an opaque page cursor.
    * @param signal - cancellation for this observer, not for another reader's shared scan.
@@ -952,7 +1101,7 @@ export class ResearchResources extends TypertRemoteService {
       const items = catalog.items.filter(item => (request.domain === undefined || item.domain === request.domain)
         && (request.rootId === undefined || this.roots.get(request.rootId)?.id === (item.catalogRootId ?? item.ref.rootId))
         && (topic === undefined || item.topics.some(use => use.workspaceId === topic.workspaceId && use.topicId === topic.topicId))
-        && (!query || [item.title, item.description ?? '', ...Object.values(item.metadata)].some(value => value.toLocaleLowerCase().includes(query))))
+        && (!query || [item.title, materialSourcePath(item.ref.sourceId) ?? '', item.description ?? '', ...Object.values(item.metadata)].some(value => value.toLocaleLowerCase().includes(query))))
       const limit = request.limit ?? this.config.maxPageSize
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > this.config.maxPageSize) throw new SourceError('invalid-request', 'The requested source page exceeds the configured page limit.')
       const key = JSON.stringify([request.domain ?? null, request.rootId ?? null, query, request.topic ?? null, limit])

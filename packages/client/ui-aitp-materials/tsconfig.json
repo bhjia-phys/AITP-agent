@@ -18,7 +18,13 @@
       "path": "../../research/research-resources"
     },
     {
+      "path": "../../research/research-memory"
+    },
+    {
       "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/crypto"
     },
     {
       "path": "../resources"

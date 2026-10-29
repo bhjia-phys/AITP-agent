@@ -49,6 +49,8 @@
       "@deepseek-ai/dsh-client-ui-aitp-knowledge/client": ["./packages/client/ui-aitp-knowledge/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-aitp-code": ["./packages/client/ui-aitp-code/src/index.ts"],
       "@deepseek-ai/dsh-client-ui-aitp-code/client": ["./packages/client/ui-aitp-code/src/client/index.ts"],
+      "@deepseek-ai/dsh-client-ui-aitp-settings": ["./packages/client/ui-aitp-settings/src/index.ts"],
+      "@deepseek-ai/dsh-client-ui-aitp-settings/client": ["./packages/client/ui-aitp-settings/src/client/index.ts"],
       "@deepseek-ai/dsh-client-ui-aitp-backend": ["./packages/client/ui-aitp-backend/src"],
       "@deepseek-ai/dsh-client-ui-aitp-backend/client": ["./packages/client/ui-aitp-backend/src/client/index.ts"],
       "@deepseek-ai/dsh-research-memory": ["./packages/research/research-memory/src/index.ts"],

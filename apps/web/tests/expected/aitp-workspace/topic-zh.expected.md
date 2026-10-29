@@ -1,14 +1,15 @@
 - region "研究":
-  - heading "研究" [level=1]
+  - button "对话"
+  - heading "科研项目" [level=1]
+  - button "浏览项目"
   - text: workspace
   - navigation "研究位置":
     - button "返回"
     - list:
       - listitem:
         - button "研究地图"
-      - listitem: Many-body dynamics
       - listitem:
-        - button "Quantum chaos"
+        - button "更多上级"
       - listitem:
         - button "Long-range chains"
       - listitem: Operator Krylov dynamics
@@ -17,6 +18,7 @@
     - text: · 合成示例数据。修改仅在本次预览中保留，不会改动你的科研文件。
   - paragraph: In progress
   - heading "Operator Krylov dynamics" [level=2]
+  - paragraph: "研究主记录: demo/operator-krylov/research.md"
   - paragraph: What does operator spreading reveal on a matched spectral grid?
   - button "围绕此课题提问"
   - button "更多操作"

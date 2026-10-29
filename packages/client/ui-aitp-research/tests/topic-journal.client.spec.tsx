@@ -13,6 +13,7 @@ import type { CreateTopicReceipt, CreateTopicRequest, ResourceId, Result, Revisi
 
 afterEach(cleanup)
 const t = makeTranslate(en) as TranslateNS<'aitp.research'>
+const useResource = () => ({ status: 'none' as const, value: undefined, failure: undefined })
 const WS = 'tab-workspace' as WorkspaceId
 const KEY = 'dsh.aitp.topic-creation.v1'
 
@@ -34,10 +35,12 @@ it('retains dispatch identity before the request, restores a reloaded pending fo
     return new Promise<Result<CreateTopicReceipt>>(() => {})
   })
   const created = vi.fn()
-  const view = render(<TopicCreation t={t} workspaceId={WS} useStore={bindSnapshotSelector(original)} actions={original.actions}
+  const view = render(<TopicCreation t={t} workspaceId={WS} useResource={useResource}
+    useStore={bindSnapshotSelector(original)} actions={original.actions}
     currentTopicId={null} writable create={create} created={created} />)
   fireEvent.click(screen.getByRole('button', { name: 'New topic' }))
   fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'Reloaded topic' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'Folder name (optional)' }), { target: { value: '精细 子方向' } })
   fireEvent.change(screen.getByRole('textbox', { name: 'Research question' }), { target: { value: 'Was this already created?' } })
   fireEvent.click(screen.getByRole('button', { name: 'Create topic' }))
   const request = create.mock.calls[0]![0]
@@ -47,10 +50,13 @@ it('retains dispatch identity before the request, restores a reloaded pending fo
   const retry = vi.fn<(request: CreateTopicRequest) => Promise<Result<CreateTopicReceipt>>>(async submitted => ({ ok: true,
     value: { operationId: submitted.operationId, topicId: 'restored-topic' as TopicId, resourceId: 'restored-account' as ResourceId },
   }))
-  render(<TopicCreation t={t} workspaceId={WS} useStore={bindSnapshotSelector(restored)} actions={restored.actions}
+  render(<TopicCreation t={t} workspaceId={WS} useResource={useResource}
+    useStore={bindSnapshotSelector(restored)} actions={restored.actions}
     currentTopicId={null} writable create={retry} created={created} />)
   expect(retry).not.toHaveBeenCalled()
   expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Title' }).value).toBe('Reloaded topic')
+  expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Folder name (optional)' }).value).toBe('精细 子方向')
+  expect(request.directory).toBe('精细 子方向')
   expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Title' }).disabled).toBe(true)
   fireEvent.click(screen.getByText('Creation details'))
   expect(screen.getByText(t('topic.create.reloaded'))).toBeDefined()
@@ -76,7 +82,8 @@ it('retains a partial result and its actual account inspection target across a r
   const restored = createResearchPanelStore(journal).create()
   const inspect = vi.fn()
   const create = vi.fn<(request: CreateTopicRequest) => Promise<Result<CreateTopicReceipt>>>()
-  render(<TopicCreation t={t} workspaceId={WS} useStore={bindSnapshotSelector(restored)} actions={restored.actions}
+  render(<TopicCreation t={t} workspaceId={WS} useResource={useResource}
+    useStore={bindSnapshotSelector(restored)} actions={restored.actions}
     currentTopicId={null} writable create={create} created={vi.fn()} inspect={inspect} />)
   expect(create).not.toHaveBeenCalled()
   fireEvent.click(screen.getByText('Creation details'))
@@ -98,7 +105,8 @@ it('reports unavailable tab persistence and preserves an unreadable journal inst
   const tab = storage()
   tab.values.set(KEY, '{invalid')
   const restored = createResearchPanelStore(createTopicCreationJournal(tab, '')).create()
-  render(<TopicCreation t={t} workspaceId={WS} useStore={bindSnapshotSelector(restored)} actions={restored.actions}
+  render(<TopicCreation t={t} workspaceId={WS} useResource={useResource}
+    useStore={bindSnapshotSelector(restored)} actions={restored.actions}
     currentTopicId={null} writable create={vi.fn()} created={vi.fn()} />)
   expect(screen.getByRole<HTMLButtonElement>('button', { name: 'New topic' }).disabled).toBe(true)
   expect(screen.getByText(t('topic.create.recoveryUnreadable'))).toBeDefined()

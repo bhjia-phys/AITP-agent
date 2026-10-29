@@ -35,6 +35,37 @@ const project = {
 }
 
 describe('MarkdownWorkspace source ownership', () => {
+  it('shows explicitly curated materials without turning other citations into topic materials', async () => {
+    const { workspace } = await fixture({
+      'research.md': '# Project\n\n## Topics\n[Alpha](alpha/research.md)\n',
+      'alpha/research.md': '# Alpha\n\nEvidence: [historical source](history.md).\n\n## 精选资料\n\n### 研究笔记\n[Selected](selected.md)\n\n### 缺失资料\n[Missing](missing.md)\n\n## Current work\n[Other evidence](other.md)\n',
+      'alpha/history.md': '# Historical source\n', 'alpha/selected.md': '# Selected\n', 'alpha/other.md': '# Other\n',
+    })
+    const topic = value(await workspace.getTopic(topicIdForPath('alpha/research.md'))).value
+    expect(topic.resources.map(resource => resource.id)).toEqual([
+      resourceIdForPath('alpha/research.md'), resourceIdForPath('alpha/selected.md'), resourceIdForPath('alpha/missing.md'),
+    ])
+    expect((await workspace.getResource(resourceIdForPath('alpha/missing.md'))).ok).toBe(false)
+    const account = value(await workspace.getResource(topic.accountResourceId!)).value
+    expect(account.content?.kind).toBe('markdown')
+    if (account.content?.kind === 'markdown') expect(account.content.text).toContain('[historical source](history.md)')
+    const context = value(await workspace.readContext({ topicId: topicIdForPath('alpha/research.md'), include: ['resources'] })).value
+    expect(JSON.stringify(context)).toContain('Historical source')
+  })
+
+  it('uses an authored link label to distinguish generic README references without changing their identity', async () => {
+    const { workspace } = await fixture({
+      'research.md': '# Project\n\n## Topics\n\n[Alpha](alpha/research.md)\n',
+      'alpha/research.md': '# Alpha\n\n[Control run](../control/README.md)\n\n[Missing comparison](../missing/README.md)\n\n[Named record](../named/README.md)\n',
+      'control/README.md': '# README\n\nA control.\n',
+      'named/README.md': '# Actual scientific title\n\nA report.\n',
+    })
+    const topic = value(await workspace.getTopic(topicIdForPath('alpha/research.md'))).value
+    expect(topic.resources.find(resource => resource.id === resourceIdForPath('control/README.md'))?.title).toBe('Control run')
+    expect(topic.resources.find(resource => resource.id === resourceIdForPath('missing/README.md'))?.title).toBe('Missing comparison')
+    expect(topic.resources.find(resource => resource.id === resourceIdForPath('named/README.md'))?.title).toBe('Actual scientific title')
+    expect((await workspace.getResource(resourceIdForPath('missing/README.md'))).ok).toBe(false)
+  })
   it('uses only the authored root opening as the project summary without inferring relationship labels', async () => {
     const opening = 'Can the finite control support a broader claim?\n\nThe [existing result](alpha/research.md) remains conditional.'
     const { workspace } = await fixture({ ...project,
@@ -102,6 +133,34 @@ describe('MarkdownWorkspace source ownership', () => {
     expect(topic.question).toBe(text)
     expect(value(await workspace.getResource(topic.accountResourceId!)).value.content).toEqual({ kind: 'markdown', text })
     expect(value(await workspace.readContext({ topicId: topic.id })).value.entries[0]?.text).toBe(text)
+  })
+
+  it('delivers a free-form active account beyond its opening when headings do not define the overview', async () => {
+    const text = '# Our charge calculation\n\nWe study a normalized perturbative charge.\n\n'
+      + '## Derivation in our notation\n\nThe finite control needs a second-order normalization correction.\n\n'
+      + '## Boundary of this claim\n\nOnly the stated finite-dimensional example is covered.\n'
+    const { workspace } = await fixture({ 'new/research.md': text })
+    const topic = value(await workspace.getTopic(topicIdForPath('new/research.md'))).value
+    expect(topic.currentAnswer).toBeNull()
+    const context = value(await workspace.readContext({ topicId: topic.id })).value
+    expect(context.entries[0]?.text).toBe(text)
+    expect(context.entries[0]?.text).toContain('second-order normalization correction')
+    expect(context.entries[0]?.text).toContain('finite-dimensional example')
+  })
+
+  it('retains a located opening when a free-form account exceeds the complete context budget', async () => {
+    const text = '# Charge investigation\n\nThe original condition is Delta > 0 and finite dimension.\n\n'
+      + '## Derivation in our notation\n\n' + 'Formula detail and constraints.\n'.repeat(850)
+    const { workspace } = await fixture({ 'charge/research.md': text }, { maxFileBytes: 100_000, maxContextCharacters: 24_000 })
+    const result = value(await workspace.readContext({ topicId: topicIdForPath('charge/research.md') }))
+    expect(JSON.stringify(result).length).toBeLessThanOrEqual(24_000)
+    expect(result.value.completeness).toBe('partial')
+    const entry = result.value.entries[0]
+    expect(entry?.text).toContain('Delta > 0 and finite dimension')
+    expect(entry?.text.length).toBeLessThan(text.length)
+    expect(entry?.range).toEqual({ start: 0, end: entry?.text.length })
+    expect(text.slice(entry!.range!.start, entry!.range!.end)).toBe(entry?.text)
+    expect(result.value.omissions.some(item => item.reason.includes('located prefix'))).toBe(true)
   })
 
   it('reports conflicting parents, duplicate headings and missing selections explicitly', async () => {
@@ -187,7 +246,7 @@ describe('MarkdownWorkspace current observations and bounds', () => {
 
   it.each([
     ['Question', 'Current answer'], ['Research question', 'Current conclusion'],
-    ['问题', '当前答案'], ['研究问题', '当前结论'],
+    ['问题', '当前答案'], ['研究问题', '当前结论'], ['研究问题', '当前认识'],
   ])('keeps the authored %s and %s beside scoped material context', async (questionHeading, answerHeading) => {
     const question = 'Can this finite control settle the owning question?'
     const answer = 'Only under A; the general question remains unresolved.'
@@ -206,14 +265,18 @@ describe('MarkdownWorkspace current observations and bounds', () => {
     expect(read.completeness).toBe('complete')
   })
 
-  it('applies context limits to the serialized envelope and omits whole source units', async () => {
+  it('bounds the serialized envelope while identifying partial account text and its unread remainder', async () => {
     const condition = '条件不可截断。'.repeat(300)
     const { workspace } = await fixture({ 'topic/research.md': `# Topic\n${condition}\n` })
     const read = value(await workspace.readContext({ topicId: topicIdForPath('topic/research.md'), maxCharacters: 800 }))
     expect(JSON.stringify(read).length).toBeLessThanOrEqual(800)
-    expect(read.value.entries).toEqual([])
+    expect(read.value.entries).toHaveLength(1)
+    const entry = read.value.entries[0]!
+    expect(`# Topic\n${condition}\n`.startsWith(entry.text)).toBe(true)
+    expect(entry.text).toContain('条件')
+    expect(entry.range).toEqual({ start: 0, end: entry.text.length })
     expect(read.value.completeness).toBe('partial')
-    expect(read.value.omissions.length).toBeGreaterThan(0)
+    expect(read.value.omissions.some(item => item.reason.includes('remaining argument and conditions'))).toBe(true)
     const tiny = await workspace.readContext({ topicId: topicIdForPath('topic/research.md'), maxCharacters: 1 })
     expect(tiny).toMatchObject({ ok: false, error: { code: 'invalid-request' } })
   })

@@ -296,6 +296,16 @@ export class ResourceState {
     return set
   }
 
+  /**
+   * Read authored topic associations from saved source sets.
+   * @returns the explicitly saved topic relationships, without exposing excerpts to the catalog.
+   */
+  async catalogAssociations(): Promise<readonly { readonly ref: SourceSelection['ref']; readonly topic: SourceSetTopic; readonly title: string }[]> {
+    const state = await this.loaded()
+    return Object.values(state.sourceSets).flatMap(set => set.topics.flatMap(topic =>
+      set.selections.map(selection => ({ ref: selection.ref, topic, title: set.title }))))
+  }
+
   private operation(state: State, operationId: string, payload: string): SourceSetReceipt | undefined {
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(operationId)) throw new SourceError('invalid-request', 'A source-set save needs a stable operation identity.')
     const old = Object.hasOwn(state.operations, operationId) ? state.operations[operationId] : undefined

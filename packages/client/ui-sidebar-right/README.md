@@ -60,7 +60,7 @@ The panel takes the conversation's ground colour and content font sizes rather t
 
 The root-scoped `rightbar` entry renders the selected Session and background Sessions with initialized `keepMounted` bodies through separate `rightbar.session` subtrees. Each View owns its Session reference. Only the foreground subtree reports a frame track; other subtrees stay hidden without deleting tab state.
 
-Global panels render their documents through `rightbar.root`, using the same native panel frame, tab strip, split/float controls and responsive fullscreen behavior. A panel can render `sidebar.right.root.expand` with its `panelId` in its own header; the factory displays the same native reopen control only when that panel's selected scope has collapsed documents. Collapse returns keyboard focus to that control, and reopen restores focus to the document pane.
+Global panels render their documents through `rightbar.root`, using the same native panel frame, tab strip, split/float controls and responsive fullscreen behavior. A panel can render `sidebar.right.root.expand` with its `panelId` in its own header; the factory displays the same native reopen control only when that panel's selected scope has collapsed documents. Collapse returns keyboard focus to that control, and reopen restores focus to the document pane. A panel may supply `openInitial` to expose the same native button before it has tabs; the callback opens an owner-authorized initial resource. Existing tabs take precedence and reopen without invoking it. This creates no Session or file grant.
 
 <a id="state"></a>
 ## State

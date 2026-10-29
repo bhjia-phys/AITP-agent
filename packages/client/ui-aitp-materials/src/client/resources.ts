@@ -24,6 +24,18 @@ export const MATERIAL_ROOTS = 'dsh-resource://aitp-material-roots/'
 export const MATERIAL_SETUP = 'dsh-resource://aitp-material-setup/'
 
 /**
+ * Resolve one explicitly workspace-owned root without assuming how its read grant was registered.
+ * @param roots - current authorized source metadata.
+ * @param workspaceId - selected Workspace, never a title or inferred directory owner.
+ * @returns the unique admitted root; absent or ambiguous ownership stays unresolved.
+ */
+export function workspaceMaterialRoot(roots: readonly SourceRoot[], workspaceId: WorkspaceId): SourceRoot | undefined {
+  const matches = roots.filter(root => root.workspaceId === workspaceId
+    || root.grants?.some(grant => grant.workspaceId === workspaceId))
+  return matches.length === 1 ? matches[0] : undefined
+}
+
+/**
  * Address one saved-source-set index page without filesystem paths.
  * @param query - opaque page cursor and explicit research association filter.
  * @returns the shared operational collection resource address.

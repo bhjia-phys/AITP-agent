@@ -7,12 +7,13 @@ import { RemoteError, type RemoteResult } from '@deepseek-ai/dsh-typert-protocol
 import type {} from '@deepseek-ai/dsh-client-resources/client'
 import type {
   ResearchChangeQuery, ResearchChangeView, DiscussionPage, ActivityPage, Project, ReadEnvelope, ResearchWorkspaceAdapter, Resource,
-  ResourceId, Result, Topic, TopicId, TopicPage, TopicQuery, WorkspaceError, WorkspaceRead, ResearchSetup,
+  ResourceId, Result, Topic, TopicId, TopicPage, TopicQuery, WorkspaceError, WorkspaceRead, ResearchSetup, ResearchProvider,
 } from './workspace-contract.ts'
 import type { ResearchWorkspaceRegistry } from './workspace-service.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface ResourceProtocolMap {
+    'aitp-workspace-provider': ResearchProvider
     'aitp-workspace-change': ResearchChangeView
     'aitp-workspace-discussions': DiscussionPage
     'aitp-workspace-setup': ResearchSetup
@@ -32,6 +33,15 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 }
 
 const enc = encodeURIComponent
+
+/**
+ * Observe this Workspace's actual provider capabilities, including before enrollment.
+ * @param workspaceId - Harness Workspace identity.
+ * @returns the provider resource address.
+ */
+export function workspaceProviderAddress(workspaceId: WorkspaceId): string {
+  return `dsh-resource://aitp-workspace-provider/workspace/${enc(workspaceId)}`
+}
 
 /**
  * Address an existing Session-owned receipt without creating a new operation.
@@ -262,6 +272,11 @@ async function* providerFrames<T>(
  * @param registry - adapter registry to resolve for every observation.
  */
 export function registerWorkspaceResources(ctx: Context, registry: ResearchWorkspaceRegistry): void {
+  ctx.effect(() => ctx.resources.register({
+    protocol: 'aitp-workspace-provider',
+    open: (address, { signal }) => providerFrames(registry, address, signal, false,
+      adapter => Promise.resolve({ ok: true, value: adapter.provider })),
+  }), 'research: provider capabilities resource')
   ctx.effect(() => ctx.resources.register({
     protocol: 'aitp-workspace-change',
     open: (address, { signal }) => providerFrames(registry, address, signal, false, async (adapter, parsed, readSignal) => {

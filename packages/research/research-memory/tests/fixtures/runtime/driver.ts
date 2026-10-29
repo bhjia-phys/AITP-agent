@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
-import Loader from '@deepseek-ai/cordis-plugin-loader'
+import Loader, { type ModuleLoaderV2 } from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import LlmRuntime from '@deepseek-ai/dsh-llm'
@@ -26,8 +26,9 @@ import * as mock from './mock-llm.ts'
 import ExactSessionQuery from './query-plugin.ts'
 import type {} from '../../../src/working-types.ts'
 
-const configPath = process.argv[2]
-if (configPath === undefined) throw new Error('runtime fixture requires its overlay path')
+const configuredPath = process.argv[2]
+if (configuredPath === undefined) throw new Error('runtime fixture requires its overlay path')
+const configPath = configuredPath
 const id = SessionId('research-continuity')
 const sourceStudy = process.env['AITP_SOURCE_STUDY_FIXTURE'] === '1'
 const origin: ResearchOrigin = sourceStudy ? { scope: 'global', studyId: 'persistent-selected-set', selections: [
@@ -38,23 +39,32 @@ await writeFile('research.md', '# Scratch research\n\nThe finite-chain result do
 
 async function boot(selectedConfigPath = configPath): Promise<Context> {
   const ctx = new Context()
-  ctx.baseUrl = `${pathToFileURL(dirname(selectedConfigPath!)).href}/`
+  ctx.baseUrl = `${pathToFileURL(dirname(selectedConfigPath)).href}/`
   await ctx.plugin(Loader)
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
-    ['llm', LlmRuntime], ['sessions', SessionStore], ['projections', SessionProjectionRegistry],
-    ['persistence', JsonlPersistence], ['prompt', SystemPrompt], ['tools', ToolRuntime],
-    ['agents', AgentRegistry], ['loop', AgentLoop], ['meter', TokenMeter],
-    ['compaction', BasicCompaction], ['runtime', runtimePlugin], ['mock', mock], ['query', ExactSessionQuery],
+    ['@deepseek-ai/dsh-llm', LlmRuntime], ['@deepseek-ai/dsh-session', SessionStore],
+    ['@deepseek-ai/dsh-session-projection', SessionProjectionRegistry],
+    ['@deepseek-ai/dsh-session-persistence-jsonl', JsonlPersistence], ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
+    ['@deepseek-ai/dsh-tools', ToolRuntime], ['@deepseek-ai/dsh-agent', AgentRegistry],
+    ['@deepseek-ai/dsh-agent-loop', AgentLoop], ['@deepseek-ai/dsh-token-meter', TokenMeter],
+    ['@deepseek-ai/dsh-compaction-basic', BasicCompaction], ['./runtime-plugin.ts', runtimePlugin],
+    ['./mock-llm.ts', mock], ['./query-plugin.ts', ExactSessionQuery],
   ])
-  ctx.loader.internal = {
+  const internal: ModuleLoaderV2 = {
     version: 'v2',
+    loadCache: new Map(),
     async import(specifier: string) {
       if (!modules.has(specifier)) throw new Error(`unexpected Loader import: ${specifier}`)
       return modules.get(specifier)
     },
-  } as unknown as NonNullable<typeof ctx.loader.internal>
-  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(selectedConfigPath!).href } })
+    register(): never { throw new Error('unexpected module hook registration') },
+    getOrCreateModuleJob(): never { throw new Error('unexpected module job creation') },
+    resolveSync(): never { throw new Error('unexpected synchronous module resolution') },
+    load(): never { throw new Error('unexpected module load') },
+  }
+  ctx.loader.internal = internal
+  await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(selectedConfigPath).href } })
   await ctx.loader.await()
   for (const entry of ctx.loader.entries()) await entry.fiber?.await()
   return ctx
@@ -84,7 +94,7 @@ if (sourceStudy) await writeFile('research.md', '# Current source\nThe original 
 
 // Read the same ordinary Session without installing the research projection or tools.
 const withoutRuntime = resolve('without-runtime.cordis.yml')
-await writeFile(withoutRuntime, (await readFile(configPath, 'utf8')).replace(/\n- name: runtime\s*$/, '\n'))
+await writeFile(withoutRuntime, (await readFile(configPath, 'utf8')).replace(/\n- name: \.\/runtime-plugin\.ts\s*$/, '\n'))
 ctx = await boot(withoutRuntime)
 try {
   const handle = await ctx.agents.resume({ resumeSessionId: id, agentOptions })

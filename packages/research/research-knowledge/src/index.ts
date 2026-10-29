@@ -2,6 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { pathForSourceId, resourceEntryId, sourceIdForPath } from '@deepseek-ai/dsh-research-resources'
+import { COLLECTION_SOURCE_ID } from '@deepseek-ai/dsh-research-resources/protocol'
 import { markupAttribute, parseSourceMarkup } from '@deepseek-ai/dsh-research-resources/markup'
 import type { MarkupDocument, MarkupLink } from '@deepseek-ai/dsh-research-resources/markup'
 import type { ResourceLink, ResourceProvider, ResourceSummary, SourceProviderContext, SourceRef } from '@deepseek-ai/dsh-research-resources'
@@ -111,6 +112,7 @@ export function createKnowledgeProvider(config: Config): ResourceProvider {
             const ownerLinks = ownerIndex < 0 ? row.cellLinks[titleIndex] ?? [] : row.cellLinks[ownerIndex] ?? []
             const preferred = ownerLinks.map(link => sourceLink(context, path, link))
             const targets = (preferred.length > 0 ? preferred : authoredLinks).flatMap(link => link.target === undefined
+              || link.target.sourceId === COLLECTION_SOURCE_ID
               ? [] : [{ ref: link.target, locator: link.locator }])
             const uniqueTargets = targets.filter((target, index) => targets.findIndex(other => sameRef(other.ref, target.ref)
               && JSON.stringify(other.locator) === JSON.stringify(target.locator)) === index)
@@ -141,7 +143,7 @@ export function createKnowledgeProvider(config: Config): ResourceProvider {
         for (const link of document.links) {
           if (rowLinks.has(link.start)) continue
           const resolved = context.resolveLink(path, link.href)
-          if (resolved === undefined || sameRef(resolved.ref, reference)) continue
+          if (resolved === undefined || resolved.ref.sourceId === COLLECTION_SOURCE_ID || sameRef(resolved.ref, reference)) continue
           const metadata: Record<string, string> = { ...await targetMetadata(resolved.ref), indexPath: path, indexSection: link.section }
           summaries.push({ id: resourceEntryId(reference, `link:${link.start}`), ref: resolved.ref,
             ...(resolved.locator === undefined ? {} : { locator: resolved.locator }), title: link.label || link.href,

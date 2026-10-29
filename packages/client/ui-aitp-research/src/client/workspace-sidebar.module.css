@@ -149,3 +149,7 @@
   outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
   outline-offset: -1px;
 }
+
+.workspacePicker { min-width: 0; padding: 8px 10px 0; }
+.workspacePicker button { max-width: 100%; }
+.workspacePicker button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -242,6 +242,63 @@
   white-space: nowrap;
 }
 
+/* Keep the content readable on narrow viewports. The same navigation buttons
+   move above it; selection, focus and modal ownership do not remount. */
+@media (max-width: 600px) {
+  .panel {
+    flex-direction: column;
+  }
+
+  .nav {
+    width: 100%;
+    min-width: 0;
+    gap: 12px;
+    padding: 16px 12px 10px;
+  }
+
+  .navTitle {
+    padding: 0 40px 0 4px;
+  }
+
+  .navList {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 3px 2px 6px;
+  }
+
+  .navCell {
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .content {
+    min-height: 0;
+    width: 100%;
+  }
+
+  .header {
+    height: auto;
+    min-height: 12px;
+    padding: 0 16px 12px;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+  }
+
+  .options {
+    padding: 0 16px 16px;
+  }
+}
+
 /* No app-region rule here: the overlay portals beside #root (SettingsRoot), so
    ui-web base.css's `body > :not(#root)` subtraction covers it wherever it
    overlaps a chrome row's drag — including above every column, which an in-root

@@ -7,9 +7,10 @@ import type {
 } from './types.ts'
 import { MarkdownFiles, pathForResourceId, pathForTopicId, resourceIdForPath, sourceFailure, SourceError, topicIdForPath } from './markdown-files.ts'
 import type { ScanIssue } from './markdown-files.ts'
-import { namedSection, parseMarkdown } from './markdown-model.ts'
+import { curatedMaterialsHeading, namedSection, parseMarkdown } from './markdown-model.ts'
 import type { ParsedMarkdown } from './markdown-model.ts'
 import { renderedSelectionRanges } from './markdown-selection.ts'
+import { fittingSourcePrefix } from './context-excerpt.ts'
 
 export { pathForResourceId, resourceIdForPath, topicIdForPath } from './markdown-files.ts'
 
@@ -429,20 +430,37 @@ export class MarkdownWorkspace {
         const relevant = parsed.sections.filter((section) => {
           const links = parsed.links.filter(link => link.section === section.title)
           const directoryListing = links.length > 1 && links.every(link => link.role === 'child')
-          const questionOrAnswer = /^(question|research question|current answer|current conclusion|问题|研究问题|当前答案|当前结论)$/i
+          const questionOrAnswer = /^(question|research question|current answer|current conclusion|问题|研究问题|当前答案|当前结论|当前认识)$/i
           const binding = /^(scope|assumptions?|limitations?|open questions?|decisions?|failed (?:routes|attempts)|retained alternatives)$/i
           const bindingChinese = /^(范围|研究范围|假设|局限|限制|未解决问题|缺口|决定|决策|失败路线|保留的路线)$/
           return questionOrAnswer.test(section.title) || binding.test(section.title) || bindingChinese.test(section.title)
             || (candidate !== path && !directoryListing && links.some(link => link.path === path))
         })
         const accountUnits = [...new Set([parsed.opening, ...relevant.map(section => section.text), ...(include.has('work') && work ? [work.text] : []), ...(include.has('statements') ? parsed.sections.filter(section => section !== work).map(section => section.text) : [])])].filter(Boolean)
-        const units = isAccount && accountUnits.length ? accountUnits : [source.value.text]
+        const structured = relevant.length > 0 || work !== undefined || include.has('statements')
+        const units = isAccount && accountUnits.length && (candidate !== path || structured) ? accountUnits : [source.value.text]
         for (const unit of units) {
-          const entry = { source: { target: { kind: 'resource' as const, id }, revision: source.value.revision }, label: `${parsed.title} — ${candidate}`, text: unit }
+          const start = source.value.text.indexOf(unit)
+          const located = start >= 0 && start === source.value.text.lastIndexOf(unit)
+          const entryFor = (text: string): ContextRead['entries'][number] => ({
+            source: { target: { kind: 'resource' as const, id }, revision: source.value.revision },
+            label: `${parsed.title} — ${candidate}`, text,
+            ...(located ? { range: { start, end: start + text.length } } : {}),
+          })
+          const entry = entryFor(unit)
           entries.push(entry)
           if (entries.length > maxItems || JSON.stringify(response).length > maxCharacters) {
             entries.pop()
-            omissions.push({ target: { kind: 'resource', id }, reason: 'A complete source unit was omitted by the context item or character budget.' })
+            const omission = { target: { kind: 'resource' as const, id }, reason: 'A complete source unit was omitted by the context item or character budget.' }
+            omissions.push(omission)
+            if (isAccount && located && entries.length < maxItems) {
+              omission.reason = 'Only a located prefix of this source unit was delivered; the remaining argument and conditions require reopening the source.'
+              const prefix = fittingSourcePrefix(unit, text => JSON.stringify({ ...response,
+                value: { ...response.value, completeness: 'partial', entries: [...entries, entryFor(text)] },
+              }).length <= maxCharacters)
+              if (prefix !== undefined) entries.push(entryFor(prefix))
+              else omission.reason = 'A complete source unit was omitted by the context item or character budget.'
+            }
           }
         }
       }
@@ -536,7 +554,7 @@ export class MarkdownWorkspace {
   private topic(index: Index, path: string, source: MarkdownSource): Topic {
     const parsed = this.parse(source)
     const parent = this.primaryParent(index, path)
-    const answer = namedSection(parsed, /^(current answer|current conclusion|当前答案|当前结论)$/i)
+    const answer = namedSection(parsed, /^(current answer|current conclusion|当前答案|当前结论|当前认识)$/i)
     const gap = namedSection(parsed, /^(limitations?|open questions?|局限|未解决问题|缺口)$/i)
     const work = namedSection(parsed, /^(current work|当前工作|进行中的工作)$/i)
     const scope = namedSection(parsed, /^(scope|范围|研究范围)$/i)
@@ -544,7 +562,17 @@ export class MarkdownWorkspace {
     const questionHeading = question === undefined ? undefined : fromMarkdown(question.text).children[0]
     const questionBody = questionHeading?.type === 'heading'
       ? question?.text.slice(questionHeading.position?.end.offset ?? 0).trim() : undefined
-    const resources = [...new Set([path, ...parsed.links.map(link => link.path)])].map(resource => this.reference(index, resource))
+    const curated = parsed.sections.some(section => curatedMaterialsHeading.test(section.title.trim()))
+    const visibleLinks = curated ? parsed.links.filter(link => link.curated && link.role === 'reference') : parsed.links
+    const resources = [...new Set([path, ...visibleLinks.map(link => link.path)])].map((resource) => {
+      const reference = this.reference(index, resource)
+      if (resource === path || (!/^(?:readme|index)(?:\.md)?$/i.test(reference.title)
+        && reference.title !== posix.basename(resource))) return reference
+      const label = visibleLinks.find(link => link.path === resource && link.title.trim() !== ''
+        && link.title.trim() !== posix.basename(resource)
+        && !/^(?:readme|index)(?:\.md)?$/i.test(link.title.trim()))?.title.trim()
+      return label === undefined ? reference : { ...reference, title: label }
+    })
     return {
       id: topicIdForPath(path), title: parsed.title, parentId: parent ? topicIdForPath(parent) : null,
       childIds: [...index.topicPaths].filter(child => this.primaryParent(index, child) === path).map(topicIdForPath),

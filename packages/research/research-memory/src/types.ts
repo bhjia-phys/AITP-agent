@@ -21,6 +21,10 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
 
 /** A human question and the source location from which it was asked. */
 export interface ResearchQuestion {
+  /** Explicit default-on workflow choice captured with this submission. */
+  readonly workflow?: boolean
+  /** Native timezone captured with the submitted prompt. */
+  readonly clientTimeZone?: string
   readonly workspaceId: WorkspaceId
   readonly topicId?: TopicId
   readonly resourceId?: ResourceId
@@ -185,9 +189,20 @@ export interface ResearchSetup {
   readonly canInitialize: boolean
 }
 
+/** Confirmed question and optional source locations for an absent account. */
+export interface ResearchInitialAccount {
+  readonly title: string
+  readonly question: string
+  readonly scope?: string
+  /** Existing admitted collections; initialization records links, never copies their content. */
+  readonly libraries?: readonly { readonly title: string; readonly path: string; readonly domain: 'literature' | 'knowledge' | 'code' }[]
+}
+
 /** Explicit owner authorization for the registered Workspace's canonical root. */
 export interface ResearchInitializeRequest {
   readonly writable: boolean
+  /** Create this confirmed account only when absent; a different existing account is preserved. */
+  readonly account?: ResearchInitialAccount
 }
 
 /** Human-authored topic opening; an identical retry reuses operationId. */
@@ -197,6 +212,8 @@ export interface CreateTopicRequest {
   readonly question: string
   readonly scope?: string
   readonly parentTopicId?: TopicId
+  /** One new folder name under the selected parent; omission retains the generated topic directory. */
+  readonly directory?: string
 }
 
 /** Durable acknowledgment of a new source account and its explicit parent link. */
@@ -271,6 +288,7 @@ export interface TopicSummary {
   readonly childIds: readonly TopicId[]
   /** Optional recorded contribution to the primary parent; see {@link ParentContribution}. */
   readonly parentContribution?: ParentContribution
+  /** Identified overview passage; null does not establish that the full account contains no conclusion. */
   readonly currentAnswer: QualifiedAnswer | null
   readonly gap: string | null
   readonly work: WorkSummary
@@ -378,9 +396,11 @@ export interface ContextRead {
     readonly source: VersionedTarget
     readonly label: string
     readonly text: string
+    /** Exact UTF-16 interval in the observed file, when its source occurrence is unambiguous. */
+    readonly range?: { readonly start: number; readonly end: number }
   }[]
   readonly completeness: 'complete' | 'partial'
-  /** Omit whole qualified units when bounded; never silently remove their conditions. */
+  /** Identify unread units and any located prefix; partial source text is never a complete argument. */
   readonly omissions: readonly { readonly target: Target; readonly reason: string }[]
 }
 
@@ -511,6 +531,8 @@ export interface ResearchProvider {
   /** A current deployment limitation, displayed alongside source observations. */
   readonly notice?: string
   readonly capabilities: {
+    /** Whether this deployment supplies automatic context and the default Research admission. */
+    readonly automaticResearch: boolean
     readonly read: boolean
     readonly readContext: boolean
     readonly readActivity: boolean
@@ -617,3 +639,4 @@ export interface WorkspaceRead<T> extends ReadEnvelope<T> {
   readonly provider: ResearchProvider
 }
 export type * from './session-view-types.ts'
+export type * from './material-types.ts'

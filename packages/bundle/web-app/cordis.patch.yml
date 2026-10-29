@@ -341,6 +341,10 @@
       name: '@deepseek-ai/dsh-client-ui-brand-aitp'
       disabled: true
 
+    - id: ui-aitp-settings
+      name: '@deepseek-ai/dsh-client-ui-aitp-settings'
+      disabled: true
+
     # AITP research views, enabled by the AITP application overlay. Without a
     # provider for their resource protocols they show an unconnected state.
     - id: research-study

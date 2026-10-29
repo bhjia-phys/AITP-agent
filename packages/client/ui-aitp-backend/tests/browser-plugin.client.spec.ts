@@ -25,7 +25,7 @@ const it = createClientTest({ roster: ClientRoster.of([
 ]) })
 
 const provider: ResearchProvider = { id: 'configured-source', origin: 'runtime', capabilities: {
-  read: true, readContext: true, readActivity: false,
+  automaticResearch: false, read: true, readContext: true, readActivity: false,
   previewChanges: false, applyChanges: false, changeEvents: true, commands: [],
 } }
 const initial: ReadEnvelope<Project> = { origin: 'runtime', observedAt: '2026-01-01T00:00:00Z', revision: 'observation-1' as Revision,

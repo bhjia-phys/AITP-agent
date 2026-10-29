@@ -45,6 +45,7 @@
 .nodeButton:focus-visible,
 .branchToggle:focus-visible,
 .trailLink:focus-visible,
+.trailSummary:focus-visible,
 .sectionToggle:focus-visible,
 .materialLink:focus-visible,
 .branchRow:focus-visible,
@@ -54,15 +55,26 @@
 }
 
 /* Location: Back, then the path from the map to the current item. */
-.trail { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-height: 32px; margin-bottom: 20px; font-size: 13px; line-height: 20px; }
-.trailList { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; margin: 0; padding: 0; list-style: none; }
-.trailList li { display: inline-flex; align-items: center; gap: 2px; min-width: 0; color: var(--dsw-alias-label-secondary); }
+.trail { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px 12px; min-height: 32px; margin-bottom: 20px; font-size: 13px; line-height: 20px; }
+.trailList { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 2px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.trailList li { display: inline-flex; align-items: center; gap: 2px; min-width: 0; max-width: 100%; color: var(--dsw-alias-label-secondary); }
 .trailSeparator { flex: none; color: var(--dsw-alias-label-secondary); }
 .trailLink, .trailCurrent, .trailDirection { overflow: hidden; padding: 2px 5px; white-space: nowrap; text-overflow: ellipsis; }
 .trailLink { max-width: 26ch; border: 0; border-radius: var(--dsw-radius-xs); background: none; color: var(--dsw-alias-label-secondary); font: inherit; cursor: pointer; }
-.trailLink:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+@media (hover: hover) { .trailLink:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); } }
 .trailCurrent { max-width: 40ch; color: var(--dsw-alias-label-primary); }
 .trailDirection { max-width: 26ch; }
+.trailList .trailAncestors { align-items: flex-start; }
+.trailAncestors > .trailSeparator { display: none; }
+.trailDisclosure { min-width: 0; max-width: min(44ch, 100%); }
+.trailSummary { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 2px 5px; border: 0; border-radius: var(--dsw-radius-xs); background: none; color: var(--dsw-alias-label-secondary); font: inherit; text-align: left; cursor: pointer; }
+.trailSummary svg { flex: none; }
+.trailSummary[aria-expanded='true'] { color: var(--dsw-alias-label-primary); }
+@media (hover: hover) { .trailSummary:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); } }
+.trailAncestorList { display: grid; gap: 4px; margin: 8px 0 4px 5px; padding: 4px 0 4px 8px; border-left: 0.5px solid var(--dsw-alias-border-l2); list-style: none; }
+.trailAncestorList li { align-items: flex-start; }
+.trailAncestorList .trailSeparator { margin-top: 6px; }
+.trailAncestorList .trailLink, .trailAncestorList .trailDirection { max-width: none; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 
 .readingMeta { margin-bottom: 20px; }
 .fixtureLabel { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 19px; }
@@ -91,6 +103,7 @@
 .eyebrow { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
 .projectTitle { margin: 6px 0 0; font-family: var(--dsw-font-family); font-size: 24px; line-height: 1.4; font-weight: 500; overflow-wrap: anywhere; }
 .projectSummary { max-width: 68ch; margin: 14px 0 0; color: var(--dsw-alias-label-secondary); font-family: var(--dsw-font-family); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.mapControls { display: flex; justify-content: flex-end; margin-bottom: 4px; }
 .lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 36px 28px; align-items: start; }
 .lane { min-width: 0; padding-top: 12px; border-top: 0.5px solid var(--dsw-alias-border-l1); }
 .laneTitle { margin: 0 0 12px; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; font-weight: 500; overflow-wrap: anywhere; }
@@ -116,8 +129,8 @@
 .nodeButton { display: grid; flex: 1; gap: 2px; min-width: 0; padding: 14px 12px; border: 0; border-radius: inherit; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .nodeTitle { color: var(--dsw-alias-label-primary); font-size: 14px; line-height: 22px; font-weight: 500; overflow-wrap: anywhere; }
 .nodeMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
-.branchToggle { display: inline-flex; flex: none; align-items: center; gap: 4px; margin: 8px 8px 0 0; padding: 2px 6px; border: 0; border-radius: var(--dsw-radius-xs); background: none; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; line-height: 18px; white-space: nowrap; cursor: pointer; }
-.branchToggle:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+.branchToggle { display: inline-flex; flex: none; align-items: center; justify-content: center; gap: 4px; min-height: 32px; margin: 8px 8px 0 0; padding: 4px 8px; border: 0; border-radius: var(--dsw-radius-xs); background: none; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 12px; line-height: 18px; white-space: nowrap; cursor: pointer; }
+@media (hover: hover) { .branchToggle:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); } }
 .node[data-state='superseded'] > .nodeCard { border-style: dashed; background: none; }
 .node[data-state='superseded'] > .nodeCard .nodeTitle,
 .node[data-state='dormant'] > .nodeCard .nodeTitle,
@@ -177,7 +190,7 @@
 .pageSection:last-of-type { border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
 .sectionHeading { margin: 0; font: inherit; }
 .sectionToggle { display: flex; align-items: center; gap: 8px; width: 100%; padding: 14px 4px; border: 0; background: none; color: var(--dsw-alias-label-primary); font: inherit; font-size: 14px; line-height: 22px; font-weight: 500; text-align: left; cursor: pointer; }
-.sectionToggle:hover { background: var(--dsw-alias-interactive-bg-hover); }
+@media (hover: hover) { .sectionToggle:hover { background: var(--dsw-alias-interactive-bg-hover); } }
 .sectionToggle svg { flex: none; color: var(--dsw-alias-label-secondary); }
 .count { color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 400; }
 .sectionBody { padding: 0 4px 24px 26px; }
@@ -192,7 +205,7 @@
 }
 .rows { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
 .branchRow { display: grid; gap: 2px; width: 100%; padding: 10px 12px; border: 0; border-radius: var(--dsw-radius-sm); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.branchRow:hover, .materialLink:hover { background: var(--dsw-alias-interactive-bg-hover); }
+@media (hover: hover) { .branchRow:hover, .materialLink:hover { background: var(--dsw-alias-interactive-bg-hover); } }
 .branchRow .contribution { margin-top: 2px; }
 .items { display: grid; gap: 14px; }
 .item { padding: 18px 20px; border: 0.5px solid var(--dsw-alias-border-l1); border-radius: var(--dsw-radius-lg); font-size: 14px; line-height: 23px; }
@@ -212,8 +225,8 @@
 .summary .materials { margin: 0 -10px; }
 .materialLink { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: baseline; gap: 2px 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: var(--dsw-radius-sm); background: none; color: var(--dsw-alias-label-primary); font: inherit; font-size: 14px; line-height: 21px; text-align: left; cursor: pointer; }
 .materialLink strong { font-weight: 500; overflow-wrap: anywhere; }
-.materialKind { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
-.materialPath { grid-column: 2; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; overflow-wrap: anywhere; }
+.materialKind { color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+.materialPath { grid-column: 2; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }
 .materialHeader { margin: 4px 0 0; }
 .materialLocator { margin: 12px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 20px; overflow-wrap: anywhere; }
 .materialBody { max-width: 72ch; margin: 32px 0 0; }
@@ -264,10 +277,10 @@
 
 @container (max-width: 640px) {
   .page { padding: 12px 16px 48px; }
-  .projectTitle { font-size: 28px; line-height: 1.3; }
-  .projectSummary { font-size: 16px; }
-  .focusCard, .summary, .understanding, .editor { padding: 18px; }
-  .focusTitle { font-size: 22px; }
+  .trailAncestors:has(.trailSummary[aria-expanded='true']) { flex-basis: 100%; }
+  .trailDisclosure { width: 100%; }
+  .focusCard { padding: 0 0 20px; }
+  .summary, .understanding, .editor { padding: 18px; }
   .pageTitle { font-size: calc(26px + var(--dsh-content-font-delta, 0px)); }
   .sectionBody { padding-left: 4px; }
   .previewRow { grid-template-columns: minmax(0, 1fr); }
@@ -291,3 +304,6 @@
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
+
+
+.levelLibraries { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

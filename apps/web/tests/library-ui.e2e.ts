@@ -7,6 +7,7 @@ import { chromium, type Browser, type Locator, type Page } from 'playwright'
 import { expect, it, onTestFinished } from 'vitest'
 import type { WorkspaceCreateValue } from '@deepseek-ai/dsh-api-workspace-controller/types'
 import type { ResourcePage, ResourceReading, ResourceResult, SourceSet, SourceSetPage } from '@deepseek-ai/dsh-research-resources/types'
+import { materialSourcePath } from '@deepseek-ai/dsh-research-resources/protocol'
 import { LibraryApp, LibraryModel } from './fixtures/local-libraries/server.ts'
 import { createLibraryProject, TOPIC, CONCEPT, PAPER, EMPTY, SOURCE_SET, QUESTION } from './fixtures/library-ui/project.ts'
 import { nativeLibraryPdf, PDF_PAGE_FIVE, PDF_PAGE_TWO } from './fixtures/library-ui/pdf.ts'
@@ -119,7 +120,7 @@ it('presents literature, knowledge and code through real data while preserving s
     await panel.getByRole('button', { name: representative[title], exact: true }).first().waitFor()
     if (title === 'Literature library') {
       for (const name of ['Paper', 'Authors', 'Year', 'Reading coverage']) await panel.getByRole('columnheader', { name, exact: true }).waitFor()
-      await panel.getByRole('cell', { name: 'A. Fixture; B. Example', exact: true }).waitFor()
+      await panel.getByRole('cell', { name: 'A. Fixture; B. Example', exact: true }).first().waitFor()
     }
     const slug = title.split(' ')[0]!.toLowerCase()
     await shot(page, `${slug}-catalog`)
@@ -215,7 +216,8 @@ it('presents literature, knowledge and code through real data while preserving s
   await shot(page, 'knowledge-empty-note')
   await page.unrouteAll({ behavior: 'wait' })
 
-  await page.getByRole('navigation', { name: 'Global panels' }).getByRole('button', { name: 'Research', exact: true }).click()
+  await page.getByRole('button', { name: 'New session', exact: true }).last().click()
+  await page.getByRole('button', { name: 'Boundary research project', exact: true }).click()
   const research = page.locator('section[aria-label="Research"]')
   await research.locator('[data-map-node]').filter({ hasText: TOPIC }).click()
   await research.getByRole('button', { name: 'Open topic', exact: true }).click()
@@ -228,7 +230,8 @@ it('presents literature, knowledge and code through real data while preserving s
   await research.getByRole('heading', { name: TOPIC, exact: true, level: 2 }).waitFor()
   await research.getByRole('button', { name: /Related.*Literature library/u }).click()
   const literature = library(page, 'Literature library')
-  await openSource(literature, 'boundary-controls.pdf')
+  await literature.getByRole('row').filter({ has: page.getByText('PDF', { exact: true }) })
+    .getByRole('button', { name: PAPER, exact: true }).click()
   await reader.getByRole('img', { name: 'PDF page 1', exact: true }).waitFor()
   await reader.getByRole('img', { name: 'PDF page 2', exact: true }).waitFor()
   // Both small pages fit onscreen: the quotation's native page, not the nearby reading-line page, owns the selection.
@@ -291,25 +294,22 @@ function resourceValue<T>(result: ResourceResult<T>): T {
 }
 
 async function nativePdfPage(panel: Locator, pageNumber: number, phrase: string): Promise<Locator> {
-  const physical = panel.locator(`[data-pdf-preview] [data-pdf-page="${pageNumber}"]`)
-  await physical.evaluate((element) => { element.scrollIntoView({ block: 'start' }) })
-  await physical.getByRole('img', { name: `PDF page ${pageNumber}`, exact: true }).waitFor()
-  await expect.poll(() => physical.getAttribute('data-pdf-page-ready')).toBe('true')
-  // A lazy last-page placeholder may initially clamp the scroll; align after its actual height is known,
-  // before waiting for visible text inside the nested viewport.
-  await physical.evaluate((element) => { element.scrollIntoView({ block: 'start' }) })
-  const text = physical.locator('[data-pdf-text] span:not(.markedContent)').filter({ hasText: phrase }).first()
-  await text.waitFor()
-  // Native scroll feedback settles before keyboard navigation handles a clamped last page.
-  await panel.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => { resolve() }))))
   const observed = panel.locator('details[data-pdf-page]')
   const current = Number(await observed.getAttribute('data-pdf-page'))
   const surface = panel.locator('article[data-material-presentation="dock"][tabindex="0"]')
   await surface.focus()
+  // Navigate as the reader does before waiting for a lazy offscreen page to load.
   for (let step = 0; step < Math.abs(pageNumber - current); step++) {
     await surface.press(pageNumber > current ? 'PageDown' : 'PageUp')
     await expect.poll(() => observed.getAttribute('data-pdf-page')).toBe(String(current + (step + 1) * Math.sign(pageNumber - current)))
   }
+  const physical = panel.locator(`[data-pdf-preview] [data-pdf-page="${pageNumber}"]`)
+  await physical.getByRole('img', { name: `PDF page ${pageNumber}`, exact: true }).waitFor()
+  await expect.poll(() => physical.getAttribute('data-pdf-page-ready')).toBe('true')
+  const text = physical.locator('[data-pdf-text] span:not(.markedContent)').filter({ hasText: phrase }).first()
+  await text.waitFor()
+  // Native scroll feedback settles before checking the clamped last-page position.
+  await panel.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => { resolve() }))))
   await expect.poll(() => observed.getAttribute('data-pdf-page')).toBe(String(pageNumber))
   await expect.poll(async () => {
     const text = await observed.locator('pre').textContent()
@@ -373,7 +373,7 @@ it('uses the native continuous PDF reader for original bytes, retained viewing a
   const catalog = resourceValue(await app.rpc<ResourceResult<ResourcePage>>('researchResources/listResources', {
     request: { domain: 'literature', query: 'boundary-controls.pdf' },
   }))
-  const paper = catalog.items.find(item => item.title === 'boundary-controls.pdf')
+  const paper = catalog.items.find(item => materialSourcePath(item.ref.sourceId) === 'papers/boundary-controls.pdf')
   if (paper === undefined) throw new Error('The native PDF fixture was not discovered by the real literature provider.')
   const initial = resourceValue(await app.rpc<ResourceResult<ResourceReading>>('researchResources/readResource', {
     request: { ref: paper.ref, domain: 'literature' },
@@ -393,14 +393,16 @@ it('uses the native continuous PDF reader for original bytes, retained viewing a
   await page.setViewportSize({ width: 1600, height: 1000 })
   await page.goto(url, { waitUntil: 'load' })
   await page.getByRole('button', { name: 'Continue', exact: true }).click({ timeout: 20_000 })
-  await page.getByRole('navigation', { name: 'Global panels' }).getByRole('button', { name: 'Research', exact: true }).click()
+  await page.getByRole('button', { name: 'New session', exact: true }).last().click()
+  await page.getByRole('button', { name: 'Boundary research project', exact: true }).click()
   const research = page.locator('section[aria-label="Research"]')
   await research.locator('[data-map-node]').filter({ hasText: TOPIC }).click()
   await research.getByRole('button', { name: 'Open topic', exact: true }).click()
   await research.getByRole('button', { name: /Related.*Literature library/u }).click()
   const literature = library(page, 'Literature library')
   const reader = materialReading(page)
-  await openSource(literature, 'boundary-controls.pdf')
+  await literature.getByRole('row').filter({ has: page.getByText('PDF', { exact: true }) })
+    .getByRole('button', { name: PAPER, exact: true }).click()
   await reader.locator('[data-pdf-preview]').waitFor()
   expect(await reader.locator('[data-pdf-preview] [data-pdf-page]').count()).toBe(6)
   await reader.getByRole('img', { name: 'PDF page 1', exact: true }).waitFor()

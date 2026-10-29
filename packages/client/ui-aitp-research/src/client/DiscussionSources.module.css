@@ -1,0 +1,15 @@
+.sources { padding: 10px 14px; border-bottom: 0.5px solid var(--dsw-alias-border-l1); color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; min-width: 0; }
+.sources > summary { cursor: pointer; overflow-wrap: anywhere; }
+.label { margin-right: 10px; }
+.summary { color: var(--dsw-alias-label-primary); }
+.help { margin: 10px 0; color: var(--dsw-alias-label-secondary); }
+.list { list-style: none; padding: 0; margin: 0; max-height: 240px; overflow-y: auto; }
+.list > li { padding: 8px 0; }
+.list > li + li { border-top: 0.5px solid var(--dsw-alias-border-l1); }
+.name { display: flex; flex-wrap: wrap; gap: 4px 10px; overflow-wrap: anywhere; }
+.name strong { font-weight: 500; color: var(--dsw-alias-label-primary); }
+.path { color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; overflow-wrap: anywhere; }
+.passage { margin-top: 6px; }
+.passage summary { cursor: pointer; }
+.passage blockquote { margin: 8px 0; padding-left: 12px; border-left: 0.5px solid var(--dsw-alias-border-l2); max-height: 160px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.sources summary:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }

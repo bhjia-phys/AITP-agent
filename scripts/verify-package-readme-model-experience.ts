@@ -138,6 +138,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/research/research-resources': { kind: 'indirect', reason: 'Shared local reads and operational reference sets register no model prompt or tool; research-memory owns actual source delivery and conversation recovery.' },
   'packages/client/ui-aitp-session': { kind: 'none', reason: 'Browser-side display of a Session memory projection; registers nothing model-facing.' },
   'packages/client/ui-aitp-fixtures': { kind: 'none', reason: 'Development-only synthetic display data for browser views; registers nothing model-facing.' },
+  'packages/client/ui-aitp-settings': { kind: 'none', reason: 'Saves next-start profile preferences and displays current capabilities; loaded research plugins own model context.' },
   'packages/client/ui-conversation': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },
   'packages/client/ui-approval': { kind: 'none', reason: 'Browser-side approval presentation; registers nothing model-facing.' },
   'packages/client/ui-chat': { kind: 'none', reason: 'Browser-side Chat presentation; registers nothing model-facing.' },

@@ -1,16 +1,23 @@
 .catalog { min-width: 0; }
-.group { margin: 0 0 32px; }
-.group h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px; font-size: 13px; font-weight: 500; color: var(--dsw-alias-label-secondary); }
-.group h2 span { font-size: 12px; font-weight: 400; }
-.group ul { list-style: none; margin: 0; padding: 0; }
-.group li { display: flex; gap: 16px; padding: 20px 4px; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
-.group li[data-selected] { background: var(--dsw-alias-interactive-bg-hover); }
+.catalogTools { display: flex; justify-content: flex-end; margin: 0 0 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.catalogTools label { display: flex; align-items: center; gap: 8px; }
+.catalogTools select { font: inherit; max-width: 100%; padding: 6px 8px; border: 0.5px solid var(--dsw-alias-border-l2); border-radius: var(--dsw-radius-md); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
+.entries { list-style: none; padding: 0; margin: 0; }
+.entries > li { display: flex; gap: 12px; padding: 16px 0; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
+.entries > li[data-selected] { background: var(--dsw-alias-interactive-bg-hover); }
+.entryDetails, .guides { margin-top: 8px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.entryDetails summary, .guides summary { width: fit-content; cursor: pointer; padding-block: 4px; }
+.entryDetails > p { line-height: 1.6; overflow-wrap: anywhere; }
+.guides { margin-block: 20px; }
+.guides ul { list-style: none; margin: 8px 0; padding: 0; }
+.guideLink { padding: 6px 0; border: 0; background: transparent; color: var(--dsw-alias-label-primary); font: inherit; text-align: start; cursor: pointer; }
+.provisional { margin: 6px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; }
 .select { align-self: flex-start; min-height: 28px; flex-shrink: 0; }
 .select > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .entry { min-width: 0; flex: 1; }
-.title { min-height: 28px; border: 0; background: none; padding: 0; color: var(--dsw-alias-label-primary); font: inherit; font-size: 16px; font-weight: 500; line-height: 1.6; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.title { min-height: 28px; border: 0; background: none; padding: 0; color: var(--dsw-alias-label-primary); font: inherit; font-size: 15px; font-weight: 500; line-height: 1.6; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
 .title:focus-visible, .contents button:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 3px; border-radius: var(--dsw-radius-sm); }
-.description { margin: 6px 0 0; max-width: 74ch; font-size: 14px; line-height: 1.7; color: var(--dsw-alias-label-secondary); overflow-wrap: anywhere; }
+.description { margin: 6px 0 0; max-width: 74ch; font-size: 13px; line-height: 1.6; color: var(--dsw-alias-label-secondary); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .rowFacts { display: flex; flex-wrap: wrap; gap: 6px 20px; margin: 10px 0 0; font-size: 12px; color: var(--dsw-alias-label-secondary); }
 .rowFacts > div { display: flex; gap: 6px; min-width: 0; max-width: 100%; }
 .rowFacts dt { flex-shrink: 0; }
@@ -31,6 +38,6 @@
 .contents li button { display: block; border: 0; background: none; padding: 6px 0; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 13px; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
 .emptyContents { margin: 12px 0 0; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 1.6; }
 @media (hover: hover) { .title:hover, .contents li button:hover { color: var(--dsw-alias-brand-primary); } }
-@media (max-width: 540px) { .group li { gap: 12px; } .rowFacts > div { flex-wrap: wrap; } }
+@media (max-width: 540px) { .entries > li { gap: 12px; } .rowFacts > div { flex-wrap: wrap; } }
 
 @container (max-width: 640px) { .header h2 { font-size: 22px; } }

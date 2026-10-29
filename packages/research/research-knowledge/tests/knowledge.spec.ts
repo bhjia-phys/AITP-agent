@@ -98,3 +98,13 @@ describe('knowledge projections preserve the existing AITP collection', () => {
     expect(await readdir(knowledge)).toEqual(['index.md'])
   })
 })
+
+it('keeps collection-directory links navigable without projecting them as selectable knowledge documents', async () => {
+  const f = await fixture()
+  await writeFile(join(f.knowledge, 'index.md'), '# Collection\n\n[Collection location](.)\n\n[Evidence](note.md)\n')
+  await writeFile(join(f.knowledge, 'note.md'), '# Evidence\n\nProvisional reading only.\n')
+  const page = value(await f.service.listResources({ domain: 'knowledge' }, signal()))
+  expect(page.items.some(item => item.ref.sourceId === 'collection:root')).toBe(false)
+  expect(page.items.find(item => item.ref.sourceId === sourceIdForPath('index.md'))?.links)
+    .toContainEqual(expect.objectContaining({ target: { rootId: f.root.rootId, sourceId: 'collection:root' } }))
+})

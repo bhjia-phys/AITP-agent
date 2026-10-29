@@ -1,6 +1,9 @@
 - region "Research":
-  - heading "Research" [level=1]
+  - button "Conversations"
+  - heading "Research projects" [level=1]
+  - button "Browse projects"
   - text: workspace
+  - button "Open right sidebar"
   - navigation "Research location":
     - button "Back"
     - list:
@@ -36,16 +39,13 @@
     - heading "Materials" [level=3]
     - list:
       - listitem:
-        - 'button "Note Long-range chains: which comparisons survive a change of interaction exponent?: full account"':
-          - text: Note
-          - strong: "Long-range chains: which comparisons survive a change of interaction exponent?: full account"
-      - listitem:
         - button "Paper Long-range-chain literature reference":
           - text: Paper
           - strong: Long-range-chain literature reference
     - button "Open topic"
     - button "Read full account"
   - region "Branches of Long-range chains":
+    - heading "Branches" [level=3]
     - list:
       - listitem:
         - button "Operator Krylov dynamics In progress"
@@ -58,6 +58,9 @@
         - button "Symmetry resolution In progress Prerequisite"
       - listitem:
         - button "Entanglement growth after a quench Dormant"
+  - button "Related Literature library"
+  - button "Related Knowledge library"
+  - button "Related Code libraries"
   - region "Other branches at this level":
     - heading "Other branches at this level" [level=3]
     - list:

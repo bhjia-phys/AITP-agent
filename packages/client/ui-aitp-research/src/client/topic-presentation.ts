@@ -15,9 +15,29 @@ export function topicExcerpt(text: string, label: RegExp): string {
 
 /** Structural labels recognized by the Markdown research adapter; never inferred from prose. */
 export const topicSectionLabels = {
-  answer: /^(current answer|current conclusion|当前答案|当前结论)$/i,
+  answer: /^(current answer|current conclusion|当前答案|当前结论|当前认识)$/i,
   gap: /^(limitations?|open questions?|局限|未解决问题|缺口)$/i,
   scope: /^(scope|范围|研究范围)$/i,
+}
+
+/**
+ * Show the first authored paragraph as an overview, omitting empty HTML anchor markers.
+ * The full source remains available from the account reader.
+ * @param text - the original question or account opening.
+ * @returns its first paragraph without an otherwise visible anchor marker.
+ */
+export function overviewQuestion(text: string): string {
+  const cleaned = omitAnchorMarkers(text).trim()
+  return cleaned.split(/\r?\n[\t ]*\r?\n/)[0]?.trim() ?? ''
+}
+
+/**
+ * Remove legacy anchor markup from an authored overview without changing its prose.
+ * @param text - authored Markdown.
+ * @returns text without empty legacy anchor elements.
+ */
+export function omitAnchorMarkers(text: string): string {
+  return text.replace(/<a\s+[^>]*(?:id|name)\s*=\s*["'][^"']+["'][^>]*>\s*<\/a>/gi, '')
 }
 
 /** Legacy adapter absence messages are UI copy, not researcher-authored qualifications. */

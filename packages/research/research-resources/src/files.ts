@@ -53,10 +53,10 @@ export interface SourceScan {
   readonly partial: boolean
 }
 
-function internalDirectory(name: string): boolean {
-  const normalized = name.toLowerCase()
-  return normalized === '.git' || normalized === 'node_modules' || normalized === '.research-memory'
-}
+/** Internal directories excluded by source discovery and direct ordinary-file checks. */
+export const excludedSourceDirectories: readonly string[] = ['.git', 'node_modules', '.research-memory']
+
+function internalDirectory(name: string): boolean { return excludedSourceDirectories.includes(name.toLowerCase()) }
 
 /** Read a complete file with room to detect growth beyond its original stat and configured bound. */
 async function readBounded(handle: Awaited<ReturnType<typeof open>>, initialSize: number, bound: number,
@@ -230,18 +230,7 @@ export class GuardedFiles {
    * @returns Immediate entries and any discovery issues.
    */
   async listDirectory(path: string, signal?: AbortSignal): Promise<SourceDirectory> {
-    const root = await realpath(this.root)
-    let directory = root
-    if (path !== '') {
-      for (const part of normalizedPath(path).split('/')) {
-        signal?.throwIfAborted()
-        if (internalDirectory(part)) throw new SourceError('permission-denied', 'This internal directory is not a source location.')
-        directory = resolve(directory, part)
-        const info = await lstat(directory)
-        if (info.isSymbolicLink()) throw new SourceError('permission-denied', 'Symbolic links are not admitted by source discovery.')
-        if (!info.isDirectory()) throw new SourceError('not-found', 'The selected location is not a directory.')
-      }
-    }
+    const directory = await this.directoryPath(path, signal)
     signal?.throwIfAborted()
     const entries: SourceDirectoryEntry[] = []
     const issues: ScanIssue[] = []
@@ -312,16 +301,17 @@ export class GuardedFiles {
   /**
    * Discover regular files without traversing symlinks or internal dependency/state directories.
    * @param signal - optional cancellation checked between discovered directories.
+   * @param folder - optional admitted relative directory; discovery starts here with its own entry budget.
    * @returns relative paths plus issues; the entry bound or skipped paths mark discovery partial.
    * @throws {Error} when the root cannot be opened as a directory or cancellation is requested.
    */
-  async scan(signal?: AbortSignal): Promise<SourceScan> {
+  async scan(signal?: AbortSignal, folder: string = ''): Promise<SourceScan> {
     const canonicalRoot = await realpath(this.root)
     if (!(await stat(canonicalRoot)).isDirectory()) throw new SourceError('invalid-request', 'The configured research root is not a directory.')
     const paths: string[] = []
     const directories: string[] = []
     const issues: ScanIssue[] = []
-    const queue = ['']
+    const queue = [folder === '' ? '' : normalizedPath(folder)]
     let visited = 0
     let partial = false
     while (queue.length) {
@@ -329,7 +319,7 @@ export class GuardedFiles {
       const directory = queue.shift()
       if (directory === undefined) break
       let entries
-      try { entries = await readdir(directory ? await this.contained(directory) : canonicalRoot, { withFileTypes: true }) }
+      try { entries = await readdir(await this.directoryPath(directory, signal), { withFileTypes: true }) }
       catch (error) { issues.push({ path: directory, reason: sourceFailure(error).message }); partial = true; continue }
       directories.push(directory)
       entries.sort((a, b) => a.name.localeCompare(b.name))
@@ -345,11 +335,24 @@ export class GuardedFiles {
       }
       if (stopped || (visited >= this.maxFiles && queue.length > 0)) {
         partial = true
-        issues.push({ path: '', reason: 'Discovery reached the configured entry limit; undiscovered sources may remain.' })
+        issues.push({ path: folder, reason: 'Discovery reached the configured entry limit; undiscovered sources may remain.' })
         break
       }
     }
     return { paths, directories, issues, partial }
+  }
+
+  private async directoryPath(path: string, signal?: AbortSignal): Promise<string> {
+    let directory = await realpath(this.root)
+    for (const part of path === '' ? [] : normalizedPath(path).split('/')) {
+      signal?.throwIfAborted()
+      if (internalDirectory(part)) throw new SourceError('permission-denied', 'This internal directory is not a source location.')
+      directory = resolve(directory, part)
+      const info = await lstat(directory)
+      if (info.isSymbolicLink()) throw new SourceError('permission-denied', 'Symbolic links are not admitted by source discovery.')
+      if (!info.isDirectory()) throw new SourceError('not-found', 'The selected location is not a directory.')
+    }
+    return directory
   }
 
   private async contained(path: string): Promise<string> {

@@ -1,18 +1,16 @@
 - region "Research":
-  - heading "Research" [level=1]
+  - button "Conversations"
+  - heading "Research projects" [level=1]
+  - button "Browse projects"
   - text: workspace
+  - button "Open right sidebar"
   - navigation "Research location":
     - button "Back"
     - list:
       - listitem:
         - button "Research map"
-      - listitem: Many-body dynamics
       - listitem:
-        - button "Quantum chaos"
-      - listitem:
-        - button "Long-range chains"
-      - listitem:
-        - button "Operator Krylov dynamics"
+        - button "Earlier topics"
       - listitem:
         - button "Small-system control (N ≤ 12)"
       - listitem: Small-system control report

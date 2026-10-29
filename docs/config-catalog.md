@@ -2663,7 +2663,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-research-knowledge`
 
 - `inject`: `researchResources`
-- `source`: [`packages/research/research-knowledge/src/index.ts:10`](../packages/research/research-knowledge/src/index.ts)
+- `source`: [`packages/research/research-knowledge/src/index.ts:11`](../packages/research/research-knowledge/src/index.ts)
 
 ```ts config-catalog
 /** Existing index locations relative to each admitted root; no scientific files are created. */
@@ -2689,6 +2689,8 @@ export interface Config {
   readonly primaryPdfOnly: boolean
   /** Existing root-relative Markdown reading-index entry points. */
   readonly readingIndexPaths: string[]
+  /** Include existing top-level Markdown reading maps in a dedicated reading root. */
+  readonly includeRootReadingNotes: boolean
   /** Maximum explicitly linked reading notes inspected per admitted root. */
   readonly maxReadingNotes: number
   /** Maximum original PDF bytes accepted before page extraction. */
@@ -2709,11 +2711,13 @@ export interface Config {
 ## `@deepseek-ai/dsh-research-memory`
 
 - `inject`: `typert` · `agents` · `sessions` · `systemPrompt` · `tools` · `sessionProjections`
-- `source`: [`packages/research/research-memory/src/index.ts:79`](../packages/research/research-memory/src/index.ts)
+- `source`: [`packages/research/research-memory/src/index.ts:85`](../packages/research/research-memory/src/index.ts)
 
 ```ts config-catalog
 /** Explicit host access and bounds for configured research roots. */
 export interface Config {
+  /** Enable automatic request context and default Research workflow; false retains explicit source/history operations. */
+  automaticResearch?: boolean
   /** Only these roots can be read through this service. */
   roots?: {
     /** Absolute directory containing the scientific sources. */
@@ -2733,6 +2737,8 @@ export interface Config {
   watchMode?: 'recursive' | 'bounded'
   /** Maximum UTF-8 bytes read from one source file. */
   maxFileBytes?: number
+  /** Maximum UTF-8 or PDF bytes created by one explicit material save. */
+  maxMaterialBytes?: number
   /** Maximum complete research-context characters, including labels and omissions. */
   maxContextCharacters?: number
   /** Maximum provisional model items in the current direction. */
@@ -2745,6 +2751,8 @@ export interface Config {
   maxHumanCharacters?: number
   /** Maximum characters accepted from the question form. */
   maxQuestionCharacters?: number
+  /** Maximum direct folder names included in research-startup context. */
+  maxWorkflowEntries?: number
   /** Maximum UTF-8 bytes in a complete durable operation receipt. */
   maxOperationBytes?: number
   /** Maximum serialized model write-tool result characters. */
@@ -2768,7 +2776,7 @@ export interface Config {
 ## `@deepseek-ai/dsh-research-resources`
 
 - `inject`: `typert`
-- `source`: [`packages/research/research-resources/src/index.ts:34`](../packages/research/research-resources/src/index.ts)
+- `source`: [`packages/research/research-resources/src/index.ts:38`](../packages/research/research-resources/src/index.ts)
 
 ```ts config-catalog
 /** Configured local roots and complete reading/catalog bounds; none authorizes source writes. */
@@ -2796,6 +2804,8 @@ export interface Config {
   watchMode?: 'recursive' | 'bounded'
   /** Maximum UTF-8 bytes in one complete source-text reading. */
   maxFileBytes?: number
+  /** Maximum logical source bytes examined by one body query and retained per-root body cache. */
+  maxSearchBytes?: number
   /** Maximum bytes in one complete source-binary reading. */
   maxBinaryBytes?: number
   /** Maximum projected catalog entries per root and local-link pairs per Host batch. */
@@ -4842,6 +4852,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 | `@deepseek-ai/dsh-client-ui-aitp-materials` | — | [`packages/client/ui-aitp-materials/src/index.ts`](../packages/client/ui-aitp-materials/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-research` | — | [`packages/client/ui-aitp-research/src/index.ts`](../packages/client/ui-aitp-research/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-session` | — | [`packages/client/ui-aitp-session/src/index.ts`](../packages/client/ui-aitp-session/src/index.ts) |
+| `@deepseek-ai/dsh-client-ui-aitp-settings` | `loader` | [`packages/client/ui-aitp-settings/src/index.ts`](../packages/client/ui-aitp-settings/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-aitp-study` | — | [`packages/client/ui-aitp-study/src/index.ts`](../packages/client/ui-aitp-study/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-approval` | — | [`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts) |
 | `@deepseek-ai/dsh-client-ui-attachment` | — | [`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts) |

@@ -50,15 +50,16 @@ async function setup(observeMarkdown: (props: MarkdownProps) => void = () => {})
   return runtime
 }
 
-it('groups real entry kinds while keeping provisional pointers and exact source ownership distinct', async () => {
+it('filters entries while preserving provisional status and exact source ownership', async () => {
   const runtime = await setup()
   const pointer: Source = { ...atom, id: brandString<Source['id']>('pointer'), title: 'Unsettled route', metadata: { entryKind: 'provisional-pointer' },
     locator: { kind: 'anchor', anchor: 'remaining-question' } }
   const owner = input([atom, pointer])
   runtime.renderSlot('aitp.materials.catalog.body', { ...owner, selected: [{ ref: atom.ref }],
     isSelected: resource => resource === atom }, { entryKey: 'knowledge' })
-  expect(screen.getByRole('heading', { name: 'Concepts and explanations 1' })).toBeDefined()
-  expect(screen.getByRole('heading', { name: 'Provisional research pointers 1' })).toBeDefined()
+  expect(screen.queryByRole('heading')).toBeNull()
+  expect(screen.getByText(en.provisionalStatus)).toBeDefined()
+  expect(screen.getByText(en.entryDetails).closest('details')?.open).toBe(false)
   expect(screen.getByText('awaiting researcher review')).toBeDefined()
   const selected = screen.getByRole('checkbox', { name: `Use “${atom.title}” for this question` })
   expect(selected).toHaveProperty('checked', true)
@@ -67,6 +68,9 @@ it('groups real entry kinds while keeping provisional pointers and exact source 
   expect(owner.onSelect).toHaveBeenCalledWith(atom, false)
   fireEvent.click(screen.getByRole('button', { name: pointer.title }))
   expect(owner.onOpen).toHaveBeenCalledWith({ ref: pointer.ref, locator: pointer.locator })
+  fireEvent.change(screen.getByRole('combobox', { name: en.kind }), { target: { value: 'atom' } })
+  expect(screen.queryByRole('button', { name: pointer.title })).toBeNull()
+  expect(screen.getByRole('button', { name: atom.title })).toBeDefined()
 })
 
 it('keeps support, human review and recorded reading coverage separate in the header', async () => {
@@ -141,4 +145,18 @@ it('retains unknown authored entry kinds instead of reclassifying them', () => {
   expect(knowledgeKind('entry', t)).toBe('Knowledge entries')
   expect(knowledgeKind(undefined, t)).toBe('Knowledge entries')
   expect(knowledgeKind('authored unusual type', t)).toBe('authored unusual type')
+})
+
+it('keeps collection guides collapsed without hiding their real source navigation', async () => {
+  const runtime = await setup()
+  const index: Source = { ...atom, id: brandString<Source['id']>('index'), title: 'Collection map', metadata: { entryKind: 'index' } }
+  const owner = input([atom, index])
+  runtime.renderSlot('aitp.materials.catalog.body', owner, { entryKey: 'knowledge' })
+  expect(screen.getByRole('button', { name: index.title }).closest('details')?.open).toBe(false)
+  const summary = screen.getByText('Collection guides (1)')
+  expect(summary.closest('details')?.open).toBe(false)
+  fireEvent.click(summary)
+  expect(summary.closest('details')?.open).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: index.title }))
+  expect(owner.onOpen).toHaveBeenCalledWith({ ref: index.ref })
 })

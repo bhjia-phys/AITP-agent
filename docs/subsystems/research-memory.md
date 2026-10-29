@@ -29,7 +29,15 @@ The owner explicitly enrolls a registered Workspace from Research; observing set
 
 The owner-scoped `getSessionMemory` read projects existing accepted Session events and registered message projections without starting an Agent or rereading scientific sources. It exposes exact named request-context snapshots with current, condensed, projected or superseded state; current files open through a separate note read. Per-file links retain unknown delivery state, and prose does not establish rule adoption. Output bounds report omitted complete units. The existing cold-history API can still load an entire Session before projection bounds apply.
 
+The same plugin composes `researchMaterialFiles` for explicit new-file publication. `getLocation` resolves a recognized account and directory at any depth; `saveText` and `importPdf` exclusively create the chosen file and optionally add one ordinary account/index link. The model tools obtain authority from their actual Session and recheck it after waiting for the source queue. File publication, link outcome and current read-back remain separate. Payloads and receipts stay outside scientific sources; unknown writes are inspected rather than repeated, and existing names are never overwritten. PDF bytes require an already admitted source; a read-only library connection does not permit writing.
+
+`automaticResearch: false` leaves explicit source operations available. A per-Session `setResearchMode` choice uses a native user-message source marker, survives replay and cannot be replaced by an older queued source submission. Off stops future automatic account/ancestor/recovery delivery, while selected materials and earlier history remain. A control choice does not enter the scientific-question index or start a model turn.
+
 ## Local libraries and source study
+
+Local body discovery uses `SourceBodyQuery`, `SourceBodyHit` and `SourceBodySearch` through `researchResources.searchBodies`. It searches literal terms in admitted text/code and extracted PDF pages, keeping metadata/title search separate. Exact root-qualified source references and locators support a fresh guarded reread; coverage, excluded formats/directories and logical byte limits remain explicit. Unchanged observations can be cached after grant and file-metadata checks. The model tools `research_search_sources` and `research_read_local_source` expose this route without selecting message sources or granting writes.
+
+Request context prioritizes original corrections and selected/observed evidence ahead of provisional items and routine receipts. An active account with unfamiliar headings remains readable as original text within the configured budget, or as a precisely located prefix when final request overhead requires an excerpt; absence of an overview projection does not establish absence of a conclusion. The optional task-card approach uses existing provisional state, and its correction action prepares an attributed draft rather than sending it or changing scientific files.
 
 The source authority is [`research-resources`](../../packages/research/research-resources/README.md). Literature, knowledge and code are separate providers with independent Client plugins. They share root grants, root-qualified source identities, bounded discovery, source reading, invalidation and source links. Disabling one domain withdraws its entries without creating another chat runtime or changing the other domains' grants. The AITP overlay enables these plugins; the generic Harness profile keeps them disabled.
 
@@ -54,6 +62,51 @@ The first implementation supports local source reading, source sets, cited ordin
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxresearchmaterialfiles--researchmaterialfiles"></a>
+
+### `ctx.researchMaterialFiles` — `ResearchMaterialFiles`
+
+The optional material service neither owns scientific records nor creates source grants.
+
+```ts cordis-catalog
+/**
+ * Resolve the existing account at any depth without choosing a new file layout.
+ * @param request - admitted Workspace and optional recognized topic.
+ * @param signal - cancels source observation.
+ * @returns real paths and separately configured write availability.
+ */
+@Remote({ name: 'getLocation', resources: { workspace: addressedWorkspace } }) async getLocation(request: { workspaceId: WorkspaceId; topicId?: TopicId }, signal: AbortSignal): Promise<Result<MaterialLocation>>
+
+/**
+ * Create a text, code or result file without replacing an existing path.
+ * @param request - exact text, explicit destination and stable retry identity.
+ * @param signal - cancels before publication admission; an admitted write retains its receipt.
+ * @returns file and link outcomes independently, with exact current read-back.
+ */
+@Remote({ name: 'saveText', resources: { workspace: addressedWorkspace } }) async saveText(request: SaveMaterialRequest & { text: string }, signal: AbortSignal): Promise<Result<MaterialWriteReceipt>>
+
+/**
+ * Copy an explicitly selected authorized PDF to a new destination.
+ * @param request - existing source identity and separately writable destination.
+ * @param signal - cancels source reading or waiting before publication admission.
+ * @returns separate destination/link outcomes; the original PDF remains in place.
+ */
+@Remote({ name: 'importPdf', resources: { workspace: addressedWorkspace } }) async importPdf(request: SaveMaterialRequest & { source: SourceRef }, signal: AbortSignal): Promise<Result<MaterialWriteReceipt>>
+
+/**
+ * Publish for an actual tool execution, rechecking its Session policy when the source lock is held.
+ * @param request - bound destination and authored text or authorized PDF identity.
+ * @param authorize - re-reads current scope and file permissions, never supplied by a remote caller.
+ * @param signal - cancels before source publication admission.
+ * @returns independent material outcomes retained by the writer.
+ */
+async publishForAgent(request: SaveMaterialRequest & ({ kind: 'text'; text: string } | { kind: 'pdf'; source: SourceRef }), authorize: () => Promise<void>, signal: AbortSignal): Promise<Result<MaterialWriteReceipt>>
+```
+
+Types: [WorkspaceId](workspace.md)
+
+Source: [`packages/research/research-memory/src/material-service.ts`](../../packages/research/research-memory/src/material-service.ts)
 
 <a id="ctxresearchmemory--researchmemory"></a>
 
@@ -190,6 +243,14 @@ One source adapter per explicitly configured research root.
 @Remote({ name: 'ask', resources: { workspace: addressedWorkspace, session: (request: ResearchQuestion) => request.sessionId } }) async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>
 
 /**
+ * Admit the normal composer's explicit Research choice without relabelling existing ordinary history.
+ * @param request - real native Session, actual Workspace and complete immutable prompt.
+ * @param signal - native submission cancellation.
+ * @returns the native acceptance; source-specific composers keep their own admission.
+ */
+@Remote({ name: 'promptWorkflow', resources: { workspace: addressedWorkspace, session: addressedResearchSession } }) async promptWorkflow(request: SessionPromptRequest & { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<{ accepted: true }>
+
+/**
  * Inspect a recorded operation without writing sources or resuming an Agent.
  * @param request - Actual Workspace, owning Session and operation identity.
  * @param signal - Cancels source authorization and Session observation before receipt inspection.
@@ -204,9 +265,17 @@ One source adapter per explicitly configured research root.
  * @returns Live metadata and explicit omitted-history coverage.
  */
 @Remote({ name: 'listDiscussions', resources: { workspace: addressedWorkspace } }) async listDiscussions(request: { workspaceId: WorkspaceId } & DiscussionQuery, signal: AbortSignal): Promise<Result<DiscussionPage>>
+
+/**
+ * Record an explicit mode choice in an already bound native conversation without starting a model turn.
+ * @param request - owning Session and the researcher's selected mode; original question and sources remain bound.
+ * @param signal - cancels before admission; an appended native input is not rolled back.
+ * @returns the recorded choice, effective at the next model request; historical content remains intact.
+ */
+@Remote({ name: 'setResearchMode', resources: { session: addressedResearchSession } }) async setResearchMode(request: { sessionId: SessionId; enabled: boolean }, signal: AbortSignal): Promise<{ enabled: boolean }>
 ```
 
-Types: [SessionId](core.md) · [WorkspaceId](workspace.md)
+Types: [SessionId](core.md) · [SessionPromptRequest](session.md) · [WorkspaceId](workspace.md)
 
 Source: [`packages/research/research-memory/src/index.ts`](../../packages/research/research-memory/src/index.ts)
 
@@ -325,6 +394,14 @@ async resolveLocalLinks(request: { links: readonly { from: SourceRef; href: stri
  * @returns canonical root metadata; duplicate grants appear once.
  */
 @Remote({ name: 'listRoots' }) async listRoots(request: { rootId?: SourceRootId }, signal: AbortSignal): Promise<ResourceResult<readonly SourceRoot[]>>
+
+/**
+ * Search observed source bodies without changing catalog title-search semantics.
+ * @param request - literal terms, optional admitted root/directory and result limit.
+ * @param signal - cancels discovery, metadata checks and body reads.
+ * @returns located candidates with actual byte/file coverage and exclusions.
+ */
+@Remote({ name: 'searchBodies' }) async searchBodies(request: SourceBodyQuery, signal: AbortSignal): Promise<ResourceResult<SourceBodySearch>>
 
 /**
  * Browse a bounded domain catalog with explicit missing discovery coverage.

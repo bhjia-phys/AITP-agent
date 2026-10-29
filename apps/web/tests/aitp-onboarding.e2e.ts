@@ -82,7 +82,7 @@ describe.skipIf(webSnapshotMode() === 'record')('web e2e: native research onboar
     const horizontalOverflow = (): Promise<number> => page.evaluate(() =>
       document.documentElement.scrollWidth - document.documentElement.clientWidth)
     const openResearch = async (): Promise<void> => {
-      await page.getByRole('navigation', { name: 'Global panels' }).getByRole('button', { name: 'Research', exact: true }).click()
+      await page.getByRole('button', { name: 'Browse projects', exact: true }).click()
     }
     onTestFailed(() => saveFailureShot(page, 'web-e2e-aitp-onboarding'))
     await page.goto(scaffold.authenticatedUrl, { waitUntil: 'load' })

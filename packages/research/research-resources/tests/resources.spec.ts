@@ -65,6 +65,125 @@ it('shares equal canonical roots across counted grants and keeps other domain gr
   expect(await service.readResource({ ref }, signal())).toMatchObject({ ok: false, error: { code: 'permission-denied' } })
 })
 
+it('discovers body-only conditions and reuses unchanged source bodies without requiring catalog metadata', async () => {
+  const { service, a } = await fixture({ watchSources: false })
+  await mkdir(join(a, 'deep'))
+  const original = '# Unusual orientation\n\nThe orthogonality obstruction requires a degenerate subspace.\n'
+  await writeFile(join(a, 'deep/untitled.tex'), original)
+  await service.registerRoot({ id: 'body-root', path: a })
+  const catalog = vi.fn<ResourceProvider['list']>(async () => [])
+  service.registerProvider(provider(catalog))
+  const read = vi.spyOn(GuardedFiles.prototype, 'read')
+  cleanup.push(async () => { read.mockRestore() })
+  const cold = value(await service.searchBodies({ query: 'orthogonality obstruction' }, signal()))
+  expect(cold.hits).toHaveLength(1)
+  expect(cold.hits[0]?.ref).toEqual({ rootId: sourceRootId('body-root'), sourceId: sourceIdForPath('deep/untitled.tex') })
+  expect(cold.hits[0]?.excerpt).toContain('requires a degenerate subspace')
+  expect(catalog).not.toHaveBeenCalled()
+  expect(cold.bytesRead).toBeGreaterThan(0)
+  read.mockClear()
+  const warm = value(await service.searchBodies({ query: 'degenerate subspace' }, signal()))
+  expect(warm.hits).toHaveLength(1)
+  expect(warm.bytesRead).toBe(0)
+  expect(warm.cacheHits).toBe(warm.inspectedFiles)
+  expect(read).not.toHaveBeenCalled()
+  await writeFile(join(a, 'deep/untitled.tex'), original.replace('Unusual orientation', 'Renamed heading') + '\nOnly first perturbative order.\n')
+  const changed = value(await service.searchBodies({ query: 'first perturbative order' }, signal()))
+  expect(changed.hits[0]?.excerpt).toContain('Only first perturbative order')
+  expect(read).toHaveBeenCalledTimes(1)
+  const hit = changed.hits[0]!
+  expect(bodyText(value(await service.readResource({ ref: hit.ref, locator: hit.locator }, signal())).body))
+    .toContain('Only first perturbative order')
+})
+
+it('starts narrowed body discovery inside the requested folder despite an exhausted root scan', async () => {
+  const { service, a } = await fixture({ maxFiles: 3 })
+  await writeFile(join(a, 'a.txt'), 'Unrelated material.')
+  await writeFile(join(a, 'b.txt'), 'More unrelated material.')
+  await mkdir(join(a, 'z-topic'))
+  await writeFile(join(a, 'z-topic', 'condition.tex'), 'The orthogonality obstruction remains conditional.')
+  const root = await service.registerRoot({ id: 'limited', path: a })
+  const broad = value(await service.searchBodies({ query: 'orthogonality', rootId: root.rootId }, signal()))
+  expect(broad).toMatchObject({ completeness: 'partial', hits: [] })
+  const narrowed = value(await service.searchBodies({ query: 'orthogonality', rootId: root.rootId, folder: 'z-topic' }, signal()))
+  expect(narrowed.hits).toHaveLength(1)
+  expect(narrowed.hits[0]?.path).toBe('z-topic/condition.tex')
+  expect(narrowed.inspectedFiles).toBe(1)
+  expect(narrowed.completeness).toBe('complete')
+})
+
+it('keeps excluded and symlink directories excluded when discovery is explicitly narrowed', async () => {
+  const { service, a } = await fixture()
+  await mkdir(join(a, '.git'))
+  await mkdir(join(a, 'actual'))
+  await writeFile(join(a, '.git/hidden.txt'), 'PRIVATE_FOLDER_SEARCH_MARKER')
+  await writeFile(join(a, 'actual/visible.txt'), 'PRIVATE_FOLDER_SEARCH_MARKER')
+  await symlink(join(a, 'actual'), join(a, 'alias'))
+  const root = await service.registerRoot({ id: 'folder-boundary', path: a })
+  for (const folder of ['.git', 'alias']) {
+    const observed = value(await service.searchBodies({ query: 'PRIVATE_FOLDER_SEARCH_MARKER', rootId: root.rootId, folder }, signal()))
+    expect(observed.hits).toEqual([])
+    expect(observed.completeness).toBe('partial')
+    expect(observed.issues.length).toBeGreaterThan(0)
+  }
+})
+
+it('reports partial zero-hit body searches and rejects unauthorized roots and traversal', async () => {
+  const { service, a } = await fixture({ maxSearchBytes: 40, watchSources: false })
+  await writeFile(join(a, 'oversize.tex'), 'A decisive condition appears beyond this deliberately small byte budget.\n')
+  await service.registerRoot({ id: 'bounded-search', path: a })
+  const result = value(await service.searchBodies({ query: 'decisive condition' }, signal()))
+  expect(result.hits).toEqual([])
+  expect(result.completeness).toBe('partial')
+  expect(result.issues.some(issue => issue.reason.includes('byte budget'))).toBe(true)
+  expect(result.bytesExamined).toBeLessThanOrEqual(40)
+  expect(await service.searchBodies({ query: 'condition', rootId: sourceRootId('unadmitted') }, signal()))
+    .toMatchObject({ ok: false, error: { code: 'permission-denied' } })
+  expect(await service.searchBodies({ query: 'condition', folder: '../outside' }, signal()))
+    .toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+})
+
+it('keeps physical PDF locations and explicit extraction coverage in body-search candidates', async () => {
+  const { service, a } = await fixture()
+  await writeFile(join(a, 'control.pdf'), '%PDF fixture supplied by a bounded domain reader')
+  await service.registerRoot({ id: 'pdf-search', path: a })
+  const release = service.registerProvider({ id: 'pdf-search', domain: 'literature', list: async context => context.paths.filter(path => path.endsWith('.pdf'))
+    .map(path => ({ ...row(context, path), providerId: 'pdf-search', domain: 'literature', kind: 'literature' })),
+  read: async (_context, ref) => ref.sourceId === sourceIdForPath('control.pdf')
+    ? { kind: 'pdf', pageCount: 3, pages: [{ page: 2, text: 'The finite control requires perturbative order one.' }] }
+    : undefined })
+  const result = value(await service.searchBodies({ query: 'perturbative order' }, signal()))
+  expect(result.hits[0]?.locator).toMatchObject({ kind: 'pdf-page', page: 2 })
+  expect(result.completeness).toBe('partial')
+  expect(result.issues.some(issue => issue.reason.includes('1 of 3 physical pages'))).toBe(true)
+  release()
+  const unloaded = value(await service.searchBodies({ query: 'perturbative order' }, signal()))
+  expect(unloaded.hits).toEqual([])
+  expect(unloaded.completeness).toBe('partial')
+})
+
+it('charges failed decoding attempts against the search budget and exposes other admitted roots for continuation', async () => {
+  const { service, a, b } = await fixture({ watchSources: false, maxSearchBytes: 8 })
+  await writeFile(join(a, 'bad.tex'), Buffer.from([255, 255, 255, 255]))
+  await service.registerRoot({ id: 'invalid-text', path: a })
+  await service.registerRoot({ id: 'other-admitted-root', path: b })
+  const result = value(await service.searchBodies({ query: 'condition' }, signal()))
+  expect(result.failedReadBytes).toBe(4)
+  expect(result.bytesExamined).toBeLessThanOrEqual(8)
+  expect(result.completeness).toBe('partial')
+  expect(result.availableRoots).toContain(sourceRootId('other-admitted-root'))
+})
+
+it('rechecks a withdrawn root grant before reusing body-search observations', async () => {
+  const { service, a } = await fixture({ watchSources: false })
+  let admitted = true
+  await service.registerRoot({ id: 'conditional-body-root', path: a, isAuthorized: () => admitted })
+  const query = { query: 'Finite-size', rootId: sourceRootId('conditional-body-root') }
+  expect(value(await service.searchBodies(query, signal())).hits).toHaveLength(1)
+  admitted = false
+  expect(await service.searchBodies(query, signal())).toMatchObject({ ok: false, error: { code: 'permission-denied' } })
+})
+
 it('rechecks existing Host authority and keeps an independently configured grant when a Workspace grant stops applying', async () => {
   const { service, a } = await fixture()
   let authorized = true
@@ -770,4 +889,30 @@ it('only builds catalog projections belonging to the requested root and domain',
   expect(value(await service.listResources({ domain: 'code', rootId: code.rootId }, signal())).items).toHaveLength(1)
   expect(codeList).toHaveBeenCalledTimes(1)
   expect(knowledgeList).not.toHaveBeenCalled()
+})
+
+it('resolves an explicitly linked admitted collection as a catalog destination without inventing file content or topic membership', async () => {
+  const f = await fixture()
+  const source = await f.service.registerRoot({ id: 'owner', path: f.a, domains: ['knowledge'] })
+  const collection = await f.service.registerRoot({ id: 'collection', path: f.b, domains: ['literature'] })
+  const from = { rootId: source.rootId, sourceId: sourceIdForPath('note.md') }
+  expect(await f.service.resolveLocalLink({ from, href: f.b }, signal())).toEqual({ ref: { rootId: collection.rootId, sourceId: 'collection:root' } })
+  expect(await f.service.resolveLocalLink({ from, href: join(f.b, 'note.md') }, signal()))
+    .toEqual({ ref: { rootId: collection.rootId, sourceId: sourceIdForPath('note.md') } })
+  collection.dispose()
+  expect(await f.service.resolveLocalLink({ from, href: f.b }, signal())).toBeUndefined()
+})
+
+it('finds an authored title by its actual filename and Chinese source path without changing the display title', async () => {
+  const f = await fixture()
+  await mkdir(join(f.a, '中文 空格'))
+  await writeFile(join(f.a, '中文 空格/真实记录.md'), '# Original source\n')
+  await f.service.registerRoot({ id: 'titles', path: f.a, domains: ['knowledge'] })
+  f.service.registerProvider(provider(async context => context.paths.map(path => ({ ...row(context, path), title: 'Authored scientific title' }))))
+  for (const query of ['note.md', '中文 空格/真实记录.md']) {
+    const page = value(await f.service.listResources({ domain: 'knowledge', query }, signal()))
+    expect(page.items).toHaveLength(1)
+    expect(page.items[0]?.title).toBe('Authored scientific title')
+    expect(page.items[0]?.ref.sourceId).toBe(sourceIdForPath(query))
+  }
 })

@@ -9,16 +9,17 @@ import { act, within } from '@testing-library/react'
 import { expect, vi } from 'vitest'
 import { ClientRoster, createClientTest, webApp, type TestClient } from '@deepseek-ai/dsh-client-test-runtime/src/assembly/index.ts'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
-import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { noteAddress, topicAddress, topicsAddress } from '../src/client/protocol.ts'
 import { ResearchPanel } from '../src/client/ResearchPanel.tsx'
-import { WorkspaceSidebar } from '../src/client/WorkspaceSidebar.tsx'
+import { ResearchHome } from '../src/client/ResearchHome.tsx'
 import { workspaceProjectAddress } from '../src/client/workspace-resources.ts'
 import { apply as nodeApply } from '../src/index.ts'
 import type { ResearchChangeReader } from '../src/client/research-change-model.ts'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionRequestId } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { createWorkflowStore } from '../src/client/workflow-store.ts'
 
 const RESEARCH = '@deepseek-ai/dsh-client-ui-aitp-research'
 const FIXTURES = '@deepseek-ai/dsh-client-ui-aitp-fixtures'
@@ -69,6 +70,66 @@ async function reloadChangeReader(client: TestClient): Promise<ResearchChangeRea
     registrations.mockRestore()
   }
 }
+
+it('captures each Session preference and admits the default workflow only while its actual provider supports it', async ({ start }) => {
+  localStorage.removeItem('aitp.research.workflow.v1')
+  const client = await start()
+  const release = client.ctx.reflect.provide('researchWorkflowTransport', {
+    submit: () => async () => ({ ok: true, value: { accepted: true } }),
+    setMode: vi.fn(async () => {}),
+  })
+  try {
+    await client.flush()
+    const entry = client.ctx.slots.entries('conversation.input.dock').find(item => item.options.id === 'aitp-research-mode')
+    expect(client.ctx.slots.entries('conversation.hero.options').some(item => item.options.id === 'aitp-research-mode')).toBe(false)
+    if (entry?.store === undefined || !('create' in entry.store)) throw new Error('The Research preference has no registered store')
+    const store = entry.store as ReturnType<typeof createWorkflowStore>
+    const choices = store.create()
+    const first = 'workflow-first' as SessionId
+    const second = 'workflow-second' as SessionId
+    expect(client.ctx.researchDiscussions.workflowEnabled(first)).toBe(true)
+    choices.actions.choose(second, false)
+    expect(client.ctx.researchDiscussions.workflowEnabled(first)).toBe(true)
+    expect(client.ctx.researchDiscussions.workflowEnabled(second)).toBe(false)
+    expect(client.ctx.researchDiscussions.workflowEnabled()).toBe(false)
+    choices.actions.choose(first, false)
+    choices.actions.choose(second, true)
+    expect(client.ctx.researchDiscussions.workflowEnabled(first)).toBe(false)
+
+    const resolved = client.ctx.researchWorkspaces.resolve(WS)
+    if (!resolved.ok) throw new Error('The test workspace has no provider')
+    const provider = resolved.value.provider
+    const workspaces = client.ctx.workspaces.list.getSnapshot()
+    const workspaceSnapshot = vi.spyOn(client.ctx.workspaces.list, 'getSnapshot').mockReturnValue({ ...workspaces, items: [{
+      workspaceId: WS, title: 'Actual session workspace', path: '/fixture', sessionIds: [first], createdAt: '', updatedAt: '',
+    }] })
+    let automaticResearch = false
+    const availability = vi.spyOn(client.ctx.researchWorkspaces, 'resolve').mockImplementation(() => ({
+      ok: true, value: { ...resolved.value, provider: { ...provider, capabilities: { ...provider.capabilities, automaticResearch } } },
+    }))
+    try {
+      choices.actions.choose(first, true)
+      expect(client.ctx.conversation.submissions.capture(first)).toBeUndefined()
+      automaticResearch = true
+      expect(client.ctx.conversation.submissions.capture(first)).toBeTypeOf('function')
+      availability.mockReturnValue({ ok: false, error: { code: 'not-connected', message: 'Workspace connection pending', retryable: true } })
+      const pending = client.ctx.conversation.submissions.capture(first)
+      expect(pending).toBeTypeOf('function')
+      expect(await pending!({ sessionId: first, requestId: 'pending-provider' as SessionRequestId,
+        content: [{ type: 'text', text: 'Keep this Research question' }], mode: 'steer' })).toMatchObject({
+        ok: false, error: { code: 'aitp/workspace', details: { code: 'not-connected', retryable: true } },
+      })
+      choices.actions.choose(first, false)
+      expect(client.ctx.conversation.submissions.capture(first)).toBeUndefined()
+    } finally {
+      availability.mockRestore()
+      workspaceSnapshot.mockRestore()
+    }
+  } finally {
+    await release()
+    localStorage.removeItem('aitp.research.workflow.v1')
+  }
+}, 60_000)
 
 it('replaces change observations on real plugin reload and releases them on unload', async ({ start }) => {
   const first = await start()
@@ -136,15 +197,17 @@ it('waits for admitted discussion creation before real plugin unload completes',
   }
 }, 60_000)
 
-it('registers the panel, its sidebar entry and the note tab type, and removes them on unload', async ({ start }) => {
+it('adds the research home and native projects tab without a left mode switch, and releases them on unload', async ({ start }) => {
   const client = await start()
   const panelEntry = client.ctx.slots.entries('main').find(entry => entry.component === ResearchPanel)
   const store = panelEntry?.store
   if (store === undefined || !('create' in store)) throw new Error('the Research panel declares no store handle')
   // The renderer owns one root instance for the shared handle.
-  expect(client.ctx.slots.entries('sidebar.context').find(item => item.component === WorkspaceSidebar)?.store).toBe(store)
-  const entry = client.ctx.slots.entries('sidebar.panellist').find(item => item.options.id === 'aitp-research')
-  expect(resolveSlotLabel(entry?.options.label)).toBe('Research')
+  expect(client.ctx.slots.entries('conversation.hero.introduction').find(item => item.component === ResearchHome)?.store).toBe(store)
+  expect(client.ctx.slots.entries('sidebar.context').some(item => item.options.key === 'aitp-research')).toBe(false)
+  expect(client.ctx.slots.entries('sidebar.panellist').some(item => item.options.id === 'aitp-research')).toBe(false)
+  expect(client.ctx.sidebarRightTabs.get('aitp-projects')?.guide?.[0]?.title()).toBe('Research projects')
+  expect(client.ctx.sidebarRightTabs.candidates('dsh-resource://aitp-workspace-setup/workspace/w1').map(tab => tab.kind)).toEqual(['aitp-projects'])
   const address = noteAddress(WS, 'spectra/research.md')
   expect(client.ctx.sidebarRightTabs.candidates(address).map(tab => tab.kind)).toEqual(['aitp-note'])
   expect(client.ctx.sidebarRightTabs.get('aitp-note')?.title(address)).toBe('research.md')
@@ -161,6 +224,8 @@ it('registers the panel, its sidebar entry and the note tab type, and removes th
   expect(client.ctx.slots.entries('main').filter(entry => entry.component === ResearchPanel)).toHaveLength(0)
   expect(client.ctx.slots.entries('sidebar.panellist').map(entry => entry.options.id)).not.toContain('aitp-research')
   expect(client.ctx.sidebarRightTabs.get('aitp-note')).toBeUndefined()
+  expect(client.ctx.sidebarRightTabs.get('aitp-projects')).toBeUndefined()
+  expect(client.ctx.slots.entries('conversation.hero.introduction').some(item => item.component === ResearchHome)).toBe(false)
   expect(client.ctx.get('researchDiscussions')).toBeUndefined()
   expect(() => { nodeApply() }).not.toThrow()
 }, 60_000)

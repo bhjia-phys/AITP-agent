@@ -14,13 +14,15 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
   min-width: 0;
   padding: calc(var(--dsh-frame-top-clearance, 0px) + 12px) 28px 12px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l1);
 }
 
 .headerTitle {
+  flex: none;
   margin: 0;
   font-size: 15px;
   line-height: 22px;
@@ -38,7 +40,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 320px;
+  max-width: min(35vw, 220px);
 }
 
 .body {

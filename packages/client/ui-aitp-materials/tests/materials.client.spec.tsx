@@ -163,6 +163,21 @@ it('recovers an expired later-page cursor without cached rows while retaining se
   expect(screen.getByRole<HTMLSelectElement>('combobox', { name: 'Source folders' }).value).toBe(rootId)
 })
 
+it('uses the same native discussion entry for global sources without requiring a project or a separate question box', async () => {
+  const discussion = { open: vi.fn(), setSources: vi.fn() }
+  const { face, props } = await panel({ discussion })
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Use “已有推导” for this question' }))
+  expect(discussion.setSources).toHaveBeenLastCalledWith({}, [{ ref: second.ref }])
+  expect(screen.queryByRole('textbox', { name: 'Ask about the selected sources' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Discuss selected sources' }))
+  expect(discussion.open).toHaveBeenCalledExactlyOnceWith({}, [{ ref: second.ref }], undefined)
+  expect(face.ask).not.toHaveBeenCalled()
+  expect(face.openSession).not.toHaveBeenCalled()
+  expect(props.renderFactorySlot).toHaveBeenCalledWith('aitp.research.discussion', {
+    scope: {}, presentation: 'main', returnTo: face.returnTo,
+  })
+})
+
 it('keeps a scoped discussion beside the library and stages source changes without creating another Session', async () => {
   const discussion = { open: vi.fn(), setSources: vi.fn() }
   const topic = { workspaceId: 'project' as WorkspaceId, topicId: 'branch' as SourceTopicId, title: 'A direction' }
@@ -254,9 +269,45 @@ it('shows missing connection and partial coverage instead of manufacturing an em
   expect(screen.getByRole('alert').textContent).toContain('not connected')
   cleanup()
   await panel({}, { [materialListAddress({ domain: 'knowledge' })]: live({ ...page, items: [], completeness: 'partial', issues: [{ reason: 'One configured folder could not be read.' }] }) })
-  expect(screen.getByRole('note').textContent).toContain('Only part')
-  fireEvent.click(screen.getByText('Reading limits'))
+  expect(screen.getByRole('note').textContent).toBe(en.coveragePartial)
+  expect(screen.getByRole('note').closest('details')?.open).toBe(false)
+  fireEvent.click(screen.getByRole('note').closest('summary')!)
   expect(screen.getByText('One configured folder could not be read.')).toBeDefined()
+  expect(screen.getByText(en.emptyPartial)).toBeDefined()
+  expect(screen.queryByText(en.empty)).toBeNull()
+})
+
+it.each(['complete', 'partial'] as const)('broadens %s topic results without changing the question, selections or return route', async (completeness) => {
+  const scope = { workspaceId: 'trial' as WorkspaceId, topicId: 'response' as SourceTopicId, title: 'Response partition' }
+  const { store, face } = await panel({}, {
+    [MATERIAL_ROOTS]: live([{ id: 'knowledge', title: 'Knowledge', displayPath: '/k', domains: ['knowledge'] }]),
+    [materialListAddress({ domain: 'knowledge' })]: live(page),
+    [materialListAddress({ domain: 'knowledge', topic: scope })]: live({ ...page, items: [], completeness }),
+  })
+  act(() => {
+    store.actions.setRoot('knowledge', 'knowledge')
+    store.actions.setQuery('knowledge', 'old filter')
+    store.actions.setScope(scope)
+    store.actions.select({ ref: first.ref, title: first.title, domain: 'literature' }, true)
+    store.actions.question('Check the finite-system condition.')
+  })
+  expect(screen.getByText(completeness === 'partial' ? en.emptyTopicPartial : en.emptyTopic)).toBeDefined()
+  expect(screen.queryByText(en.empty)).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: en.browseAll }))
+  expect(face.changeScope).not.toHaveBeenCalled()
+  expect(store.getSnapshot().scope).toEqual(scope)
+  expect(store.getSnapshot().drafts[materialsScopeKey(scope)]).toMatchObject({
+    question: 'Check the finite-system condition.', selections: [{ ref: first.ref }],
+  })
+  expect(store.getSnapshot().views.knowledge.allInCollection).toBe(true)
+  expect(store.getSnapshot().views.knowledge.rootId).toBeNull()
+  expect(store.getSnapshot().views.knowledge.query).toBe('')
+  expect(face.ask).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: en.returnTopic }))
+  expect(face.returnTo).toHaveBeenCalledOnce()
+  fireEvent.change(screen.getByRole('combobox', { name: en.materialScope }), { target: { value: 'topic' } })
+  expect(store.getSnapshot().scope).toEqual(scope)
+  expect(screen.getByText(completeness === 'partial' ? en.emptyTopicPartial : en.emptyTopic)).toBeDefined()
 })
 
 it('selects exact Chinese source text without treating rendered Markdown as the raw source', async () => {
@@ -274,6 +325,38 @@ it('selects exact Chinese source text without treating rendered Markdown as the 
   fireEvent.click(screen.getByRole('button', { name: 'Use selected passage' }))
   const quote = '只在**有限系统**下成立。'
   expect(onSelect).toHaveBeenCalledExactlyOnceWith({ ref: second.ref, locator: { kind: 'text', start: 6, end: 6 + quote.length, quote }, selectedText: quote })
+})
+
+it('identifies equal filenames by their connected folders and shows only authored research uses', () => {
+  const rootId = 'shared-papers' as SourceRootId
+  const secondRootId = 'project-notes' as SourceRootId
+  const roots = [
+    { id: rootId, title: 'Shared papers', displayPath: '/research/shared/papers' },
+    { id: secondRootId, title: 'Project notes', displayPath: '/research/topic/notes' },
+  ]
+  const reading: ResourceReading = { resource: { ...first,
+    ref: { rootId, sourceId: 'source:same.txt' as SourceId },
+    topics: [{ workspaceId: 'project' as WorkspaceId, topicId: 'branch' as SourceTopicId,
+      reason: 'Background for the finite-dimensional construction; the infinite limit is unverified.' }],
+  }, body: { kind: 'text', format: 'plain-text', text: 'Original source text.' }, observedAt: 'now', issues: [] }
+  const useResource = vi.fn((address: string) => address === MATERIAL_ROOTS ? live(roots) : none)
+  const input = { ...readerProps({ reading, fields: [], onLink: vi.fn(() => false) }), useResource } as FactoryComponentPropsOf<'aitp.materials.reader'>
+  const view = render(<MaterialReader {...input} />)
+  expect(useResource).toHaveBeenCalledWith(MATERIAL_ROOTS)
+  fireEvent.click(screen.getByText(en.path).closest('summary')!)
+  expect(screen.getByText('/research/shared/papers')).toBeDefined()
+  expect(screen.getAllByText('same.txt')).toHaveLength(2)
+  expect(screen.getByRole('region', { name: en.researchUses })).toBeDefined()
+  expect(screen.getByText('Background for the finite-dimensional construction; the infinite limit is unverified.')).toBeDefined()
+  view.rerender(<MaterialReader {...input} reading={{ ...reading,
+    resource: { ...reading.resource, ref: { ...reading.resource.ref, rootId: secondRootId }, topics: [] },
+  }} />)
+  expect(screen.getByText('/research/topic/notes')).toBeDefined()
+  expect(screen.queryByText('/research/shared/papers')).toBeNull()
+  expect(screen.queryByRole('region', { name: en.researchUses })).toBeNull()
+  view.rerender(<MaterialReader {...input} useResource={() => none} />)
+  expect(screen.getByText(en.folderLocationUnavailable)).toBeDefined()
+  expect(screen.getAllByText('same.txt')).toHaveLength(2)
 })
 
 it('opens authored inline links only through observed source links and leaves unobserved destinations inert', async () => {
@@ -512,4 +595,18 @@ it('shows the available code roots without requesting a whole-code catalog on fi
   })
   expect(view.props.useResource).not.toHaveBeenCalledWith(materialListAddress({ domain: 'code' }))
   expect(view.props.renderFactorySlot).toHaveBeenCalledWith('aitp.materials.catalog', expect.objectContaining({ domain: 'code', items: [], roots }))
+})
+
+it('browses an explicitly opened collection without changing the question topic or selecting all its sources', async () => {
+  const rootId = 'shared-collection' as SourceRootId
+  const workspaceId = 'research-folder' as WorkspaceId
+  const topicId = 'branch-topic' as SourceTopicId
+  const { store, props } = await panel({}, {
+    [MATERIAL_ROOTS]: live([{ id: rootId, title: 'Shared collection', displayPath: '/shared', domains: ['knowledge'] }]),
+    [materialListAddress({ domain: 'knowledge', rootId })]: live(page),
+  })
+  act(() => { store.actions.setScope({ workspaceId, topicId }); store.actions.setCollection('knowledge', rootId) })
+  expect(props.useResource).toHaveBeenCalledWith(materialListAddress({ domain: 'knowledge', rootId }))
+  expect(store.getSnapshot().scope).toEqual({ workspaceId, topicId })
+  expect(store.getSnapshot().drafts[materialsScopeKey({ workspaceId, topicId })]?.selections ?? []).toEqual([])
 })

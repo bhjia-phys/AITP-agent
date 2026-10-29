@@ -2,7 +2,8 @@
 export const en = {
   'title': 'Knowledge library',
   'description': 'Read explanations, follow their sources and continue open questions.',
-  'kind': 'Entry kind',
+  'kind': 'Content type',
+  allTypes: 'All types', entryDetails: 'Sources and review', collectionGuides: 'Collection guides ({count})', provisionalStatus: 'Research note · awaiting confirmation',
   supportSource: 'Based on a source', supportReconstructed: 'Reconstructed argument', reviewAwaiting: 'Awaiting review',
   'support': 'Support',
   'review': 'Researcher review',
@@ -35,6 +36,7 @@ export const zh: Record<LibraryKey, string> = {
   'title': '知识库',
   'description': '阅读已有解释，追溯依据，继续尚未解决的问题。',
   'kind': '内容类型',
+  allTypes: '全部类型', entryDetails: '依据与审阅', collectionGuides: '集合入口（{count}）', provisionalStatus: '研究笔记 · 待确认',
   supportSource: '有原文依据', supportReconstructed: '重新整理的论证', reviewAwaiting: '待审阅',
   'support': '推导或来源依据',
   'review': '研究者审阅',

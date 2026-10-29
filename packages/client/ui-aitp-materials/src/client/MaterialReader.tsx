@@ -7,6 +7,8 @@ import { materialRefKey, materialsScopeKey } from './store.ts'
 import { ImageMaterialReader } from './ImageMaterialReader.tsx'
 import { PdfMaterialReader } from './PdfMaterialReader.tsx'
 import { MaterialReaderHeader, MaterialReaderLinks } from './MaterialReaderHeader.tsx'
+import { MaterialSourceDetails, type LocatedMaterialReaderProps } from './MaterialSourceDetails.tsx'
+import { MATERIAL_ROOTS } from './resources.ts'
 import { selectMaterialPassage } from './selection.ts'
 import { materialSourcePath } from '@deepseek-ai/dsh-research-resources/protocol'
 import { parseSourceFrontmatter, parseSourceMarkup } from '@deepseek-ai/dsh-research-resources/markup'
@@ -19,14 +21,17 @@ import css from './materials.module.css'
  */
 export function MaterialReader(props: FactoryComponentPropsOf<'aitp.materials.reader'>): ReactNode {
   const scope = props.useStore(state => materialsScopeKey(state.scope))
+  const roots = props.useResource<'aitp-material-roots'>(MATERIAL_ROOTS)
+  const sourceRoot = roots.value?.find(root => root.id === props.reading.resource.ref.rootId)
+  const located = { ...props, ...sourceRoot === undefined ? {} : { sourceRoot } }
   // A retained dock tab already owns its scope; another foreground topic must not remount its reader.
   const owner = props.presentation === 'dock' ? '' : scope
   const key = `${owner}:${materialRefKey(props.reading.resource.ref)}:${JSON.stringify(props.reading.locator ?? null)}`
-  return props.reading.body.kind === 'pdf' ? <PdfMaterialReader key={key} {...props} />
-    : props.reading.body.kind === 'image' ? <ImageMaterialReader key={key} {...props} /> : <TextMaterialReader key={key} {...props} />
+  return props.reading.body.kind === 'pdf' ? <PdfMaterialReader key={key} {...located} />
+    : props.reading.body.kind === 'image' ? <ImageMaterialReader key={key} {...located} /> : <TextMaterialReader key={key} {...located} />
 }
 
-function TextMaterialReader(props: FactoryComponentPropsOf<'aitp.materials.reader'>): ReactNode {
+function TextMaterialReader(props: LocatedMaterialReaderProps): ReactNode {
   const { reading, t } = props
   const { resource, body } = reading
   const dock = props.presentation === 'dock'
@@ -60,6 +65,7 @@ function TextMaterialReader(props: FactoryComponentPropsOf<'aitp.materials.reade
   return <article className={dock ? `${css.reader} ${css.dockReader}` : css.reader}
     data-material-presentation={props.presentation} data-material-domain={markdown && (dock || props.libraryDomain !== 'code') ? 'document' : resource.domain}>
     {!dock && <MaterialReaderHeader {...props} />}
+    <MaterialSourceDetails {...props} />
     {(props.onDiscuss !== undefined || props.onSelect !== undefined || markdown) && <div className={css.readerActions}>
       {props.onDiscuss !== undefined && <Button size="sm" variant="primary" icon={<IconNewChatOutlineRegular />} onClick={() => {
         props.onDiscuss?.({ ref: resource.ref,
@@ -108,7 +114,6 @@ function TextMaterialReader(props: FactoryComponentPropsOf<'aitp.materials.reade
         {reading.issues.length > 0 && <ul className={css.notice}>{reading.issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
         <MaterialReaderLinks {...props} onFailure={() => { setFailure(t('unresolved')) }} />
       </>}
-      {path !== undefined && <p className={css.muted}>{t('path')}: {path}</p>}
       {frontmatter !== undefined && frontmatter.issues.length === 0 && frontmatter.source.trim() !== '' && <details>
         <summary>{t('metadata')}</summary><pre>{frontmatter.source}</pre>
       </details>}

@@ -8,6 +8,8 @@
     "rewriteRelativeImportExtensions": false
   },
   "include": [
+    "apps/web/tests/aitp-material-writes.e2e.ts",
+    "apps/web/tests/aitp-settings.e2e.ts",
     "apps/web/tests/library-ui.e2e.ts",
     "apps/web/tests/native-sources.e2e.ts",
     "apps/web/tests/native-dock.e2e.ts",
@@ -39,6 +41,7 @@
     "apps/web/tests/aitp-workspace.e2e.ts",
     "apps/web/tests/aitp-memory.e2e.ts",
     "apps/web/tests/aitp-onboarding.e2e.ts",
+    "apps/web/tests/aitp-research-workflow.e2e.ts",
     "apps/web/tests/voice-input.e2e.ts",
     "apps/web/tests/cot-translation.e2e.ts",
     "apps/web/tests/cot-translation-paid.e2e.ts",
@@ -276,6 +279,7 @@
     { "path": "./packages/client/ui-chat/tsconfig.host.json" },
     { "path": "./packages/client/ui-conversation/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings/tsconfig.host.json" },
+    { "path": "./packages/client/ui-aitp-settings/tsconfig.host.json" },
     { "path": "./packages/client/ui-settings-general/tsconfig.host.json" },
 
     { "path": "./packages/host/product-telemetry-otel" },

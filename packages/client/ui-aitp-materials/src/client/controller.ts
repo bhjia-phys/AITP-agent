@@ -2,7 +2,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { BoundActions } from '@deepseek-ai/dsh-client-store'
 import type { ResourceDomain, SourceSelection } from '@deepseek-ai/dsh-research-resources/types'
-import { materialSourceAddress } from '@deepseek-ai/dsh-research-resources/protocol'
+import { COLLECTION_SOURCE_ID, materialSourceAddress } from '@deepseek-ai/dsh-research-resources/protocol'
 import type { ResearchDiscussions } from '@deepseek-ai/dsh-client-ui-aitp-research/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
@@ -82,13 +82,12 @@ export class MaterialsController implements MaterialsLibraryService {
   observeState(snapshot: () => MaterialsState): void { this.snapshot = snapshot }
 
   private showCatalogue(scope: MaterialsScope): void {
-    if (scope.workspaceId === undefined) return
     const key = materialsScopeKey(scope)
     const discussion = this.ctx.get('researchDiscussions')
     if (discussion === undefined) return
     if (!this.suspendedDiscussions.has(key)) this.suspendedDiscussions.set(key,
-      discussion.suspend({ ...scope, workspaceId: scope.workspaceId }))
-    else discussion.collapse({ ...scope, workspaceId: scope.workspaceId })
+      discussion.suspend(scope))
+    else discussion.collapse(scope)
   }
 
   /**
@@ -163,19 +162,32 @@ export class MaterialsController implements MaterialsLibraryService {
   /**
    * Resolve a reference through its actual provider before selecting its library.
    * @param request - one source and an explicit optional question scope.
-   * @returns whether its actual provider domain is available for viewing.
+   * @returns whether an installed library can present the resolved source.
    */
   async openSource(request: Omit<OpenMaterials, 'domain'> & {
     readonly ref: NonNullable<OpenMaterials['ref']>
     readonly domain?: ResourceDomain
   }): Promise<boolean> {
     const signal = AbortSignal.any([this.ctx.layout.beginNavigation(), this.lifetime.signal])
+    if (request.ref.sourceId === COLLECTION_SOURCE_ID) {
+      const roots = await this.connection.run(transport => transport.listRoots(signal))
+      if (!roots.ok || signal.aborted) return false
+      const root = roots.value.find(item => item.id === request.ref.rootId)
+      if (root === undefined || root.domains?.length === 0) return false
+      const domain = request.domain !== undefined && (root.domains === undefined || root.domains.includes(request.domain)) ? request.domain
+        : [...this.modules.keys()].find(item => root.domains === undefined || root.domains.includes(item))
+      if (domain === undefined) return false
+      return this.open({ domain, rootId: root.id, ...request.scope === undefined ? {} : { scope: request.scope },
+        ...request.returnTo === undefined ? {} : { returnTo: request.returnTo } })
+    }
     const result = await this.connection.run(transport => transport.readResource(request.ref, request.locator, signal, request.domain))
     if (!result.ok || signal.aborted) return false
     const active = [...this.modules.values()].find(module => module.panelId === this.ctx.layout.panelInfo.getSnapshot().activePanelId)
     const keepReading = active !== undefined && request.returnTo === this.returnToOwner
       && this.returnScopeKey === materialsScopeKey(request.scope ?? {})
-    return this.open({ ...request, domain: keepReading ? active.domain : result.value.resource.domain,
+    const destination = this.modules.get(result.value.resource.domain) ?? active ?? this.modules.values().next().value
+    if (destination === undefined) return false
+    return this.open({ ...request, domain: keepReading ? active.domain : destination.domain,
       readerDomain: request.domain ?? null })
   }
 
@@ -197,6 +209,7 @@ export class MaterialsController implements MaterialsLibraryService {
     this.selectReaderScope(request.scope ?? {})
     actions.open(request.domain, request.ref === undefined ? { kind: 'list' }
       : { kind: 'source', ref: request.ref, ...request.readerDomain === undefined ? {} : { readerDomain: request.readerDomain }, ...request.locator === undefined ? {} : { locator: request.locator } })
+    if (request.rootId !== undefined) { actions.setCollection(request.domain, request.rootId); actions.setQuery(request.domain, '') }
     const module = this.modules.get(request.domain)
     if (module !== undefined && request.ref !== undefined) this.preview(module, {
       ref: request.ref, ...request.locator === undefined ? {} : { locator: request.locator },
@@ -254,6 +267,13 @@ export class MaterialsController implements MaterialsLibraryService {
       },
       refresh: () => { void this.connection.refresh(this.lifetime.signal) },
       returnTo: this.returnToOwner,
+      prepareFullConversation: scope => () => {
+        if (this.lifetime.signal.aborted) return
+        actions.setScope(scope)
+        this.selectReaderScope(scope)
+        this.sourceEntry = module.panelId
+        this.ctx.layout.selectPanel(module.panelId)
+      },
       hasReturn: scope => this.externalReturn !== undefined && this.returnScopeKey === materialsScopeKey(scope),
       openLink: (link) => {
         if (link.target === undefined) return false
@@ -261,13 +281,16 @@ export class MaterialsController implements MaterialsLibraryService {
           ...link.locator === undefined ? {} : { locator: link.locator } })
         return true
       },
-      ask: request => this.connection.ask(request, this.lifetime.signal),
+      ask: request => this.connection.ask({ ...request,
+        ...(discussion === undefined ? {} : { workflow: discussion.workflowEnabled(request.sessionId) }),
+      }, this.lifetime.signal),
       openSession: (receipt) => { this.ctx.uiWorkspace.openSession(receipt.sessionId) },
       openSelection: (selection, scope) => {
-        const destination = this.modules.get(selection.domain)
+        const destination = this.modules.get(selection.domain) ?? this.modules.get(module.domain)
         if (destination === undefined) return
-        actions.open(selection.domain, { kind: 'source', ref: selection.ref, ...selection.locator === undefined ? {} : { locator: selection.locator } })
-        this.preview(destination, selection, scope)
+        actions.open(destination.domain, { kind: 'source', ref: selection.ref, readerDomain: null,
+          ...selection.locator === undefined ? {} : { locator: selection.locator } })
+        this.preview(destination, selection, scope, null)
         this.ctx.layout.selectPanel(destination.panelId)
       },
     }

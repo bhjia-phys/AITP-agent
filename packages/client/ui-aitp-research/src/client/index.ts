@@ -1,11 +1,5 @@
-/**
- * AITP Research, browser half: the sidebar's Research entry, the global panel
- * it opens (topics, topic homes and notes of a Harness Workspace, readable
- * without a Session), and the dock tab type that shows a note beside a
- * conversation. Content arrives through the `aitp-topics`, `aitp-topic` and
- * `aitp-note` resource protocols; this package renders it and owns no
- * research content.
- */
+export type { ResearchWorkflowChoice } from './workflow-contract.ts'
+/** Research Home, project navigation in the native right Sidebar, and Session-independent project reading. */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
@@ -17,16 +11,21 @@ import { en, zh, type AitpResearchKey } from './locales.ts'
 import { NoteTabBody, NoteTabTitle } from './NoteTab.tsx'
 import { parseNoteAddress } from './protocol.ts'
 import { ResearchPanel, type ResearchPanelFace } from './ResearchPanel.tsx'
-import { ResearchPanelIcon } from './ResearchPanelIcon.tsx'
+import { IconThinkOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { ConversationSidebar } from './ConversationSidebar.tsx'
+import { ResearchHome } from './ResearchHome.tsx'
+import { ResearchProjects, SessionProjects, RootProjects } from './ResearchProjects.tsx'
+import { workspaceSetupAddress } from './workspace-resources.ts'
 import { createResearchPanelStore } from './store.ts'
 import { sidebarEn, sidebarZh } from './sidebar-locales.ts'
-import { WorkspaceSidebar, type WorkspaceSidebarFace } from './WorkspaceSidebar.tsx'
+import { type WorkspaceSidebarFace } from './WorkspaceSidebar.tsx'
 import { registerWorkspaceResources } from './workspace-resources.ts'
 import { ResearchWorkspaceRegistry } from './workspace-service.ts'
 import { createTopicCreationJournal } from './topic-creation-journal.ts'
 import { TopicLibraries } from './TopicLibraries.tsx'
 import { registerResearchDiscussions } from './discussion-registration.ts'
 import { ResearchNavigationController } from './research-navigation.ts'
+import { registerResearchWorkflow } from './workflow-registration.ts'
 import { ResearchNavigation } from './ResearchNavigation.tsx'
 
 export type { AitpResearchKey } from './locales.ts'
@@ -57,7 +56,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** Dictionary namespace owned by this plugin. */
 const NS = 'aitp.research'
 
-/** The id shared by the sidebar entry and the main panel it opens. */
+/** Internal main-panel identity; project entry points do not expose a mode switch. */
 const PANEL_ID = 'aitp-research' as MainPanelId
 
 /** This package's identity in the dock tab system, and the key its tab body and title register under. */
@@ -65,10 +64,10 @@ const NOTE_TAB_ID = '@deepseek-ai/dsh-client-ui-aitp-research/note'
 
 /** Services read by the registrations. */
 export const inject = ['slots', 'locale', 'sidebarRightTabs', 'uiWorkspace', 'resources', 'layout',
-  'workspaces', 'sessions', 'conversation', 'uiConversation', 'uiChatNavigation']
+  'workspaces', 'sessions', 'conversation', 'uiConversation', 'uiChatNavigation', 'sidebarRightRoots']
 
 /**
- * Contribute the Research entry, its global panel and the note dock tab type.
+ * Contribute the research Home, native project navigation, project reader and note tab type.
  * @param ctx - the browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
@@ -87,9 +86,14 @@ export function apply(ctx: ClientContext): void {
     // Browser policy can deny tab storage; the form reports this explicitly.
   }
   const store = createResearchPanelStore(createTopicCreationJournal(topicStorage, t('topic.create.reloaded')))
+  const workflow = registerResearchWorkflow(ctx)
   const navigation = new ResearchNavigationController(ctx, PANEL_ID)
-  const discussions = registerResearchDiscussions(ctx, workspaces, (scope, address) => navigation.open(scope, address))
+  const discussions = registerResearchDiscussions(ctx, workspaces, (scope, address) => navigation.open(scope, address), workflow.enabled)
+  const showProjects = (workspaceId: import('@deepseek-ai/dsh-workspace/types').WorkspaceId): void => {
+    ctx.sidebarRightRoots.openResource(PANEL_ID, workspaceSetupAddress(workspaceId), { title: t('home.projects') })
+  }
   const face: ResearchPanelFace = {
+    panelId: PANEL_ID, showProjects,
     openMaterial: async (scope, resource, isCurrent) => await ctx.get('researchMaterialNavigation')?.open(scope, resource, isCurrent) ?? false,
     beginDiscussion: (scope, origin) => { void discussions.open(scope, origin) },
     updateDiscussionSource: (scope, origin) => { discussions.setReadingSource(scope, origin) },
@@ -120,17 +124,23 @@ export function apply(ctx: ClientContext): void {
     yield ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS, store,
       inject: (actions) => { navigation.bind(actions); return face } }, ResearchPanel)
   })
-  ctx.slots.inject('sidebar.context', () => ctx.slots.register({
-    name: 'sidebar.context', key: PANEL_ID, locale: 'aitp.research.sidebar', store,
+  ctx.slots.inject('sidebar.workspaces', () => ctx.slots.register({ name: 'sidebar.workspaces', priority: -10 }, ConversationSidebar))
+  ctx.slots.inject('conversation.hero.introduction', () => ctx.slots.register({
+    name: 'conversation.hero.introduction', locale: NS, store,
+    inject: () => ({ hooks: { discussionSessions: discussions.sessionViews }, retry: face.retry,
+      showProject: () => { ctx.layout.selectPanel(PANEL_ID) } }),
+  }, ResearchHome))
+  ctx.slots.registerFactory({ name: 'aitp.research.projects', scope: 'root', locale: 'aitp.research.sidebar', store,
     inject: (actions) => { navigation.bind(actions); return sidebarFace },
-  }, WorkspaceSidebar))
-  ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
-    name: 'sidebar.panellist',
-    id: PANEL_ID,
-    order: -30,
-    label: () => t('panel'),
-    locale: NS,
-  }, ResearchPanelIcon))
+  }, ResearchProjects)
+  const projectsId = '@deepseek-ai/dsh-client-ui-aitp-research/projects'
+  ctx.effect(() => ctx.sidebarRightTabs.register({ id: projectsId, kind: 'aitp-projects', priority: 'builtin',
+    patterns: ['dsh-resource://aitp-workspace-setup/**'], title: () => t('home.projects'),
+    guide: [{ id: 'projects', order: 5, title: () => t('home.projects'),
+      description: () => t('home.projectsHint'), icon: IconThinkOutlineRegular }],
+  }), 'research: native projects tab')
+  ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: projectsId }, SessionProjects))
+  ctx.slots.inject('sidebar.right.root.tab', () => ctx.slots.register({ name: 'sidebar.right.root.tab', key: projectsId }, RootProjects))
   ctx.effect(() => ctx.sidebarRightTabs.register({
     id: NOTE_TAB_ID,
     kind: 'aitp-note',

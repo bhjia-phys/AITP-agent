@@ -21,7 +21,7 @@ const failed = <T>(code: Extract<WorkspaceError, { retryable: boolean }>['code']
 export class FixtureWorkspaceAdapter implements ResearchWorkspaceAdapter {
   readonly provider: ResearchProvider = {
     id: 'aitp-workspace-fixture', origin: 'fixture',
-    capabilities: { read: true, readContext: true, readActivity: true, previewChanges: true, applyChanges: true, changeEvents: true, commands: ['update-scope', 'record-answer'] },
+    capabilities: { automaticResearch: false, read: true, readContext: true, readActivity: true, previewChanges: true, applyChanges: true, changeEvents: true, commands: ['update-scope', 'record-answer'] },
   }
 
   private readonly data = createWorkspaceFixtureData()

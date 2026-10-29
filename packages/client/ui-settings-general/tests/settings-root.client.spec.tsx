@@ -401,6 +401,31 @@ describe('SettingsPanel navigation', () => {
     expect(screen.queryByTestId('section-general')).toBeNull()
   })
 
+  it('preserves the focused section and native modal return path across viewport changes', () => {
+    mount({ onboardingActive: false })
+    const trigger = openPanel()
+    const models = screen.getByRole('button', { name: 'Models' })
+    models.focus()
+    fireEvent.click(models, { detail: 0 })
+    const section = screen.getByTestId('section-models')
+    const originalWidth = window.innerWidth
+    try {
+      for (const width of [390, 1440]) {
+        Object.defineProperty(window, 'innerWidth', { configurable: true, value: width })
+        fireEvent(window, new Event('resize'))
+        expect(screen.getByRole('button', { name: 'Models' })).toBe(models)
+        expect(document.activeElement).toBe(models)
+        expect(models.getAttribute('aria-current')).toBe('true')
+        expect(screen.getByTestId('section-models')).toBe(section)
+      }
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(document.activeElement).toBe(trigger)
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalWidth })
+    }
+  })
+
   it('mounts onboarding steps in order and transfers ownership only on completion', () => {
     const { renderSlot } = mount()
     const first = renderSlot.mock.calls.find(call => call[0] === 'settings.onboarding')

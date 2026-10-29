@@ -198,15 +198,21 @@ const TOOL_PACKAGES: ToolPackage[] = [
     source: {
       research_working_update: 'packages/research/research-memory/src/runtime.ts',
       research_read_context: 'packages/research/research-memory/src/runtime.ts',
+      research_initialize_project: 'packages/research/research-memory/src/workflow.ts',
       research_read_source: 'packages/research/research-memory/src/study-tools.ts',
+      research_search_sources: 'packages/research/research-memory/src/study-tools.ts',
+      research_read_local_source: 'packages/research/research-memory/src/study-tools.ts',
       research_prepare_change: 'packages/research/research-memory/src/write-tools.ts',
       research_apply_change: 'packages/research/research-memory/src/write-tools.ts',
       research_recover_change: 'packages/research/research-memory/src/write-tools.ts',
+      research_material_location: 'packages/research/research-memory/src/material-tools.ts',
+      research_save_material: 'packages/research/research-memory/src/material-tools.ts',
+      research_import_pdf: 'packages/research/research-memory/src/material-tools.ts',
     },
     requires: ['ctx.agents', 'ctx.sessions', 'ctx.tools', 'ctx.systemPrompt', 'ctx.sessionProjections',
-      'ctx.researchResources (selected-source reads)', 'ctx.sandboxPolicy (write execution)'],
+      'ctx.researchResources (source discovery and reads)', 'ctx.sandboxPolicy (write execution)'],
     writes: ['tool/call', 'tool/result', 'existing runtime-context messages', 'configured scratch sources and operation receipts'],
-    note: 'research_read_source is contributed only while research-resources is connected; this catalog mounts the genuine optional bridge with no directory grants.',
+    note: 'Source selection reads, body discovery and located rereads are contributed while research-resources is connected; this catalog mounts that bridge with no directory grants.',
     async mount(ctx) {
       await ctx.plugin(TypertRegistry)
       await ctx.plugin(AgentRegistry)
@@ -214,7 +220,9 @@ const TOOL_PACKAGES: ToolPackage[] = [
       // Mount the genuine optional source bridge; schema harvest grants no directories and executes no reads.
       await ctx.plugin(ResearchResources, { roots: [] })
       await ctx.plugin(ResearchMemory, { roots: [] })
-      if (ctx.tools.get('research_read_source') === undefined) throw new Error('The optional selected-source tool did not activate.')
+      for (const tool of ['research_read_source', 'research_search_sources', 'research_read_local_source']) {
+        if (ctx.tools.get(tool) === undefined) throw new Error(`The optional source tool ${tool} did not activate.`)
+      }
     },
   },
   {

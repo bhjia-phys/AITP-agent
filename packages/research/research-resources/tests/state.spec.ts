@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { Context } from '@deepseek-ai/cordis'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import { afterEach, expect, it } from 'vitest'
-import ResearchResources, { type Config, sourceIdForPath, sourceRootId } from '../src/index.ts'
+import ResearchResources, { type Config, resourceEntryId, sourceIdForPath, sourceRootId } from '../src/index.ts'
 import type { ResourceResult, SaveSourceSetRequest, SourceTopicId } from '../src/types.ts'
 
 const disposers: (() => Promise<unknown>)[] = []
@@ -130,6 +130,27 @@ it('keeps saved references, explicit quotations and multiple actual topics acros
   expect(value(await second.service.saveSourceSet(request, signal()))).toEqual(receipt)
   expect(await second.service.getSourceSet({ id: receipt.id }, signal())).toMatchObject({ ok: false, error: { code: 'not-found' } })
   expect(await readdir(f.source)).toEqual(['paper.md'])
+})
+
+it('projects explicitly saved topic selections into the catalog across restart and removes them when the set is removed', async () => {
+  const f = await fixture()
+  const config: Config = { roots: [{ id: 'catalog', path: f.source, domains: ['literature'] }] }
+  const ref = { rootId: sourceRootId('catalog'), sourceId: sourceIdForPath('paper.md') }
+  const topic = { workspaceId, topicId: 'topic:one' as SourceTopicId }
+  const register = (service: ResearchResources): void => { service.registerProvider({ id: 'test-papers', domain: 'literature',
+    list: async () => [{ id: resourceEntryId(ref), ref, title: 'Paper', kind: 'literature', domain: 'literature',
+      providerId: 'test-papers', metadata: {}, links: [], topics: [] }] }) }
+  const first = f.boot(config)
+  register(first.service)
+  const receipt = value(await first.service.saveSourceSet({ operationId: 'catalog-add', title: 'Selected papers', topics: [topic], selections: [{ ref }] }, signal()))
+  expect(value(await first.service.listResources({ domain: 'literature', topic }, signal())).items).toHaveLength(1)
+  await first.ctx.fiber.dispose()
+  const second = f.boot(config)
+  register(second.service)
+  expect(value(await second.service.listResources({ domain: 'literature', topic }, signal())).items).toHaveLength(1)
+  value(await second.service.removeSourceSet({ operationId: 'catalog-remove', id: receipt.id }, signal()))
+  expect(value(await second.service.listResources({ domain: 'literature', topic }, signal())).items).toHaveLength(0)
+  expect(await readFile(join(f.source, 'paper.md'), 'utf8')).toBe('# Original\n\nA bounded observation.\n')
 })
 
 it('restores saved reference sets while their Workspace authority is absent without restoring source access', async () => {

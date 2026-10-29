@@ -35,3 +35,6 @@
   disabled: false
 - id: ui-aitp-fixtures
   disabled: true
+# Settings stay available in every AITP suite.
+- id: ui-aitp-settings
+  disabled: false

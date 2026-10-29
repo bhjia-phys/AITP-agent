@@ -38,7 +38,7 @@ const topic: Topic = { id: TOPIC, title: 'Explicit direction', parentId: null, c
 const observation = <T>(value: T) => ({ origin: 'fixture' as const, revision: 'read-one' as Revision, observedAt: 'now', value })
 const unsupported = async () => ({ ok: false as const, error: { code: 'unsupported' as const, message: 'Read-only test adapter', retryable: false } })
 const adapter: ResearchWorkspaceAdapter = {
-  workspaceId: WS, provider: { id: 'explicit-test', origin: 'fixture', capabilities: { read: true, readContext: false, readActivity: false,
+  workspaceId: WS, provider: { id: 'explicit-test', origin: 'fixture', capabilities: { automaticResearch: false, read: true, readContext: false, readActivity: false,
     previewChanges: false, applyChanges: false, changeEvents: false, commands: [] } },
   getProject: async () => ({ ok: true, value: observation({ id: 'project', title: 'Test project', directions: [], seeds: [] }) }),
   listTopics: async query => ({ ok: true, value: observation({ items: query.parentId === TOPIC ? [] : [observation(topic)], nextCursor: null, completeness: 'complete' }) }),
@@ -105,6 +105,31 @@ it('clicks the current Topic into each library, returns to that Topic and retain
     await vi.waitFor(() => { expect(ui.getByText('Original legacy source remains readable.')).toBeDefined() })
     expect(mock.log.calls('researchResources/askStudy')).toEqual([])
   } finally { release() }
+}, 60_000)
+
+it('opens research materials through a host-enrolled Workspace root and leaves ambiguous roots unresolved', async ({ mock, start }) => {
+  const client = await start()
+  const root = { id: 'enrolled-root' as SourceRootId, title: 'Research project', displayPath: '/research/project',
+    grants: [{ kind: 'host' as const, workspaceId: WS }] }
+  const ref = { rootId: root.id, sourceId: 'source:notes%2Fexisting.md' as SourceId }
+  const reading: ResourceReading = { resource: { id: 'enrolled-note' as ResourceEntryId, ref, title: 'Original enrolled note',
+    kind: 'note', domain: 'knowledge', providerId: 'knowledge', metadata: {}, links: [], topics: [] },
+  body: { kind: 'text', format: 'markdown', text: 'The original finite-system limitation remains visible.' }, observedAt: 'now', issues: [] }
+  mock.load({ unary: {
+    'researchResources/listRoots': ok({ ok: true, value: [root] }),
+    'researchResources/readResource': ok({ ok: true, value: reading }),
+  }, stream: { 'researchResources/follow': openStream([]) } })
+  act(() => { client.ctx.layout.selectPanel('aitp-research' as MainPanelId) })
+  const material = topic.resources[0]!
+  let opened = false
+  await act(async () => { opened = await client.ctx.researchMaterialNavigation.open({ workspaceId: WS, topicId: TOPIC }, material) })
+  expect(opened).toBe(true)
+  await vi.waitFor(() => { expect(within(client.container!).getByText('The original finite-system limitation remains visible.')).toBeDefined() })
+  expect(client.ctx.layout.panelInfo.getSnapshot().activePanelId).toBe('aitp-research')
+  mock.unary('researchResources/listRoots', ok({ ok: true, value: [root, { ...root, id: 'second-root' as SourceRootId }] }))
+  await act(async () => { opened = await client.ctx.researchMaterialNavigation.open({ workspaceId: WS, topicId: TOPIC }, material) })
+  expect(opened).toBe(false)
+  expect(mock.log.calls('researchResources/askStudy')).toEqual([])
 }, 60_000)
 
 it('opens PDF and Git links in native document tabs while retaining the catalog, topic and return action', async ({ mock, start }) => {

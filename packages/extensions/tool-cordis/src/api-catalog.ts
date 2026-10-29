@@ -1968,6 +1968,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'researchMaterialFiles',
+    summary: 'The optional material service neither owns scientific records nor creates source grants.',
+    description: 'The optional material service neither owns scientific records nor creates source grants.',
+    methods: [
+      {
+        signature: '@Remote({ name: \'getLocation\', resources: { workspace: addressedWorkspace } }) async getLocation(request: { workspaceId: WorkspaceId; topicId?: TopicId }, signal: AbortSignal): Promise<Result<MaterialLocation>>',
+        description: 'Resolve the existing account at any depth without choosing a new file layout.',
+        parameters: [{ name: 'request', description: 'admitted Workspace and optional recognized topic.' }, { name: 'signal', description: 'cancels source observation.' }],
+        returns: 'real paths and separately configured write availability.',
+      },
+      {
+        signature: '@Remote({ name: \'saveText\', resources: { workspace: addressedWorkspace } }) async saveText(request: SaveMaterialRequest & { text: string }, signal: AbortSignal): Promise<Result<MaterialWriteReceipt>>',
+        description: 'Create a text, code or result file without replacing an existing path.',
+        parameters: [{ name: 'request', description: 'exact text, explicit destination and stable retry identity.' }, { name: 'signal', description: 'cancels before publication admission; an admitted write retains its receipt.' }],
+        returns: 'file and link outcomes independently, with exact current read-back.',
+      },
+      {
+        signature: '@Remote({ name: \'importPdf\', resources: { workspace: addressedWorkspace } }) async importPdf(request: SaveMaterialRequest & { source: SourceRef }, signal: AbortSignal): Promise<Result<MaterialWriteReceipt>>',
+        description: 'Copy an explicitly selected authorized PDF to a new destination.',
+        parameters: [{ name: 'request', description: 'existing source identity and separately writable destination.' }, { name: 'signal', description: 'cancels source reading or waiting before publication admission.' }],
+        returns: 'separate destination/link outcomes; the original PDF remains in place.',
+      },
+      {
+        signature: 'async publishForAgent(request: SaveMaterialRequest & ({ kind: \'text\'; text: string } | { kind: \'pdf\'; source: SourceRef }), authorize: () => Promise<void>, signal: AbortSignal): Promise<Result<MaterialWriteReceipt>>',
+        description: 'Publish for an actual tool execution, rechecking its Session policy when the source lock is held.',
+        parameters: [{ name: 'request', description: 'bound destination and authored text or authorized PDF identity.' }, { name: 'authorize', description: 're-reads current scope and file permissions, never supplied by a remote caller.' }, { name: 'signal', description: 'cancels before source publication admission.' }],
+        returns: 'independent material outcomes retained by the writer.',
+      },
+    ],
+  },
+  {
     key: 'researchMemory',
     summary: 'One source adapter per explicitly configured research root.',
     description: 'One source adapter per explicitly configured research root.',
@@ -2073,6 +2104,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when the caller is not the owner or the created Session cannot be reached.'],
       },
       {
+        signature: '@Remote({ name: \'promptWorkflow\', resources: { workspace: addressedWorkspace, session: addressedResearchSession } }) async promptWorkflow(request: SessionPromptRequest & { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<{ accepted: true }>',
+        description: 'Admit the normal composer\'s explicit Research choice without relabelling existing ordinary history.',
+        parameters: [{ name: 'request', description: 'real native Session, actual Workspace and complete immutable prompt.' }, { name: 'signal', description: 'native submission cancellation.' }],
+        returns: 'the native acceptance; source-specific composers keep their own admission.',
+      },
+      {
         signature: '@Remote({ name: \'getChange\', resources: { workspace: addressedWorkspace, session: addressedResearchSession } }) async getChange(request: { workspaceId: WorkspaceId } & ResearchChangeQuery, signal: AbortSignal): Promise<Result<ResearchChangeView>>',
         description: 'Inspect a recorded operation without writing sources or resuming an Agent.',
         parameters: [{ name: 'request', description: 'Actual Workspace, owning Session and operation identity.' }, { name: 'signal', description: 'Cancels source authorization and Session observation before receipt inspection.' }],
@@ -2083,6 +2120,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List ordinary discussions in the exact current research scope without starting any Agent.',
         parameters: [{ name: 'request', description: 'Workspace and optional topic; omission means the root account.' }, { name: 'signal', description: 'Cancels the bounded history read.' }],
         returns: 'Live metadata and explicit omitted-history coverage.',
+      },
+      {
+        signature: '@Remote({ name: \'setResearchMode\', resources: { session: addressedResearchSession } }) async setResearchMode(request: { sessionId: SessionId; enabled: boolean }, signal: AbortSignal): Promise<{ enabled: boolean }>',
+        description: 'Record an explicit mode choice in an already bound native conversation without starting a model turn.',
+        parameters: [{ name: 'request', description: 'owning Session and the researcher\'s selected mode; original question and sources remain bound.' }, { name: 'signal', description: 'cancels before admission; an appended native input is not rolled back.' }],
+        returns: 'the recorded choice, effective at the next model request; historical content remains intact.',
       },
     ],
   },
@@ -2175,6 +2218,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'List roots explicitly contributed by Host configuration or an existing research grant.',
         parameters: [{ name: 'request', description: 'optional exact root filter, without a browser-controlled path.' }, { name: 'signal', description: 'cancellation for this observer.' }],
         returns: 'canonical root metadata; duplicate grants appear once.',
+      },
+      {
+        signature: '@Remote({ name: \'searchBodies\' }) async searchBodies(request: SourceBodyQuery, signal: AbortSignal): Promise<ResourceResult<SourceBodySearch>>',
+        description: 'Search observed source bodies without changing catalog title-search semantics.',
+        parameters: [{ name: 'request', description: 'literal terms, optional admitted root/directory and result limit.' }, { name: 'signal', description: 'cancels discovery, metadata checks and body reads.' }],
+        returns: 'located candidates with actual byte/file coverage and exclusions.',
       },
       {
         signature: '@Remote({ name: \'listResources\' }) async listResources(request: ResourceQuery, signal: AbortSignal): Promise<ResourceResult<ResourcePage>>',
@@ -5515,7 +5564,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ContextRead',
-    declaration: 'export interface ContextRead {\n    readonly topicId: TopicId;\n    readonly entries: readonly {\n        readonly source: VersionedTarget;\n        readonly label: string;\n        readonly text: string;\n    }[];\n    readonly completeness: \'complete\' | \'partial\';\n    readonly omissions: readonly {\n        readonly target: Target;\n        readonly reason: string;\n    }[];\n}',
+    declaration: 'export interface ContextRead {\n    readonly topicId: TopicId;\n    readonly entries: readonly {\n        readonly source: VersionedTarget;\n        readonly label: string;\n        readonly text: string;\n        readonly range?: {\n            readonly start: number;\n            readonly end: number;\n        };\n    }[];\n    readonly completeness: \'complete\' | \'partial\';\n    readonly omissions: readonly {\n        readonly target: Target;\n        readonly reason: string;\n    }[];\n}',
   },
   {
     name: 'ContinuableCreateRequest',
@@ -5631,7 +5680,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'CreateTopicRequest',
-    declaration: 'export interface CreateTopicRequest {\n    readonly operationId: string;\n    readonly title: string;\n    readonly question: string;\n    readonly scope?: string;\n    readonly parentTopicId?: TopicId;\n}',
+    declaration: 'export interface CreateTopicRequest {\n    readonly operationId: string;\n    readonly title: string;\n    readonly question: string;\n    readonly scope?: string;\n    readonly parentTopicId?: TopicId;\n    readonly directory?: string;\n}',
   },
   {
     name: 'CreateWorktreeRequest',
@@ -6494,6 +6543,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type MatcherValue = string | number | boolean | null | RegExp | readonly (string | number | boolean | null)[];',
   },
   {
+    name: 'MaterialAssociation',
+    declaration: 'export interface MaterialAssociation {\n    readonly accountPath: string;\n    readonly title: string;\n    readonly description?: string;\n}',
+  },
+  {
+    name: 'MaterialReadBack',
+    declaration: 'export interface MaterialReadBack {\n    readonly state: \'matches\' | \'different\' | \'missing\' | \'unavailable\';\n    readonly observedAt: string;\n    readonly byteLength?: number;\n}',
+  },
+  {
+    name: 'MaterialWriteReceipt',
+    declaration: 'export interface MaterialWriteReceipt {\n    readonly operationId: string;\n    readonly relativePath: string;\n    readonly resourceId: ResourceId;\n    readonly mediaType: \'text/plain\' | \'application/pdf\';\n    readonly byteLength: number;\n    readonly file: {\n        readonly state: \'saved\' | \'conflict\' | \'unknown\' | \'not-saved\';\n        readonly readBack: MaterialReadBack;\n    };\n    readonly association: {\n        readonly state: \'linked\' | \'not-requested\' | \'not-linked\' | \'unknown\' | \'conflict\';\n        readonly accountPath?: string;\n    };\n    readonly retry: \'same-request\' | \'inspect\' | \'new-operation\' | \'none\';\n    readonly issues: readonly string[];\n}',
+  },
+  {
     name: 'McpResourceProvider',
     declaration: 'export interface McpResourceProvider {\n    request(request: McpResourceRequest, exec: ToolExecution): Promise<JsonValue>;\n}',
   },
@@ -7226,16 +7287,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ResearchEvent = {\n    readonly kind: \'invalidate\';\n    readonly eventId: string;\n    readonly targets: readonly VersionedTarget[];\n} | {\n    readonly kind: \'resync-required\';\n    readonly reason: string;\n} | {\n    readonly kind: \'connection\';\n    readonly state: \'connected\' | \'disconnected\' | \'unsupported\';\n    readonly message?: string;\n};',
   },
   {
+    name: 'ResearchInitialAccount',
+    declaration: 'export interface ResearchInitialAccount {\n    readonly title: string;\n    readonly question: string;\n    readonly scope?: string;\n    readonly libraries?: readonly {\n        readonly title: string;\n        readonly path: string;\n        readonly domain: \'literature\' | \'knowledge\' | \'code\';\n    }[];\n}',
+  },
+  {
     name: 'ResearchInitializeRequest',
-    declaration: 'export interface ResearchInitializeRequest {\n    readonly writable: boolean;\n}',
+    declaration: 'export interface ResearchInitializeRequest {\n    readonly writable: boolean;\n    readonly account?: ResearchInitialAccount;\n}',
   },
   {
     name: 'ResearchProvider',
-    declaration: 'export interface ResearchProvider {\n    readonly id: string;\n    readonly origin: DataOrigin;\n    readonly notice?: string;\n    readonly capabilities: {\n        readonly read: boolean;\n        readonly readContext: boolean;\n        readonly readActivity: boolean;\n        readonly previewChanges: boolean;\n        readonly applyChanges: boolean;\n        readonly changeEvents: boolean;\n        readonly commands: readonly ChangeCommand[\'kind\'][];\n    };\n}',
+    declaration: 'export interface ResearchProvider {\n    readonly id: string;\n    readonly origin: DataOrigin;\n    readonly notice?: string;\n    readonly capabilities: {\n        readonly automaticResearch: boolean;\n        readonly read: boolean;\n        readonly readContext: boolean;\n        readonly readActivity: boolean;\n        readonly previewChanges: boolean;\n        readonly applyChanges: boolean;\n        readonly changeEvents: boolean;\n        readonly commands: readonly ChangeCommand[\'kind\'][];\n    };\n}',
   },
   {
     name: 'ResearchQuestion',
-    declaration: 'export interface ResearchQuestion {\n    readonly workspaceId: WorkspaceId;\n    readonly topicId?: TopicId;\n    readonly resourceId?: ResourceId;\n    readonly anchor?: string;\n    readonly selectedText?: string;\n    readonly selectedTextFormat?: \'source\' | \'rendered\';\n    readonly selectedRange?: ResearchSourceRange;\n    readonly question: string;\n    readonly sessionId?: SessionId;\n    readonly mode?: \'queue\' | \'steer\';\n    readonly requestId?: SessionRequestId;\n    readonly content?: readonly PromptContentPart[];\n}',
+    declaration: 'export interface ResearchQuestion {\n    readonly workflow?: boolean;\n    readonly clientTimeZone?: string;\n    readonly workspaceId: WorkspaceId;\n    readonly topicId?: TopicId;\n    readonly resourceId?: ResourceId;\n    readonly anchor?: string;\n    readonly selectedText?: string;\n    readonly selectedTextFormat?: \'source\' | \'rendered\';\n    readonly selectedRange?: ResearchSourceRange;\n    readonly question: string;\n    readonly sessionId?: SessionId;\n    readonly mode?: \'queue\' | \'steer\';\n    readonly requestId?: SessionRequestId;\n    readonly content?: readonly PromptContentPart[];\n}',
   },
   {
     name: 'ResearchSetup',
@@ -7307,7 +7372,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ResourceIssue',
-    declaration: 'export interface ResourceIssue {\n    readonly rootId?: SourceRootId;\n    readonly providerId?: string;\n    readonly path?: string;\n    readonly reason: string;\n}',
+    declaration: 'export interface ResourceIssue {\n    readonly rootId?: SourceRootId;\n    readonly ref?: SourceRef;\n    readonly providerId?: string;\n    readonly path?: string;\n    readonly reason: string;\n}',
   },
   {
     name: 'ResourceKind',
@@ -7424,6 +7489,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SaveImageAttachment',
     declaration: 'export interface SaveImageAttachment {\n    data: Uint8Array;\n    mediaType: ImageMediaType;\n    name?: string;\n}',
+  },
+  {
+    name: 'SaveMaterialRequest',
+    declaration: 'export interface SaveMaterialRequest {\n    readonly workspaceId: WorkspaceId;\n    readonly operationId: string;\n    readonly relativePath: string;\n    readonly association?: MaterialAssociation;\n}',
   },
   {
     name: 'SaveSourceSetRequest',
@@ -7835,7 +7904,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SessionMemoryView',
-    declaration: 'export interface SessionMemoryView {\n    readonly origin: MemoryDataOrigin;\n    readonly sessionId: SessionId;\n    readonly sessionOrigin?: SessionOrigin;\n    readonly researcher: readonly ResearcherItem[];\n    readonly agent: readonly AgentItem[];\n    readonly gaps: readonly GapItem[];\n    readonly sources: readonly SourceItem[];\n    readonly rules: readonly RuleItem[];\n    readonly summaries: readonly SummaryItem[];\n    readonly contextSnapshots?: readonly ResearchContextSnapshot[];\n    readonly coverage?: SessionMemoryCoverage;\n}',
+    declaration: 'export interface SessionMemoryView {\n    readonly researchLocation?: {\n        readonly workspaceId?: string;\n        readonly topicId?: string;\n        readonly global: boolean;\n        readonly workflow: boolean;\n        readonly automaticResearch: boolean;\n        readonly initializing: boolean;\n        readonly title?: string;\n    };\n    readonly origin: MemoryDataOrigin;\n    readonly sessionId: SessionId;\n    readonly sessionOrigin?: SessionOrigin;\n    readonly researcher: readonly ResearcherItem[];\n    readonly agent: readonly AgentItem[];\n    readonly gaps: readonly GapItem[];\n    readonly sources: readonly SourceItem[];\n    readonly rules: readonly RuleItem[];\n    readonly summaries: readonly SummaryItem[];\n    readonly contextSnapshots?: readonly ResearchContextSnapshot[];\n    readonly coverage?: SessionMemoryCoverage;\n}',
   },
   {
     name: 'SessionMessage',
@@ -8286,6 +8355,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SourceAttribution {\n    readonly actor?: RecordedActor;\n    readonly recordedAt?: string;\n    readonly sourceResourceIds: readonly ResourceId[];\n    readonly explanation?: string;\n}',
   },
   {
+    name: 'SourceBodyHit',
+    declaration: 'export interface SourceBodyHit {\n    readonly ref: SourceRef;\n    readonly path: string;\n    readonly locator: SourceLocator;\n    readonly excerpt: string;\n    readonly observedAt: string;\n}',
+  },
+  {
+    name: 'SourceBodyQuery',
+    declaration: 'export interface SourceBodyQuery {\n    readonly query: string;\n    readonly rootId?: SourceRootId;\n    readonly folder?: string;\n    readonly limit?: number;\n}',
+  },
+  {
+    name: 'SourceBodySearch',
+    declaration: 'export interface SourceBodySearch {\n    readonly hits: readonly SourceBodyHit[];\n    readonly roots: readonly SourceRootId[];\n    readonly availableRoots: readonly SourceRootId[];\n    readonly excludedDirectories: readonly string[];\n    readonly inspectedFiles: number;\n    readonly bytesExamined: number;\n    readonly bytesRead: number;\n    readonly failedReadBytes: number;\n    readonly cacheHits: number;\n    readonly completeness: \'complete\' | \'partial\';\n    readonly issues: readonly ResourceIssue[];\n}',
+  },
+  {
     name: 'SourceGrant',
     declaration: 'export interface SourceGrant {\n    readonly kind: \'configured\' | \'workspace-connection\' | \'research-enrollment\' | \'host\';\n    readonly workspaceId?: WorkspaceId;\n}',
   },
@@ -8531,7 +8612,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'StudyRequest',
-    declaration: 'export interface StudyRequest {\n    readonly scope?: \'workspace\' | \'global\';\n    readonly workspaceId?: WorkspaceId;\n    readonly topicId?: SourceTopicId;\n    readonly sourceSetId?: string;\n    readonly question: string;\n    readonly sessionId?: SessionId;\n    readonly mode?: \'queue\' | \'steer\';\n    readonly requestId?: SessionRequestId;\n    readonly content?: readonly PromptContentPart[];\n    readonly selections: readonly SourceSelection[];\n}',
+    declaration: 'export interface StudyRequest {\n    readonly workflow?: boolean;\n    readonly clientTimeZone?: string;\n    readonly scope?: \'workspace\' | \'global\';\n    readonly workspaceId?: WorkspaceId;\n    readonly topicId?: SourceTopicId;\n    readonly sourceSetId?: string;\n    readonly question: string;\n    readonly sessionId?: SessionId;\n    readonly mode?: \'queue\' | \'steer\';\n    readonly requestId?: SessionRequestId;\n    readonly content?: readonly PromptContentPart[];\n    readonly selections: readonly SourceSelection[];\n}',
   },
   {
     name: 'StudyResult',

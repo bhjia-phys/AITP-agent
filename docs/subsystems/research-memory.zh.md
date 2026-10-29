@@ -13,7 +13,7 @@
 
 根 `research.md` 是项目正文。显式链接界定课题父级及材料归属，目录邻近本身不能证明从属关系。共享材料保留多个可能的归属。 一个配置根不可用时，不会禁用另一个成功匹配授权的根。提问带工作区、课题、材料和可选选中段落；范围不明确时显示未解析状态，不擅自选择附近课题。
 
-上下文读取把已识别的主问题和当前答案作为核心正文单元，预算不足时明确报告整项遗漏。文件监听失效后，每次读取仍重新扫描；来源成员及正文不变时保留分页身份，补入选中来源、来源变化或显式刷新则使旧游标失效。
+上下文读取把已识别的主问题和当前答案作为核心正文单元，预算不足时保留可定位的主记录前缀并明确报告未读范围；其他无法纳入的单元明确遗漏。文件监听失效后，每次读取仍重新扫描；来源成员及正文不变时保留分页身份，补入选中来源、来源变化或显式刷新则使旧游标失效。
 
 发现结果不完整时，仍可补入已知且选中的根目录内普通文件，以及通过显式链接识别的有限相关正文。内部保留目录和符号链接路径仍被排除，路径探测不推断父级。无关选择不改变已建立的关系，新的竞争显式链接则保留歧义。该操作补充最初的有界扫描，不会使目录清单完整：指向所选课题的父级链接及其他材料使用者仍可能未知。
 
@@ -29,7 +29,15 @@
 
 仅所有者可调用的 `getSessionMemory` 从已有 Session 接受事件及已注册消息投影读取，不启动 Agent，也不重读科研原文。它保留实际请求中具名上下文的精确文本，区分当前、已压缩、经投影改变和已替代；打开来源另读当前文件。逐文件链接的交付状态保持未知，不能从正文推断规则已采用。有界输出报告整项遗漏；底层冷历史 API 仍可能先读完整会话。
 
+同一插件组合独立的 `researchMaterialFiles` 服务处理明确的新文件发布。`getLocation` 解析任意深度课题的真实主记录与目录；`saveText`、`importPdf` 独占创建选定文件，并可向一个已有主记录或索引添加普通链接。模型工具使用实际 Session 的权限，并在等待来源队列后重新检查。文件发布、链接结果及当前读回分开报告。载荷及回执保存在科研树外；未知写入先检查、不重复发布，同名文件不覆盖。PDF 字节只能来自已获授权的来源，只读库连接不提供写权限。
+
+`automaticResearch: false` 保留明确来源操作。会话内的 `setResearchMode` 选择通过原生用户消息来源标记保存，重放后仍有效，较早排队的选源消息不能覆盖它。关闭会停止后续自动正文、祖先和历史恢复交付，保留选定资料与过去历史。控制选择不计入科研问题索引，也不启动模型。
+
 ## 本地资料库与选源研读
+
+本地正文发现使用 `SourceBodyQuery`、`SourceBodyHit` 和 `SourceBodySearch`，由 `researchResources.searchBodies` 提供。它在已获授权的文本、代码及已提取的 PDF 页中检索字面词项，与标题及资料信息检索分开。结果保留精确的根目录来源标识和位置，支持重新受控读取；覆盖范围、排除格式或目录、逻辑字节预算仍明确报告。不变的观察可在重新核对授权和文件信息后复用缓存。模型通过 `research_search_sources` 和 `research_read_local_source` 使用这条路径，不替人选择消息来源，也不取得写权限。
+
+请求上下文优先保留人的原话、修正及选定或已观察的证据，再纳入模型暂记和常规写入回执。当前主记录使用不熟悉的标题时，仍可在预算内读取原文；过长时保留精确位置的片段，最终请求开销也计入预算；缺少概览投影不代表没有结论。任务卡片的可选思路使用已有模型暂定项，纠正操作只准备带出处的草稿，不自动发送或修改科研文件。
 
 [`research-resources`](../../packages/research/research-resources/README.md)统一管理来源读取。文献、知识与代码分别由独立提供者和客户端插件实现，共用目录授权、带根身份的来源 ID、有界发现、读取、失效通知及定位链接。禁用一个领域会撤下它的条目，不另建对话运行时，也不改变其他领域的授权。AITP 配置启用这些插件，普通 Harness 配置保持禁用。
 
@@ -54,6 +62,51 @@
 ## Cordis API
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.zh.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
+
+<a id="ctxresearchmaterialfiles--researchmaterialfiles"></a>
+
+### `ctx.researchMaterialFiles` — `ResearchMaterialFiles`
+
+The optional material service neither owns scientific records nor creates source grants.
+
+```ts cordis-catalog
+/**
+ * Resolve the existing account at any depth without choosing a new file layout.
+ * @param request - admitted Workspace and optional recognized topic.
+ * @param signal - cancels source observation.
+ * @returns real paths and separately configured write availability.
+ */
+@Remote({ name: 'getLocation', resources: { workspace: addressedWorkspace } }) async getLocation(request: { workspaceId: WorkspaceId; topicId?: TopicId }, signal: AbortSignal): Promise<Result<MaterialLocation>>
+
+/**
+ * Create a text, code or result file without replacing an existing path.
+ * @param request - exact text, explicit destination and stable retry identity.
+ * @param signal - cancels before publication admission; an admitted write retains its receipt.
+ * @returns file and link outcomes independently, with exact current read-back.
+ */
+@Remote({ name: 'saveText', resources: { workspace: addressedWorkspace } }) async saveText(request: SaveMaterialRequest & { text: string }, signal: AbortSignal): Promise<Result<MaterialWriteReceipt>>
+
+/**
+ * Copy an explicitly selected authorized PDF to a new destination.
+ * @param request - existing source identity and separately writable destination.
+ * @param signal - cancels source reading or waiting before publication admission.
+ * @returns separate destination/link outcomes; the original PDF remains in place.
+ */
+@Remote({ name: 'importPdf', resources: { workspace: addressedWorkspace } }) async importPdf(request: SaveMaterialRequest & { source: SourceRef }, signal: AbortSignal): Promise<Result<MaterialWriteReceipt>>
+
+/**
+ * Publish for an actual tool execution, rechecking its Session policy when the source lock is held.
+ * @param request - bound destination and authored text or authorized PDF identity.
+ * @param authorize - re-reads current scope and file permissions, never supplied by a remote caller.
+ * @param signal - cancels before source publication admission.
+ * @returns independent material outcomes retained by the writer.
+ */
+async publishForAgent(request: SaveMaterialRequest & ({ kind: 'text'; text: string } | { kind: 'pdf'; source: SourceRef }), authorize: () => Promise<void>, signal: AbortSignal): Promise<Result<MaterialWriteReceipt>>
+```
+
+Types: [WorkspaceId](workspace.zh.md)
+
+Source: [`packages/research/research-memory/src/material-service.ts`](../../packages/research/research-memory/src/material-service.ts)
 
 <a id="ctxresearchmemory--researchmemory"></a>
 
@@ -190,6 +243,14 @@ One source adapter per explicitly configured research root.
 @Remote({ name: 'ask', resources: { workspace: addressedWorkspace, session: (request: ResearchQuestion) => request.sessionId } }) async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>
 
 /**
+ * Admit the normal composer's explicit Research choice without relabelling existing ordinary history.
+ * @param request - real native Session, actual Workspace and complete immutable prompt.
+ * @param signal - native submission cancellation.
+ * @returns the native acceptance; source-specific composers keep their own admission.
+ */
+@Remote({ name: 'promptWorkflow', resources: { workspace: addressedWorkspace, session: addressedResearchSession } }) async promptWorkflow(request: SessionPromptRequest & { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<{ accepted: true }>
+
+/**
  * Inspect a recorded operation without writing sources or resuming an Agent.
  * @param request - Actual Workspace, owning Session and operation identity.
  * @param signal - Cancels source authorization and Session observation before receipt inspection.
@@ -204,9 +265,17 @@ One source adapter per explicitly configured research root.
  * @returns Live metadata and explicit omitted-history coverage.
  */
 @Remote({ name: 'listDiscussions', resources: { workspace: addressedWorkspace } }) async listDiscussions(request: { workspaceId: WorkspaceId } & DiscussionQuery, signal: AbortSignal): Promise<Result<DiscussionPage>>
+
+/**
+ * Record an explicit mode choice in an already bound native conversation without starting a model turn.
+ * @param request - owning Session and the researcher's selected mode; original question and sources remain bound.
+ * @param signal - cancels before admission; an appended native input is not rolled back.
+ * @returns the recorded choice, effective at the next model request; historical content remains intact.
+ */
+@Remote({ name: 'setResearchMode', resources: { session: addressedResearchSession } }) async setResearchMode(request: { sessionId: SessionId; enabled: boolean }, signal: AbortSignal): Promise<{ enabled: boolean }>
 ```
 
-Types: [SessionId](core.zh.md) · [WorkspaceId](workspace.zh.md)
+Types: [SessionId](core.zh.md) · [SessionPromptRequest](session.zh.md) · [WorkspaceId](workspace.zh.md)
 
 Source: [`packages/research/research-memory/src/index.ts`](../../packages/research/research-memory/src/index.ts)
 
@@ -325,6 +394,14 @@ async resolveLocalLinks(request: { links: readonly { from: SourceRef; href: stri
  * @returns canonical root metadata; duplicate grants appear once.
  */
 @Remote({ name: 'listRoots' }) async listRoots(request: { rootId?: SourceRootId }, signal: AbortSignal): Promise<ResourceResult<readonly SourceRoot[]>>
+
+/**
+ * Search observed source bodies without changing catalog title-search semantics.
+ * @param request - literal terms, optional admitted root/directory and result limit.
+ * @param signal - cancels discovery, metadata checks and body reads.
+ * @returns located candidates with actual byte/file coverage and exclusions.
+ */
+@Remote({ name: 'searchBodies' }) async searchBodies(request: SourceBodyQuery, signal: AbortSignal): Promise<ResourceResult<SourceBodySearch>>
 
 /**
  * Browse a bounded domain catalog with explicit missing discovery coverage.

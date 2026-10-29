@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { createUserMessage, createToolResultMessage, LlmAdapter, ToolCallId } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
@@ -41,14 +41,14 @@ class Adapter extends LlmAdapter {
     yield* chunks
   }
 }
-async function mount(adapter: Adapter) {
+async function mount(adapter: Adapter, read?: Parameters<typeof installRuntime>[2], recovery?: Parameters<typeof installRuntime>[3]) {
   const ctx = new Context()
   contexts.push(ctx)
   await mountAgentLoopTestDependencies(ctx)
   await ctx.plugin(AgentLoop, { agents: [] })
-  const dispose = installRuntime(ctx, config, async selected => ({
+  const dispose = installRuntime(ctx, config, read ?? (async selected => ({
     entries: [{ label: 'Owning research note', text: `Question for ${selected.topicId}; finite results only.`, source: { target: 'resource:research.md', locator: 'answer' } }], omissions: [],
-  }))
+  })), recovery)
   ctx.llm.registerAdapter(['mock'], adapter)
   return { ctx, dispose }
 }
@@ -60,6 +60,41 @@ function scopeText(request: GenerateOptions): string {
 }
 
 describe('research context on the actual Harness model request', () => {
+  it('stops automatic recovery and working context while retaining explicit evidence, and skips an empty selection', async () => {
+    const adapter = new Adapter([call(WORKING_TOOL, { operation: 'upsert', id: 'prior-work', text: 'PROVISIONAL_ITEM_BEFORE_OFF' }),
+      response('ready'), response('explicit evidence'), response('ordinary')])
+    const read = vi.fn<Parameters<typeof installRuntime>[2]>(async () => ({
+      entries: [{ label: 'Explicit source', text: 'EXPLICIT_EVIDENCE_REMAINS', source: { target: 'explicit.md' } }], omissions: [],
+    }))
+    const recover = vi.fn(async () => ({ entries: [{ label: 'Earlier session', text: 'RECOVERED_BEFORE_OFF', source: { target: 'earlier' } }], omissions: [] }))
+    const { ctx } = await mount(adapter, read, { recover, readOriginal: async () => undefined })
+    const agent = await ctx.agentLoop.create(SessionId('mode-boundaries'), { provider: 'mock', model: 'mock' })
+    const selected = { ...origin, resourceId: 'explicit.md', workflow: 'research' as const }
+    agent.followup(createUserMessage({ source: { kind: 'aitp-research', actor: 'human', origin: selected },
+      content: [{ type: 'text', text: 'Original research constraint.' }] }))
+    await agent.whenIdle()
+    agent.session.append('user/message', createUserMessage({ source: { kind: 'aitp-research', actor: 'human',
+      origin: { ...selected, workflow: 'ordinary' }, modeSelection: true }, content: [{ type: 'text', text: 'Research off.' }] }), { surfaceOp: 'append' })
+    const before = agent.session.seq
+    recover.mockClear(); read.mockClear()
+    agent.followup(createUserMessage({ source: { kind: 'user' }, content: [{ type: 'text', text: 'Use just the selected evidence.' }] }))
+    await agent.whenIdle()
+    expect(recover).not.toHaveBeenCalled()
+    expect(read).toHaveBeenCalledOnce()
+    const freshContext = JSON.stringify(agent.session.snapshotEvents().filter(event => event.seq >= before
+      && event.type === 'user/message' && event.data.source.kind === 'runtime-context'))
+    expect(freshContext).toContain('EXPLICIT_EVIDENCE_REMAINS')
+    expect(freshContext).not.toContain('RECOVERED_BEFORE_OFF')
+    expect(freshContext).not.toContain('PROVISIONAL_ITEM_BEFORE_OFF')
+    expect(freshContext).not.toContain('Original human input [')
+    read.mockClear()
+    agent.followup(createUserMessage({ source: { kind: 'aitp-research', actor: 'human', origin: { ...origin, selections: [] } },
+      content: [{ type: 'text', text: 'No source selected now.' }] }))
+    await agent.whenIdle()
+    expect(read).not.toHaveBeenCalled()
+    expect(recover).not.toHaveBeenCalled()
+  })
+
   it('returns exact source resource locators from research_read_context without changing their identities', async () => {
     const adapter = new Adapter([call('research_read_context', {}, 'discover-source'), response('located')])
     const { ctx } = await mount(adapter)
@@ -151,6 +186,30 @@ describe('research context on the actual Harness model request', () => {
 })
 
 describe('source-attributed recovery', () => {
+  it('keeps corrections and selected evidence ahead of provisional notes under a small budget after replay', () => {
+    const session = Session.create(SessionId('evidence-priority'))
+    const selected = { ...origin, selectedText: 'Keep Delta positive and the finite two-state control.' }
+    session.append('user/message', human('Generalize the normalized charge.', selected), { surfaceOp: 'append' })
+    session.append('user/message', human('By generalize I mean perturbative order, not system size.', selected), { surfaceOp: 'append' })
+    const restored = Session.create(SessionId('priority-replayed'), session.snapshotEvents())
+    const state = restored.snapshotEvents().reduce(applyWorkingEvent, emptyWorkingState())
+    const evidence = { entries: [{ label: 'Normalization derivation', source: { target: 'resource:charge.tex', locator: 'normalization' },
+      text: `The second-order normalization is required: ${'finite qualification; '.repeat(30)}` }], omissions: [] }
+    const readHuman = (input: Parameters<typeof readHumanInput>[1]) => readHumanInput(restored, input)
+    const budget = renderResearchContext(state, evidence, config, readHuman).length + 100
+    state.items = Array.from({ length: 5 }, (_, i) => ({
+      id: `routine-${i}`, kind: 'next-step', text: 'Routine provisional detail. '.repeat(6), condition: 'Still provisional.',
+      sourceIds: [], origin, sourceId: `item:${i}`,
+    }))
+    const context = renderResearchContext(state, evidence, { ...config, maxContextCharacters: budget }, readHuman)
+    expect(context.length).toBeLessThanOrEqual(budget)
+    expect(context).toContain('perturbative order, not system size')
+    expect(context).toContain(selected.selectedText)
+    expect(context).toContain('second-order normalization is required')
+    expect(context).toContain('resource:charge.tex')
+    expect(context).toMatch(/[1-5] working items/u)
+  })
+
   it('replays originals, full question/options/answer and only successful working updates', () => {
     const session = Session.create(SessionId('replay'))
     session.append('user/message', human('原始任务与限制'), { surfaceOp: 'append' })
