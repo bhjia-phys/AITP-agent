@@ -63,6 +63,8 @@ function harness() {
     promptWorkflow: vi.fn<ResearchRemote['promptWorkflow']>().mockResolvedValue({ ok: true, value: { accepted: true } }),
     getSetup: vi.fn<ResearchRemote['getSetup']>().mockResolvedValue({ ok: true, value: { ok: true, value: { configured: false, writable: false, canInitialize: true } } }),
     initialize: vi.fn<ResearchRemote['initialize']>().mockResolvedValue({ ok: true, value: { ok: true, value: { configured: true, writable: true, canInitialize: true } } }),
+    prepareDiscussion: vi.fn<ResearchRemote['prepareDiscussion']>().mockResolvedValue(unsupported),
+    prepareStudy: vi.fn<ResearchRemote['prepareStudy']>().mockResolvedValue(unsupported),
     createTopic: vi.fn<ResearchRemote['createTopic']>().mockResolvedValue(unsupported),
     provider: vi.fn<ResearchRemote['provider']>().mockResolvedValue({ ok: true, value: readProvider }),
     getProject: vi.fn<ResearchRemote['getProject']>().mockResolvedValue({ ok: true, value: { ok: true, value: project } }),

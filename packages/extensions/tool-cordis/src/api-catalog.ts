@@ -2104,6 +2104,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['when the caller is not the owner or the created Session cannot be reached.'],
       },
       {
+        signature: '@Remote({ name: \'prepareDiscussion\', resources: { workspace: addressedWorkspace } }) async prepareDiscussion(request: Omit<ResearchQuestion, \'question\'> & { question?: string }, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>',
+        description: 'Prepare a fresh native Session and record its explicitly selected sources, without submitting a question.',
+        parameters: [{ name: 'request', description: 'current research location and the proposed question used to resolve its selected passage.' }, { name: 'signal', description: 'cancels source checks before the selection is appended.' }],
+        returns: 'the ordinary Session; its native composer owns prompt admission, uploads and retries.',
+      },
+      {
         signature: '@Remote({ name: \'promptWorkflow\', resources: { workspace: addressedWorkspace, session: addressedResearchSession } }) async promptWorkflow(request: SessionPromptRequest & { workspaceId: WorkspaceId }, signal: AbortSignal): Promise<{ accepted: true }>',
         description: 'Admit the normal composer\'s explicit Research choice without relabelling existing ordinary history.',
         parameters: [{ name: 'request', description: 'real native Session, actual Workspace and complete immutable prompt.' }, { name: 'signal', description: 'native submission cancellation.' }],
@@ -2122,9 +2128,15 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'Live metadata and explicit omitted-history coverage.',
       },
       {
+        signature: '@Remote({ name: \'prepareStudy\', resources: { workspace: (request: { workspaceId?: WorkspaceId }) => request.workspaceId } }) async prepareStudy(request: Omit<StudyRequest, \'question\'> & { question?: string }, signal: AbortSignal): Promise<ResourceResult<StudyReceipt>>',
+        description: 'Prepare selected literature or other sources for a native discussion without submitting a question.',
+        parameters: [{ name: 'request', description: 'admitted sources and their explicit research or independent-reading scope.' }, { name: 'signal', description: 'cancels source validation before context publication.' }],
+        returns: 'the native Session whose original inputs stay owned by DSH.',
+      },
+      {
         signature: '@Remote({ name: \'setResearchMode\', resources: { session: addressedResearchSession } }) async setResearchMode(request: { sessionId: SessionId; enabled: boolean }, signal: AbortSignal): Promise<{ enabled: boolean }>',
         description: 'Record an explicit mode choice in an already bound native conversation without starting a model turn.',
-        parameters: [{ name: 'request', description: 'owning Session and the researcher\'s selected mode; original question and sources remain bound.' }, { name: 'signal', description: 'cancels before admission; an appended native input is not rolled back.' }],
+        parameters: [{ name: 'request', description: 'owning Session and the researcher\'s selected mode; original question and sources remain bound.' }, { name: 'signal', description: 'cancels before durable plugin-state admission.' }],
         returns: 'the recorded choice, effective at the next model request; historical content remains intact.',
       },
     ],
@@ -7388,7 +7400,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ResourceQuery',
-    declaration: 'export interface ResourceQuery {\n    readonly domain?: ResourceDomain;\n    readonly rootId?: SourceRootId;\n    readonly folder?: string;\n    readonly query?: string;\n    readonly cursor?: string;\n    readonly limit?: number;\n    readonly topic?: {\n        readonly workspaceId: WorkspaceId;\n        readonly topicId: SourceTopicId;\n    };\n}',
+    declaration: 'export interface ResourceQuery {\n    readonly domain?: ResourceDomain;\n    readonly rootId?: SourceRootId;\n    readonly folder?: string;\n    readonly query?: string;\n    readonly cursor?: string;\n    readonly limit?: number;\n    readonly topic?: {\n        readonly workspaceId: WorkspaceId;\n        readonly topicId?: SourceTopicId;\n    };\n}',
   },
   {
     name: 'ResourceReadError',
@@ -9156,7 +9168,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'TopicAssociation',
-    declaration: 'export interface TopicAssociation {\n    readonly workspaceId: WorkspaceId;\n    readonly topicId: SourceTopicId;\n    readonly reason: string;\n}',
+    declaration: 'export interface TopicAssociation {\n    readonly workspaceId: WorkspaceId;\n    readonly topicId?: SourceTopicId;\n    readonly reason: string;\n}',
   },
   {
     name: 'TopicAssociationProvider',

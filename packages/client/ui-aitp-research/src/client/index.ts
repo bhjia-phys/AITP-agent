@@ -8,8 +8,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client'
 import { en, zh, type AitpResearchKey } from './locales.ts'
-import { NoteTabBody, NoteTabTitle } from './NoteTab.tsx'
-import { parseNoteAddress } from './protocol.ts'
+import { registerNoteTabs } from './NoteTab.tsx'
 import { ResearchPanel, type ResearchPanelFace } from './ResearchPanel.tsx'
 import { IconThinkOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ConversationSidebar } from './ConversationSidebar.tsx'
@@ -27,6 +26,7 @@ import { registerResearchDiscussions } from './discussion-registration.ts'
 import { ResearchNavigationController } from './research-navigation.ts'
 import { registerResearchWorkflow } from './workflow-registration.ts'
 import { ResearchNavigation } from './ResearchNavigation.tsx'
+import { applyNativeResearch } from './native.ts'
 
 export type { AitpResearchKey } from './locales.ts'
 export type * from './discussion-contract.ts'
@@ -59,18 +59,19 @@ const NS = 'aitp.research'
 /** Internal main-panel identity; project entry points do not expose a mode switch. */
 const PANEL_ID = 'aitp-research' as MainPanelId
 
-/** This package's identity in the dock tab system, and the key its tab body and title register under. */
-const NOTE_TAB_ID = '@deepseek-ai/dsh-client-ui-aitp-research/note'
-
 /** Services read by the registrations. */
 export const inject = ['slots', 'locale', 'sidebarRightTabs', 'uiWorkspace', 'resources', 'layout',
-  'workspaces', 'sessions', 'conversation', 'uiConversation', 'uiChatNavigation', 'sidebarRightRoots']
+  'workspaces', 'sessions', 'conversation', 'uiConversation']
 
 /**
  * Contribute the research Home, native project navigation, project reader and note tab type.
  * @param ctx - the browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
+  if (ctx.get('sidebarRightRoots') === undefined || ctx.get('uiChatNavigation') === undefined) {
+    applyNativeResearch(ctx)
+    return
+  }
   const workspaces = new ResearchWorkspaceRegistry(ctx)
   const release = ctx.reflect.provide('researchWorkspaces', workspaces)
   ctx.effect(() => () => {
@@ -141,20 +142,5 @@ export function apply(ctx: ClientContext): void {
   }), 'research: native projects tab')
   ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register({ name: 'sidebar.right.pane.tab', key: projectsId }, SessionProjects))
   ctx.slots.inject('sidebar.right.root.tab', () => ctx.slots.register({ name: 'sidebar.right.root.tab', key: projectsId }, RootProjects))
-  ctx.effect(() => ctx.sidebarRightTabs.register({
-    id: NOTE_TAB_ID,
-    kind: 'aitp-note',
-    priority: 'builtin',
-    patterns: ['dsh-resource://aitp-note/**'],
-    canOpen: address => parseNoteAddress(address) !== undefined,
-    title: address => parseNoteAddress(address)?.path.split('/').at(-1) ?? t('tab.note'),
-  }), 'ui-aitp-research: note tab type')
-  ctx.slots.inject('sidebar.right.pane.tab', () => ctx.slots.register(
-    { name: 'sidebar.right.pane.tab', key: NOTE_TAB_ID, locale: NS },
-    NoteTabBody,
-  ))
-  ctx.slots.inject('sidebar.right.pane.tab.title', () => ctx.slots.register(
-    { name: 'sidebar.right.pane.tab.title', key: NOTE_TAB_ID },
-    NoteTabTitle,
-  ))
+  registerNoteTabs(ctx, t)
 }

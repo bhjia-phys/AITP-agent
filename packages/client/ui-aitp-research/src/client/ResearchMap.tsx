@@ -61,14 +61,23 @@ function MapOverview(props: WorkspaceViewProps & { project: WorkspaceRead<Projec
   const project = props.project.value
   const retry = (): void => { props.retry(props.workspaceId) }
   const seedsId = useId()
+  const overviewKey = disclosureKey(props.workspaceId, 'section', 'project-overview')
+  const overviewOpen = props.useStore(state => state.disclosure[overviewKey] ?? false)
   return (
     <div className={css.enter}>
       <WorkspaceReadingMeta t={t} read={props.project} stale={props.stale} retry={retry} />
-      <header className={css.mapHeader} {...selectionSource(undefined, project.accountResourceId, 'source')}>
+      <header className={css.mapHeader} {...selectionSource(undefined, project.accountResourceId, 'rendered')}>
         <p className={css.eyebrow}>{t('map.eyebrow')}</p>
         <h2 className={css.projectTitle} tabIndex={-1} data-arrival="">{project.title}</h2>
-        {project.summary !== undefined && <p className={css.projectSummary}>{project.summary}</p>}
+        {project.summary !== undefined && <details className={css.projectOverview} open={overviewOpen}
+          onToggle={(event) => {
+            if (event.currentTarget.open !== overviewOpen) props.actions.setDisclosed(overviewKey, event.currentTarget.open)
+          }}>
+          <summary>{t('map.overview')}</summary>
+          <div className={css.projectSummary}><MarkdownText text={project.summary} labels={markdownLabels(t)} /></div>
+        </details>}
       </header>
+      <RelatedLibraries {...props} title={project.title} />
       <TopicListingView {...props} query={{ parentId: null }}
         unavailable={snapshot => <WorkspaceUnavailable snapshot={snapshot} t={t} retry={retry} />}>
         {listing => <DirectionLanes {...props} project={project} listing={listing} />}

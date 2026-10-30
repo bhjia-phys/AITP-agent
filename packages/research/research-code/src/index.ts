@@ -42,6 +42,10 @@ function metadata(checkout: CheckoutObservation | undefined, path: string): Reco
       head: checkout.head ?? 'unborn', dirtyCount: String(checkout.status.length) }) }
 }
 
+function isArchive(path: string): boolean {
+  return /\.(?:zip|tar|tgz|gz|bz2|xz|7z|rar)$/i.test(path)
+}
+
 function selectedLines(text: string, start: number, end: number): ResourceBody {
   const lines = text.split(/(?<=\n)/u)
   if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || end < start || end > lines.length) {
@@ -57,6 +61,21 @@ function selectedLines(text: string, start: number, end: number): ResourceBody {
  */
 export function createCodeProvider(config: Config): ResourceProvider {
   return { id: name, domain: 'code',
+    projectSources(context, signal) {
+      const summaries: ResourceSummary[] = []
+      for (const path of context.paths) {
+        signal.throwIfAborted()
+        if (/\.(?:md|markdown|pdf|tex|bib|png|jpe?g|gif|webp|bmp|ico|svg)$/i.test(path)) continue
+        // A thesis or paper source archive does not establish a code relationship.
+        if (isArchive(path) && !context.root.domains?.includes('code')) continue
+        const reference = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
+        summaries.push({ id: resourceEntryId(reference), ref: reference, title: path,
+          kind: isArchive(path) || /\.(?:json|csv|tsv|npz|npy|h5|hdf5)$/i.test(path) ? 'data' : 'code', domain: 'code', providerId: name,
+          metadata: { entryKind: 'source-file', checkoutState: 'uninspected',
+            ...isArchive(path) ? { format: 'archive', preview: 'unsupported' } : {} }, links: [], topics: [] })
+      }
+      return Promise.resolve(summaries)
+    },
     async watchChanges(context, changed, signal) {
       let paths: readonly string[]
       try { paths = await (await reader(context, config).initialize(signal)).metadataDirectories(signal) }
@@ -108,8 +127,9 @@ export function createCodeProvider(config: Config): ResourceProvider {
       for (const path of context.paths) {
         const reference: SourceRef = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
         const fileStatus = status.get(path)
-        summaries.push({ id: resourceEntryId(reference), ref: reference, title: path, kind: 'code', domain: 'code', providerId: name,
+        summaries.push({ id: resourceEntryId(reference), ref: reference, title: path, kind: isArchive(path) ? 'data' : 'code', domain: 'code', providerId: name,
           metadata: { ...metadata(checkout, context.root.displayPath), entryKind: 'source-file',
+            ...isArchive(path) ? { format: 'archive', preview: 'unsupported' } : {},
             ...(fileStatus === undefined ? {} : { fileStatus }) }, links: [], topics: [] })
       }
       return summaries
@@ -129,8 +149,9 @@ export function createCodeProvider(config: Config): ResourceProvider {
       const items: ResourceSummary[] = directory.entries.map((entry) => {
         const ref: SourceRef = { rootId: context.root.id, sourceId: sourceIdForPath(entry.path) }
         const fileStatus = status.get(entry.path)
-        return { id: resourceEntryId(ref), ref, title: entry.path, kind: 'code', domain: 'code', providerId: name,
+        return { id: resourceEntryId(ref), ref, title: entry.path, kind: entry.kind !== 'directory' && isArchive(entry.path) ? 'data' : 'code', domain: 'code', providerId: name,
           metadata: { ...metadata(checkout, context.root.displayPath), entryKind: entry.kind === 'directory' ? 'source-folder' : 'source-file',
+            ...entry.kind !== 'directory' && isArchive(entry.path) ? { format: 'archive', preview: 'unsupported' } : {},
             ...fileStatus === undefined ? {} : { fileStatus } }, links: [], topics: [] }
       })
       if (folder === '') {
@@ -172,8 +193,10 @@ export function createCodeProvider(config: Config): ResourceProvider {
         }
       }
       if (!reference.sourceId.startsWith('source:')) return undefined
-      if (locator?.kind !== 'code') return undefined
       const path = pathForSourceId(reference.sourceId)
+      if (isArchive(path)) return { kind: 'unavailable', reason: 'unsupported',
+        detail: 'This archive remains at its original location. Inline archive contents are not supported.' }
+      if (locator?.kind !== 'code') return undefined
       let text: string
       let revision = 'working-tree'
       if (locator.revision !== undefined && locator.revision !== 'working-tree') {

@@ -1,0 +1,43 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/util/markdown-math/README.md
+/:
+  en: abb1b7891d9a0053
+  zh: 3c90a52563915a10
+/markdown-math-syntax:
+  en: c5d05d3bd46768e7
+  zh: 0c4e41e1ac1cad52
+/markdown-math-syntax/summary:
+  en: 0a41fbb9ef8a5ac2
+  zh: a8d661942f4f1ae6
+/markdown-math-syntax/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 405b30feaf48c087
+/markdown-math-syntax/use-this-package:
+  en: bbff250eba0f1b89
+  zh: 0a618f05cc88ee2b
+/markdown-math-syntax/use-this-package/when-to-use-it:
+  en: d8d92edfd4f95bee
+  zh: edc53b0766588f67
+/markdown-math-syntax/use-this-package/entry-point:
+  en: 53fd5306c94b1e69
+  zh: 6800e110cc74eb73
+/markdown-math-syntax/understand-the-implementation:
+  en: 196f9f10156539bc
+  zh: 861f0a8c8931cbd3
+/markdown-math-syntax/further-exploration:
+  en: 51df80ede19df03c
+  zh: 363b4394a60cbc46
+/markdown-math-syntax/model-experience:
+  en: d5c8a6f4a9a9b5bd
+  zh: 5ca3a06db999a13c
+/markdown-math-syntax/model-experience/kv-cache-effect:
+  en: a31eecc22355e235
+  zh: b8923bda662d1ee8
+/markdown-math-syntax/known-limitations-and-deferred-work:
+  en: fd674c33a1755d5f
+  zh: f480fdc5f7676d9e
+/markdown-math-syntax/known-limitations-and-deferred-work/dev-note:
+  en: b59a843a689f800a
+  zh: e946720ee33378ae

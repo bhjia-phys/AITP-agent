@@ -69,6 +69,20 @@ it('mounts the actual endpoint, follows real resource reads and withdraws only t
   } finally { release() }
 }, 60_000)
 
+it('transports project-owned library filters without requiring a fictional topic', async ({ mock, start }) => {
+  const client = await start()
+  mock.load({ unary: { 'researchResources/listResources': ok({ ok: true, value: initial }) },
+    stream: { 'researchResources/follow': openStream([]) } })
+  const source = client.ctx.resources.source('dsh-resource://aitp-material-list/literature?workspace=project')
+  const release = source.subscribe(() => {})
+  try {
+    await vi.waitFor(() => { expect(source.getSnapshot().status).toBe('live') })
+    expect(mock.log.requests('researchResources/listResources')).toContainEqual({ request: {
+      domain: 'literature', topic: { workspaceId: 'project' },
+    } })
+  } finally { release() }
+}, 60_000)
+
 it('keeps a cross-library source readable after its domain presentation is unloaded', async ({ mock, start }) => {
   const client = await start()
   const scope = { workspaceId: 'project' as WorkspaceId, title: 'Original question' }

@@ -32,6 +32,8 @@ Index rows retain their question, authored kind, support text and source links. 
 
 The [portable knowledge guide](../../../aitp/plugins/aitp/skills/aitp-memory/references/shared-knowledge.md) owns knowledge maintenance. A research-derived result remains a provisional index pointer until the researcher's confirmation permits promotion. This reader neither promotes entries nor adds an approval requirement to ordinary reading notes.
 
+An explicitly linked Markdown note can also appear under its selected research topic without an index row. This projection reads only that note, preserves its authored title and metadata, and exposes its links without following them into additional catalog entries. It does not promote the note to accepted knowledge.
+
 ## Understand the implementation
 
 <details>

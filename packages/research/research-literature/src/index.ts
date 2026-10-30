@@ -4,7 +4,8 @@ import z from '@deepseek-ai/schemastery'
 import { posix } from 'node:path'
 import { pathForSourceId, resourceEntryId, sourceIdForPath } from '@deepseek-ai/dsh-research-resources'
 import { markupAttribute, parseSourceMarkup } from '@deepseek-ai/dsh-research-resources/markup'
-import type { ResourceLink, ResourceProvider, ResourceSummary, SourceRef } from '@deepseek-ai/dsh-research-resources'
+import type { ResourceLink, ResourceProvider, ResourceSummary, SourceProviderContext, SourceRef } from '@deepseek-ai/dsh-research-resources'
+import type { MarkupDocument } from '@deepseek-ai/dsh-research-resources/markup'
 import { readPdf } from './pdf.ts'
 
 /** Existing reading entry points and bounded PDF extraction; all reads still obey shared root limits. */
@@ -39,6 +40,33 @@ export const Config: z<Partial<Config>, Config> = z.object({
 })
 export const name = 'research-literature'
 export const inject = ['researchResources']
+
+function paperArtifact(context: SourceProviderContext, path: string, primaryPdfOnly: boolean): ResourceSummary | undefined {
+  if (!/\.(pdf|tex|bib)$/i.test(path)) return undefined
+  if (primaryPdfOnly && (!/\.pdf$/i.test(path) || path.split('/').some(part => part.toLowerCase() === 'source'))) return undefined
+  const arxiv = primaryPdfOnly ? /^arxiv\/([^/]+)\/paper\.pdf$/i.exec(path)?.[1] : undefined
+  const reference = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
+  return { id: resourceEntryId(reference), ref: reference, title: arxiv === undefined ? posix.basename(path) : `arXiv ${arxiv}`,
+    kind: 'literature', domain: 'literature', providerId: name, metadata: {
+      format: posix.extname(path).slice(1).toLowerCase(), titleSource: arxiv === undefined ? 'filename' : 'local-identifier',
+      ...arxiv === undefined ? {} : { arxiv }, work: 'unknown', edition: 'unknown',
+    }, links: [], topics: [] }
+}
+
+function readingNote(context: SourceProviderContext, path: string, document: MarkupDocument,
+  links: readonly ResourceLink[]): ResourceSummary | undefined {
+  const kind = markupAttribute(document, 'kind')
+  if (!/^(paper|paper-map|section|section-note|source-reading|reading)$/i.test(kind ?? '')
+    && !document.links.some(link => /\.(pdf|tex|bib)(?:#|$)/i.test(link.href))) return undefined
+  const metadata: Record<string, string> = { recordKind: 'source-reading' }
+  for (const key of ['kind', 'authors', 'year', 'arxiv', 'doi', 'edition', 'version', 'reading_depth', 'close_reading', 'support', 'review']) {
+    const value = markupAttribute(document, key)
+    if (value !== undefined) metadata[key] = value
+  }
+  const reference = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
+  return { id: resourceEntryId(reference), ref: reference, title: markupAttribute(document, 'title') ?? document.title ?? path,
+    kind: 'literature', domain: 'literature', providerId: name, metadata, links, topics: [] }
+}
 
 /** Enrich only an exact PDF linked by one authored paper map, retaining the map itself. */
 function projectCatalog(items: readonly ResourceSummary[]): readonly ResourceSummary[] {
@@ -83,18 +111,36 @@ function projectCatalog(items: readonly ResourceSummary[]): readonly ResourceSum
 export function createLiteratureProvider(config: Config): ResourceProvider {
   return { id: name, domain: 'literature',
     projectCatalog,
+    async projectSources(context, signal) {
+      const summaries: ResourceSummary[] = []
+      for (const path of context.paths) {
+        signal.throwIfAborted()
+        const artifact = paperArtifact(context, path, false)
+        if (artifact !== undefined) { summaries.push(artifact); continue }
+        if (!/\.(?:md|markdown)$/i.test(path)) continue
+        try {
+          const document = parseSourceMarkup(await context.files.read(path, signal))
+          for (const issue of document.issues) context.reportIssue(path, issue)
+          const links = document.links.map((link) => {
+            const resolved = context.resolveLink(path, link.href)
+            return { label: link.label, href: link.href, ...(resolved === undefined ? {} : { target: resolved.ref,
+              ...(resolved.locator === undefined ? {} : { locator: resolved.locator }) }) }
+          })
+          const note = readingNote(context, path, document, links)
+          if (note !== undefined) summaries.push(note)
+        } catch (error) {
+          void error
+          signal.throwIfAborted()
+          context.reportIssue(path, 'The explicitly linked literature reading could not be read within the configured source limits.')
+        }
+      }
+      return summaries
+    },
     async list(context, signal) {
       const summaries: ResourceSummary[] = []
       for (const path of context.paths) {
-        if (!/\.(pdf|tex|bib)$/i.test(path)) continue
-        if (config.primaryPdfOnly && (!/\.pdf$/i.test(path) || path.split('/').some(part => part.toLowerCase() === 'source'))) continue
-        const arxiv = config.primaryPdfOnly ? /^arxiv\/([^/]+)\/paper\.pdf$/i.exec(path)?.[1] : undefined
-        const reference: SourceRef = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
-        summaries.push({ id: resourceEntryId(reference), ref: reference, title: arxiv === undefined ? posix.basename(path) : `arXiv ${arxiv}`,
-          kind: 'literature', domain: 'literature', providerId: name, metadata: {
-            format: posix.extname(path).slice(1).toLowerCase(), titleSource: arxiv === undefined ? 'filename' : 'local-identifier',
-            ...arxiv === undefined ? {} : { arxiv }, work: 'unknown', edition: 'unknown',
-          }, links: [], topics: [] })
+        const artifact = paperArtifact(context, path, config.primaryPdfOnly)
+        if (artifact !== undefined) summaries.push(artifact)
       }
       const queue = [...new Set([
         ...config.readingIndexPaths.filter(path => context.paths.includes(path)),
@@ -124,17 +170,8 @@ export function createLiteratureProvider(config: Config): ResourceProvider {
           return { label: link.label, href: link.href, ...(resolved === undefined ? {} : { target: resolved.ref,
             ...(resolved.locator === undefined ? {} : { locator: resolved.locator }) }) }
         })
-        const kind = markupAttribute(document, 'kind')
-        if (!/^(paper|paper-map|section|section-note|source-reading|reading)$/i.test(kind ?? '')
-          && !document.links.some(link => /\.(pdf|tex|bib)(?:#|$)/i.test(link.href))) continue
-        const metadata: Record<string, string> = { recordKind: 'source-reading' }
-        for (const key of ['kind', 'authors', 'year', 'arxiv', 'doi', 'edition', 'version', 'reading_depth', 'close_reading', 'support', 'review']) {
-          const value = markupAttribute(document, key)
-          if (value !== undefined) metadata[key] = value
-        }
-        const reference: SourceRef = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
-        summaries.push({ id: resourceEntryId(reference), ref: reference, title: markupAttribute(document, 'title') ?? document.title ?? path,
-          kind: 'literature', domain: 'literature', providerId: name, metadata, links, topics: [] })
+        const note = readingNote(context, path, document, links)
+        if (note !== undefined) summaries.push(note)
       }
       if (queue.length > 0) context.reportIssue('', 'The literature reading-note traversal reached its configured bound; further linked notes remain uninspected.')
       return summaries

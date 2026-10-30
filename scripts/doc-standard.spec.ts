@@ -98,6 +98,7 @@ const PACKAGE_LIBRARIES: Readonly<Record<string, string>> = {
   'packages/util/code-language': 'Zero-dependency file-extension to syntax-highlighting language table.',
   'packages/util/home-paths': 'Zero-dependency harness-home path resolver.',
   'packages/util/launch-environment': 'Zero-dependency environment resolver.',
+  'packages/util/markdown-math': 'Shared Markdown math tokenizer extension consumed by renderers and source parsers.',
   'packages/util/lazy-require': 'Caller-relative CommonJS-compatible dependency loader.',
   'packages/util/native-command': 'Host-side subprocess runner utility.',
   'packages/util/output-retention': 'Zero-dependency retention utility.',

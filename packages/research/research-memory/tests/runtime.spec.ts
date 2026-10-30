@@ -210,6 +210,19 @@ describe('source-attributed recovery', () => {
     expect(context).toMatch(/[1-5] working items/u)
   })
 
+  it('retains earlier initialization answers while current initialization settles without inventing a human input', () => {
+    const session = Session.create(SessionId('initialization-replay'))
+    session.append('user/message', human('Initialize the agreed isolated account.'), { surfaceOp: 'append' })
+    for (const [id, answers] of [['earlier', [{ id: 'initialize-research', selected: ['Confirm and create project'] }]], ['current', []]] as const) {
+      session.append('tool/call', { turn: 1, step: 1, callId: ToolCallId(id), name: 'research_initialize_project', arguments: '{}' })
+      session.append('tool/result', { turn: 1, step: 1, message: createToolResultMessage({ callId: ToolCallId(id),
+        content: [{ type: 'text', text: JSON.stringify({ state: 'applied', answers }) }], isError: false }) }, { surfaceOp: 'append' })
+    }
+    const restored = session.snapshotEvents().reduce(applyWorkingEvent, emptyWorkingState())
+    expect(restored.pending).toEqual([])
+    expect(restored.humans.filter(item => item.kind === 'question-answer').map(item => item.sourceId)).toEqual(['answer:earlier'])
+  })
+
   it('replays originals, full question/options/answer and only successful working updates', () => {
     const session = Session.create(SessionId('replay'))
     session.append('user/message', human('原始任务与限制'), { surfaceOp: 'append' })

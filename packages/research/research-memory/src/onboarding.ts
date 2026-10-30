@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { lstat, mkdir } from 'node:fs/promises'
 import { basename, dirname, join, posix, sep } from 'node:path'
 import { z } from 'zod'
-import { pathForTopicId, resourceIdForPath, topicIdForPath } from './markdown-files.ts'
+import { pathForResourceId, pathForTopicId, resourceIdForPath, topicIdForPath } from './markdown-files.ts'
 import type { MarkdownWorkspace } from './markdown.ts'
 import type { CreateTopicReceipt, CreateTopicRequest, ResearchInitializeRequest, Result, Revision, TopicId } from './types.ts'
 import { appendChild, claim, createAccount, missing, OnboardingFailure, onboardingFailure, outsideState, safeSource, syncDirectory } from './onboarding-files.ts'
@@ -15,6 +15,8 @@ const enrollmentSchema = z.object({ format: z.literal(1), roots: z.array(z.objec
 const requestSchema = z.object({ operationId: z.string(), title: z.string(), question: z.string(),
   scope: z.string().optional(), parentTopicId: z.string().optional(), directory: z.string().optional() })
 const operationSchema = z.object({ format: z.literal(1), sourceRoot: z.string(), request: requestSchema,
+  // Older receipts always used research.md or the selected topic; preserve their interpretation.
+  parentPath: z.string().optional(),
   relativePath: z.string(), state: z.enum(['reserved', 'published', 'complete', 'partial', 'unknown']),
   receipt: z.object({ operationId: z.string(), topicId: z.string(), resourceId: z.string() }),
 })
@@ -85,9 +87,12 @@ export class ResearchOnboarding {
    * Existing account bytes are preserved, and read-only enrollment creates no scientific files.
    * @param root - registered canonical root authorized by the calling owner service.
    * @param request - explicit source-write choice; the caller serializes changes with its existing root writer.
+   * @param reader - authorized reader used to recognize an existing family account before initialization.
+   * @param existingAccountPath - internally observed account required to remain present; this mode never creates a scientific file.
    * @returns the durably saved enrollment, or a typed storage/access failure; earlier account creation is not rolled back.
    */
-  async initialize(root: string, request: ResearchInitializeRequest): Promise<Result<EnrolledRoot>> {
+  async initialize(root: string, request: ResearchInitializeRequest, reader?: MarkdownWorkspace,
+    existingAccountPath?: string): Promise<Result<EnrolledRoot>> {
     if (this.stateHome === undefined) return { ok: false, error: { code: 'unsupported', message: 'This host does not provide application storage for research enrollment.', retryable: false } }
     try {
       const state = await outsideState(root, this.stateHome(), true)
@@ -96,27 +101,43 @@ export class ResearchOnboarding {
         try { record = enrollmentSchema.parse(JSON.parse(await readBoundedText(join(state, 'enrollments.json'), this.maxBytes))) }
         catch (error) { if (!missing(error)) throw error }
         await safeSource(root, root, 'directory')
-        const account = join(root, 'research.md')
-        const planned = request.account === undefined ? undefined : initialAccountText(request.account)
-        if (request.account !== undefined && (!request.writable || !request.account.title.trim() || !request.account.question.trim()
-          || planned === undefined || Buffer.byteLength(planned, 'utf8') > this.maxSourceBytes)) {
-          return { ok: false, error: { code: 'invalid-request', message: 'A new account requires a title, research question and source-write permission within the file limit.', retryable: false } }
-        }
-        try {
-          await safeSource(root, account, 'file')
-          if (planned !== undefined && await readBoundedText(account, this.maxSourceBytes) !== planned) {
-            return { ok: false, error: { code: 'invalid-request', message: 'A research account already exists. Read it before proposing changes; its contents were preserved.', retryable: false } }
+        if (existingAccountPath !== undefined) {
+          try { await safeSource(root, join(root, existingAccountPath), 'file') }
+          catch (error) {
+            if (!missing(error)) throw error
+            return { ok: false, error: { code: 'not-found', retryable: false,
+              message: 'The previously observed research account is no longer present. No replacement account was created and saving was not enabled.' } }
           }
-        }
-        catch (error) {
-          if (!missing(error)) throw error
-          if (request.writable) {
-            try { await createAccount(root, account, planned ?? `# ${markdownText(basename(root))}\n\n## Topics\n`) }
-            catch (creationError) {
-              if (!(creationError instanceof Error && 'code' in creationError && creationError.code === 'EEXIST')) throw creationError
-              await safeSource(root, account, 'file')
-              if (planned !== undefined && await readBoundedText(account, this.maxSourceBytes) !== planned) {
-                throw new OnboardingFailure('invalid-request', 'Another account appeared during initialization. Its contents were preserved; read it before continuing.')
+        } else {
+          const account = join(root, 'research.md')
+          const planned = request.account === undefined ? undefined : initialAccountText(request.account)
+          if (request.account !== undefined && (!request.writable || !request.account.title.trim() || !request.account.question.trim()
+            || planned === undefined || Buffer.byteLength(planned, 'utf8') > this.maxSourceBytes)) {
+            return { ok: false, error: { code: 'invalid-request', message: 'A new account requires a title, research question and source-write permission within the file limit.', retryable: false } }
+          }
+          try {
+            await safeSource(root, account, 'file')
+            if (planned !== undefined && await readBoundedText(account, this.maxSourceBytes) !== planned) {
+              return { ok: false, error: { code: 'invalid-request', message: 'A research account already exists. Read it before proposing changes; its contents were preserved.', retryable: false } }
+            }
+          }
+          catch (error) {
+            if (!missing(error)) throw error
+            const existing = reader === undefined ? undefined : await reader.getProject()
+            if (existing !== undefined && !existing.ok) return existing
+            const family = existing?.ok && existing.value.value.accountResourceId !== undefined
+              && pathForResourceId(existing.value.value.accountResourceId) === 'README.md'
+            if (family && planned !== undefined) {
+              return { ok: false, error: { code: 'invalid-request', message: 'This research family already has a README map and linked accounts. Open it or create a child direction; no root account was created.', retryable: false } }
+            }
+            if (request.writable && !family) {
+              try { await createAccount(root, account, planned ?? `# ${markdownText(basename(root))}\n\n## Topics\n`) }
+              catch (creationError) {
+                if (!(creationError instanceof Error && 'code' in creationError && creationError.code === 'EEXIST')) throw creationError
+                await safeSource(root, account, 'file')
+                if (planned !== undefined && await readBoundedText(account, this.maxSourceBytes) !== planned) {
+                  throw new OnboardingFailure('invalid-request', 'Another account appeared during initialization. Its contents were preserved; read it before continuing.')
+                }
               }
             }
           }
@@ -162,10 +183,14 @@ export class ResearchOnboarding {
           }
           return this.recorded(previous)
         }
-        const parentPath = request.parentTopicId === undefined ? 'research.md' : pathForTopicId(request.parentTopicId)
+        let parentPath = request.parentTopicId === undefined ? 'research.md' : pathForTopicId(request.parentTopicId)
         if (request.parentTopicId !== undefined) {
           const parent = await reader.getTopic(request.parentTopicId)
           if (!parent.ok) return parent
+        } else {
+          const project = await reader.getProject()
+          if (!project.ok) return project
+          if (project.value.value.accountResourceId !== undefined) parentPath = pathForResourceId(project.value.value.accountResourceId)
         }
         const parent = join(reader.root, parentPath)
         await safeSource(reader.root, parent, 'file')
@@ -185,7 +210,7 @@ export class ResearchOnboarding {
           throw new OnboardingFailure('invalid-request', 'The new account or parent link exceeds the source byte bound.')
         }
         const receipt = { operationId: request.operationId, topicId: topicIdForPath(topicPath), resourceId: resourceIdForPath(topicPath) }
-        let operation: Operation = { format: 1, sourceRoot: reader.root, request: { ...request }, relativePath: topicPath, state: 'reserved', receipt }
+        let operation: Operation = { format: 1, sourceRoot: reader.root, request: { ...request }, parentPath, relativePath: topicPath, state: 'reserved', receipt }
         publication.operation = operation
         await publishText(receiptPath, this.serialized(operation), 0o600)
         try {
@@ -222,7 +247,8 @@ export class ResearchOnboarding {
     if (operation.state === 'partial') return { ok: false, error: { code: 'partial-apply', operationId: operation.request.operationId,
       message: `The new account was created at ${operation.relativePath}, but its parent link is incomplete. Inspect the source before creating another topic.`,
       changed: [{ target: { kind: 'resource', id: receipt.resourceId }, revision: `onboarding:${operation.request.operationId}` as Revision }],
-      remaining: [{ kind: 'resource', id: resourceIdForPath(operation.request.parentTopicId === undefined ? 'research.md' : pathForTopicId(operation.request.parentTopicId as TopicId)) }] } }
+      remaining: [{ kind: 'resource', id: resourceIdForPath(operation.parentPath
+        ?? (operation.request.parentTopicId === undefined ? 'research.md' : pathForTopicId(operation.request.parentTopicId as TopicId))) }] } }
     return { ok: false, error: { code: 'outcome-unknown', operationId: operation.request.operationId,
       message: `Topic creation stopped before a confirmed receipt. Inspect ${operation.relativePath} and its parent; this operation will not write again on retry.` } }
   }

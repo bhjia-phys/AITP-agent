@@ -36,6 +36,8 @@ Mount `@deepseek-ai/dsh-research-literature` beside [shared research sources](..
 
 PDF pages are one-based. PDF page labels, when present, are kept separately from physical page numbers. A selected quote must occur exactly once in the current extracted page. The initial page window reports remaining coverage; other pages can be read explicitly. A filename is a display title, not evidence of a work or edition. Authored reading metadata stays with its reading and does not silently establish the identity of every linked PDF.
 
+Selected topic links can project exact PDF, TeX, bibliography and qualifying source-reading files beyond automatic discovery. Explicitly chosen artifacts are not filtered out by the global `primaryPdfOnly` discovery preference. Reading-note links remain navigable without recursive catalog expansion; work, edition and support remain unassigned unless actually recorded.
+
 ## Understand the implementation
 
 <details>

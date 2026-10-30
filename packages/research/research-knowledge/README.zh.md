@@ -32,6 +32,8 @@ kind: "package-reference"
 
 [可移植知识指南](../../../aitp/plugins/aitp/skills/aitp-memory/references/shared-knowledge.md)拥有知识维护规则。源于研究的结果在研究者确认前保留为临时索引指针，确认后才可提升为知识原子。此阅读器既不执行提升，也不为普通阅读笔记增加确认要求。
 
+某个课题明确链接的 Markdown 笔记也可在该课题下显示，无需预先写入知识索引。该投影只读取该笔记，保留作者标题和元数据，并展示链接而不继续沿链接新增目录条目。它不会把笔记提升为已接受的知识。
+
 ## Understand the implementation
 
 <details>

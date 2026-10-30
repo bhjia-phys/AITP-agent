@@ -8,6 +8,7 @@ import type {} from '@deepseek-ai/dsh-sandbox-policy'
 import type {} from '@deepseek-ai/dsh-session-projection'
 import type { ResourceId, Result } from './types.ts'
 import type { ResearchOrigin } from './working-types.ts'
+import type { ResearchWorkingState } from './working-types.ts'
 import type { ScratchWriter, WriteOperation, WriteProposal } from './writer.ts'
 
 /** Host-selected writer and its explicit source-write grant. */
@@ -38,6 +39,8 @@ export interface WriteToolsOptions {
    * @returns Resolves once host notification work finishes.
    */
   readonly onApplied?: (origin: ResearchOrigin, operation: WriteOperation) => Promise<void>
+  /** Resolves plugin-owned standard-DSH source bindings for this tool invocation. */
+  readonly stateFor?: (session: Session) => ResearchWorkingState
 }
 
 function bounded(lines: readonly string[], maxCharacters: number): string {
@@ -102,7 +105,7 @@ export function installWriteTools(ctx: Context, options: WriteToolsOptions): () 
     exec.signal.throwIfAborted()
     if (exec.agent === undefined) throw new Error('Research writing needs an active agent conversation.')
     const session = exec.agent.session
-    const origin = ctx.sessionProjections.stateOf(session, 'researchWorking')?.origin
+    const origin = (options.stateFor?.(session) ?? ctx.sessionProjections.stateOf(session, 'researchWorking'))?.origin
     if (origin === null || origin === undefined) throw new Error('No human-selected research location is bound to this conversation.')
     if (origin.scope === 'global' || origin.workspaceId === undefined) throw new Error('Global source study has no selected research-note owner. Choose the intended research direction before preparing a source edit.')
     if (ctx.get('sandboxPolicy') === undefined) throw new Error('The session file policy is unavailable; research writing is disabled.')

@@ -6,6 +6,8 @@
 .intro, .muted { color: var(--dsw-alias-label-secondary); line-height: 1.7; }
 .muted { font-size: 12px; overflow-wrap: anywhere; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-block: 12px; }
+.taskEntry { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+.taskEntry .tasks { flex: 1; min-width: min(200px, 100%); }
 .list { list-style: none; padding: 0; margin-top: 24px; }
 .list li { padding-block: 18px; border-bottom: 0.5px solid var(--dsw-alias-border-l1); }
 .title { border: 0; background: none; color: inherit; padding: 0; text-align: left; font: inherit; font-size: 15px; line-height: 1.6; cursor: pointer; }
@@ -41,3 +43,10 @@
 @media (hover: hover) { .title:hover { color: var(--dsw-alias-brand-primary); } }
 
 .sidebar > button { justify-content: flex-start; }
+
+.dock { height: 100%; min-height: 0; min-width: 0; }
+.dock .header { padding: 12px 16px; }
+.dock .page { padding: 16px; }
+.dock .toolbar { gap: 8px; }
+.dock .editor textarea { min-height: 220px; }
+.dock .reading h2 { font-size: 18px; }

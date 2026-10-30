@@ -174,6 +174,7 @@ export const SERVICE_PAGE: Record<string, string> = {
  * to a model as `cordis_runtime_inspect what:"client"`).
  */
 export const SERVICE_WALK_EXEMPTIONS: Record<string, string> = {
+  researchNativePreparation: 'Client-only source preparation for native DSH Sessions; packages/client/ui-aitp-research/README.md owns its boundary.',
   researchWorkspaces: 'Client-only adapter registry; packages/client/ui-aitp-research/README.md owns its registration and lifecycle API.',
   researchDiscussions: 'Client-only scoped discussion controller; packages/client/ui-aitp-research/README.md owns its Session and navigation API.',
   researchWorkflowTransport: 'Client-only native Research submission bridge; packages/client/ui-aitp-backend/README.md owns its transport.',

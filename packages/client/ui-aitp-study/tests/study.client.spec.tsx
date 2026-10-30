@@ -80,14 +80,28 @@ it('keeps selected-source attribution distinct from recorded model context and p
 })
 
 it('prepares an editable localized source task without submitting or manufacturing a model product', () => {
-  const prepareQuestion = vi.fn(), newNote = vi.fn()
-  render(<StudyTasks {...{ selectionCount: 1, selections: [source], prepareQuestion, newNote, t } as StudyTasksProps} />)
+  const prepareQuestion = vi.fn(), newNote = vi.fn(), openNotes = vi.fn()
+  render(<StudyTasks {...{ selectionCount: 1, selections: [source], prepareQuestion, newNote, openNotes, t } as StudyTasksProps} />)
   fireEvent.click(screen.getByText('Prepare a task'))
   fireEvent.click(screen.getByRole('button', { name: 'Comparison' }))
   expect(prepareQuestion).toHaveBeenCalledExactlyOnceWith(en.comparisonTask)
   expect(newNote).not.toHaveBeenCalled()
-  fireEvent.click(screen.getByRole('button', { name: 'Write a reading note' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Generate a reading note' }))
+  expect(prepareQuestion).toHaveBeenLastCalledWith(en.readingNoteTask)
+  expect(newNote).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Write manually' }))
   expect(newNote).toHaveBeenCalledExactlyOnceWith([source])
+  expect(openNotes).not.toHaveBeenCalled()
+})
+
+it('opens existing reading notes without selecting a source or creating a draft', () => {
+  const prepareQuestion = vi.fn(), newNote = vi.fn(), openNotes = vi.fn()
+  render(<StudyTasks {...{ selectionCount: 0, selections: [], prepareQuestion, newNote, openNotes, t } as StudyTasksProps} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Inspect reading notes' }))
+  expect(openNotes).toHaveBeenCalledOnce()
+  expect(prepareQuestion).not.toHaveBeenCalled()
+  expect(newNote).not.toHaveBeenCalled()
+  expect(screen.queryByText('Prepare a task')).toBeNull()
 })
 
 it('offers answer capture only for the matching durable, uninterrupted assistant message', () => {

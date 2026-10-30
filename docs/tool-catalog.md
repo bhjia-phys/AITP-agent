@@ -139,7 +139,7 @@ Source: [`packages/research/research-memory/src/material-tools.ts`](../packages/
 
 ### `research_initialize_project`
 
-Propose initialization of this research conversation's missing research.md. Supply the research title/question and optional admitted library roots after discussing missing details. The tool presents the exact choices through the native human question UI, checks current file permissions, preserves existing accounts, and creates no Git repository or copied library. A declined or unknown result is not a saved account.
+Initialize this research conversation's missing research.md and enroll its workbench saving after the researcher authorizes initialization and settles the title, question and source choices. Ask about missing consequential choices before calling; reuse an existing authorization without another confirmation. Current Session file permissions and host policy still apply. Preserves existing accounts and creates no Git repository or copied library. An unknown result is not a saved account.
 
 ```json
 {
@@ -150,6 +150,10 @@ Propose initialization of this research conversation's missing research.md. Supp
     },
     "question": {
       "type": "string"
+    },
+    "preserveExisting": {
+      "type": "boolean",
+      "description": "Enable the already authorized saving for an existing account without changing its contents; the account must already exist."
     },
     "scope": {
       "type": "string"

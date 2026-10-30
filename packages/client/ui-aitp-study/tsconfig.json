@@ -39,6 +39,9 @@
       "path": "../ui-sidebar"
     },
     {
+      "path": "../ui-sidebar-right"
+    },
+    {
       "path": "../ui-workspace"
     },
     {

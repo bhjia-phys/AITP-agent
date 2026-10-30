@@ -4,6 +4,7 @@ import { gfmFromMarkdown } from 'mdast-util-gfm'
 import { mathFromMarkdown } from 'mdast-util-math'
 import { gfm } from 'micromark-extension-gfm'
 import { math } from 'micromark-extension-math'
+import { mathCompatibility } from '@deepseek-ai/dsh-util-markdown-math'
 import type { ResearchSourceRange } from './types.ts'
 
 type Node = ReturnType<typeof fromMarkdown> | ReturnType<typeof fromMarkdown>['children'][number]
@@ -83,7 +84,9 @@ function inline(node: Node, source: string): Projection {
 }
 
 function projections(source: string): Projection[] {
-  const tree = fromMarkdown(source, { extensions: [gfm(), math()], mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()] })
+  const tree = fromMarkdown(source, {
+    extensions: [gfm(), math(), mathCompatibility()], mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
+  })
   const result: Projection[] = []
   const visit = (node: Node): void => {
     if (node.type === 'paragraph' || node.type === 'heading' || node.type === 'tableCell') {

@@ -103,6 +103,10 @@ export interface ResearchDiscussions {
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
+    /** Prepares source context only; native DSH retains ownership of subsequent submissions. */
+    researchNativePreparation: {
+      prepare(scope: ResearchDiscussionScope, origin: ResearchOrigin, signal: AbortSignal): Promise<SessionId>
+    }
     /** Research discussion selection shared by reading surfaces. */
     researchDiscussions: ResearchDiscussions
     /** Optional native material reader contributed by the independently installed library. */

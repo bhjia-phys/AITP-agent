@@ -62,10 +62,11 @@ export type SourceLocator =
     readonly path?: string
   }
 
-/** An explicitly recorded topic relationship; a nearby directory is not such a record. */
+/** An explicitly recorded research relationship; a nearby directory is not such a record. */
 export interface TopicAssociation {
   readonly workspaceId: WorkspaceId
-  readonly topicId: SourceTopicId
+  /** Omission records a use by the project account, never all of its child topics. */
+  readonly topicId?: SourceTopicId
   readonly reason: string
 }
 
@@ -214,7 +215,8 @@ export interface ResourceQuery {
   readonly query?: string
   readonly cursor?: string
   readonly limit?: number
-  readonly topic?: { readonly workspaceId: WorkspaceId; readonly topicId: SourceTopicId }
+  /** Omitted topicId selects only project-account uses, not a union of child topics. */
+  readonly topic?: { readonly workspaceId: WorkspaceId; readonly topicId?: SourceTopicId }
 }
 
 /** Literal body search inside admitted source roots, independent of catalog title matching. */
@@ -266,6 +268,7 @@ export interface ResourcePage {
 export interface SourceProviderContext {
   readonly root: SourceRoot
   readonly rootPath: string
+  /** Bounded discovery paths, or the exact guarded regular files supplied to projectSources. */
   readonly paths: readonly string[]
   readonly issues: readonly ScanIssue[]
   readonly partial: boolean
@@ -280,12 +283,14 @@ export interface SourceProviderContext {
   } | undefined
 }
 
-/** Domain plugin contribution; providers project one shared scan and never grant their own roots. */
+/** Domain plugin contribution over shared discovery or exact selected files; neither path grants source authority. */
 export interface ResourceProvider {
   readonly id: string
   readonly domain: ResourceDomain
   /** Project source observations into this domain's catalog. */
   list(context: SourceProviderContext, signal: AbortSignal): Promise<readonly ResourceSummary[]>
+  /** Project only the explicitly selected regular files in context.paths, without traversing linked files or directories. */
+  projectSources?(context: SourceProviderContext, signal: AbortSignal): Promise<readonly ResourceSummary[]>
   /** Combine already authorized observations after explicit topic associations have been applied. */
   projectCatalog?(items: readonly ResourceSummary[]): readonly ResourceSummary[]
   /** Optionally list one immediate directory using the same authorized source context. */

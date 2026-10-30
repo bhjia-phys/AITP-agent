@@ -122,7 +122,8 @@ export class MaterialsController implements MaterialsLibraryService {
     const releaseTopic = ctx.slots.inject('aitp.research.topic.libraries', () => ctx.slots.register({
       name: 'aitp.research.topic.libraries', id: `aitp-materials-${module.domain}`, order: module.order, locale: 'aitp.materials',
       inject: (): TopicLibraryFace => ({ labels: module.labels, open: (owner) => {
-        this.open({ domain: module.domain, scope: { workspaceId: owner.workspaceId, topicId: owner.topicId, title: owner.title },
+        this.open({ domain: module.domain,
+          scope: { workspaceId: owner.workspaceId, ...owner.topicId === undefined ? {} : { topicId: owner.topicId }, title: owner.title },
           returnTo: owner.returnTo })
       } }),
     }, TopicLibraryLink))
@@ -211,18 +212,26 @@ export class MaterialsController implements MaterialsLibraryService {
       : { kind: 'source', ref: request.ref, ...request.readerDomain === undefined ? {} : { readerDomain: request.readerDomain }, ...request.locator === undefined ? {} : { locator: request.locator } })
     if (request.rootId !== undefined) { actions.setCollection(request.domain, request.rootId); actions.setQuery(request.domain, '') }
     const module = this.modules.get(request.domain)
-    if (module !== undefined && request.ref !== undefined) this.preview(module, {
+    if (module !== undefined && request.ref !== undefined && this.ctx.get('sidebarRightRoots') !== undefined) this.preview(module, {
       ref: request.ref, ...request.locator === undefined ? {} : { locator: request.locator },
     }, request.scope ?? {}, request.readerDomain)
   }
 
   private selectReaderScope(scope: MaterialsScope): void {
-    for (const module of this.modules.values()) this.ctx.sidebarRightRoots.selectScope(module.panelId, materialsScopeKey(scope))
+    const roots = this.ctx.get('sidebarRightRoots')
+    if (roots !== undefined) for (const module of this.modules.values()) roots.selectScope(module.panelId, materialsScopeKey(scope))
   }
 
   private preview(module: LibraryModule, source: SourceSelection, scope: MaterialsScope, readerDomain?: ResourceDomain | null): void {
-    this.ctx.sidebarRightRoots.selectScope(module.panelId, materialsScopeKey(scope))
-    this.ctx.sidebarRightRoots.openResource(module.panelId, materialSourceAddress(source.ref, source.locator,
+    const roots = this.ctx.get('sidebarRightRoots')
+    if (roots === undefined) {
+      this.actions?.open(module.domain, { kind: 'source', ref: source.ref,
+        ...source.locator === undefined ? {} : { locator: source.locator },
+        ...readerDomain === undefined ? {} : { readerDomain } })
+      return
+    }
+    roots.selectScope(module.panelId, materialsScopeKey(scope))
+    roots.openResource(module.panelId, materialSourceAddress(source.ref, source.locator,
       readerDomain === null ? undefined : readerDomain ?? module.domain), { params: { scope, libraryDomain: module.domain } })
   }
 
@@ -230,12 +239,16 @@ export class MaterialsController implements MaterialsLibraryService {
     this.bind(actions)
     return {
       domain: module.domain, labels: module.labels, panelId: module.panelId,
+      rootReader: this.ctx.get('sidebarRightRoots') !== undefined,
       preview: (selection, scope) => { this.preview(module, selection, scope) },
       changeScope: (scope) => { actions.setScope(scope); this.selectReaderScope(scope) },
       ...discussion === undefined ? {} : { discussion: {
         open: (scope, selections, prompt) => { void discussion.open(scope, { ...scope,
-          selections: selections.map(({ ref, locator, selectedText }) => ({ ref, ...locator === undefined ? {} : { locator },
-            ...selectedText === undefined ? {} : { selectedText } })),
+          selections: selections.map(({ ref, locator, selectedText }) => ({
+            ref,
+            ...locator === undefined ? {} : { locator },
+            ...selectedText === undefined ? {} : { selectedText },
+          })),
         }, prompt) },
         setSources: (scope, selections) => { discussion.setSource(scope, { ...scope,
           selections: selections.map(({ ref, locator, selectedText }) => ({ ref, ...locator === undefined ? {} : { locator },
@@ -244,7 +257,8 @@ export class MaterialsController implements MaterialsLibraryService {
       } satisfies MaterialsPanelFace['discussion'] },
       management: {
         isCurrent: () => !this.lifetime.signal.aborted,
-        connect: workspaceId => this.connection.run(transport => transport.management?.connectWorkspace(workspaceId, this.lifetime.signal)),
+        connect: workspaceId => this.connection.run(transport =>
+          transport.management?.connectWorkspace(workspaceId, this.lifetime.signal, [module.domain])),
         disconnect: workspaceId => this.connection.run(transport => transport.management?.disconnectWorkspace(
           workspaceId, this.lifetime.signal,
         )),

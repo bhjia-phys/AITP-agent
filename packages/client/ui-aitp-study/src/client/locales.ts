@@ -1,7 +1,10 @@
 /** Copy for provisional study products and explicit source-grounded task drafts. */
 export const en = {
+  dockTitle: 'Reading notes', dockHelp: 'Inspect generated notes and saved drafts beside the current source or conversation.',
+  readingNoteTask: 'Write a reading note from the selected sources. Explain the argument and its assumptions, distinguish supported results from open steps, and cite exact source locations. Follow the current research topic and save useful durable content in its established note location when authorized.',
   resume: 'Continue draft', details: 'Note details', search: 'Search note titles', noMatches: 'No matching notes on this page.',
-  searchScope: 'Searching titles on the current page.', emptyKind: 'No saved notes of this kind.', emptyHelp: 'Create a note, or select sources in a library to start reading.',
+  searchScope: 'Searching titles on the current page.', emptyKind: 'No saved notes of this kind.',
+  emptyHelp: 'Select sources in a library, ask for a reading note, then save the completed answer here.',
   title: 'Study notes', description: 'Keep reading notes and selected answers with their sources. These drafts remain provisional.',
   all: 'All drafts', create: 'New note', back: 'Back to study notes', refresh: 'Refresh',
   loading: 'Loading study notes…', unavailable: 'Study notes are unavailable. Check your connection and try again.',
@@ -15,7 +18,8 @@ export const en = {
   original: 'Open original conversation', asSource: 'Open as a source', noSource: 'The saved note is not currently available as a source.',
   capture: 'Save this answer as a draft', captureTitle: 'Selected answer', captureHelp: 'Save the completed answer and the sources used in its conversation.',
   captureSave: 'Capture selected answer', sourceUnavailable: 'This source is not connected to a library reader.',
-  newWithSources: 'Write a reading note', tasks: 'Prepare a task', taskHelp: 'These shortcuts prepare an editable question. Submit it in the existing conversation composer.',
+  inspectNotes: 'Inspect reading notes', readingRequest: 'Generate a reading note',
+  newWithSources: 'Write manually', tasks: 'Prepare a task', taskHelp: 'These shortcuts prepare an editable question. Submit it in the existing conversation composer.',
   comparisonTask: 'Compare the selected sources. Separate agreements, disagreements, assumptions and missing evidence. Cite a returnable source location for each substantive claim.',
   reportTask: 'Prepare a source-grounded review of the selected materials. Explain the question, methods, findings, limits and unresolved problems. Distinguish the sources’ claims from your synthesis and cite locations.',
   outlineTask: 'Prepare a close-reading outline in the order of the selected source. Locate each section or physical page, explain prerequisites and identify derivations that require further work. Do not replace close reading with a summary.',
@@ -35,8 +39,10 @@ export const en = {
 export type StudyKey = keyof typeof en
 /** Chinese copy, checked against the English dictionary keys. */
 export const zh: Record<StudyKey, string> = {
+  dockTitle: '阅读笔记', dockHelp: '在当前资料或对话旁检查生成的笔记和已有草稿。',
+  readingNoteTask: '请根据选中的来源生成研读笔记，解释论证及其前提，区分已支持的结果与未解决步骤，并附准确的原文位置。沿用当前课题；已获授权时，把有持久价值的内容保存到约定的笔记位置。',
   resume: '继续草稿', details: '笔记信息', search: '搜索笔记标题', noMatches: '这一页没有匹配的笔记',
-  searchScope: '搜索范围为当前页的笔记标题', emptyKind: '尚无这一类型的笔记', emptyHelp: '新建一份笔记，或从资料库选择来源开始研读',
+  searchScope: '搜索范围为当前页的笔记标题', emptyKind: '尚无这一类型的笔记', emptyHelp: '从资料库选择来源，请 AI 生成阅读笔记，再将完成的回答保存到这里',
   title: '研读笔记', description: '保存研读笔记和选中的回答，并保留对应来源；这些产物仍是待核对的草稿。',
   all: '全部草稿', create: '新建笔记', back: '返回研读笔记', refresh: '刷新',
   loading: '正在读取研读笔记…', unavailable: '暂时无法读取研读笔记，请检查连接后重试',
@@ -50,7 +56,8 @@ export const zh: Record<StudyKey, string> = {
   original: '打开原始会话', asSource: '作为来源打开', noSource: '这份笔记目前尚不能作为来源打开。',
   capture: '将此回答保存为草稿', captureTitle: '选中的回答', captureHelp: '将从原会话保存这条回答，并保留当时使用的来源。',
   captureSave: '保存选中的回答', sourceUnavailable: '此来源尚未连接到资料阅读器。',
-  newWithSources: '写研读笔记', tasks: '准备研读任务', taskHelp: '快捷项只填写可编辑的问题，仍需在现有问题框提交。',
+  inspectNotes: '检查阅读笔记', readingRequest: '生成阅读笔记',
+  newWithSources: '手动新建笔记', tasks: '准备研读任务', taskHelp: '快捷项只填写可编辑的问题，仍需在现有问题框提交。',
   comparisonTask: '请比较选中的来源，分别说明共识、分歧、各自前提和缺少的证据；每项实质判断都给出可以返回的原文定位。',
   reportTask: '请根据选中的资料起草一份有来源依据的综述，说明研究问题、方法、结果、限制与未解决问题，区分作者的主张和你的综合判断，并附原文定位。',
   outlineTask: '请按照选中原文的顺序准备精读提纲，定位到章节或 PDF 物理页，解释所需前置知识，并列出仍需推导的步骤。概括不能替代原文精读。',

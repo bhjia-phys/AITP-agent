@@ -4,10 +4,11 @@ import type { FactoryComponentPropsOf } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { TopicId } from './workspace-contract.ts'
 
-/** The topic being viewed and its reversible return action, independent of material ownership. */
+/** The project or topic being viewed and its reversible return action, independent of material ownership. */
 export interface TopicLibraryOwner {
   readonly workspaceId: WorkspaceId
-  readonly topicId: TopicId
+  /** Omitted for the project account, independently of its child topics. */
+  readonly topicId?: TopicId | undefined
   readonly title: string
   /** Capture the reader's position at the entry gesture; omitted by owners without retained view state. */
   readonly onLeave?: () => void

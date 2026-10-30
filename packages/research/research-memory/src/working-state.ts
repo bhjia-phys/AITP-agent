@@ -50,7 +50,8 @@ export const itemSchema = z.object({
   origin: originSchema, sourceId: z.string(),
 })
 const humanResearchSourceSchema = z.object({
-  kind: z.literal('aitp-research'), actor: z.literal('human'), origin: originSchema, modeSelection: z.literal(true).optional(),
+  kind: z.literal('aitp-research'), actor: z.literal('human'), origin: originSchema,
+  modeSelection: z.literal(true).optional(), sourceSelection: z.literal(true).optional(),
 })
 /** Schema for a rebuildable Session projection; originals remain in their durable input and tool records. */
 export const workingStateSchema = z.object({
@@ -149,7 +150,9 @@ export function acceptHumanInput(state: ResearchWorkingState, message: UserMessa
     questionSeq = question.seq
   }
   if (origin === null || (source.kind !== 'user' && source.kind !== 'user-question-reply' && explicit?.success !== true)) return state
-  if (explicit?.success === true && explicit.data.modeSelection === true) return { ...state, origin, ownerOrigin: true }
+  if (explicit?.success === true && (explicit.data.modeSelection === true || explicit.data.sourceSelection === true)) {
+    return { ...state, origin, ownerOrigin: true }
+  }
   if (state.humans.some(input => input.sourceId === message.id)) return state
   return {
     ...state,
@@ -215,7 +218,9 @@ export function applyWorkingEvent(state: ResearchWorkingState, event: SessionEve
     const answered = z.object({ answers: z.array(z.object({
       id: z.string(), selected: z.array(z.string()), custom: z.string().optional(),
     })) }).safeParse(answer)
-    if (!answered.success) return state
+    if (!answered.success) return call.name === INITIALIZE_RESEARCH_TOOL ? settled : state
+    // Earlier initialization calls carried real question answers; current calls reuse the human input.
+    if (call.name === INITIALIZE_RESEARCH_TOOL && answered.data.answers.length === 0) return settled
     return { ...settled, humans: [...state.humans, {
       sourceId: `answer:${callId}`, seq: event.seq, kind: 'question-answer', origin: call.origin, questionSeq: call.seq,
     }] }
@@ -242,7 +247,6 @@ export function applyWorkingEvent(state: ResearchWorkingState, event: SessionEve
  */
 export function readHumanInput(session: Session, input: ResearchHumanInput): string {
   return readHumanFromEvents((seq) => {
-    // oxlint-disable-next-line typescript/no-deprecated -- Source-addressed recovery needs the original event, including compacted rows.
     return session.eventAt(SessionSeq(seq))
   }, input)
 }
@@ -294,7 +298,6 @@ export function readWriteRecord(eventAt: (seq: number) => SessionEvent | undefin
  */
 export function readSessionWrite(session: Session, write: ResearchWriteRecord): string {
   return readWriteRecord((seq) => {
-    // oxlint-disable-next-line typescript/no-deprecated -- The original preparation is the scoped source for editorial intent.
     return session.eventAt(SessionSeq(seq))
   }, write)
 }

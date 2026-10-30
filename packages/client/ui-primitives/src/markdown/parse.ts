@@ -39,7 +39,7 @@ export function parseGfm(text: string): Root {
  */
 export function parseGfmWithMath(text: string): Root {
   return recoverLocalImages(fromMarkdown(text, {
-    extensions: [gfm(), cjkFriendlyStrong(), mathCompatibility(), math()],
+    extensions: [gfm(), cjkFriendlyStrong(), math(), mathCompatibility()],
     mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
   }), text)
 }

@@ -80,6 +80,10 @@
 .fixtureLabel { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 19px; }
 .fixtureLabel strong { color: var(--dsw-alias-state-warn-label); font-weight: 500; }
 .readingMeta > :global(p[role='note']) { margin: 10px 0 0; }
+.readingDetails { min-width: 0; max-width: 100%; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 19px; }
+.readingDetails summary { width: fit-content; cursor: pointer; }
+.readingDetails summary:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+.diagnosticText { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .readAt { margin: 48px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
 .label { margin: 0 0 6px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; font-weight: 500; }
 .note { margin: 6px 0 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 19px; overflow-wrap: anywhere; }
@@ -102,6 +106,9 @@
 .mapHeader { margin: 8px 0 36px; }
 .eyebrow { margin: 0; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
 .projectTitle { margin: 6px 0 0; font-family: var(--dsw-font-family); font-size: 24px; line-height: 1.4; font-weight: 500; overflow-wrap: anywhere; }
+.projectOverview { margin-top: 14px; font-size: 14px; color: var(--dsw-alias-label-secondary); }
+.projectOverview > summary { width: fit-content; cursor: pointer; }
+.projectOverview > summary:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 2px; }
 .projectSummary { max-width: 68ch; margin: 14px 0 0; color: var(--dsw-alias-label-secondary); font-family: var(--dsw-font-family); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
 .mapControls { display: flex; justify-content: flex-end; margin-bottom: 4px; }
 .lanes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); gap: 36px 28px; align-items: start; }

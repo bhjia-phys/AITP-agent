@@ -9,10 +9,10 @@ import css from './workspace.module.css'
  * @param props - explicit level, source account and framework factory renderer.
  * @returns optional materials-plugin contributions without importing its implementation.
  */
-export function RelatedLibraries(props: WorkspaceViewProps & { title: string; topic: Topic }): ReactNode {
+export function RelatedLibraries(props: WorkspaceViewProps & { title: string; topic?: Topic }): ReactNode {
   return <div className={css.levelLibraries}>
     {props.renderFactorySlot('aitp.research.topic-libraries', {
-      workspaceId: props.workspaceId, topicId: props.topic.id, title: props.title,
+      workspaceId: props.workspaceId, topicId: props.topic?.id, title: props.title,
       ...props.libraryNavigation === undefined ? {} : { onLeave: props.libraryNavigation.onLeave },
       returnTo: props.libraryNavigation?.returnTo ?? (() => { props.navigate({ kind: 'map', focusId: props.topic?.id ?? null }); props.showResearch?.() }),
     })}

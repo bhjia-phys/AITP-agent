@@ -1,7 +1,7 @@
 /** Bind the shared discussion controller once; readers contribute navigation and study admission independently. */
 import type { Context } from '@deepseek-ai/cordis'
 import type { DiscussionReaderNavigation } from './discussion-contract.ts'
-import { ResearchDiscussionController, type DiscussionFace } from './discussion-controller.ts'
+import { discussionView, ResearchDiscussionController, type DiscussionFace } from './discussion-controller.ts'
 import { discussionEn, discussionZh } from './discussion-locales.ts'
 import { NativeDiscussionContext } from './NativeDiscussionContext.tsx'
 import { DiscussionConversation, ResearchDiscussion, TopicDiscussions } from './ResearchDiscussion.tsx'
@@ -25,8 +25,15 @@ export function registerResearchDiscussions(ctx: Context, workspaces: ResearchWo
   const release = ctx.reflect.provide('researchDiscussions', controller)
   ctx.effect(() => async () => { await controller.dispose(); await release() }, 'research: discussions')
   const face: DiscussionFace = {
+    boundSources: ctx.get('researchNativePreparation') !== undefined,
     hooks: { discussionViews: controller.views, discussionSessions: controller.sessionViews },
-    selectDiscussion: (scope, sessionId) => controller.select(scope, sessionId),
+    selectDiscussion: async (scope, sessionId) => {
+      await controller.select(scope, sessionId)
+      if (ctx.get('researchNativePreparation') !== undefined
+        && discussionView(controller.views.getSnapshot(), scope).reference?.sessionId === sessionId) {
+        controller.openFullDiscussion(scope)
+      }
+    },
     openDiscussion: scope => controller.open(scope),
     newDiscussion: scope => controller.newDiscussion(scope),
     renameDiscussion: (scope, sessionId, title) => controller.renameDiscussion(scope, sessionId, title),

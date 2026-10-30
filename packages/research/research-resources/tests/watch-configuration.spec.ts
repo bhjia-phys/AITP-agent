@@ -16,8 +16,9 @@ it('reports unavailable automatic updates when a provider metadata watch fails',
   const root = await mkdtemp(join(tmpdir(), 'aitp-provider-watch-failure-'))
   const ctx = new Context()
   try {
-    const service = new ResearchResources(ctx, { watchMode: 'bounded' })
+    const service = new ResearchResources(ctx, {})
     const lease = await service.registerRoot({ id: 'code', path: root, domains: ['code'] })
+    expect(watchMock).toHaveBeenCalledWith(root, { recursive: false, persistent: false }, expect.any(Function))
     service.registerProvider({ id: 'code', domain: 'code', list: async () => [], listDirectory: async () => [],
       watchChanges: async () => { throw new Error('watch failed') } })
     const result = await service.listResources({ domain: 'code', rootId: lease.rootId, folder: '' }, new AbortController().signal)

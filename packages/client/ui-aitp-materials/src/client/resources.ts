@@ -59,7 +59,7 @@ export function materialListAddress(query: ResourceQuery): string {
   if (query.query !== undefined) params.set('q', query.query)
   if (query.cursor !== undefined) params.set('cursor', query.cursor)
   if (query.limit !== undefined) params.set('limit', String(query.limit))
-  if (query.topic !== undefined) { params.set('workspace', query.topic.workspaceId); params.set('topic', query.topic.topicId) }
+  if (query.topic !== undefined) { params.set('workspace', query.topic.workspaceId); if (query.topic.topicId !== undefined) params.set('topic', query.topic.topicId) }
   return `dsh-resource://aitp-material-list/${query.domain ?? 'all'}?${params}`
 }
 
@@ -75,13 +75,13 @@ function parseQuery(address: string): ResourceQuery {
   const limit = url.searchParams.get('limit')
   const workspaceId = url.searchParams.get('workspace')
   const topicId = url.searchParams.get('topic')
-  if ((workspaceId === null) !== (topicId === null)) throw new Error('A topic filter needs its Workspace')
+  if (workspaceId === null && topicId !== null) throw new Error('A topic filter needs its Workspace')
   if (limit !== null && (!Number.isSafeInteger(Number(limit)) || Number(limit) < 1)) throw new Error('Invalid page limit')
   return { ...domain === 'all' ? {} : { domain: domain }, ...rootId === null ? {} : { rootId: rootId as SourceRootId },
     ...folder === null ? {} : { folder }, ...query === null ? {} : { query },
     ...cursor === null ? {} : { cursor }, ...limit === null ? {} : { limit: Number(limit) },
-    ...workspaceId === null || topicId === null ? {}
-      : { topic: { workspaceId: workspaceId as WorkspaceId, topicId: topicId as SourceTopicId } } }
+    ...workspaceId === null ? {}
+      : { topic: { workspaceId: workspaceId as WorkspaceId, ...topicId === null ? {} : { topicId: topicId as SourceTopicId } } } }
 }
 
 /**
@@ -122,7 +122,6 @@ export function registerMaterialResources(ctx: Context, connection: MaterialsCon
   } }))
 }
 
-// oxlint-disable-next-line typescript/require-await -- ResourceProvider's error channel is an async iterable even for parse-only failures.
 async function* invalid(error: unknown) {
   yield failure({ code: 'invalid-request', message: error instanceof Error ? error.message : 'Invalid material address', retryable: false })
 }

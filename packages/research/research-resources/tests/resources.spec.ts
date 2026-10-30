@@ -291,7 +291,8 @@ it('opens guarded images as native image bodies and keeps bytes separate from te
     const reading = value(await service.readResource({ ref: source }, signal()))
     expect(reading.body).toEqual({ kind: 'image', mediaType })
     expect(reading.resource).toMatchObject({ ref: source, title: path, kind: 'data', metadata: {} })
-    expect(reading.issues).toEqual(['Symbolic links are not traversed by discovery.'])
+    // Opening this exact image does not scan siblings or diagnose their symlinks.
+    expect(reading.issues).toEqual([])
     const bytes = value(await service.readSourceBytes({ ref: source }, signal()))
     expect(bytes.mediaType).toBe(mediaType)
     expect(Buffer.from(bytes.data).equals(await readFile(join(a, path)))).toBe(true)

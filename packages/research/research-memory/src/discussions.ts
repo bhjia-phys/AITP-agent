@@ -17,6 +17,9 @@ interface DiscussionSnapshot {
   readonly hasHumanInput: boolean
 }
 
+/** Resolve a research state without assuming that its selected origin lives in the native Session log. */
+export type DiscussionStateResolver = (session: Session) => ResearchWorkingState
+
 function pendingState(agent: Agent, state: ResearchWorkingState): ResearchWorkingState {
   for (const message of [...agent.inbox.nextTurn, ...agent.inbox.nextStep]) state = acceptHumanInput(state, message, -1)
   return state
@@ -28,10 +31,12 @@ function pendingState(agent: Agent, state: ResearchWorkingState): ResearchWorkin
  * @param agent - Native Agent resolved by SessionController.
  * @param maximumEvents - Maximum records examined when proving a Session is blank.
  * @param signal - Cancels the read before prompt admission.
+ * @param resolveState - Optional owner for the Session's durable research binding.
  * @returns Exact scope and blank evidence, rechecked against the live sequence before admission.
  */
-export async function readDiscussion(ctx: Context, agent: Agent, maximumEvents: number, signal: AbortSignal): Promise<DiscussionSnapshot> {
-  const projected = ctx.sessionProjections.stateOf(agent.session, 'researchWorking')
+export async function readDiscussion(ctx: Context, agent: Agent, maximumEvents: number, signal: AbortSignal,
+  resolveState?: DiscussionStateResolver): Promise<DiscussionSnapshot> {
+  const projected = resolveState?.(agent.session) ?? ctx.sessionProjections.stateOf(agent.session, 'researchWorking')
   if (projected?.origin !== undefined && projected.origin !== null) return {
     session: agent.session, seq: agent.session.seq, state: pendingState(agent, projected), hasHumanInput: true,
   }
@@ -55,15 +60,17 @@ export async function readDiscussion(ctx: Context, agent: Agent, maximumEvents: 
  * @param origin - Frozen per-message research/source scope.
  * @param root - Canonical Workspace root, absent only for global library study.
  * @param snapshot - Earlier explicit read used only to prove an otherwise unbound Session is blank.
+ * @param resolveState - Optional owner for the Session's durable research binding.
  */
 export function assertDiscussionScope(ctx: Context, agent: Agent, origin: ResearchOrigin,
-  root: string | undefined, snapshot: DiscussionSnapshot): void {
+  root: string | undefined, snapshot: DiscussionSnapshot, resolveState?: DiscussionStateResolver): void {
   const header = agent.session.header
   if (agent.session !== snapshot.session || header.parentSession !== undefined || header.origin === 'subagent'
     || root !== undefined && (header.cwd === undefined || resolve(header.cwd) !== resolve(root))) {
     throw new RemoteError('research/session-unavailable', 'This conversation belongs to a different Workspace or delegated scope. Open a new discussion here.', {})
   }
-  const state = pendingState(agent, ctx.sessionProjections.stateOf(agent.session, 'researchWorking') ?? snapshot.state)
+  const state = pendingState(agent, resolveState?.(agent.session)
+    ?? ctx.sessionProjections.stateOf(agent.session, 'researchWorking') ?? snapshot.state)
   const hasHumanInput = snapshot.hasHumanInput || agent.inbox.nextTurn.length > 0 || agent.inbox.nextStep.length > 0
   if (state.restricted || state.origin === null && (hasHumanInput || snapshot.seq !== agent.session.seq)
     || state.origin !== null && (!state.ownerOrigin || scopeKey(state.origin) !== scopeKey(origin))) {
@@ -106,8 +113,12 @@ export class ResearchDiscussions {
   private readonly cold = new Map<SessionId, CachedSummary>()
   private readonly live = new WeakMap<Agent['session'], { seq: number; summary: Summary }>()
 
-  /** @param ctx - Native query/projection services. @param maximumEvents - Maximum cold events folded per read. */
-  constructor(private readonly ctx: Context, private readonly maximumEvents: number) {}
+  /** @param ctx - Native query/projection services. @param maximumEvents - Maximum cold events folded per read.
+   * @param resolveLive - Optional standard-host sidecar-aware live state resolver.
+   * @param resolveCold - Optional standard-host sidecar-aware cold state resolver. */
+  constructor(private readonly ctx: Context, private readonly maximumEvents: number,
+    private readonly resolveLive?: DiscussionStateResolver,
+    private readonly resolveCold?: (header: SessionHeader, events: readonly SessionEvent[]) => ResearchWorkingState) {}
 
   /**
    * List current-scope discussions without creating Agents or running models.
@@ -142,12 +153,14 @@ export class ResearchDiscussions {
           else if (session.seq <= this.maximumEvents) {
             using observed = await query.observeSession(record.header.id, { signal, projectionMode: 'none' })
             if (observed.events.length <= this.maximumEvents && lifecycle(observed.header) === lifecycle(record.header)) {
-              summary = summarize(observed.header, observed.events, replaySessionWorkingState(observed.events))
+              summary = summarize(observed.header, observed.events,
+                this.resolveCold?.(observed.header, observed.events) ?? replaySessionWorkingState(observed.events))
               this.live.set(session, { seq: observed.cursor + 1, summary })
             }
           }
           if (summary !== undefined && agent !== undefined) {
-            const pending = pendingState(agent, this.ctx.sessionProjections.stateOf(session, 'researchWorking') ?? emptyWorkingState())
+            const pending = pendingState(agent, this.resolveLive?.(session)
+              ?? this.ctx.sessionProjections.stateOf(session, 'researchWorking') ?? emptyWorkingState())
             const scope = pending.ownerOrigin && !pending.restricted && pending.origin !== null ? scopeKey(pending.origin) : undefined
             summary = { ...summary, scope }
           }
@@ -160,7 +173,8 @@ export class ResearchDiscussions {
           else if (budget > 0 && (stamp?.eventCount === undefined || stamp.eventCount <= budget)) {
             using observed = await query.observeSession(record.header.id, { signal, projectionMode: 'none' })
             if (observed.events.length <= budget && lifecycle(observed.header) === lifecycle(record.header)) {
-              summary = summarize(observed.header, observed.events, replaySessionWorkingState(observed.events))
+              summary = summarize(observed.header, observed.events,
+                this.resolveCold?.(observed.header, observed.events) ?? replaySessionWorkingState(observed.events))
               if (persistence !== undefined && observed.revision !== undefined && observed.source === 'prepared') {
                 this.cold.set(record.header.id, { persistence: persistence.identity, revision: observed.revision,
                   lifecycle: lifecycle(observed.header), summary })

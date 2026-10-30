@@ -150,6 +150,7 @@ flowchart LR
   svc_researchMemory["ctx.researchMemory<br/>Scoped research sources and memory"]
   pkg_client_ui_aitp_backend["client-ui-aitp-backend"]
   pkg_research_resources["research-resources"]
+  svc_researchMaterialFiles["ctx.researchMaterialFiles<br/>Explicit research material publication"]
   svc_researchResources["ctx.researchResources<br/>Shared local research sources"]
   pkg_research_knowledge["research-knowledge"]
   pkg_research_literature["research-literature"]
@@ -400,6 +401,7 @@ flowchart LR
   pkg_research_code --> svc_researchResources
   pkg_research_knowledge --> svc_researchResources
   pkg_research_literature --> svc_researchResources
+  pkg_research_memory --> svc_researchMaterialFiles
   pkg_research_memory --> svc_researchMemory
   pkg_research_resources --> svc_researchResources
   pkg_research_study --> svc_researchResources
@@ -630,6 +632,7 @@ flowchart LR
   svc_workspaceRegistry --> pkg_api_workspace_controller
   svc_worktrees --> pkg_experimental_tool_worktree
   svc_fs -. event gate .-> pkg_fs_observation_policy
+  svc_researchMaterialFiles -. event gate .-> pkg_research_resources
   svc_researchMemory -. event gate .-> pkg_research_resources
   svc_researchStudy -. event gate .-> pkg_research_resources
 ```
@@ -689,6 +692,7 @@ flowchart LR
 | `ctx.sessionFeedback` | `core` | [`command-feedback`](../packages/feedback/command-feedback) | - | - | - | Records one Session-level remark with its category as a log-only feedback/record event on a live Session through the Host unary Remote contract; the /feedback command shares the same producer. |
 | `ctx.workspaceRegistry` | `core` | [`workspace`](../packages/workspace/workspace) | - | [`api-workspace-controller`](../packages/api/workspace-controller), [`api-session-controller`](../packages/api/session-controller) | - | Owns WorkspaceId-branded records over the domain facility; stable sessionIds accounts drive Host RPC and GUI projections. |
 | `ctx.researchMemory` | `service` | [`research-memory`](../packages/research/research-memory) | - | [`client-ui-aitp-backend`](../packages/client/ui-aitp-backend) | [`research-resources`](../packages/research/research-resources) | Reads enrolled Markdown owners and explicitly selected library sources, delivers scoped context through existing Sessions, and applies recoverable writes only within existing scientific write grants. |
+| `ctx.researchMaterialFiles` | `service` | [`research-memory`](../packages/research/research-memory) | - | - | [`research-resources`](../packages/research/research-resources) | Resolves an authorized research account or directory and publishes only explicitly named new text or PDF files; existing files are never overwritten. |
 | `ctx.researchResources` | `seam` | [`research-resources`](../packages/research/research-resources) | [`research-knowledge`](../packages/research/research-knowledge), [`research-literature`](../packages/research/research-literature), [`research-code`](../packages/research/research-code), [`research-study`](../packages/research/research-study) | [`research-memory`](../packages/research/research-memory), [`client-ui-aitp-materials`](../packages/client/ui-aitp-materials) | - | Owns current local-root read grants, bounded discovery and source identities; independent providers project domains, while operational source sets retain references without owning scientific conclusions. |
 | `ctx.researchStudy` | `service` | [`research-study`](../packages/research/research-study) | - | [`client-ui-aitp-study`](../packages/client/ui-aitp-study) | [`research-resources`](../packages/research/research-resources) | Saves explicit Markdown drafts and captures completed ordinary Session answers with recorded sources; optional synthetic readings share the same operational owner and remain provisional. |
 | `ctx.sessionQuery` | `seam` | [`session-query`](../packages/session-query/session-query) | [`session-query-sqlite`](../packages/session-query/session-query-sqlite) | [`session-reference`](../packages/context/session-reference), [`tool-session-query`](../packages/experimental/tool-session-query) | - | The interface supplies exact reads, filters, and traces; its concrete backend adds full-text reconciliation, ranking, snippets, and cursor generations, while the model consumer owns workspace authority and cursor-free rendering. |

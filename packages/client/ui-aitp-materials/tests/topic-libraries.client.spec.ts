@@ -65,6 +65,20 @@ it('clicks the current Topic into each library, returns to that Topic and retain
     act(() => { client.ctx.layout.selectPanel('aitp-research' as MainPanelId) })
     await client.flush()
     await vi.waitFor(() => { expect(client.container!.querySelector('[data-map-node]')).not.toBeNull() })
+    const overviewReading = client.container!.querySelector<HTMLElement>('[data-research-reading]')!
+    overviewReading.scrollTop = 120
+    ui.getByRole('button', { name: 'Related Literature library' }).focus()
+    fireEvent.click(ui.getByRole('button', { name: 'Related Literature library' }))
+    await vi.waitFor(() => { expect(mock.log.requests('researchResources/listResources'))
+      .toContainEqual({ request: { domain: 'literature', topic: { workspaceId: WS } } }) })
+    expect(ui.getByText('Current project: Test project')).toBeDefined()
+    fireEvent.click(ui.getByRole('button', { name: 'Return to project' }))
+    await client.flush()
+    expect(ui.getByRole('heading', { name: 'Test project' })).toBeDefined()
+    await vi.waitFor(() => {
+      expect(client.container!.querySelector<HTMLElement>('[data-research-reading]')!.scrollTop).toBe(120)
+      expect(document.activeElement).toBe(ui.getByRole('button', { name: 'Related Literature library' }))
+    })
     fireEvent.click(client.container!.querySelector('[data-map-node]')!)
     await client.flush()
     fireEvent.click(ui.getByRole('button', { name: 'Open topic' }))

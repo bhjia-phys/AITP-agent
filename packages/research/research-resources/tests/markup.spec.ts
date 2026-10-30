@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { markupAttribute, parseSourceFrontmatter, parseSourceMarkup } from '../src/markup.ts'
 
 describe('located source facts for library projections', () => {
+  it('retains real source links and offsets without treating TeX operators as Markdown links', () => {
+    const equation = String.raw`\mathcal F[H_{0}](k_i)`
+    const text = `# Equation source\n\n\\(${equation}\\) and $${equation}$.\n\n\\[\n${equation}\n\\]\n\n$$\n${equation}\n$$\n\n[Actual code](src/solver.py#L3-L8)\n`
+    const document = parseSourceMarkup(text + '\n$$H(k)=a,\nH(R)=b.$$\n\n## After the multiline formula\n[Saved result](results/control.json)\n')
+    expect(document.links.map(link => link.href)).toEqual(['src/solver.py#L3-L8', 'results/control.json'])
+    expect(document.anchors.some(anchor => anchor.anchor === 'after-the-multiline-formula')).toBe(true)
+    expect(text.slice(document.links[0]!.start, document.links[0]!.end)).toBe('[Actual code](src/solver.py#L3-L8)')
+  })
+
   it('records inline and reference images separately from actual knowledge-owner links', () => {
     const text = '# Illustrated note\n\n![中文图](<../figures/图 1.png>)\n\n![Other image][img]\n\n'
       + '| Question | Owner |\n|---|---|\n| ![Icon](icon.svg) Which bound? | [Derivation](note.md) |\n\n'

@@ -76,6 +76,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-aitp-materials` | no | Local research material browsing, source selection and normal Harness study conversations |
 | `@deepseek-ai/dsh-client-ui-aitp-research` | no | AITP Research panel: topic homes and notes of a research Workspace, readable without a Session |
 | `@deepseek-ai/dsh-client-ui-aitp-session` | no | AITP Session views: task card, Session origin and the Sources & memory page |
+| `@deepseek-ai/dsh-client-ui-aitp-settings` | no | Research capability preferences for the next AITP profile launch |
 | `@deepseek-ai/dsh-client-ui-aitp-study` | no | Local provisional study notes, real Session answer capture and editable source-grounded tasks |
 | `@deepseek-ai/dsh-client-ui-approval` | no | Approval composer takeover over the scoped Remote Event waterfall |
 | `@deepseek-ai/dsh-client-ui-attachment` | no | Dynamic attachment presentation plugin for conversation input, message-image, and trajectory image slots |

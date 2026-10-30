@@ -21,6 +21,11 @@ it('boots three actual domain plugins together and unloads each without losing t
         lifecycle: { domain: ResourceDomain; disconnected: boolean; peersStillReadable: boolean; reloaded: boolean }[]
         noModelServices: boolean
         sourcesPreserved: boolean
+        explicit: ResourcePage
+        explicitPdf: ResourceReading
+        explicitCode: ResourceReading
+        globalAfterLinks: ResourcePage
+        afterUnlink: ResourcePage
       }
       expect(observation.before.knowledge.items.some(item => item.metadata.entryKind === 'atom')).toBe(true)
       expect(observation.before.literature.items[0]?.metadata.edition).toBe('unknown')
@@ -31,6 +36,12 @@ it('boots three actual domain plugins together and unloads each without losing t
       expect(observation.lifecycle).toEqual(['knowledge', 'literature', 'code'].map(domain => ({ domain, disconnected: true, peersStillReadable: true, reloaded: true })))
       expect(observation.sourcesPreserved).toBe(true)
       expect(observation.noModelServices).toBe(true)
+      expect(new Set(observation.explicit.items.map(item => item.domain))).toEqual(new Set(['literature', 'knowledge', 'code']))
+      expect(observation.explicit.items).toHaveLength(3)
+      expect(observation.explicitPdf.body).toMatchObject({ kind: 'pdf', pages: [{ page: 2, text: 'Page two exact text' }] })
+      expect(observation.explicitCode.body).toMatchObject({ kind: 'text', format: 'code', text: 'selected line\n', startLine: 2 })
+      expect(observation.globalAfterLinks.items.some(item => item.ref.rootId === observation.explicit.items[0]?.ref.rootId)).toBe(false)
+      expect(observation.afterUnlink.items).toEqual([])
     },
   })
   expect(await readFile(configPath)).toEqual(originalConfig)

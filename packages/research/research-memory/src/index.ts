@@ -11,13 +11,13 @@ import { refittableSource } from './context-excerpt.ts'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { SessionPromptRequest, SessionRequestId } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { Agent } from '@deepseek-ai/dsh-agent'
-import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { SessionQueryError } from '@deepseek-ai/dsh-session-query'
 import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type {} from '@deepseek-ai/dsh-app-boot'
 import type {} from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { Session, SessionEvent, SessionHeader } from '@deepseek-ai/dsh-session'
 import type { SourceId, SourceRootLease, StudyRequest, StudyReceipt, ResourceResult, TopicAssociationProvider } from '@deepseek-ai/dsh-research-resources/types'
 import { sourceIdForPath } from '@deepseek-ai/dsh-research-resources/identity'
 import { BoundedSourceWatcher } from '@deepseek-ai/dsh-research-resources/files'
@@ -33,12 +33,14 @@ import { ResearchDiscussions, assertDiscussionScope, readDiscussion } from './di
 import { installRuntime } from './runtime.ts'
 import { installWriteTools } from './write-tools.ts'
 import { createSessionRecovery } from './recovery.ts'
-import { buildSessionMemoryView, replaySessionWorkingState } from './session-view.ts'
+import { buildSessionMemoryView } from './session-view.ts'
 import { readStudyContext } from './study-context.ts'
 import { sourceSelectionSchema } from './study-schema.ts'
 import { installStudyTools } from './study-tools.ts'
+import { ResearchSessionBindings } from './session-bindings.ts'
+import { emptyWorkingState } from './working-state.ts'
 import type { SessionMemoryView } from './session-view-types.ts'
-import type { ResearchOrigin, ResearchContextRead } from './working-types.ts'
+import type { ResearchOrigin, ResearchContextRead, ResearchWorkingState } from './working-types.ts'
 import type {
   ResearchChangeView, ResearchChangeQuery, DiscussionPage, DiscussionQuery, ActivityPage, ActivityQuery,
   ApplyReceipt, ApplyRequest, ChangeIntent, ChangePreview,
@@ -98,6 +100,8 @@ export interface Config {
   }[]
   /** Maximum directory entries inspected by discovery, including directories. */
   maxFiles?: number
+  /** Exact directory names omitted from current-topic discovery, not from authorized explicit source reading. */
+  discoveryExcludedDirectories?: string[]
   /** Enable source-change notifications; false rescans on each read instead. */
   watchSources?: boolean
   /** Use bounded directory watches rather than a recursive whole-tree watch. */
@@ -150,8 +154,9 @@ export class ResearchMemory extends TypertRemoteService {
       path: z.string().required(), id: z.string(), writable: z.boolean().default(false), stateDirectory: z.string(),
     })).default([]),
     maxFiles: z.natural().min(1).default(2000),
+    discoveryExcludedDirectories: z.array(z.string()).default([]),
     watchSources: z.boolean().default(true),
-    watchMode: (z.union(['recursive', 'bounded']) as z<'recursive' | 'bounded'>).default('recursive'),
+    watchMode: (z.union(['recursive', 'bounded']) as z<'recursive' | 'bounded'>).default('bounded'),
     maxFileBytes: z.natural().min(1).default(1_048_576),
     maxMaterialBytes: z.natural().min(1).default(33_554_432),
     maxContextCharacters: z.natural().min(1024).default(24_000),
@@ -174,6 +179,8 @@ export class ResearchMemory extends TypertRemoteService {
   private readonly notifications = new EventEmitter().setMaxListeners(0)
   private readonly lifetime = new AbortController()
   private readonly onboarding: ResearchOnboarding
+  /** Model-invisible standard-DSH source/mode routing; never a second scientific record. */
+  private readonly bindings: ResearchSessionBindings
   private readonly onboardingOperations = new Set<Promise<void>>()
   private readonly discussions: ResearchDiscussions
   private sourceInvalidator: ((root: string) => Promise<void>) | undefined
@@ -183,7 +190,9 @@ export class ResearchMemory extends TypertRemoteService {
   constructor(ctx: Context, config: Config) {
     super(ctx, 'researchMemory', { namespace: 'researchMemory' })
     this.config = ResearchMemory.Config(config)
-    this.discussions = new ResearchDiscussions(ctx, this.config.maxRecoveryEvents)
+    this.bindings = new ResearchSessionBindings(ctx)
+    this.discussions = new ResearchDiscussions(ctx, this.config.maxRecoveryEvents,
+      session => this.stateFor(session), (header, events) => this.stateForEvents(header, events))
     ctx.on('session/event', (session, event) => {
       if (event.type === 'user/message' || event.type === 'session/title' || event.type === 'turn/start'
         || event.type === 'turn/end' || event.type === 'agent/inbox/spliced') {
@@ -204,10 +213,11 @@ export class ResearchMemory extends TypertRemoteService {
         observed.watcher = undefined
         if (observed.refreshing !== undefined) refreshing.push(observed.refreshing)
       }
-      await Promise.allSettled([...refreshing, ...this.onboardingOperations])
+      await Promise.allSettled([...refreshing, ...this.onboardingOperations, this.bindings.close()])
     }, 'research-memory: source observations and admitted onboarding')
     ctx.plugin(ResearchMaterialFiles, {
       maxResultCharacters: this.config.maxResultCharacters,
+      stateFor: session => this.stateFor(session),
       target: async (workspaceId, signal) => {
         const reader = await this.reader(workspaceId, signal)
         const configured = (await this.configuredRoots(reader.root, signal))[0]
@@ -240,10 +250,25 @@ export class ResearchMemory extends TypertRemoteService {
         if (result !== undefined && !result.ok) throw new Error(result.error.message)
         return workflowLibraries(result?.value ?? [])
       },
-      initialize: (workspaceId, account) => this.initialize({ workspaceId, writable: true, account }),
+      initialize: async (workspaceId, account, preserveExisting) => {
+        if (preserveExisting) {
+          const project = await this.getProject({ workspaceId }, this.lifetime.signal)
+          if (!project.ok) return project
+          if (project.value.value.accountResourceId === undefined) return { ok: false, error: {
+            code: 'not-found', message: 'No existing research account was found; recover the source or initialize the confirmed new question.', retryable: false,
+          } }
+          return this.initializeWorkspace({ workspaceId, writable: true }, pathForResourceId(project.value.value.accountResourceId))
+        }
+        return this.initialize({ workspaceId, writable: true, account })
+      },
+      stateFor: session => this.stateFor(session),
     }), 'research-memory: confirmed project initialization')
     installRuntime(ctx, this.config, (origin, signal, question) => this.contextFor(origin, signal, question),
-      createSessionRecovery(ctx, this.config))
+      createSessionRecovery(ctx, this.config, {
+        live: (session, proposed = []) => this.bindings.stateForProposed(session, proposed,
+          this.ctx.sessionProjections.stateOf(session, 'researchWorking') ?? emptyWorkingState()),
+        observed: (header, events) => this.stateForEvents(header, events),
+      }), this.bindings)
     const resourceBridge = ctx.inject(['researchResources', 'tools', 'sessionProjections'], (scope) => {
       const resources = scope.researchResources
       const roots = new Map<string, Promise<SourceRootLease>>()
@@ -284,8 +309,9 @@ export class ResearchMemory extends TypertRemoteService {
       }, 'research-memory: existing root grants')
       scope.effect(() => resources.registerStudyHandler((request, signal) => this.askStudy(request, signal)),
         'research-memory: normal source-study conversations')
-      scope.effect(() => installStudyTools(scope, resources, this.config.maxResultCharacters),
-        'research-memory: selected-source follow-up reads')
+      scope.effect(() => installStudyTools(scope, resources, this.config.maxResultCharacters,
+        session => this.stateFor(session)),
+      'research-memory: selected-source follow-up reads')
       scope.effect(() => resources.registerTopicAssociations({ id: 'research-memory-explicit-material-links',
         read: async (signal, reportIssue) => {
           const registered = await resources.listRoots({}, signal)
@@ -307,7 +333,8 @@ export class ResearchMemory extends TypertRemoteService {
                 const values = authored.links.flatMap((link, index) => {
                   const target = resolved[index]
                   if (target === undefined) return []
-                  const topic = { workspaceId: observed.workspaceId, topicId: link.topicId, reason: link.reason }
+                  const topic = { workspaceId: observed.workspaceId,
+                    ...link.topicId === undefined ? {} : { topicId: link.topicId }, reason: link.reason }
                   const root = registered.value.find(item => item.id === target.ref.rootId)
                   const checkout = root !== undefined && (root.domains === undefined || root.domains.includes('code'))
                     && target.ref.sourceId.startsWith('source:')
@@ -331,6 +358,7 @@ export class ResearchMemory extends TypertRemoteService {
     ctx.effect(() => () => resourceBridge.dispose(), 'research-memory: optional source service bridge')
     installWriteTools(ctx, {
       maxResultCharacters: this.config.maxResultCharacters,
+      stateFor: session => this.stateFor(session),
       resolveTarget: async (origin) => {
         if (origin.scope === 'global' || origin.workspaceId === undefined) return undefined
         const changes = await this.writer(origin.workspaceId as WorkspaceId)
@@ -405,6 +433,7 @@ export class ResearchMemory extends TypertRemoteService {
     if (observed === undefined) {
       observed = {
         reader: new MarkdownWorkspace({ root, maxFiles: this.config.maxFiles,
+          discoveryExcludedDirectories: this.config.discoveryExcludedDirectories,
           maxFileBytes: this.config.maxFileBytes, maxContextCharacters: this.config.maxContextCharacters,
           onDirectories: (directories, partial) => {
             const current = this.readers.get(root)
@@ -509,6 +538,11 @@ export class ResearchMemory extends TypertRemoteService {
    */
   @Remote({ name: 'initialize', resources: { workspace: addressedWorkspace } })
   async initialize(request: { workspaceId: WorkspaceId } & ResearchInitializeRequest): Promise<Result<ResearchSetup>> {
+    return this.initializeWorkspace(request)
+  }
+
+  private async initializeWorkspace(request: { workspaceId: WorkspaceId } & ResearchInitializeRequest,
+    existingAccountPath?: string): Promise<Result<ResearchSetup>> {
     this.requireOwner()
     using operation = this.admitOnboarding()
     if (operation === undefined) return this.stopping()
@@ -518,7 +552,10 @@ export class ResearchMemory extends TypertRemoteService {
       message: 'Research access for this Workspace is controlled by host configuration, or application enrollment is unavailable.', retryable: false } }
     const root = await this.workspaceRoot(request.workspaceId, true)
     const previous = this.changes.get(root)
-    const enroll = () => this.onboarding.initialize(root, request)
+    const enroll = () => this.onboarding.initialize(root, request, new MarkdownWorkspace({
+      root, maxFiles: this.config.maxFiles, maxFileBytes: this.config.maxFileBytes,
+      maxContextCharacters: this.config.maxContextCharacters, discoveryExcludedDirectories: this.config.discoveryExcludedDirectories,
+    }), existingAccountPath)
     const result = previous === undefined ? await enroll() : await previous.writer.serializeSources(enroll)
     if (!result.ok) return result
     this.markDirty(root)
@@ -672,7 +709,15 @@ export class ResearchMemory extends TypertRemoteService {
     if (query === undefined) return { ok: false, error: { code: 'unsupported', message: 'This host does not provide Session observation.', retryable: false } }
     try {
       using observed = await query.observeSession(request.sessionId, { signal, projectionMode: 'none' })
-      const state = replaySessionWorkingState(observed.events)
+      await this.bindings.ready
+      const recordedState = this.stateForEvents(observed.header, observed.events)
+      // A prepared native discussion has deliberately not accepted a human
+      // message yet. Expose its selected location to the side panel without
+      // pretending that it is Session provenance or model context.
+      const preparedOrigin = recordedState.origin === null
+        ? this.bindings.preparedOrigin(observed.header, observed.events) : undefined
+      const state = preparedOrigin === undefined ? recordedState
+        : { ...recordedState, origin: preparedOrigin, ownerOrigin: true }
       if (state.origin === null || !state.ownerOrigin || state.restricted) return { ok: true, value: null }
       let title: string | undefined
       let initializing = false
@@ -688,7 +733,8 @@ export class ResearchMemory extends TypertRemoteService {
       const value = buildSessionMemoryView(observed, state, {
         maxItems: this.config.maxWorkingItems + this.config.maxHumanInputs + 8,
         maxCharacters: this.config.maxContextCharacters * 2,
-      }, this.ctx.sessions.messageProjections)
+      }, this.ctx.sessions.messageProjections, emptyWorkingState(),
+      this.bindings.scopesForEvents(observed.header, observed.events))
       signal.throwIfAborted()
       return { ok: true, value: value === undefined ? null : { ...value, researchLocation: {
         ...(state.origin.workspaceId === undefined ? {} : { workspaceId: state.origin.workspaceId }),
@@ -825,9 +871,17 @@ export class ResearchMemory extends TypertRemoteService {
     session: (request: ResearchQuestion) => request.sessionId } })
   async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>> {
     this.requireOwner()
+    const origin = await this.resolveQuestionOrigin(request, signal)
+    return origin.ok ? this.admitDiscussion(request, origin.value, signal) : origin
+  }
+
+  /** Resolve one current question/source selection for both native and legacy presentation. */
+  private async resolveQuestionOrigin(
+    request: ResearchQuestion, signal: AbortSignal, requireQuestion = true,
+  ): Promise<Result<ResearchOrigin>> {
     signal.throwIfAborted()
     const question = this.questionText(request)
-    if (!this.validQuestion(question, request.content)) {
+    if (question.length > this.config.maxQuestionCharacters || requireQuestion && !this.validQuestion(question, request.content)) {
       return { ok: false, error: { code: 'invalid-request', message: 'The question is empty or exceeds the configured limit.', retryable: false } }
     }
     const reader = await this.reader(request.workspaceId, signal)
@@ -850,7 +904,25 @@ export class ResearchMemory extends TypertRemoteService {
     if (JSON.stringify(origin).length > this.config.maxContextCharacters) {
       return { ok: false, error: { code: 'invalid-request', message: 'The complete selected-source location exceeds the configured context limit. Select a smaller passage.', retryable: false } }
     }
-    return this.admitDiscussion(request, origin, signal)
+    return { ok: true, value: origin }
+  }
+
+  /**
+   * Prepare a fresh native Session and record its explicitly selected sources, without submitting a question.
+   * @param request - current research location and the proposed question used to resolve its selected passage.
+   * @param signal - cancels source checks before the selection is appended.
+   * @returns the ordinary Session; its native composer owns prompt admission, uploads and retries.
+   */
+  @Remote({ name: 'prepareDiscussion', resources: { workspace: addressedWorkspace } })
+  async prepareDiscussion(request: Omit<ResearchQuestion, 'question'> & { question?: string }, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>> {
+    this.requireOwner()
+    if (request.sessionId !== undefined) return { ok: false, error: {
+      code: 'invalid-request', message: 'Prepare a new discussion; existing conversations keep their sources.', retryable: false,
+    } }
+    const selected = await this.resolveQuestionOrigin({ ...request, question: request.question ?? '' }, signal, false)
+    if (!selected.ok) return selected
+    const origin = selected.value
+    return this.prepareNativeSession(request.workspaceId, origin, signal)
   }
 
   /**
@@ -867,15 +939,20 @@ export class ResearchMemory extends TypertRemoteService {
     if (controller === undefined) throw new RemoteError('research/session-unavailable', 'Native conversation admission is unavailable.', {})
     const resolved = await controller.resolveAgent(request.sessionId)
     if ('error' in resolved) throw resolved.error
-    const projected = this.ctx.sessionProjections.stateOf(resolved.agent.session, 'researchWorking')
+    await this.bindings.ready
+    const projected = this.stateFor(resolved.agent.session)
     if (projected?.origin == null && resolved.agent.session.seq > this.config.maxRecoveryEvents) {
       return controller.prompt(request, signal)
     }
-    const observed = await readDiscussion(this.ctx, resolved.agent, this.config.maxRecoveryEvents, signal)
+    const observed = await this.discussion(resolved.agent, signal)
     if (observed.state.restricted || observed.state.origin === null && observed.hasHumanInput) {
       return controller.prompt(request, signal)
     }
-    let origin = observed.state.origin
+    // A blank discussion may already carry a model-invisible prepared
+    // selection.  Preserve that precise topic/source (and a pre-input mode
+    // switch) instead of reducing it to the Workspace-wide default before
+    // native prompt admission.
+    let origin = observed.state.origin ?? this.bindings.pendingOrigin(resolved.agent.session) ?? null
     if (origin === null) {
       const root = await this.workspaceRoot(request.workspaceId, true)
       if (resolved.agent.session.header.cwd === undefined
@@ -916,7 +993,8 @@ export class ResearchMemory extends TypertRemoteService {
     if (observed.events.length > this.config.maxRecoveryEvents) return { ok: false, error: {
       code: 'unavailable', message: 'The conversation exceeds the receipt-verification read limit; inspect its original tool record.', retryable: false,
     } }
-    const state = replaySessionWorkingState(observed.events)
+    await this.bindings.ready
+    const state = this.stateForEvents(observed.header, observed.events)
     const write = state.writes.find(item => item.operationId === request.operationId && item.origin.workspaceId === request.workspaceId
       && item.origin.scope !== 'global')
     if (!state.ownerOrigin || state.restricted || write === undefined) return { ok: false, error: {
@@ -941,6 +1019,7 @@ export class ResearchMemory extends TypertRemoteService {
   @Remote({ name: 'listDiscussions', resources: { workspace: addressedWorkspace } })
   async listDiscussions(request: { workspaceId: WorkspaceId } & DiscussionQuery, signal: AbortSignal): Promise<Result<DiscussionPage>> {
     this.requireOwner()
+    await this.bindings.ready
     if (request.limit !== undefined && (!Number.isSafeInteger(request.limit) || request.limit < 1)) {
       return { ok: false, error: { code: 'invalid-request', message: 'Discussion limit must be a positive integer.', retryable: false } }
     }
@@ -952,6 +1031,44 @@ export class ResearchMemory extends TypertRemoteService {
     return { ok: true, value: await this.discussions.list(reader.root, {
       workspaceId: request.workspaceId, ...(request.topicId === undefined ? {} : { topicId: request.topicId }),
     }, Math.min(request.limit ?? this.config.maxRecoverySessions, this.config.maxRecoverySessions), signal) }
+  }
+
+  /** Prepare source context only; the ordinary native composer owns all actual input admission. */
+  private async prepareNativeSession(workspaceId: WorkspaceId | undefined, origin: ResearchOrigin,
+    signal: AbortSignal): Promise<{ ok: true; value: { sessionId: SessionId } }
+    | { ok: false; error: { code: 'unsupported'; message: string; retryable: false } }> {
+    const root = workspaceId === undefined ? undefined : await this.workspaceRoot(workspaceId)
+    const controller = this.ctx.get('sessionController')
+    if (controller === undefined) return { ok: false, error: {
+      code: 'unsupported', message: 'Native conversation creation is unavailable.', retryable: false,
+    } }
+    signal.throwIfAborted()
+    const targetId = brandString<SessionId>(randomUUID())
+    const { sessionId } = await controller.create({ ...(workspaceId === undefined ? {} : { workspaceId }), sessionId: targetId })
+    const resolved = await controller.resolveAgent(sessionId)
+    if ('error' in resolved) throw resolved.error
+    const observed = await this.discussion(resolved.agent, signal)
+    assertDiscussionScope(this.ctx, resolved.agent, origin, root, observed, session => this.stateFor(session))
+    signal.throwIfAborted()
+    // The selection belongs to plugin-owned operational state until a real
+    // native owner message arrives. Never prepend a fake user surface event.
+    await this.bindings.reserve(resolved.agent.session, origin, 'source')
+    return { ok: true, value: { sessionId } }
+  }
+
+  /**
+   * Prepare selected literature or other sources for a native discussion without submitting a question.
+   * @param request - admitted sources and their explicit research or independent-reading scope.
+   * @param signal - cancels source validation before context publication.
+   * @returns the native Session whose original inputs stay owned by DSH.
+   */
+  @Remote({ name: 'prepareStudy', resources: { workspace: (request: { workspaceId?: WorkspaceId }) => request.workspaceId } })
+  async prepareStudy(request: Omit<StudyRequest, 'question'> & { question?: string },
+    signal: AbortSignal): Promise<ResourceResult<StudyReceipt>> {
+    if (request.sessionId !== undefined) return { ok: false, error: {
+      code: 'invalid-request', message: 'Prepare a new discussion; existing conversations keep their sources.', retryable: false,
+    } }
+    return this.askStudy({ ...request, question: request.question ?? '' }, signal, true)
   }
 
   private questionText(request: Pick<ResearchQuestion, 'question' | 'content'>): string {
@@ -967,7 +1084,7 @@ export class ResearchMemory extends TypertRemoteService {
   /**
    * Record an explicit mode choice in an already bound native conversation without starting a model turn.
    * @param request - owning Session and the researcher's selected mode; original question and sources remain bound.
-   * @param signal - cancels before admission; an appended native input is not rolled back.
+   * @param signal - cancels before durable plugin-state admission.
    * @returns the recorded choice, effective at the next model request; historical content remains intact.
    */
   @Remote({ name: 'setResearchMode', resources: { session: addressedResearchSession } })
@@ -979,25 +1096,25 @@ export class ResearchMemory extends TypertRemoteService {
     if (controller === undefined) throw new RemoteError('research/session-unavailable', 'Native conversation admission is unavailable.', {})
     const resolved = await controller.resolveAgent(request.sessionId)
     if ('error' in resolved) throw resolved.error
-    const observed = await readDiscussion(this.ctx, resolved.agent, this.config.maxRecoveryEvents, signal)
-    const state = this.ctx.sessionProjections.stateOf(resolved.agent.session, 'researchWorking') ?? observed.state
-    const previous = state.origin
-    if (this.ctx.agents.get(request.sessionId) !== resolved.agent || previous === null || !state.ownerOrigin || state.restricted
+    const observed = await this.discussion(resolved.agent, signal)
+    const state = observed.state
+    const pending = state.origin === null ? this.bindings.pendingOrigin(resolved.agent.session) : undefined
+    const defaultOrigin = pending === undefined && state.origin === null && !observed.hasHumanInput && !state.restricted
+      ? await this.blankWorkspaceOrigin(resolved.agent.session, request.enabled ? 'research' : 'ordinary') : undefined
+    const previous = state.origin ?? pending ?? defaultOrigin
+    const active = state.origin !== null
+    if (this.ctx.agents.get(request.sessionId) !== resolved.agent || previous === undefined || state.restricted
+      || active && !state.ownerOrigin || !active && observed.hasHumanInput
       || resolved.agent.session.header.parentSession !== undefined || resolved.agent.session.header.origin === 'subagent') {
       throw new RemoteError('research/session-unavailable', 'This conversation has no owner-selected research location. Start a research discussion from the intended question.', {})
     }
     signal.throwIfAborted()
     const workflow = request.enabled ? 'research' : 'ordinary'
-    if (previous.workflow === workflow) return { enabled: request.enabled }
+    if (previous.workflow === workflow && (active || pending !== undefined)) return { enabled: request.enabled }
     const origin: ResearchOrigin = { ...previous, workflow }
-    const principal = principalOf(this.ctx.invocation)
-    resolved.agent.session.append('user/message', createUserMessage({
-      source: { kind: 'aitp-research', actor: 'human', origin, modeSelection: true,
-        ...(principal === undefined ? {} : { principal }) },
-      content: [{ type: 'text', text: request.enabled
-        ? 'Research mode selected: on. Resume automatic research handling from the next model request, keeping this question and its sources.'
-        : 'Research mode selected: off. Stop automatic research handling from the next model request, keeping this conversation, its history and explicitly selected sources.' }],
-    }), { surfaceOp: 'append' })
+    // A mode choice applies to the next genuine owner input. It does not
+    // manufacture a conversational turn or rewrite existing provenance.
+    await this.bindings.reserve(resolved.agent.session, origin, 'mode')
     return { enabled: request.enabled }
   }
 
@@ -1016,30 +1133,80 @@ export class ResearchMemory extends TypertRemoteService {
       ...(request.clientTimeZone === undefined ? {} : { clientTimeZone: request.clientTimeZone }) }
     const resolved = await controller.resolveAgent(sessionId)
     if ('error' in resolved) throw resolved.error
-    const snapshot = await readDiscussion(this.ctx, resolved.agent, this.config.maxRecoveryEvents, signal)
+    const snapshot = await this.discussion(resolved.agent, signal)
+    const pendingOrigin = snapshot.state.origin === null ? this.bindings.pendingOrigin(resolved.agent.session) : undefined
     // A source-specific composer can carry an old preference; an established Session owns its mode.
     const { workflow: _requestedWorkflow, ...sourceOrigin } = origin
-    const admittedOrigin = snapshot.state.ownerOrigin && snapshot.state.origin !== null
-      ? { ...sourceOrigin, ...(snapshot.state.origin.workflow === undefined ? {} : { workflow: snapshot.state.origin.workflow }) }
+    const establishedOrigin = snapshot.state.ownerOrigin && snapshot.state.origin !== null ? snapshot.state.origin : pendingOrigin
+    const admittedOrigin = establishedOrigin !== undefined
+      ? { ...sourceOrigin, ...(establishedOrigin.workflow === undefined ? {} : { workflow: establishedOrigin.workflow }) }
       : origin
     const guard = (agent: Agent): void => {
       signal.throwIfAborted()
-      assertDiscussionScope(this.ctx, agent, admittedOrigin, root, snapshot)
+      assertDiscussionScope(this.ctx, agent, admittedOrigin, root, snapshot, session => this.stateFor(session))
     }
-    await controller.promptAttributed(prompt, { kind: 'aitp-research', actor: 'human', origin: admittedOrigin }, guard)
+    if (typeof controller.promptAttributed !== 'function') {
+      // Published DSH releases own normal-composer admission but do not expose the fork-only
+      // attributed admission seam. Keep the ordinary user input exactly as DSH owns it and
+      // reserve only a model-invisible plugin-side source binding for that next real input.
+      guard(resolved.agent)
+      const lease = snapshot.state.origin === null
+        ? await this.bindings.reserve(resolved.agent.session, admittedOrigin, 'source') : undefined
+      try {
+        await controller.prompt(prompt, signal)
+      } catch (error) {
+        if (lease !== undefined) await this.bindings.cancel(resolved.agent.session, lease)
+        throw error
+      }
+    } else {
+      await controller.promptAttributed(prompt, { kind: 'aitp-research', actor: 'human', origin: admittedOrigin }, guard)
+    }
     if (root !== undefined) this.notifications.emit(root)
     return { ok: true, value: { sessionId } }
+  }
+
+  /** Fold sidecar-bound standard sessions from their real native log; legacy attributed sessions retain their projection. */
+  private stateFor(session: Session): ResearchWorkingState {
+    return this.bindings.stateForLive(session, this.ctx.sessionProjections.stateOf(session, 'researchWorking') ?? emptyWorkingState())
+  }
+
+  /** Cold observations use the same source-routing fold as live native Sessions. */
+  private stateForEvents(header: SessionHeader, events: readonly SessionEvent[]): ResearchWorkingState {
+    return this.bindings.stateForEvents(header, events)
+  }
+
+  /** Wait for the model-invisible routing store before making a scope decision. */
+  private async discussion(agent: Agent, signal: AbortSignal) {
+    await this.bindings.ready
+    return await readDiscussion(this.ctx, agent, this.config.maxRecoveryEvents, signal, session => this.stateFor(session))
+  }
+
+  /** Bind a truly blank root-workspace Session only when that root is already authorized for this plugin. */
+  private async blankWorkspaceOrigin(session: Session, workflow: NonNullable<ResearchOrigin['workflow']>): Promise<ResearchOrigin | undefined> {
+    const cwd = session.header.cwd
+    const registry = this.ctx.get('workspaceRegistry')
+    if (cwd === undefined || registry === undefined) return undefined
+    for (const workspace of registry.list()) {
+      if (resolve(workspace.path) !== resolve(cwd)) continue
+      try {
+        const root = await this.workspaceRoot(workspace.id, true)
+        if ((await this.configuredRoots(root)).length > 0) return { workspaceId: workspace.id, workflow }
+      } catch {
+        // An unavailable candidate does not authorize a different workspace.
+      }
+    }
+    return undefined
   }
 
   private requireOwner(): void {
     if (principalOf(this.ctx.invocation) !== undefined) throw new RemoteError('research/owner-required', 'Research source writes, conversations and memory views are available to the workspace owner.', {})
   }
 
-  private async askStudy(request: StudyRequest, signal: AbortSignal): Promise<ResourceResult<StudyReceipt>> {
+  private async askStudy(request: StudyRequest, signal: AbortSignal, prepare = false): Promise<ResourceResult<StudyReceipt>> {
     this.requireOwner()
     signal.throwIfAborted()
     const question = this.questionText(request)
-    if (!this.validQuestion(question, request.content)) {
+    if (question.length > this.config.maxQuestionCharacters || !prepare && !this.validQuestion(question, request.content)) {
       return { ok: false, error: { code: 'invalid-request', message: 'The question is empty or exceeds the configured limit.', retryable: false } }
     }
     const global = request.scope === 'global' || request.scope !== 'workspace' && request.topicId === undefined
@@ -1054,7 +1221,7 @@ export class ResearchMemory extends TypertRemoteService {
       if (controller === undefined) return { ok: false, error: { code: 'unsupported', message: 'Conversation admission is unavailable.', retryable: false } }
       const resolved = await controller.resolveAgent(request.sessionId)
       if ('error' in resolved) throw resolved.error
-      const existing = (await readDiscussion(this.ctx, resolved.agent, this.config.maxRecoveryEvents, signal)).state.origin
+      const existing = (await this.discussion(resolved.agent, signal)).state.origin
       if (existing?.scope === 'global') {
         minimumSources = 0
         if (studyId !== undefined && existing.studyId !== studyId) return { ok: false, error: {
@@ -1088,6 +1255,7 @@ export class ResearchMemory extends TypertRemoteService {
     if (observed.invalidSelections.length > 0) return { ok: false, error: {
       code: 'invalid-request', message: observed.invalidSelections.join('\n'), retryable: false,
     } }
+    if (prepare) return this.prepareNativeSession(global ? undefined : request.workspaceId, origin, signal)
     return this.admitDiscussion(request, origin, signal)
   }
 
@@ -1140,7 +1308,16 @@ export class ResearchMemory extends TypertRemoteService {
         text: selected.value.selectedRange?.text ?? selected.value.selectedPassage, source: { target: sourceId } }], omissions: [] }
     }
     if (origin.topicId === undefined && (origin.resourceId === undefined || origin.resourceId === resourceIdForPath('research.md'))) {
-      const root = await reader.readSource(resourceIdForPath('research.md'), options)
+      let root = await reader.readSource(resourceIdForPath('research.md'), options)
+      let label = 'Research root account'
+      if (!root.ok && root.error.code === 'not-found' && origin.resourceId === undefined) {
+        const project = await reader.getProject(options)
+        const map = project.ok ? project.value.value.accountResourceId : undefined
+        if (map !== undefined && map !== resourceIdForPath('research.md')) {
+          root = await reader.readSource(map, options)
+          label = 'Research family folder map; its independent questions retain their own accounts'
+        }
+      }
       if (!root.ok) return { entries: [], omissions: [root.error.message] }
       const omissions: string[] = []
       if (origin.anchor !== undefined || origin.selectedText !== undefined) {
@@ -1153,7 +1330,7 @@ export class ResearchMemory extends TypertRemoteService {
         if (!selected.ok) omissions.push(selected.error.message)
         else if (selected.value.selectedPassage === undefined) omissions.push(selected.value.reason ?? 'The original root selection could not be resolved.')
       }
-      return { entries: [refittableSource({ label: 'Research root account', text: root.value.text, source: { target: root.value.resourceId } }, 0)], omissions }
+      return { entries: [refittableSource({ label, text: root.value.text, source: { target: root.value.resourceId } }, 0)], omissions }
     }
     const resolved = await reader.resolveOrigin({
       ...(origin.topicId === undefined ? {} : { topicId: origin.topicId as TopicId }),

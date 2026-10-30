@@ -4,7 +4,7 @@ import Loader from '@deepseek-ai/cordis-plugin-loader'
 import * as Include from '@deepseek-ai/cordis-plugin-include'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import ResearchResources, { sourceIdForPath, sourceRootId } from '@deepseek-ai/dsh-research-resources'
-import type { ResourceDomain, ResourceResult } from '@deepseek-ai/dsh-research-resources'
+import type { ResourceDomain, ResourceResult, SourceTopicId, TopicAssociation } from '@deepseek-ai/dsh-research-resources'
 import * as knowledge from '@deepseek-ai/dsh-research-knowledge'
 import * as literature from '@deepseek-ai/dsh-research-literature'
 import * as code from '@deepseek-ai/dsh-research-code'
@@ -61,6 +61,27 @@ try {
     literature: value(await service.listResources({ domain: 'literature' }, signal)),
     code: value(await service.listResources({ domain: 'code' }, signal)),
   }
+  const topicPath = join(root, 'large-workspace')
+  await mkdir(topicPath)
+  await writeFile(join(topicPath, 'proof.md'), '# Selected proof\n\nOnly under A.\n')
+  await writeFile(join(topicPath, 'selected.pdf'), pdf)
+  await writeFile(join(topicPath, 'archive.pdf'), pdf)
+  await writeFile(join(topicPath, 'model.py'), 'first line\nselected line\n')
+  const topic: TopicAssociation = { workspaceId: 'workspace:research' as TopicAssociation['workspaceId'],
+    topicId: 'topic:question' as SourceTopicId, reason: 'Main note material.' }
+  const topicRoot = await service.registerRoot({ id: 'research-workspace', path: topicPath,
+    workspaceId: topic.workspaceId, grantKind: 'research-enrollment' })
+  const linked = (path: string) => ({ rootId: topicRoot.rootId, sourceId: sourceIdForPath(path) })
+  const unlink = service.registerTopicAssociations({ id: 'fixture-main-note', read: async () =>
+    ['proof.md', 'selected.pdf', 'model.py'].map(path => ({ ref: linked(path), topic })) })
+  const explicit = value(await service.listResources({ topic }, signal))
+  const explicitPdf = value(await service.readResource({ ref: linked('selected.pdf'), locator: { kind: 'pdf-page', page: 2 } }, signal))
+  const line = await service.resolveLocalLink({ from: linked('proof.md'), href: 'model.py#L2' }, signal)
+  if (line === undefined) throw new Error('The explicit code line did not resolve.')
+  const explicitCode = value(await service.readResource(line, signal))
+  const globalAfterLinks = value(await service.listResources({}, signal))
+  unlink()
+  const afterUnlink = value(await service.listResources({ topic }, signal))
   const paper = value(await service.readResource({ ref: { rootId: sourceRootId('papers'), sourceId: sourceIdForPath('paper.pdf') }, locator: { kind: 'pdf-page', page: 2 } }, signal))
   const checkout = before.code.items.find(item => item.metadata.entryKind === 'checkout')
   if (checkout === undefined) throw new Error('The actual code checkout was absent.')
@@ -80,6 +101,7 @@ try {
     lifecycle.push({ domain, disconnected, peersStillReadable: peers.every(peer => peer.ok && peer.value.items.length > 0), reloaded })
   }
   await writeFile('domain-observations.json', JSON.stringify({ before, paper, diff, lifecycle,
+    explicit, explicitPdf, explicitCode, globalAfterLinks, afterUnlink,
     noModelServices: ctx.get('llm') === undefined && ctx.get('agents') === undefined,
     sourcesPreserved: await readFile(join(knowledgePath, 'index.md'), 'utf8') === index
       && await readFile(join(knowledgePath, 'atom.md'), 'utf8') === atom

@@ -527,6 +527,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Reads enrolled Markdown owners and explicitly selected library sources, delivers scoped context through existing Sessions, and applies recoverable writes only within existing scientific write grants.',
   },
   {
+    key: 'researchMaterialFiles',
+    pkg: 'research-memory',
+    title: 'Explicit research material publication',
+    mode: 'service',
+    companions: ['research-resources'],
+    note: 'Resolves an authorized research account or directory and publishes only explicitly named new text or PDF files; existing files are never overwritten.',
+  },
+  {
     key: 'researchResources',
     pkg: 'research-resources',
     title: 'Shared local research sources',

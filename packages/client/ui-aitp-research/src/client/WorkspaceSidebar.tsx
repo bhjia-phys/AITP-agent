@@ -18,6 +18,8 @@ import css from './workspace-sidebar.module.css'
 
 /** The host owns switching back to its existing conversation browser. */
 export interface WorkspaceSidebarFace {
+  /** Native hosts without attributed discussion admission show source navigation alone. */
+  showDiscussions?: boolean
   /** Check provider enrollment before subscribing to scientific-content resources. */
   checkSetup?: boolean
   /** Show the current conversation and its Workspace/session list. */
@@ -139,7 +141,7 @@ function WorkspaceTree(props: WorkspaceSidebarProps & { workspaceId: WorkspaceId
         aria-current={atOverview ? 'page' : undefined}
         onClick={() => { actions.visitTopic(workspaceId, null); props.showResearch?.() }}
       >{t('overview')}</button>
-      {atOverview && props.renderFactorySlot('aitp.research.topic-discussions', {
+      {atOverview && props.showDiscussions !== false && props.renderFactorySlot('aitp.research.topic-discussions', {
         scope: { workspaceId, title: project.value?.value.title ?? workspaceTitle },
       })}
       {current === undefined
@@ -168,7 +170,7 @@ interface Outline {
   toggle: (topicId: TopicId, open: boolean) => void
 }
 
-type TopicPageProps = Pick<WorkspaceSidebarProps, 't' | 'useResource' | 'renderFactorySlot' | 'newDiscussion'> & {
+type TopicPageProps = Pick<WorkspaceSidebarProps, 't' | 'useResource' | 'renderFactorySlot' | 'newDiscussion' | 'showDiscussions'> & {
   workspaceId: WorkspaceId
   selectedTopicId: TopicId | null
   onSelect: (topicId: TopicId) => void
@@ -221,7 +223,7 @@ function TopicTreeRows(props: TopicPageProps): ReactNode {
   }
   const branch = { t, byId, path, workspaceId: props.workspaceId, selectedTopicId: props.selectedTopicId,
     onSelect: props.onSelect, onActivate: props.onActivate, outline: props.outline,
-    renderFactorySlot: props.renderFactorySlot, newDiscussion: props.newDiscussion }
+    renderFactorySlot: props.renderFactorySlot, newDiscussion: props.newDiscussion, showDiscussions: props.showDiscussions !== false }
   const roots = rows.filter(topic => topic.parentId === null)
   const unplaced = rows.filter(topic => topic.parentId !== null && !byId.has(topic.parentId))
   return <>
@@ -241,7 +243,7 @@ function TopicTreeRows(props: TopicPageProps): ReactNode {
 }
 
 type BranchProps = Pick<TopicPageProps, 't' | 'workspaceId' | 'selectedTopicId' | 'onSelect' | 'onActivate'
-  | 'outline' | 'renderFactorySlot' | 'newDiscussion'> & {
+  | 'outline' | 'renderFactorySlot' | 'newDiscussion' | 'showDiscussions'> & {
     byId: ReadonlyMap<TopicId, TopicSummary>
     /** The selected topic and its loaded ancestors. */
     path: ReadonlySet<TopicId>
@@ -280,11 +282,11 @@ function TopicBranch(props: BranchProps & { topic: TopicSummary }): ReactNode {
       {open && (
         <ul className={css.children}>
           {children.map(child => <TopicBranch key={child.id} {...props} topic={child} />)}
-          <li>{props.renderFactorySlot('aitp.research.topic-discussions', {
+          {props.showDiscussions !== false && <li>{props.renderFactorySlot('aitp.research.topic-discussions', {
             scope: { workspaceId: props.workspaceId, topicId: topic.id, title },
             active: topic.id === props.selectedTopicId,
             onActivate: () => { props.onActivate(topic.id) },
-          })}</li>
+          })}</li>}
         </ul>
       )}
     </li>

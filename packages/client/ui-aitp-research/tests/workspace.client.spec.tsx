@@ -434,6 +434,21 @@ describe('research map overview', () => {
     expect(screen.getByText('Demo workspace')).toBeDefined()
   })
 
+  it('renders project prose while keeping its selection associated with the original account', () => {
+    const values = resources()
+    values[workspaceProjectAddress(WS)] = live(read({ ...project,
+      accountResourceId: 'resource:research.md' as ResourceId,
+      summary: '**No result is verified.** Read the [starting note](notes/start.md).',
+    }))
+    panel(values)
+    const opening = screen.getByText('No result is verified.')
+    expect(opening.tagName).toBe('STRONG')
+    expect(opening.closest('[data-research-source]')?.getAttribute('data-research-format')).toBe('rendered')
+    expect(opening.closest('[data-research-source]')?.getAttribute('data-research-resource')).toBe('resource:research.md')
+    expect(screen.queryByText(/\*\*No result/)).toBeNull()
+    expect(opening.closest('[data-research-source]')?.textContent).toContain('starting note')
+  })
+
   it('shows the recorded summary, ideas and unassigned topics, and says when a direction has none', () => {
     const values = resources()
     values[workspaceProjectAddress(WS)] = live(read<Project>({
@@ -482,8 +497,8 @@ describe('research map overview', () => {
     const values = resources()
     values[workspaceTopicsAddress(WS, { parentId: null })] = { status: 'failed', value: read({ items: [read(root)], nextCursor: null, completeness: 'partial' }), failure: failure('not-connected') }
     const { face } = panel(values)
-    expect(screen.getByText('Only part of this list is available.')).toBeDefined()
-    fireEvent.click(within(screen.getByRole('note')).getByRole('button', { name: 'Read again' }))
+    expect(screen.getByText(en['workspace.topicsIncomplete'])).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Read again' }))
     expect(face.retry).toHaveBeenCalledWith(WS)
     cleanup()
     values[workspaceTopicsAddress(WS, { parentId: null })] = { status: 'failed', value: undefined, failure: failure('not-connected') }
@@ -1269,7 +1284,7 @@ it('binds a root summary selection to its provider-recorded account', async () =
   fireEvent.change(input, { target: { value: 'How do the branches contribute?' } })
   fireEvent.click(screen.getByRole('button', { name: 'Ask in a new conversation' }))
   await waitFor(() => { expect(askQuestion).toHaveBeenCalledExactlyOnceWith({ workspaceId: WS, resourceId: NOTE,
-    selectedText: 'The project question.', selectedTextFormat: 'source', question: 'How do the branches contribute?' }) })
+    selectedText: 'The project question.', selectedTextFormat: 'rendered', question: 'How do the branches contribute?' }) })
   selection.removeAllRanges()
 })
 

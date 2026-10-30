@@ -1,7 +1,7 @@
 /** Explicit material publication with recoverable receipts outside scientific records. */
 import { dirname, join, posix } from 'node:path'
 import { z } from 'zod'
-import { normalizedPath, pathForTopicId, resourceIdForPath, sourceFailure } from './markdown-files.ts'
+import { normalizedPath, pathForResourceId, pathForTopicId, resourceIdForPath, sourceFailure } from './markdown-files.ts'
 import type { MarkdownWorkspace } from './markdown.ts'
 import type { Result, TopicId } from './types.ts'
 import type { MaterialReadBack, MaterialTopicLocation, MaterialWriteGrant, MaterialWriteReceipt, MaterialWriteRequest } from './material-types.ts'
@@ -26,11 +26,14 @@ type Operation = z.infer<typeof operationSchema>
  */
 export async function resolveMaterialTopic(reader: MarkdownWorkspace, topicId?: TopicId): Promise<Result<MaterialTopicLocation>> {
   try {
-    const accountPath = topicId === undefined ? 'research.md' : pathForTopicId(topicId)
+    let accountPath = topicId === undefined ? 'research.md' : pathForTopicId(topicId)
     if (topicId !== undefined) {
       const selected = await reader.getTopic(topicId)
       if (!selected.ok) return selected
     } else {
+      const project = await reader.getProject()
+      if (!project.ok) return project
+      if (project.value.value.accountResourceId !== undefined) accountPath = pathForResourceId(project.value.value.accountResourceId)
       const selected = await reader.getResource(resourceIdForPath(accountPath))
       if (!selected.ok) return selected
     }

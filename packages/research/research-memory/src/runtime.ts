@@ -1,5 +1,6 @@
 /** Bounded research context on the existing Harness execution and Session log. */
 import type { ResearchRecovery } from './recovery-types.ts'
+import type { ResearchSessionBindings } from './session-bindings.ts'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { UserMessage } from '@deepseek-ai/dsh-llm'
@@ -34,7 +35,6 @@ function scopedHumans(state: ResearchWorkingState, origin: ResearchOrigin): Rese
 function currentQuestions(session: Session, state: ResearchWorkingState, origin: ResearchOrigin): ResearchContextRead['entries'] {
   const carriers = state.pending.filter(call => call.name === 'ask_user_question' && scopeKey(call.origin) === scopeKey(origin))
     .flatMap((call) => {
-      // oxlint-disable-next-line typescript/no-deprecated -- Exact pending-call recovery includes compacted original carriers.
       const event = session.eventAt(SessionSeq(call.seq))
       return event === undefined ? [] : [event]
     })
@@ -129,6 +129,7 @@ export function renderResearchContext(
  * @param config Validated delivery and working-item bounds, independent of scientific acceptance.
  * @param resolveContext Reads the human-selected scope; receives request cancellation and returns evidence or omissions.
  * @param recovery Optional access-scoped reader of prior Sessions; historical content never transfers permission.
+ * @param bindings Optional durable owner for Session research routing kept outside the native transcript.
  * @returns Disposer for the registered projection, tools, context section and preparation listener.
  */
 export function installRuntime(
@@ -136,6 +137,7 @@ export function installRuntime(
   config: ResearchRuntimeConfig,
   resolveContext: (origin: ResearchOrigin, signal?: AbortSignal, question?: string) => Promise<ResearchContextRead>,
   recovery?: ResearchRecovery,
+  bindings?: ResearchSessionBindings,
 ): () => void {
   for (const key of ['maxContextCharacters', 'maxWorkingItems', 'maxItemCharacters', 'maxHumanInputs', 'maxHumanCharacters'] as const) {
     const value = config[key]
@@ -144,10 +146,13 @@ export function installRuntime(
   const prepared = new WeakMap<Session, string>()
   const disposers: (() => void)[] = []
   disposers.push(ctx.sessionProjections.register({
-    key: 'researchWorking', stateVersion: 8, stateSchema: workingStateSchema,
+    key: 'researchWorking', stateVersion: 10, stateSchema: workingStateSchema,
     init: emptyWorkingState, apply: applyWorkingEvent,
   }))
-  const stateOf = (session: Session): ResearchWorkingState => ctx.sessionProjections.stateOf(session, 'researchWorking') ?? emptyWorkingState()
+  const stateOf = (session: Session): ResearchWorkingState => {
+    const projected = ctx.sessionProjections.stateOf(session, 'researchWorking') ?? emptyWorkingState()
+    return bindings?.stateForLive(session, projected) ?? projected
+  }
   const active = (agent: Agent): { state: ResearchWorkingState; origin: ResearchOrigin } => {
     const state = stateOf(agent.session)
     if (state.origin === null) throw new Error('No research location is bound to this conversation. Start from a topic or explicitly select its location.')
@@ -160,12 +165,14 @@ export function installRuntime(
   disposers.push(ctx.on('agent/pre-step', async ({ agent, signal }, next) => {
     const decision = await next()
     if (decision.kind === 'reject' || signal.aborted) return decision
-    let state = stateOf(agent.session)
     const proposed = new Map<string, UserMessage>()
     for (const message of decision.messages) {
       proposed.set(message.id, message)
-      state = acceptHumanInput(state, message, -1)
     }
+    await bindings?.ready
+    let state = bindings === undefined ? stateOf(agent.session) : bindings.stateForProposed(agent.session, decision.messages,
+      ctx.sessionProjections.stateOf(agent.session, 'researchWorking') ?? emptyWorkingState())
+    if (bindings === undefined) for (const message of decision.messages) state = acceptHumanInput(state, message, -1)
     if (state.origin === null) {
       prepared.delete(agent.session)
       return decision

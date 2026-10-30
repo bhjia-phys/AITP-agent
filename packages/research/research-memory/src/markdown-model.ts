@@ -1,4 +1,7 @@
 import { fromMarkdown } from 'mdast-util-from-markdown'
+import { mathFromMarkdown } from 'mdast-util-math'
+import { math } from 'micromark-extension-math'
+import { mathCompatibility } from '@deepseek-ai/dsh-util-markdown-math'
 import { posix } from 'node:path'
 
 type Node = ReturnType<typeof fromMarkdown> | ReturnType<typeof fromMarkdown>['children'][number]
@@ -10,7 +13,7 @@ export interface SourceSection {
   readonly end: number
   readonly text: string
 }
-/** A root-relative local link whose explicit label or enclosing heading supplies its relationship role. */
+/** A root-relative link whose label, heading or explicit self-navigation supplies its relationship role. */
 export interface SourceLink { readonly path: string; readonly title: string; readonly section: string; readonly role: 'parent' | 'child' | 'reference'; readonly text: string; readonly curated: boolean }
 /** Authored material-list headings used to avoid treating unrelated body links as a curated bibliography. */
 export const curatedMaterialsHeading = /^(精选资料|curated materials)$/i
@@ -36,8 +39,12 @@ function slug(value: string): string {
   return value.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, '').trim().replace(/\s+/g, '-')
 }
 
-function role(title: string, section: string): SourceLink['role'] {
+function role(title: string, section: string, prefix: string): SourceLink['role'] {
   if (/^(parent(?: topic)?|upstream|父课题|上级课题|返回主课题|所属课题)$/i.test(title.trim()) || /^(parent(?: topic)?|父课题|上级课题)$/i.test(section)) return 'parent'
+  // Only a positive paragraph-leading declaration refers to this note's parent.
+  // Later ancestor/dependency links in that paragraph remain ordinary references.
+  if (/^本(?:子){0,2}课题(?:隶属于|属于)\s*$/u.test(prefix)
+    || (/^serves\s+$/i.test(prefix) && /^(?:the\s+)?parent (?:question|topic)$/i.test(title.trim()))) return 'parent'
   if (/^(topics?|subtopics?|branches|child topics?|课题|子课题|子方向|研究分支|分支)$/i.test(section)) return 'child'
   return 'reference'
 }
@@ -49,7 +56,7 @@ function role(title: string, section: string): SourceLink['role'] {
  * @returns parsed headings and local relationships; links escaping the root are excluded, not followed.
  */
 export function parseMarkdown(path: string, text: string): ParsedMarkdown {
-  const tree = fromMarkdown(text)
+  const tree = fromMarkdown(text, { extensions: [math(), mathCompatibility()], mdastExtensions: [mathFromMarkdown()] })
   const headings = tree.children.filter(node => node.type === 'heading')
   const title = headings.find(node => node.depth === 1)
   const sectionHeadings = headings.filter(node => node.depth > 1)
@@ -68,10 +75,13 @@ export function parseMarkdown(path: string, text: string): ParsedMarkdown {
   const definitions = new Map(tree.children.filter(node => node.type === 'definition').map(node => [node.identifier.toLowerCase(), node.url]))
   const links: SourceLink[] = []
   const authoredLinks: AuthoredSourceLink[] = []
-  const visit = (node: Node, surrounding = ''): void => {
+  const visit = (node: Node, surrounding = '', surroundingStart = 0, quoted = false): void => {
     const offset = node.position?.start.offset ?? 0
-    const context = node.type === 'paragraph' || node.type === 'listItem'
+    const ownContext = node.type === 'paragraph' || node.type === 'listItem'
+    const contextStart = ownContext ? offset : surroundingStart
+    const context = ownContext
       ? text.slice(offset, node.position?.end.offset ?? offset) : surrounding
+    const inQuote = quoted || node.type === 'blockquote'
     const section = [...sections].reverse().find(candidate => candidate.start <= offset && candidate.end > offset)
     if (node.type === 'html') {
       for (const match of node.value.matchAll(/<a\s+[^>]*(?:id|name)\s*=\s*["']([^"']+)["'][^>]*>/gi)) {
@@ -99,11 +109,12 @@ export function parseMarkdown(path: string, text: string): ParsedMarkdown {
           const label = nodeText(node)
           const curated = sections.some(candidate => curatedMaterialsHeading.test(candidate.title.trim())
             && candidate.start <= offset && candidate.end > offset)
-          links.push({ path: target, title: label, section: section?.title ?? '', role: role(label, section?.title ?? ''), text: text.slice(node.position?.start.offset ?? 0, node.position?.end.offset ?? 0), curated })
+          const prefix = inQuote ? '' : text.slice(contextStart, offset).trimStart()
+          links.push({ path: target, title: label, section: section?.title ?? '', role: role(label, section?.title ?? '', prefix), text: text.slice(node.position?.start.offset ?? 0, node.position?.end.offset ?? 0), curated })
         }
       }
     }
-    if ('children' in node) for (const child of node.children) visit(child, context)
+    if ('children' in node) for (const child of node.children) visit(child, context, contextStart, inQuote)
   }
   visit(tree)
   for (const [anchor, targets] of explicitAnchors) anchors.set(anchor, targets)

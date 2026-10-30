@@ -62,7 +62,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-export const inject = ['remote', 'resources', 'slots', 'locale', 'layout', 'uiWorkspace', 'sidebarRightTabs', 'sidebarRight', 'sidebarRightRoots']
+export const inject = ['remote', 'resources', 'slots', 'locale', 'layout', 'uiWorkspace', 'sidebarRightTabs', 'sidebarRight']
 const TAB = '@deepseek-ai/dsh-client-ui-aitp-materials/source'
 
 /**
@@ -102,8 +102,11 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       const materialScope = { workspaceId: scope.workspaceId, ...scope.title === undefined ? {} : { title: scope.title },
         ...scope.topicId === undefined ? {} : { topicId: scope.topicId as SourceTopicId } }
       const key = materialsScopeKey(materialScope)
-      ctx.sidebarRightRoots.selectScope(panel, key)
-      ctx.sidebarRightRoots.openIn(panel, key, materialSourceAddress(ref, locator, domain),
+      const rootReader = ctx.get('sidebarRightRoots')
+      if (rootReader === undefined) return controller.open({ domain, ref, scope: materialScope,
+        ...locator === undefined ? {} : { locator }, returnTo: () => { ctx.layout.selectPanel(panel) } })
+      rootReader.selectScope(panel, key)
+      rootReader.openIn(panel, key, materialSourceAddress(ref, locator, domain),
         { params: { scope: materialScope, libraryDomain: domain } })
       return true
     },
@@ -199,7 +202,9 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
       refresh: signal => unwrap(api.refresh({}, signal)),
       management: {
         getSetup: signal => unwrap(api.getSetup({}, signal)),
-        connectWorkspace: (workspaceId, signal) => unwrap(api.connectWorkspace({ workspaceId }, signal)),
+        connectWorkspace: (workspaceId, signal, domains) => unwrap(api.connectWorkspace({ workspaceId,
+          ...(domains === undefined ? {} : { domains }),
+        }, signal)),
         disconnectWorkspace: (workspaceId, signal) => unwrap(api.disconnectWorkspace({ workspaceId }, signal)),
         listSourceSets: (query, signal) => unwrap(api.listSourceSets(query, signal)),
         getSourceSet: (id, signal) => unwrap(api.getSourceSet({ id }, signal)),

@@ -227,9 +227,13 @@ export class GuardedFiles {
    * Read one directory without traversing descendants or admitting symbolic links.
    * @param path - root-relative directory; empty for the source root.
    * @param signal - cancels the observation.
+   * @param options - optional account-discovery scope; ordinary directory browsing retains its existing behavior.
    * @returns Immediate entries and any discovery issues.
    */
-  async listDirectory(path: string, signal?: AbortSignal): Promise<SourceDirectory> {
+  async listDirectory(path: string, signal?: AbortSignal, options?: {
+    readonly directoriesOnly?: boolean
+    readonly excludedDirectories?: readonly string[]
+  }): Promise<SourceDirectory> {
     const directory = await this.directoryPath(path, signal)
     signal?.throwIfAborted()
     const entries: SourceDirectoryEntry[] = []
@@ -240,6 +244,8 @@ export class GuardedFiles {
     for await (const item of stream) {
       signal?.throwIfAborted()
       if (internalDirectory(item.name)) continue
+      if (options?.directoriesOnly && !item.isDirectory()) continue
+      if (item.isDirectory() && options?.excludedDirectories?.includes(item.name)) continue
       if (visited++ >= this.maxFiles) { partial = true; issues.push({ path, reason: 'The directory entry limit was reached.' }); break }
       const child = path ? `${path}/${item.name}` : item.name
       if (item.isSymbolicLink()) { partial = true; issues.push({ path: child, reason: 'Symbolic links are not traversed by discovery.' }) }
@@ -302,15 +308,17 @@ export class GuardedFiles {
    * Discover regular files without traversing symlinks or internal dependency/state directories.
    * @param signal - optional cancellation checked between discovered directories.
    * @param folder - optional admitted relative directory; discovery starts here with its own entry budget.
+   * @param excludedDirectories - exact directory names omitted from this scan only; explicit reads retain their usual authority.
    * @returns relative paths plus issues; the entry bound or skipped paths mark discovery partial.
    * @throws {Error} when the root cannot be opened as a directory or cancellation is requested.
    */
-  async scan(signal?: AbortSignal, folder: string = ''): Promise<SourceScan> {
+  async scan(signal?: AbortSignal, folder: string = '', excludedDirectories: readonly string[] = []): Promise<SourceScan> {
     const canonicalRoot = await realpath(this.root)
     if (!(await stat(canonicalRoot)).isDirectory()) throw new SourceError('invalid-request', 'The configured research root is not a directory.')
     const paths: string[] = []
     const directories: string[] = []
     const issues: ScanIssue[] = []
+    const excluded = new Set(excludedDirectories)
     const queue = [folder === '' ? '' : normalizedPath(folder)]
     let visited = 0
     let partial = false
@@ -329,6 +337,11 @@ export class GuardedFiles {
         if (visited >= this.maxFiles) { stopped = true; break }
         visited++
         const path = directory ? `${directory}/${entry.name}` : entry.name
+        if (entry.isDirectory() && excluded.has(entry.name)) {
+          issues.push({ path, reason: 'This directory is omitted by the configured discovery scope; explicit source reads remain available.' })
+          partial = true
+          continue
+        }
         if (entry.isSymbolicLink()) { issues.push({ path, reason: 'Symbolic links are not traversed by discovery.' }); partial = true }
         else if (entry.isDirectory()) queue.push(path)
         else if (entry.isFile()) paths.push(path)

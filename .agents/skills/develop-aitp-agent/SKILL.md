@@ -22,7 +22,7 @@ description: 在 AITP-agent 本仓库进行应用设计、开发、架构审阅�
 3. 读 [14 开发规划](../../../docs/agent/14-implementation-blueprint.md) 的当前状态、
    授权范围及相关阶段；以这里维护的实际边界决定可以推进什么。
    不把旧阶段编号、历史测试通过或 reviewer 同意当作新阶段授权。
-   Harness 底座、aitp-agent 命名和 GPT 适配已获授权；不得再次把宿主选择当成待批准提案，也不能将其扩大为全部科研模块或真实笔记写入授权。
+   当前目标是 DSH 科研插件；既有分叉和 aitp-agent 启动器属于过渡环境。[插件交付边界](../../../docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution)区分已验收能力与尚需抽离的宿主依赖。不得恢复独立产品目标，也不能将宿主选择扩大为全部科研模块或真实笔记写入授权。
 4. 如将改变行为或设计，读 [10 架构](../../../docs/agent/10-project-workspace.md)
    的受影响部分和 [13 科研场景](../../../docs/agent/13-research-journeys.md) 的相关 case。
    先说明这次解决什么具体问题，再选择实现或验证方式。

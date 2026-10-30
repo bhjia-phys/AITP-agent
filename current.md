@@ -1,10 +1,12 @@
-# AITP-agent：当前设计漏洞与协作纠错入口
+# AITP 科研插件：当前设计漏洞与协作纠错入口
 
-最近核查：2026-10-25。用户已选择官方 DeepSeek Harness 作为应用底座，保留科研设计，授权建立 Harness 主开发分支、产品命名为 **aitp-agent** 并解决 GPT 适配。原公开仓库地址与 Pi 历史保留；当前代码入口是 `packages/` 和 `apps/`，`agent/` 是此前 Pi 实现和证据。上游科研协议仍由 `aitp/` 子模块连接。仓库关系见 [README](README.md)，当前授权和进度只由 [14](docs/agent/14-implementation-blueprint.md#harness-migration) 维护，新检查归 [Harness 集成证据](agent/notes/harness-integration.md)。
+最近核查：2026-10-30。用户最新选择是给 DSH 提供科研插件，不再把 aitp-agent 作为独立产品目标。现有 Harness 分叉与启动器保留为过渡运行和测试环境；`packages/` 中的科研能力需要独立安装验收，不能把仓库内可选组合视为已经脱离分叉。原公开仓库地址与 Pi 历史保留，`agent/` 是此前 Pi 实现和证据。可移植协议仍由原 AITP 仓库维护。当前分工、宿主耦合与抽离验收见 [14](docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution)，实际检查归 [Harness 集成证据](agent/notes/harness-integration.md)。
 
 **证据分界：** 本文引用 `agent/packages/` 的源码缺陷、[四个合成复现](agent/notes/review-2026-10-22.md)和[旧集成记录](agent/notes/integration.md)均针对保留的 Pi 实现，未在 Harness 上重跑。它们继续规定迁移后的反例与验收要求，不能直接称为 Harness 已复现缺陷，也不能因换底座而关闭。Harness 已有通用会话、工具、插件、Web 和桌面机制；这些不等于 AITP 的约定、必要前提、科研审阅和写回已经实现。默认 Harness 工具也不自动继承旧 AITP 只读 profile 的限制。
 
 **有限读写对照已完成，随后修复了三处已复现的记忆恢复缺口。** [同版 Skills 的真实模型对照](agent/notes/harness-integration.md#research-behavior-comparison)支持限定范围的正确阅读、选择性写回、已知使用处修正及写后文件恢复，没有显示稳定的宿主差距。[本次修复](agent/notes/harness-integration.md#research-recovery-fixes)使未答问题及完整选项独立恢复、课题筛选先于历史数量限制，并允许在发现不完整时直接核对已选深层文件；具体边界见 [Q01](#q01)／[Q02](#q02)。新课题入口、正式客户端、真实 Markdown 后台和限定 scratch 写回已接通；更多材料类型、产品内独立科研审阅、复杂真实项目的完整论证维护及研究者使用验收仍待推进。有限题材的正确回答和保存不建立普遍科研质量或长期收益。
+
+**两个插件已添加到本机 DSH Desktop profile，但 RC5 插件支持尚未验收。** AITP Skills `1.3.1` 与面向 DSH `0.2.1-rc.5` 的 Research workbench `0.1.1` 使用 Desktop 自带 CLI 加入原有 `desktop` profile；包文件和 profile 引用已放在 `%USERPROFILE%\.dsh` 下固定位置，桌面窗口随后启动。可是 `dsh plugin ... peers check` 报告 DSH/Cordis 宿主 peers 及 Skills 文件系统 peer 缺失，RC5 schema 投影也有诊断；因此当前证据只证明包已安装且桌面进程启动，不证明插件已正确挂载或可用。打包面板的可视验收和公开包/工件发布仍未完成，不能据此声称普遍支持“最新 DSH”。2026-10-30 的周额度暂停已由用户明确撤销；Goal API 的旧 `paused` 状态由宿主控制、未随该对话指令自动改写，不能把它重读成新的停工条件。完整证据与准确续接点见[原有集成记录](agent/notes/harness-integration.md#dsh-plugin-extraction)，阶段状态由 [14](docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution)维护。本次未重做迁移、改写原科研文件或发布公开包/工件。研究者另已授权本次仓库源码推送至 `origin/main`，并保留推送前的 `origin/main` 为 `main-before-plugin-update-2026-10-30`；该授权不包含公开包/工件发布或任何私有科研资料、桌面配置和本机证据。
 
 本文供接手者共同质疑、开发和纠错。它集中记录问题、依据、后果和可区分的修正验证，不取代架构、开发规划或科研场景文档。下文的“漏洞”包括**设计未闭合、已查明的实现缺口、尚无验证证据**，并不表示每一项都是已触发的运行故障或安全漏洞。
 
@@ -36,7 +38,7 @@
 - 应用底座已选定 Harness/Cordis；通过其服务、事件和插件实现模块化，不额外运行旧 Pi 任务循环。应用开发流程不成为上游可移植科研 Skills 的前置条件；其 owner 仍在 `aitp/plugins/aitp/`。
 - 用户进一步明确：AITP 要接入底层，重点是优先向 AI 暴露科研中重要的上下文作为记忆，不采用固定科研动作约束。运行时负责选择、读取、交付、恢复和更新重要信息，AI 根据实际问题自主选择下一步；Skills 提供方法。明确的用户要求仍须遵守，现有宿主权限保留，但缺一项前提不自动封锁研究。具体设计归 [10](docs/agent/10-project-workspace.md#aitp-runtime-integration)，开发依赖归 [14](docs/agent/14-implementation-blueprint.md#runtime-integration-plan)。
 - 所有哈希相关检查保持禁用。本版 scratch 写入按具体原文定位唯一段落；不以内容摘要授权，也不恢复已禁用的版本或批准摘要检查。更广泛的科学审阅依赖和真实笔记协作策略仍需另定。
-- 用户已要求整理插件和任务、逐项实施并随实现维护文档。Claude 的 UI-1 是可复用的客户端基础；最新请求明确由 Codex 完成正式课题前端与异步模拟接口，后台科研记忆可以独立并行实现。文件分工和唯一实施顺序由 [14](docs/agent/14-implementation-blueprint.md#topic-redesign-review)维护；规划发布不等于功能已实现，也不授权真实笔记迁移、科研写入或计算任务。
+- 用户已要求整理插件和任务、逐项实施并随实现维护文档。Claude 的 UI-1 是可复用的客户端基础；最新请求明确由 Codex 完成正式课题前端与异步模拟接口，后台科研记忆可以独立并行实现。文件分工和唯一实施顺序由 [14 的 D0–D5](docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution)维护；规划发布不等于功能已实现，也不授权真实笔记迁移、科研写入或计算任务。
 - 保留已有脏工作树、原始科研材料和历史证据。此次文档提交与推送按用户明确授权进行；本文和 Skill 不另行授予重置、清理、覆盖无关改动或发布私人研究资料的权限。
 
 ## 当前能确认到哪一步
@@ -267,7 +269,9 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 <a id="q10"></a>
 ### Q10：可选科研插件已交付，科研适用性仍有边界
 
-**2026-10-29 新实施请求：** 研究者要求先详细规划，再设置 Goal 完成可选科研插件、实际资料读写与三库联动；开启后保持模型结合 AITP Skills 的科研方式，同时清楚展示任意深度子课题的进程、PDF 和文件位置。[14 的 P0–P6](docs/agent/14-implementation-blueprint.md#research-plugin-delivery)是本轮唯一实施顺序与进度 owner，[10](docs/agent/10-project-workspace.md#optional-research-plugins)定义分工。优先修复已发现的长记录预算、原生会话入口来源隐藏、默认模式串扰和目录收窄检索问题，再验证独立组合、约定位置读写与深层界面。Skills 指导科研判断，不能替代文件写入、上下文预算和会话一致性的程序实现；既有三库和 R1–R6 验收不能直接关闭这些新增要求。 目录、读写、三库来源和会话开关已通过有界真实文件、Loader、浏览器及一次受指导真实模型验证；截图审查发现的布局问题已修正。原生科研设置页已支持保存后重启与三库选择，390px 设置导航挤压正文的问题已在所属布局中修复；真实长科研记录副本的读取、保存与恢复机制也已验证。全仓并发打包及完整 Host 类型检查被内存不足终止，受影响模块构建及完整 Client 类型检查通过；受影响 Host 类型检查和 18 项无 hash 文档检查通过；本地运行版已更新，21 个会话与原科研配置保留，仍需研究者实际使用反馈，见[本轮实施证据](agent/notes/harness-integration.md#research-plugin-delivery)。
+**已有科研记录兼容，2026-10-29：** 在保留原有课题目录和记录的前提下，本地检查了课题发现、层级关系、资料入口、阅读和会话连续性，并修复了发现的问题。详细的私人课题清单、资料身份、读取明细、模型输出和会话记录留在本地。该检查只覆盖实际走过的集成路径，不代表全面的资料盘点或科学结论复核；最新代码修复仍在待发布工作区。[14 的历史实施记录](docs/agent/14-implementation-blueprint.md#real-research-migration)保留范围与证据边界。
+
+**2026-10-29 新实施请求：** 研究者要求先规划，再实现可选科研插件、资料读写与三库联动；开启后保留 AITP Skills 引导的研究方式，并清楚呈现各层级子课题、PDF 和文件位置。[14 的 P0–P6](docs/agent/14-implementation-blueprint.md#research-plugin-delivery)记录此前工作台交付；当前 DSH 插件抽取顺序由 [D0–D5](docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution)维护，[10](docs/agent/10-project-workspace.md#optional-research-plugins)定义分工。Skills 负责研究判断，程序实现负责文件访问、上下文交付和会话一致性；旧验收不能自动关闭新宿主的兼容性要求。工作台的读写、资料关联和界面路径已有本地限定验收；最新版修复仍未发布，标准 DSH/桌面兼容性和研究者实际使用反馈仍待确认，详见[本轮实施证据](agent/notes/harness-integration.md#research-plugin-delivery)。
 
 **已确定：**模块化用于独立优化、替换和升级核心部分；应用底座现已选定 Harness/Cordis。用户进一步明确要求：各项实现按职责设计相关插件，再通过应用配置组合使用，方便分别维护。新增能力应明确由现有插件扩展还是由新的完整能力插件负责，共享接口和数据各有一个归属，组合层负责接线。具体约定见 [插件实现与组合原则](docs/agent/10-project-workspace.md#plugin-owned-implementation)；这不是要求每个按钮、函数或科学概念各建一个插件。原来的“是否引入 Cordis”不再是待选项。[10](docs/agent/10-project-workspace.md#harness-service-mapping)映射了服务、领域插件和客户端职责；方法规则继续归上游 AITP Skills。Skill 发现、科研蒸馏、主/子文档协同是不同责任，通用 Skill loader 不自动完成后两者。
 
@@ -275,7 +279,7 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 用户已要求 AITP 接入底层，并明确反对固定科研动作约束。[运行时接入设计](docs/agent/10-project-workspace.md#aitp-runtime-integration)改以记忆读取、相关性／重要性选择、上下文交付、压缩恢复和结果反馈为主。工具 guard 时序、文件工具不能覆盖全部写入等源码发现保留在集成证据，只有在具体任务明确要求相应硬限制时才需要据此选实现；它们不是当前记忆方案的前置条件。类型化事件内存提交与实际落盘仍须区分。首个 Markdown 服务已实现有界记忆交付与恢复；工程验收不等于科学适用性验收。
 
-**顺序与宿主协调：**旧 P2a→P2b→P2c→P2d→P3 把产品交付顺序误当成技术依赖，当前由 [14 的唯一步骤定义](docs/agent/14-implementation-blueprint.md#research-plugin-delivery)取代，本文不另列“先做”的版本。无界面工作记忆与 Markdown 提案／审阅不等待完整阅读器或原生桌面；具体依赖仍须真实接通。已有 goal、goal-round driver、plan mode、todo、workspace grouping 和压缩摘要的复用／扩展边界已加入 10；配置没有因文档修改而改变。目标轮次会重发目标但也要求使用当前持久状态，因此“覆盖后来限制”仍是待检验假设，不能沿用 Pi 复现作为 Harness 结论。
+**顺序与宿主协调：**旧 P2a→P2b→P2c→P2d→P3 把产品交付顺序误当成技术依赖，当前由 [14 的唯一步骤定义](docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution)取代，本文不另列“先做”的版本。无界面工作记忆与 Markdown 提案／审阅不等待完整阅读器或原生桌面；具体依赖仍须真实接通。已有 goal、goal-round driver、plan mode、todo、workspace grouping 和压缩摘要的复用／扩展边界已加入 10；配置没有因文档修改而改变。目标轮次会重发目标但也要求使用当前持久状态，因此“覆盖后来限制”仍是待检验假设，不能沿用 Pi 复现作为 Harness 结论。
 
 此前提出的 Codex/Claude Code 副本预演与现在要求的 [aitp-agent 对 Codex + AITP 对照](docs/agent/13-research-journeys.md#comparative-evaluation)都可暴露决定归属、caveat 和前提变化问题，但不能互相替代：前者不证明 Harness 已有恢复／写回机制，后者需匹配材料、方法来源、任务和可观察配置，并保留无法匹配的限制。scratch apply 的协作式单写者策略与恢复已有实现；独立审阅／评估仍待接入，真实研究路径另按明确范围进入。
 
@@ -386,6 +390,6 @@ Harness 的[文档预览](packages/client/ui-sidebar-documentpreview/README.md)�
 
 ## 建议下一轮共同讨论的焦点
 
-实施顺序只看 [14 的下一实施步骤](docs/agent/14-implementation-blueprint.md#research-plugin-delivery)，不在本文另选主文档／资料／UI 的先后。Claude 的研究地图已由 Codex 与后台整合；后续客户端、GPT／底层能力与共享接口工作按 14 的实际文件分工推进。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
+实施顺序只看 [14 的 D0–D5](docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution)，不在本文另选主文档／资料／UI 的先后；P0–P6 仅保留为先前交付的历史证据。Claude 的研究地图已由 Codex 与后台整合；后续客户端、GPT／底层能力与共享接口工作按 14 的实际文件分工推进。尚待产品决定的是默认权限模式、同名 Skill 优先级、任务限制与长期规则的默认时效／保存位置，以及会话外研究根的读取权限；隔离 fixture 可以声明具体范围而不替用户决定全局默认值。
 
 R-A、R-B、R-D 与压缩来源混同仍是 Pi 已复现缺陷；新后台已有对应缺失、预算和恢复工程检查，不能据此称旧程序已修复或所有变体已覆盖。Q06 的 scratch 写回策略已限定，Q07 的独立审阅和真实笔记策略仍待实现；Q03/Q11/Q14 需要真实行为证据，Q15 的外部报告需要对应路线的复现与回归。设计文档补齐归属不关闭这些实现和验证缺口，后续状态随证据更新到原 owner。

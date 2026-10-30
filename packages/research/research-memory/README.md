@@ -7,15 +7,29 @@ kind: "package-reference"
 
 ## Summary
 
-`researchMemory` connects existing AITP `research.md` accounts to Harness's topic workspace and conversations. Scientific files stay authoritative; original human input and model working items stay in the existing Session log. The in-memory source index is rebuildable. The [browser adapter](../../client/ui-aitp-backend/README.md) uses generated Remote methods; no second agent loop or conversation database is created.
+Use this package to read existing AITP `research.md` accounts, browse linked materials, and give ordinary DSH Conversations source-aware research context. Scientific files stay authoritative, and original human input remains in native Session history. Topic maps follow links authored in the records, while incomplete discovery stays visible. The browser adapter uses generated Remote methods; the package creates no second transcript or agent loop.
 
 ## Configuration and behavior
+
+The following options control root access, account discovery, request context and optional research writes.
+
+### Session source and mode bindings
+
+For a prepared blank discussion, its chosen source and pre-input Research mode are stored in the standard DSH storage-domain sidecar, never as a synthetic `user/message` event. The first genuine native input activates that association; a rejected admission cancels only the reservation. Ordinary Session history remains unchanged while Research source and mode routing survive a restart.
+
+### Root maps and account discovery
+
+A research family may use `README.md` as its existing root map when independent linked accounts are present. Reading, enrollment, child creation and shared-material association retain that map; they do not synthesize a common scientific answer or a second root account. Creation receipts retain the actual parent path; older receipts without that field keep their original `research.md` interpretation.
+
+Topic discovery starts from the root account or README family map and follows authored account relationships and named main-note links. For each confirmed account directory, it probes only direct child directories for `research.md`; a directory without an account does not start an asset-tree scan. Deeper isolated accounts need an explicit account link or explicit selection. `maxFiles` separately bounds scheduled account reads and the total direct-child probes. Ordinary files and excluded directories do not consume the directory-probe budget.
+
+`complete` means discovery finished within that declared and directly layered account scope without a budget, read or relationship failure; it does not certify the entire filesystem or scientific contents. `discoveryExcludedDirectories` names directories omitted from current-topic discovery and defaults to empty. Excluded historical files remain explicitly readable evidence. Opening an ordinary source uses a guarded local read without changing the map index, pagination or completeness. Explicitly selecting an undiscovered main account can add a bounded account observation, with unresolved discovery or relationship coverage still reported as partial.
 
 `automaticResearch: false` disables automatic request-context delivery and default Research admission while preserving explicit source operations, topic browsing and historical Session projections. The provider reports this capability so clients can retain normal conversations without silently invoking a disabled workflow. An existing owner-bound Session can also record an explicit Research on/off choice through `setResearchMode`, without starting a model turn. Turning it off stops future automatic account, ancestor and recovery delivery while retaining deliberately selected sources and historical content. Queued earlier source submissions cannot replace that choice; a new-draft preference cannot change an existing Session.
 
 Original inputs and applicable corrections, unanswered questions, selected excerpts and observed source units precede provisional notes and routine write receipts in the bounded request context. Omissions remain explicit and original carriers remain retrievable. This priority preserves evidence under pressure; it does not establish that the model interpreted it correctly.
 
-The standard AITP Web composition mounts `research-memory` and `ui-aitp-backend` with empty `roots`. A registered Harness Workspace initially grants no scientific-source access. Its authenticated owner can explicitly initialize research access in the application, choosing read-only access or source saving. No research-root environment variable is required. Default-on Research submissions can enroll the actual new conversation folder read-only without creating sources. The `research_initialize_project` tool presents the proposed question and admitted external collection links through native human questions, rechecks Session file policy after confirmation, and creates only the absent account. It preserves existing accounts and does not initialize Git. Read-only enrollment creates no scientific files; enabling saving creates a minimal root `research.md` only when absent. Existing root accounts retain every original byte.
+The standard AITP Web composition mounts `research-memory` and `ui-aitp-backend` with empty `roots`. A registered Harness Workspace initially grants no scientific-source access. Its authenticated owner can explicitly initialize research access in the application, choosing read-only access or source saving. No research-root environment variable is required. Default-on Research submissions can enroll the actual new conversation folder read-only without creating sources. After the researcher authorizes the settled question and source choices, `research_initialize_project` enrolls saving and creates the missing account without asking for the same authorization again. Native questions remain available for unresolved choices. `preserveExisting` enrolls already authorized saving for an account created through ordinary file tools without rewriting it. Current owner scope, host policy, admitted collections and Session file permissions are rechecked before the write; Git is not initialized. Read-only enrollment creates no scientific files; enabling saving creates a minimal root `research.md` only when both a root account and an established README family map are absent. Existing root accounts retain every original byte.
 
 Canonical root enrollment, the write choice and operation receipts live under the existing Harness home's `research-memory` directory, outside the scientific tree, and survive restart. Hosts without application-home storage cannot enroll roots. `getSetup` works before source admission; an unenrolled owner can connect to setup notifications without reading scientific sources. The Workspace registry remains the path authority; browser requests never supply filesystem roots.
 
@@ -23,7 +37,7 @@ Operators can still configure `roots: [{ path: <absolute root>, writable: false 
 
 Use the local [scratch overlay](../../../apps/cli/config/aitp-memory.cordis.patch.yml) with `AITP_RESEARCH_ROOT` set to a disposable copy and, for writing, `AITP_RESEARCH_STATE` outside that copy. The optional `AITP_RESEARCH_WRITE=1` enables writing. The overlay does not choose or copy any real research directory. It disables the synthetic fixture provider. Deployment must mount the normal Session query/persistence services to restore previous conversations; absent services produce explicit omissions.
 
-After building, start the ordinary AITP launcher from the repository root and register the same directory as a Workspace in the UI:
+For the current fork-based composition, build and use its transitional launcher, then register the same directory as a Workspace in the UI. This command is not an independent plugin installation into unmodified DSH:
 
 ```sh
 AITP_RESEARCH_ROOT=/absolute/path/to/scratch-research \
@@ -31,12 +45,20 @@ AITP_RESEARCH_ROOT=/absolute/path/to/scratch-research \
   --patch apps/cli/config/aitp-memory.cordis.patch.yml --no-open
 ```
 
+For an independently generated DSH release artifact, use the packed workbench rather than its staging directory:
+
+```sh
+dsh plugin --profile <name> add /path/to/dsh-aitp-research-<version>.tgz
+```
+
+The artifact bundles AITP's private owners but intentionally resolves DSH/Cordis services from the host. Release `0.1.1` targets DSH `0.2.1-rc.5`; isolated installation and Web-host startup succeeded, while the RC5 schema projection emitted DSH loader diagnostics and the Desktop profile's peer check reported missing host packages. Plugin mounting in the exact RC5 UI remains unverified, so this is not yet an accepted RC5 support claim. A local staging directory remains a maintainer surface and must install its own dependencies first; it is not the user-facing one-command route. Publishing a public artifact location and browser acceptance remain separate release work.
+
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `roots` | `[]` | Explicit source access; no filesystem discovery outside these roots |
-| `maxFiles` | 2000 | Discovery-entry and retained selected-source bounds; discovery counts directories |
+| `maxFiles` | 2000 | Separate account-read and direct-child-directory probe bounds; also bounds retained selected-account observations |
 | `watchSources` | `true` | Set to `false` to avoid recursive watches; each read rescans and external changes require refresh |
-| `watchMode` | `recursive` | `bounded` watches discovered directories and parents of opened sources without recursive traversal; discovery limits still apply |
+| `watchMode` | `bounded` | `bounded` watches discovered directories and parents of opened sources without recursive traversal; discovery limits still apply |
 | `maxFileBytes` | 1048576 | Complete account/source read bound; material link appends keep accounts within this bound |
 | `maxMaterialBytes` | 33554432 | Complete bytes accepted for a new text/code/result file or imported PDF; reader-specific limits still apply |
 | `automaticResearch` | true | Automatic context and default Research admission; false keeps explicit reads and history |
@@ -136,3 +158,5 @@ Tool calls and results append to the conversation. Changed tool registration or 
 - Selected-source admission supplements the initial bounded scan; it does not eliminate that scan or complete the inventory. Named accounts require an observed explicit relationship, and unknown incoming links can prevent unique parent or material-owner resolution. Missing files and existing but unrecognized accounts remain distinct failures. [Mechanism evidence](../../../agent/notes/harness-integration.md#research-behavior-comparison) retains the tested settings and access controls.
 - UI question drafts are local to the current view. Question submission has no durable request deduplication; after an uncertain network result, inspect the normal Session list before submitting again. Scratch apply retries do have durable operation identities.
 - Tests with deterministic model substitutes establish delivery, replay and IO behavior. The bounded real-model copy trial is recorded separately; neither establishes generally better scientific judgment, provider reliability or measured token/model-latency improvements.
+
+Explicit prose self-parent navigation is recognized alongside named parent links, including the portable note template. Related dependencies, later higher-level references, negations, conditions and quoted statements do not establish parenthood; directory nesting alone remains insufficient.

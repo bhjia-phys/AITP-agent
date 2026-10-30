@@ -1,5 +1,5 @@
 /** Service admission checks; the Loader suite covers the production composition. */
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -89,6 +89,32 @@ async function fixture(readContextFirst = false, writable = false) {
   return { service, ctx, path, create, model, loop }
 }
 
+it('prepares native source context without inventing a question or submitting a model turn', async () => {
+  const { service, ctx, model } = await fixture()
+  const result = await service.prepareDiscussion({ workspaceId, topicId: topicIdForPath('a/research.md'),
+    question: 'Keep my exact native question.' }, signal())
+  expect(result.ok).toBe(true)
+  if (!result.ok) throw new Error(result.error.message)
+  expect(model.requests).toHaveLength(0)
+  const agent = ctx.agents.get(result.value.sessionId)
+  if (agent === undefined) throw new Error('Prepared native Session is unavailable')
+  const selected = await service.getSessionMemory({ sessionId: result.value.sessionId }, signal())
+  expect(selected.ok && selected.value?.researcher.length).toBe(0)
+  agent.followup(createUserMessage({ source: { kind: 'user' },
+    content: [{ type: 'text', text: 'Keep my exact native question.' }] }))
+  await agent.whenIdle()
+  expect(model.requests).toHaveLength(1)
+  const request = JSON.stringify(model.requests[0])
+  expect(request).toContain('Finite systems only.')
+  expect(request).toContain('Keep my exact native question.')
+  const events = agent.session.snapshotEvents().filter(event => event.type === 'user/message')
+  expect(events.filter(event => event.data.source.kind === 'user')).toHaveLength(1)
+  const recovered = await service.getSessionMemory({ sessionId: result.value.sessionId }, signal())
+  expect(recovered.ok && recovered.value?.researcher.length).toBe(1)
+  expect(await service.prepareDiscussion({ workspaceId, sessionId: agent.id,
+    topicId: topicIdForPath('b/research.md'), question: 'Change scope?' }, signal())).toMatchObject({ ok: false })
+})
+
 it('rejects unresolved and ambiguous locations before creating a Session, and sends the resolved original to the actual request', async () => {
   const { service, ctx, create, model } = await fixture()
   const shared = resourceIdForPath('shared.md')
@@ -139,9 +165,28 @@ it('supports project-root questions, cancels before admission, and names its wor
   await ctx.agents.get(result.value.sessionId)!.whenIdle()
   expect(JSON.stringify(model.requests.at(-1))).toContain('Global question.')
   for (const method of remoteMethods(service)) {
-    if (method.method === 'getSessionMemory') expect(method.resources?.['session']?.({ sessionId: result.value.sessionId })).toBe(result.value.sessionId)
+    if (method.method === 'getSessionMemory' || method.method === 'setResearchMode') {
+      expect(method.resources?.['session']?.({ sessionId: result.value.sessionId })).toBe(result.value.sessionId)
+    }
     else expect(method.resources?.['workspace']?.({ workspaceId })).toBe(workspaceId)
   }
+})
+
+it('delivers an existing family map to the normal model context without a new-project prompt', async () => {
+  const { service, ctx, path, model } = await fixture()
+  await rm(join(path, 'research.md'))
+  await writeFile(join(path, 'README.md'), '# Independent family\n\nEach direction retains its own evidence.\n\n## Topics\n[A](a/research.md)\n[B](b/research.md)\n')
+  const result = await service.ask({ workspaceId, question: 'Recover the existing directions.' }, signal())
+  if (!result.ok) throw new Error(result.error.message)
+  await ctx.agents.get(result.value.sessionId)!.whenIdle()
+  const context = JSON.stringify(model.requests.at(-1)?.messages.filter(message => message.role === 'user' && message.source?.kind === 'runtime-context'))
+  expect(context).toContain('Independent family')
+  expect(context).toContain('Each direction retains its own evidence.')
+  expect(context).toContain('Research family folder map')
+  expect(await service.getSessionMemory({ sessionId: result.value.sessionId }, signal())).toMatchObject({
+    ok: true, value: { researchLocation: { initializing: false, title: 'Independent family' } },
+  })
+  await expect(readFile(join(path, 'research.md'))).rejects.toMatchObject({ code: 'ENOENT' })
 })
 
 it('reads memory from a persisted cold Session without creating an Agent, and keeps ordinary Sessions empty', async () => {

@@ -3,6 +3,7 @@
 - id: 3ca64c93
   name: cordis:resources
   config:
+    workspaceRootsInCatalog: false
     roots:
       - id: knowledge
         path: !!js process.cwd() + '/knowledge'

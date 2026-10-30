@@ -277,6 +277,21 @@ it('shows missing connection and partial coverage instead of manufacturing an em
   expect(screen.queryByText(en.empty)).toBeNull()
 })
 
+it('shows project-owned materials without mixing in child or global sources', async () => {
+  const scope = { workspaceId: 'project' as WorkspaceId, title: 'Research programme' }
+  const { store, face } = await panel({}, {
+    [MATERIAL_ROOTS]: live([{ id: 'knowledge', title: 'Knowledge', displayPath: '/k', domains: ['knowledge'] }]),
+    [materialListAddress({ domain: 'knowledge' })]: live(page),
+    [materialListAddress({ domain: 'knowledge', topic: scope })]: live({ ...page, items: [second] }),
+  })
+  act(() => { store.actions.setScope(scope) })
+  expect(screen.getByText('Current project: Research programme')).toBeDefined()
+  expect(screen.getByRole('checkbox', { name: 'Use “已有推导” for this question' })).toBeDefined()
+  expect(screen.queryByRole('checkbox', { name: 'Use “文献中的归一化” for this question' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: en.returnProject }))
+  expect(face.returnTo).toHaveBeenCalledOnce()
+})
+
 it.each(['complete', 'partial'] as const)('broadens %s topic results without changing the question, selections or return route', async (completeness) => {
   const scope = { workspaceId: 'trial' as WorkspaceId, topicId: 'response' as SourceTopicId, title: 'Response partition' }
   const { store, face } = await panel({}, {
@@ -595,6 +610,20 @@ it('shows the available code roots without requesting a whole-code catalog on fi
   })
   expect(view.props.useResource).not.toHaveBeenCalledWith(materialListAddress({ domain: 'code' }))
   expect(view.props.renderFactorySlot).toHaveBeenCalledWith('aitp.materials.catalog', expect.objectContaining({ domain: 'code', items: [], roots }))
+})
+
+it('shows explicit topic materials from a workspace grant without exposing that workspace as a global library', async () => {
+  const workspaceId = 'research-folder' as WorkspaceId
+  const topicId = 'branch-topic' as SourceTopicId
+  const query = materialListAddress({ domain: 'knowledge', topic: { workspaceId, topicId } })
+  const view = await panel({}, {
+    [MATERIAL_ROOTS]: live([{ id: 'papers', title: 'Research files', displayPath: '/research', workspaceId, domains: [] }]),
+    [query]: live(page),
+  })
+  expect(view.props.renderFactorySlot).not.toHaveBeenCalledWith('aitp.materials.catalog', expect.objectContaining({ items: page.items }))
+  act(() => { view.store.actions.setScope({ workspaceId, topicId }) })
+  expect(view.props.useResource).toHaveBeenCalledWith(query)
+  expect(view.props.renderFactorySlot).toHaveBeenCalledWith('aitp.materials.catalog', expect.objectContaining({ items: page.items }))
 })
 
 it('browses an explicitly opened collection without changing the question topic or selecting all its sources', async () => {

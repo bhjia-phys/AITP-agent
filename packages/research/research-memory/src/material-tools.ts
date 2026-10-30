@@ -5,6 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { ToolExecution } from '@deepseek-ai/dsh-tools'
+import type { Session } from '@deepseek-ai/dsh-session'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SourceId, SourceRootId } from '@deepseek-ai/dsh-research-resources/types'
 import type {} from '@deepseek-ai/dsh-sandbox-policy'
@@ -12,6 +13,7 @@ import type {} from '@deepseek-ai/dsh-session-projection'
 import type {} from './material-service.ts'
 import type { MaterialAssociation, MaterialWriteReceipt } from './material-types.ts'
 import type { Result, TopicId } from './types.ts'
+import type { ResearchWorkingState } from './working-types.ts'
 import { resourceIdForPath } from './markdown-files.ts'
 
 const associationParameter = { type: 'object' as const, additionalProperties: false as const,
@@ -64,14 +66,18 @@ function reserveOutput(operationId: string, relativePath: string, association: M
  * @param options - complete serialized output bound; at least 1024 characters.
  * @returns disposer for all material tool registrations.
  */
-export function installMaterialTools(ctx: Context, options: { readonly maxResultCharacters: number }): () => void {
+export function installMaterialTools(ctx: Context, options: {
+  readonly maxResultCharacters: number
+  /** Resolves plugin-owned standard-DSH source bindings without writing a Session event. */
+  readonly stateFor?: (session: Session) => ResearchWorkingState
+}): () => void {
   const maximum = options.maxResultCharacters
   if (!Number.isSafeInteger(maximum) || maximum < 1024) throw new Error('Material tool results require maxResultCharacters of at least 1024.')
   const active = (exec: ToolExecution) => {
     exec.signal.throwIfAborted()
     const agent = exec.agent
     if (agent === undefined) throw new Error('Material tools require an active research conversation.')
-    const state = ctx.sessionProjections.stateOf(agent.session, 'researchWorking')
+    const state = options.stateFor?.(agent.session) ?? ctx.sessionProjections.stateOf(agent.session, 'researchWorking')
     const origin = state?.origin
     if (!state?.ownerOrigin || state.restricted || origin === null || origin === undefined
       || agent.session.header.parentSession !== undefined || agent.session.header.origin === 'subagent') {

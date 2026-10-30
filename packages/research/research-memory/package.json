@@ -34,7 +34,8 @@
     "mdast-util-gfm": "^3.1.0",
     "mdast-util-math": "^3.0.0",
     "micromark-extension-gfm": "^3.0.0",
-    "micromark-extension-math": "^3.1.0"
+    "micromark-extension-math": "^3.1.0",
+    "@deepseek-ai/dsh-util-markdown-math": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~",
@@ -52,6 +53,7 @@
     "@deepseek-ai/dsh-sandbox-policy": "workspace:*",
     "@deepseek-ai/dsh-session-query": "workspace:*",
     "@deepseek-ai/dsh-session-persistence": "workspace:*",
+    "@deepseek-ai/dsh-storage-domain": "workspace:*",
     "@deepseek-ai/dsh-research-resources": "workspace:*"
   },
   "devDependencies": {
@@ -81,6 +83,7 @@
     "@deepseek-ai/dsh-session-query": "workspace:*",
     "@deepseek-ai/dsh-typert-registry": "workspace:*",
     "@deepseek-ai/dsh-session-persistence": "workspace:*",
+    "@deepseek-ai/dsh-storage-domain": "workspace:*",
     "@deepseek-ai/dsh-tool-ask-user": "workspace:*",
     "@deepseek-ai/dsh-research-resources": "workspace:*"
   },

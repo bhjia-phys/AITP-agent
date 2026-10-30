@@ -88,6 +88,7 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/client/ui-agent-preset': { kind: 'indirect', reason: 'Browser-side settings row; the preset it selects owns every model-facing effect.' },
   'packages/util/crypto': { kind: 'indirect', reason: 'Pure identifier minting; the ids consumers mint with it never enter prompts as semantic content.' },
   'packages/util/deque': { kind: 'none', reason: 'In-process collection primitive; registers nothing model-facing.' },
+  'packages/util/markdown-math': { kind: 'indirect', reason: 'Shared math syntax supports source-link and selection consumers but contributes no prompt or tools of its own.' },
   'packages/deliverables/workspace-changes': { kind: 'none', reason: 'The recorder appends a log-only Session event that only clients read; it registers nothing model-facing.' },
   'packages/util/chunked-list': { kind: 'none', reason: 'Immutable collection primitive; registers nothing model-facing.' },
   'packages/util/package-manifest': { kind: 'none', reason: 'Type declarations only; registers nothing model-facing.' },

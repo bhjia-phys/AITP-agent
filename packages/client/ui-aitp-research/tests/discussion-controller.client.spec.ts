@@ -83,6 +83,28 @@ function request(id: SessionId): SessionPromptRequest {
 }
 
 describe('reading-side discussions', () => {
+  it('prepares sources and a native draft without registering another submission transport', async () => {
+    const fixture = await setup()
+    const prepare = vi.fn(async () => fixture.create())
+    fixture.runtime.ctx.reflect.provide('researchNativePreparation', { prepare })
+    try {
+      await fixture.controller.open(scope, { resourceId: 'source:first' }, 'Exact native draft')
+      const first = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+      expect(fixture.openSession).toHaveBeenLastCalledWith(first)
+      expect(fixture.draft(first).snapshot.draft).toBe('Exact native draft')
+      expect(fixture.conversation.submissions.capture(first)).toBeUndefined()
+      expect(fixture.ask).not.toHaveBeenCalled()
+      fixture.controller.setReadingSource(scope, { resourceId: 'source:second' })
+      expect(fixture.controller.sessionViews.getSnapshot()[first]?.origin.resourceId).toBe('source:first')
+      await fixture.controller.open(scope, { resourceId: 'source:second' })
+      const second = discussionView(fixture.controller.views.getSnapshot(), scope).reference!.sessionId
+      expect(second).not.toBe(first)
+      expect(prepare).toHaveBeenCalledTimes(2)
+      expect(fixture.controller.sessionViews.getSnapshot()[first]?.origin.resourceId).toBe('source:first')
+      await fixture.controller.returnSessionToReading(second)
+      expect(fixture.selectPanel).toHaveBeenLastCalledWith('aitp-research')
+    } finally { await fixture.controller.dispose() }
+  })
   it('keeps an opened reading draft’s initial Research choice before its first message', async () => {
     localStorage.removeItem('aitp.research.workflow.v1')
     const choices = createWorkflowStore().create()

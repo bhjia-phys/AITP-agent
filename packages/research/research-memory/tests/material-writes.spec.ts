@@ -263,3 +263,19 @@ it('resolves the actual fourth-level account without synthesizing a root-relativ
   expect(value(await resolveMaterialTopic(f.reader))).toMatchObject({ accountPath: 'research.md', directory: '' })
   expect(await resolveMaterialTopic(f.reader, topicIdForPath('missing/research.md'))).toMatchObject({ ok: false })
 })
+
+it('associates a shared family resource with its existing README map', async () => {
+  const f = await fixture()
+  await rm(join(f.root, 'research.md'))
+  await mkdir(join(f.root, 'direction'))
+  await writeFile(join(f.root, 'direction/research.md'), '# One independent question\n')
+  await writeFile(join(f.root, 'README.md'), '# Family map\n\n## Topics\n[Direction](direction/research.md)\n')
+  const location = value(await resolveMaterialTopic(f.reader))
+  expect(location).toMatchObject({ accountPath: 'README.md', directory: '' })
+  const receipt = value(await f.writer.save({ operationId: 'family-reference', relativePath: 'notes/reading.md',
+    content: { kind: 'text', text: '# Shared reading\nA source summary, not a joint conclusion.\n' },
+    association: { accountPath: location.accountPath, title: 'Shared source reading' } }))
+  expect(receipt.association.state).toBe('linked')
+  expect(await readFile(join(f.root, 'README.md'), 'utf8')).toContain('notes/reading.md')
+  expect(await readdir(f.root)).not.toContain('research.md')
+})

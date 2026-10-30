@@ -2,7 +2,7 @@
 import { watch, type FSWatcher } from 'node:fs'
 import { realpath, stat } from 'node:fs/promises'
 import { EventEmitter, on } from 'node:events'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -24,7 +24,7 @@ import type {
   ResourceBody, ResourceBytes, ResourceDomain, ResourceEvent, ResourceIssue, ResourcePage, ResourceProvider,
   ResourceQuery, ResourceReadRequest, ResourceReading, ResourceResult, ResourceSummary, SourceLocator, SourceProviderContext,
   SourceRef, SourceRoot, SourceRootId, SourceRootLease, SourceRootRegistration, StudyHandler, StudyReceipt, StudyRequest,
-  TopicAssociationProvider,
+  TopicAssociation, TopicAssociationProvider,
   ResourceSetup, RootConnection, SourceSet, SourceSetId, SourceSetQuery, SourceSetPage,
   SaveSourceSetRequest, RemoveSourceSetRequest, SourceSetReceipt,
   SourceBodyQuery, SourceBodySearch, SourceBodyHit,
@@ -146,10 +146,10 @@ export class ResearchResources extends TypertRemoteService {
   static Config: z<Config, ResolvedConfig> = z.object({
     roots: z.array(z.object({ id: z.string().required(), path: z.string().required(), title: z.string(),
       workspaceId: z.string(), domains: (z.array(z.union(['knowledge', 'literature', 'code'])) as z<ResourceDomain[] | undefined>).default(undefined) })).default([]),
-    workspaceRootsInCatalog: z.boolean().default(true),
+    workspaceRootsInCatalog: z.boolean().default(false),
     maxFiles: z.natural().min(1).default(2000),
     watchSources: z.boolean().default(true),
-    watchMode: (z.union(['recursive', 'bounded']) as z<'recursive' | 'bounded'>).default('recursive'),
+    watchMode: (z.union(['recursive', 'bounded']) as z<'recursive' | 'bounded'>).default('bounded'),
     maxFileBytes: z.natural().min(1).default(1_048_576),
     maxSearchBytes: z.natural().min(1).default(8_388_608),
     maxBinaryBytes: z.natural().min(1).default(20_971_520),
@@ -537,8 +537,13 @@ export class ResearchResources extends TypertRemoteService {
       }
       const pageDigits = /\.pdf$/i.test(path) ? /^page=(\d+)$/.exec(anchor ?? '')?.[1] : undefined
       const page = pageDigits === undefined ? undefined : Number(pageDigits)
+      const lines = /\.(?:md|markdown|pdf)$/i.test(path) ? null : /^L(\d+)(?:-L?(\d+))?$/.exec(anchor ?? '')
+      const startLine = Number(lines?.[1])
+      const endLine = Number(lines?.[2] ?? lines?.[1])
       const locator: SourceLocator | undefined = page !== undefined && Number.isSafeInteger(page) && page > 0
-        ? { kind: 'pdf-page', page } : anchor ? { kind: 'anchor', anchor } : undefined
+        ? { kind: 'pdf-page', page } : lines !== null && Number.isSafeInteger(startLine) && Number.isSafeInteger(endLine)
+          && startLine > 0 && endLine >= startLine ? { kind: 'code', startLine, endLine }
+          : anchor ? { kind: 'anchor', anchor } : undefined
       return { ref: { rootId: target.id, sourceId: sourceIdForPath(path) },
         ...(locator === undefined ? {} : { locator }) }
     } catch (error) {
@@ -799,7 +804,7 @@ export class ResearchResources extends TypertRemoteService {
     })
   }
 
-  private async catalog(signal: AbortSignal, selection?: Pick<ResourceQuery, 'domain' | 'rootId'>): Promise<{
+  private async catalog(signal: AbortSignal, selection?: Pick<ResourceQuery, 'domain' | 'rootId' | 'topic'> & { ref?: SourceRef }): Promise<{
     items: ResourceSummary[]
     issues: ResourceIssue[]
     observedAt: string
@@ -807,6 +812,7 @@ export class ResearchResources extends TypertRemoteService {
     snapshots: ReadonlyMap<RootEntry, CatalogSnapshot>
   }> {
     const items: ResourceSummary[] = []
+    const observedProviders = new Map(this.providers)
     const selectedRoot = selection?.rootId === undefined ? undefined : this.roots.get(selection.rootId)
     if (selection?.rootId !== undefined && selectedRoot === undefined) throw new SourceError('permission-denied', 'The requested catalog root is not registered.')
     const issues: ResourceIssue[] = this.startupIssues.filter(issue => selectedRoot === undefined
@@ -826,6 +832,16 @@ export class ResearchResources extends TypertRemoteService {
     const needsDomainProjection = selection?.domain !== undefined && [...this.providers.values()]
       .some(provider => provider.domain === selection.domain && provider.projectCatalog !== undefined)
     for (const { root, metadata } of authorized) {
+      // Opening one known file must not start a whole-workspace scan. Reuse a current
+      // catalog observation when present; otherwise the exact-file providers below
+      // supply its domain metadata without discovering its siblings.
+      if (selection?.ref !== undefined) {
+        if (root.snapshot !== undefined && !root.dirty && root.watcher !== undefined) {
+          snapshots.set(root, root.snapshot)
+          items.push(...root.snapshot.items)
+        }
+        continue
+      }
       if (selectedRoot !== undefined && root !== selectedRoot && !needsDomainProjection) continue
       if (metadata.domains?.length === 0 || selection?.domain !== undefined
         && metadata.domains !== undefined && !metadata.domains.includes(selection.domain)) continue
@@ -842,37 +858,109 @@ export class ResearchResources extends TypertRemoteService {
       }
     }
     const authorizedRoots = new Set(authorized.map(entry => entry.root))
-    const sourceEntries = new Map<string, number[]>()
-    for (const [index, item] of items.entries()) {
-      const key = JSON.stringify([item.ref.rootId, item.ref.sourceId])
-      const indices = sourceEntries.get(key) ?? []
-      indices.push(index)
-      sourceEntries.set(key, indices)
-    }
+    const contributions: {
+      provider: TopicAssociationProvider
+      relationships: readonly { ref: SourceRef; topic: TopicAssociation }[]
+    }[] = []
     for (const contributor of this.topicAssociations.values()) {
       const reported: ResourceIssue[] = []
       try {
         const relationships = await contributor.read(signal, (issue) => { reported.push({ ...issue, providerId: contributor.id }) })
         if (this.topicAssociations.get(contributor.id) !== contributor) continue
         issues.push(...reported)
-        for (const relationship of relationships) {
-          const root = this.roots.get(relationship.ref.rootId)
-          if (root === undefined || !authorizedRoots.has(root)) continue
-          for (const index of sourceEntries.get(JSON.stringify([root.id, relationship.ref.sourceId])) ?? []) {
-            const item = items[index]
-            if (item === undefined) continue
-            const topic = relationship.topic
-            if (item.topics.some(current => current.workspaceId === topic.workspaceId && current.topicId === topic.topicId
-              && current.reason === topic.reason)) continue
-            items[index] = { ...item, topics: [...item.topics, topic] }
-          }
-        }
+        contributions.push({ provider: contributor, relationships })
       } catch (error) {
         signal.throwIfAborted()
         if (this.topicAssociations.get(contributor.id) === contributor) {
           issues.push(...reported, { providerId: contributor.id, reason: sourceFailure(error).message })
         }
       }
+    }
+    if (selection?.topic !== undefined || selection?.ref !== undefined) {
+      const references = selection.ref === undefined ? contributions.filter(contribution =>
+        this.topicAssociations.get(contribution.provider.id) === contribution.provider).flatMap(contribution => contribution.relationships
+        .filter(relationship => relationship.topic.workspaceId === selection.topic?.workspaceId
+          && relationship.topic.topicId === selection.topic.topicId).map(relationship => relationship.ref)) : [selection.ref]
+      const selected = new Map<RootEntry, Set<string>>()
+      const seen = new Set<string>()
+      for (const ref of references) {
+        const root = this.roots.get(ref.rootId)
+        const key = JSON.stringify([root?.id ?? ref.rootId, ref.sourceId])
+        if (seen.has(key)) continue
+        if (seen.size >= this.config.maxCatalogEntries) {
+          issues.push({ reason: 'The explicit topic-source limit was reached; further linked materials remain undisplayed.' })
+          break
+        }
+        seen.add(key)
+        if (root === undefined || !authorizedRoots.has(root)) {
+          issues.push({ ref, reason: 'The explicitly linked source has no current authorized root.' })
+          continue
+        }
+        if (!ref.sourceId.startsWith('source:')) continue
+        try {
+          const path = pathForSourceId(ref.sourceId)
+          if (!await root.files.discoverable(path, signal)) {
+            issues.push({ rootId: root.id, ref, reason: 'The linked material is not an accessible regular file; directories are not expanded into this topic catalog.' })
+            continue
+          }
+          const paths = selected.get(root) ?? new Set<string>()
+          paths.add(path)
+          this.watchOpenedSource(root, path)
+          selected.set(root, paths)
+        } catch (error) {
+          signal.throwIfAborted()
+          issues.push({ rootId: root.id, ref, reason: sourceFailure(error).message })
+        }
+      }
+      for (const [root, paths] of selected) {
+        const sourceSignal = AbortSignal.any([signal, root.lifetime.signal])
+        let projectedCount = 0
+        for (const provider of [...this.providers.values()].sort((left, right) =>
+          Number(right.domain === selection.domain) - Number(left.domain === selection.domain))) {
+          const project = provider.projectSources?.bind(provider)
+            ?? (selection.ref === undefined ? undefined : provider.list.bind(provider))
+          if (project === undefined) continue
+          const missing = [...paths].filter(path => !items.some(item => item.providerId === provider.id
+            && item.ref.rootId === root.id && item.ref.sourceId === sourceIdForPath(path)))
+          if (missing.length === 0) continue
+          try {
+            const metadata = await this.authorizedMetadata(root, sourceSignal)
+            const context: SourceProviderContext = { root: metadata, rootPath: root.path, paths: missing, issues: [], partial: false,
+              observedAt: new Date().toISOString(), files: root.files,
+              resolveLink: (path, href) => this.resolveLink(root, path, href, linkRoots),
+              reportIssue: (path, reason) => { issues.push({ rootId: root.id, providerId: provider.id, path, reason }) } }
+            const projected = await this.waitFor(project(context, sourceSignal), sourceSignal)
+            sourceSignal.throwIfAborted()
+            if (this.providers.get(provider.id) !== provider) continue
+            let omitted = false
+            for (const item of projected) {
+              if (item.providerId !== provider.id || item.domain !== provider.domain || item.ref.rootId !== root.id
+                || !missing.some(path => sourceIdForPath(path) === item.ref.sourceId)) continue
+              if (projectedCount >= this.config.maxCatalogEntries) { omitted = true; break }
+              items.push({ ...item, catalogRootId: root.id })
+              projectedCount++
+            }
+            if (omitted) issues.push({ rootId: root.id, providerId: provider.id,
+              reason: 'The explicit-source projection limit was reached; further entries remain undisplayed.' })
+          } catch (error) {
+            signal.throwIfAborted()
+            issues.push({ rootId: root.id, providerId: provider.id, reason: sourceFailure(error).message })
+          }
+        }
+        for (const path of paths) {
+          if (selection.ref === undefined && !items.some(item =>
+            item.ref.rootId === root.id && item.ref.sourceId === sourceIdForPath(path))) {
+            issues.push({ rootId: root.id, path, reason: 'No connected library projects this explicitly linked file.' })
+          }
+        }
+      }
+    }
+    const sourceEntries = new Map<string, number[]>()
+    for (const [index, item] of items.entries()) {
+      const key = JSON.stringify([item.ref.rootId, item.ref.sourceId])
+      const indices = sourceEntries.get(key) ?? []
+      indices.push(index)
+      sourceEntries.set(key, indices)
     }
     if (this.state.supported) {
       try {
@@ -899,10 +987,25 @@ export class ResearchResources extends TypertRemoteService {
       try { await this.authorizedMetadata(root, signal); stillAuthorized.add(root) }
       catch (error) { signal.throwIfAborted(); issues.push({ rootId: root.id, reason: sourceFailure(error).message }) }
     }
+    for (const { provider, relationships } of contributions) {
+      if (this.topicAssociations.get(provider.id) !== provider) continue
+      for (const relationship of relationships) {
+        const root = this.roots.get(relationship.ref.rootId)
+        if (root === undefined || !authorizedRoots.has(root)) continue
+        for (const index of sourceEntries.get(JSON.stringify([root.id, relationship.ref.sourceId])) ?? []) {
+          const item = items[index]
+          if (item === undefined) continue
+          const topic = relationship.topic
+          if (!item.topics.some(current => current.workspaceId === topic.workspaceId && current.topicId === topic.topicId
+            && current.reason === topic.reason)) items[index] = { ...item, topics: [...item.topics, topic] }
+        }
+      }
+    }
     let current = items.filter((item) => {
       const sourceRoot = this.roots.get(item.ref.rootId)
       const catalogRoot = this.roots.get(item.catalogRootId ?? item.ref.rootId)
       return sourceRoot !== undefined && catalogRoot !== undefined && stillAuthorized.has(sourceRoot) && stillAuthorized.has(catalogRoot)
+        && observedProviders.has(item.providerId) && this.providers.get(item.providerId) === observedProviders.get(item.providerId)
     })
     for (const provider of this.providers.values()) {
       if (provider.projectCatalog === undefined || selection?.domain !== undefined && selection.domain !== provider.domain) continue
@@ -966,20 +1069,19 @@ export class ResearchResources extends TypertRemoteService {
     await this.authorizedMetadata(root, signal)
     if (root.watchFailure) issues.push({ rootId: root.id, reason: MATERIAL_WATCH_UNAVAILABLE })
     const key = JSON.stringify(['directory', root.id, folder, limit])
-    const observation = createHash('sha256').update(JSON.stringify([items, issues])).digest('base64url')
     let offset = 0
     if (request.cursor !== undefined) {
       if (request.cursor.length > this.config.maxQuestionCharacters * 4) throw new SourceError('invalid-request', 'The source page cursor exceeds its configured size bound.')
       let cursor: unknown
       try { cursor = JSON.parse(Buffer.from(request.cursor, 'base64url').toString()) }
       catch { throw new SourceError('invalid-request', 'The source page cursor is invalid.') }
-      if (!Array.isArray(cursor) || cursor.length !== 4 || cursor[0] !== this.revision || cursor[1] !== key || cursor[3] !== observation
+      if (!Array.isArray(cursor) || (cursor.length !== 3 && cursor.length !== 4) || cursor[0] !== this.revision || cursor[1] !== key
         || !Number.isSafeInteger(cursor[2]) || cursor[2] < 0) throw new SourceError('invalid-request', 'The source page cursor expired or belongs to another query.')
       offset = cursor[2] as number
     }
     const next = offset + limit
     return { items: items.slice(offset, next),
-      nextCursor: next < items.length ? Buffer.from(JSON.stringify([this.revision, key, next, observation])).toString('base64url') : null,
+      nextCursor: next < items.length ? Buffer.from(JSON.stringify([this.revision, key, next])).toString('base64url') : null,
       completeness: issues.length === 0 ? 'complete' : 'partial', issues, observedAt: context.observedAt }
   }
 
@@ -1181,7 +1283,7 @@ export class ResearchResources extends TypertRemoteService {
         throw new SourceError('invalid-request', 'The requested library does not match the specialized source location.')
       }
       const domain = request.domain ?? locatedDomain
-      const catalog = await this.catalog(observed, domain === undefined ? undefined : { domain })
+      const catalog = await this.catalog(observed, { ref: reference, ...(domain === undefined ? {} : { domain }) })
       const projections = catalog.items.filter(item => sameReference(item.ref, reference)
         && (domain === undefined || item.domain === domain))
       const existing = projections.find(item => request.locator === undefined
@@ -1204,7 +1306,11 @@ export class ResearchResources extends TypertRemoteService {
         }
         if (!revisionRead) this.watchOpenedSource(root, sourcePath)
       }
-      const snapshot = catalog.snapshots.get(root) ?? await this.snapshot(root, observed, undefined, catalog.roots)
+      const context: SourceProviderContext = catalog.snapshots.get(root)?.context ?? {
+        root: await this.authorizedMetadata(root, observed), rootPath: root.path, paths: [], issues: [], partial: false,
+        observedAt: new Date().toISOString(), files: root.files,
+        reportIssue: () => {}, resolveLink: (path, href) => this.resolveLink(root, path, href, catalog.roots),
+      }
       let body: ResourceBody | undefined
       const sourceSignal = AbortSignal.any([observed, root.lifetime.signal])
       const readingIssues: string[] = []
@@ -1213,8 +1319,8 @@ export class ResearchResources extends TypertRemoteService {
         .sort((left, right) => Number(right.id === existing?.providerId) - Number(left.id === existing?.providerId))
       let reader: ResourceProvider | undefined
       for (const provider of candidates) {
-        const context = { ...snapshot.context, reportIssue: (path: string, reason: string): void => { readingIssues.push(`${path}: ${reason}`) } }
-        body = await provider.read?.(context, reference, selectedLocator, sourceSignal)
+        const readingContext = { ...context, reportIssue: (path: string, reason: string): void => { readingIssues.push(`${path}: ${reason}`) } }
+        body = await provider.read?.(readingContext, reference, selectedLocator, sourceSignal)
         if (body !== undefined) { reader = provider; break }
       }
       let resource = existing
@@ -1276,7 +1382,7 @@ export class ResearchResources extends TypertRemoteService {
         const links = [...resource.links]
         const authoredLinks = [...document.links, ...document.images].sort((left, right) => left.start - right.start)
         for (const link of authoredLinks.slice(0, this.config.maxCatalogEntries)) {
-          const resolved = snapshot.context.resolveLink(sourcePath, link.href)
+          const resolved = context.resolveLink(sourcePath, link.href)
           const authored = { label: link.label, href: link.href, ...(resolved === undefined ? {} : {
             target: resolved.ref, ...(resolved.locator === undefined ? {} : { locator: resolved.locator }),
           }) }

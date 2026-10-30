@@ -334,6 +334,7 @@
     { "path": "./packages/util/values" },
     { "path": "./packages/util/workspace-path" },
     { "path": "./packages/util/code-language" },
+    { "path": "./packages/util/markdown-math" },
     { "path": "./packages/util/output-retention" },
     { "path": "./packages/util/atomic-write" },
     { "path": "./packages/attachment/attachment" },

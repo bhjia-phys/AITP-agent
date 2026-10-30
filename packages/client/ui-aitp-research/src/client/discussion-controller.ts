@@ -40,6 +40,7 @@ export interface DiscussionSessionView {
 export type DiscussionSessionViews = Readonly<Record<string, DiscussionSessionView>>
 /** Injected capabilities shared by the pane and a topic's discussion rows. */
 export interface DiscussionFace {
+  readonly boundSources?: boolean
   readonly hooks: {
     readonly discussionViews: ObservableSnapshot<DiscussionViews>
     readonly discussionSessions: ObservableSnapshot<DiscussionSessionViews>
@@ -144,6 +145,21 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     await task
   }
   async open(scope: ResearchDiscussionScope, origin?: ResearchOrigin, prompt?: string): Promise<void> {
+    const native = this.ctx.get('researchNativePreparation')
+    if (native !== undefined) {
+      await this.perform(scope, async () => {
+        const sessionId = await native.prepare(scope, sourceFor(scope, origin), this.lifetime.signal)
+        this.update(scope, { origin: sourceFor(scope, origin) })
+        await this.adopt(scope, sessionId, true)
+        const selected = this.selection(scope)
+        if (prompt !== undefined && selected !== undefined) {
+          const initialized = this.ctx.conversation.input.requestDraftInitialization(selected.reference.binding, { prompt })
+          if (initialized !== 'applied') this.ctx.conversation.input.for(selected.reference.binding.ctx).notify('info', this.t('draftPreserved'))
+        }
+        this.openFullDiscussion(scope)
+      })
+      return
+    }
     if (origin !== undefined) this.setSource(scope, origin)
     this.update(scope, { visible: true, native: false })
     await this.perform(scope, async () => {
@@ -203,6 +219,7 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     if (this.selection(owned.scope) === owned) this.returnToReading(owned.scope)
   }
   async newDiscussion(scope: ResearchDiscussionScope): Promise<void> {
+    if (this.ctx.get('researchNativePreparation') !== undefined) return this.open(scope)
     await this.perform(scope, async () => {
       this.lifetime.signal.throwIfAborted()
       const sessionId = await this.ctx.sessions.create(scope.workspaceId === undefined ? {} : { workspaceId: scope.workspaceId })
@@ -238,7 +255,6 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     }
     const result = await owned.reference.binding.session.rename(title)
     if (!result.ok) throw new Error(result.error.message)
-    // oxlint-disable-next-line typescript/no-unnecessary-condition -- unload may change this field while native rename awaits its reply.
     if (!this.disposed && scope.workspaceId !== undefined) this.workspaces.retry(scope.workspaceId)
   }
   private async adopt(scope: ResearchDiscussionScope, sessionId: SessionId, draft: boolean): Promise<void> {
@@ -250,8 +266,9 @@ export class ResearchDiscussionController implements ResearchDiscussions {
       this.workflowEnabled(sessionId)
       const reference = this.ctx.sessions.retain(sessionId, { source: 'researchDiscussion', signal: this.lifetime.signal })
       const initial = draft || previous.reference === undefined ? previous.origin : undefined
-      const releaseSubmission = this.ctx.conversation.submissions.register(sessionId, () => this.capture(sessionId))
-      const releaseNavigation = this.ctx.uiChatNavigation.register(sessionId, (address, params) => {
+      const releaseSubmission = this.ctx.get('researchNativePreparation') === undefined
+        ? this.ctx.conversation.submissions?.register(sessionId, () => this.capture(sessionId)) : undefined
+      const releaseNavigation = this.ctx.get('uiChatNavigation')?.register(sessionId, (address, params) => {
         const view = discussionView(this.views.getSnapshot(), scope)
         if ((!this.presentations.has(discussionScopeKey(scope)) && view.native !== true)
           || !view.visible || view.reference?.sessionId !== sessionId) return false
@@ -259,7 +276,7 @@ export class ResearchDiscussionController implements ResearchDiscussions {
         return true
       })
       owned = { scope: { ...scope }, reference, draft,
-        release: () => { releaseSubmission(); releaseNavigation(); reference.release() } }
+        release: () => { releaseSubmission?.(); releaseNavigation?.(); reference.release() } }
       this.owned.set(sessionId, owned)
       this.setSessionSource(owned, sourceFor(scope, initial))
     }
@@ -276,7 +293,7 @@ export class ResearchDiscussionController implements ResearchDiscussions {
     if (this.disposed) return
     const source = sourceFor(scope, origin)
     const selected = this.selection(scope)
-    if (selected !== undefined) this.setSessionSource(selected, source)
+    if (selected !== undefined && this.ctx.get('researchNativePreparation') === undefined) this.setSessionSource(selected, source)
     this.update(scope, { origin: source })
   }
   /**

@@ -15,6 +15,7 @@
 .title { border: 0; padding: 0; background: none; color: var(--dsw-alias-label-primary); font: inherit; font-weight: 500; text-align: left; cursor: pointer; overflow-wrap: anywhere; line-height: 1.6; min-height: 28px; }
 .title:focus-visible { outline: var(--dsw-focus-ring-width) solid var(--dsw-focus-ring-color); outline-offset: 3px; border-radius: var(--dsw-radius-sm); }
 .kind { display: block; color: var(--dsw-alias-label-secondary); font-size: 12px; margin: 4px 0 0 24px; }
+.path { display: block; color: var(--dsw-alias-label-secondary); font-size: 11px; margin: 4px 0 0 24px; overflow-wrap: anywhere; }
 .authors, .year, .coverage, .missing { color: var(--dsw-alias-label-secondary); }
 .header { margin-bottom: 20px; }
 .header h2 { margin: 8px 0 12px; font-family: inherit; font-weight: 500; font-size: 22px; line-height: 1.4; overflow-wrap: anywhere; }

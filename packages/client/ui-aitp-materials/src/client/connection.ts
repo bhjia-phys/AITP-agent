@@ -1,13 +1,19 @@
 /** One authenticated resource transport; framework resources own the observed source cache. */
 import { RemoteError, type RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
-import type { ResourceBytes, ResourceError, ResourcePage, ResourceQuery, ResourceReading, ResourceResult, ResourceSetup, RootConnection, SaveSourceSetRequest, RemoveSourceSetRequest, SourceLocator, SourceRef, SourceRoot, SourceSet, SourceSetId, SourceSetPage, SourceSetQuery, SourceSetReceipt, StudyReceipt, StudyRequest } from '@deepseek-ai/dsh-research-resources/types'
+import type {
+  ResourceBytes, ResourceError, ResourcePage, ResourceQuery, ResourceReading, ResourceResult, ResourceSetup,
+  RootConnection, SaveSourceSetRequest, RemoveSourceSetRequest, SourceLocator, SourceRef, SourceRoot, SourceSet,
+  SourceSetId, SourceSetPage, SourceSetQuery, SourceSetReceipt, StudyReceipt, StudyRequest,
+} from '@deepseek-ai/dsh-research-resources/types'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { ResourceDomain } from '@deepseek-ai/dsh-research-resources/types'
 
 /** Operational collections and existing-Workspace grants, never arbitrary filesystem writes. */
 export interface MaterialsManagementTransport {
   getSetup(signal: AbortSignal): Promise<ResourceResult<ResourceSetup>>
-  connectWorkspace(workspaceId: WorkspaceId, signal: AbortSignal): Promise<ResourceResult<RootConnection>>
+  connectWorkspace(
+    workspaceId: WorkspaceId, signal: AbortSignal, domains?: readonly ResourceDomain[],
+  ): Promise<ResourceResult<RootConnection>>
   disconnectWorkspace(workspaceId: WorkspaceId, signal: AbortSignal): Promise<ResourceResult<{ readonly disconnected: boolean }>>
   listSourceSets(query: SourceSetQuery, signal: AbortSignal): Promise<ResourceResult<SourceSetPage>>
   getSourceSet(id: SourceSetId, signal: AbortSignal): Promise<ResourceResult<SourceSet>>
@@ -137,7 +143,6 @@ export class MaterialsConnection {
       while (!signal.aborted) {
         if (!dirty) await new Promise<void>((resolve) => { wake = resolve })
         wake = undefined
-        // oxlint-disable-next-line typescript/no-unnecessary-condition -- AbortSignal can change while the iterator awaits its owner.
         if (signal.aborted) return
         dirty = false
         const observed = generation
@@ -160,7 +165,6 @@ export class MaterialsConnection {
           if (cancelled !== undefined) controller.signal.removeEventListener('abort', cancelled)
           if (active === controller) active = undefined
         }
-        // oxlint-disable-next-line typescript/no-unnecessary-condition -- Cancellation can occur during the awaited source read.
         if (signal.aborted) return
         if (observed !== generation || result === undefined) continue
         yield result.ok ? { ok: true, value: result.value } : failure(result.error)

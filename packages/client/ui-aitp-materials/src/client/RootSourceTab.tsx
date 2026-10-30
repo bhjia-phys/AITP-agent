@@ -9,7 +9,7 @@ import type { MaterialField, MaterialsScope } from './contracts.ts'
 import type { MaterialsStore } from './store.ts'
 import { materialSelectionKey, materialsScopeKey } from './store.ts'
 import type {} from './source-navigation.ts'
-import { MaterialUnavailable } from './MaterialsPanel.tsx'
+import { MaterialUnavailable } from './MaterialUnavailable.tsx'
 import css from './RootSourceTab.module.css'
 
 /** Reading actions stage explicit sources but never submit a message. */
@@ -24,12 +24,22 @@ export interface RootSourceTabFace {
 type SourceProps = PropsRuntime<'sidebar.right.root.tab'> & PropsRenderFactories & PropsLocale<'aitp.materials'>
   & PropsStore<MaterialsStore> & InjectFace<RootSourceTabFace>
 
+/** Source presentation shared by native main panels and root document tabs. */
+export type SourceReadingProps = Pick<SourceProps, 'useResource' | 'useStore' | 'actions'
+  | 't' | 'renderFactorySlot' | 'fields' | 'refresh' | 'openCollection' | 'discuss' | 'stage' | 'onOpen'>
+  & { readonly presentation?: 'page' | 'dock'; readonly navigation: Pick<SourceProps['navigation'], 'address' | 'params'> }
+
 /**
  * Keep the document mounted with its native tab while the catalogue and discussion change.
  * @param props - real source resource, retained root tab and explicit scientific scope.
  * @returns the native document presentation or its actual read failure.
  */
 export function RootSourceTab(props: SourceProps): ReactNode {
+  return <SourceReading {...props} />
+}
+
+/** @param props - located source, original scope and explicit reading actions. @returns the shared source reader. */
+export function SourceReading(props: SourceReadingProps): ReactNode {
   const [linkFailure, setLinkFailure] = useState(false)
   const reading = props.useResource<'aitp-material-source'>(props.navigation.address)
   const params = props.navigation.params
@@ -66,7 +76,7 @@ export function RootSourceTab(props: SourceProps): ReactNode {
       scope, source: { ref: value.resource.ref, title: value.resource.title }, onInspect: (ref) => { open({ ref }, true) },
     })}
     {props.renderFactorySlot('aitp.materials.reader', {
-      presentation: 'dock', reading: value, fields: props.fields(value.resource.domain),
+      presentation: props.presentation ?? 'dock', reading: value, fields: props.fields(value.resource.domain),
       ...context === undefined ? {} : { libraryDomain: context.libraryDomain },
       onNavigate: (selection) => { open(selection) },
       onLink: (link) => {

@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+当前交付目标是 **DSH 的 AITP 插件**，不再维护一个独立 agent 产品。本仓库的分叉和 `aitp-agent` 启动器是过渡运行与测试环境。可移植 Skills 已通过隔离环境中的原生 bundle 安装检查；完整工作台要安装到未修改的 DSH，还需要拆出宿主依赖。实际范围见[当前插件交付规划](docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution)。
+
 这是一个专注于理论物理科研与学习的 agent。我们的目的是借助 AI，更高效地探知真理：理解物理问题，检验已有认识，发现并纠正错误，逐步建立有依据的新认识。
 
 学习与科研是同一个探索过程：阅读原始文献、理解必要的基础、展开理论推导、通过计算检验想法，并在证据变化时修正结论。项目设计重视明确的假设、可追溯的来源、可复现的检验，以及对不确定性的如实表达。进展意味着对物理有了更清楚的认识，论证过程及其局限也能由他人检查。
@@ -36,7 +38,7 @@
 
 ## 仓库与分支
 
-公开地址保留为 [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent)。`main` 是集成与默认分支，以快进方式接纳 Harness 主线及原 AITP-agent 历史，不改写已有提交。原 Pi head（`4eaa9eaf44`）和 Harness 迁移历史仍可从 `main` 追溯；已合入的旧分支已清理，已有工作树目录保留原提交及未提交文件。官方 Harness 是 Git `upstream`；保留原地址不会自动改变 GitHub 的 fork 网络标识。
+公开地址保留为 [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent)。`main` 是集成与默认分支，以快进方式接纳 Harness 主线及原 AITP-agent 历史，不改写已有提交。原 Pi head（`4eaa9eaf44`）和 Harness 迁移历史仍可从 `main` 追溯；已合入的旧分支已清理，已有工作树目录保留原提交及未提交文件。此前发布的 `main`（`83438e9359`）另由 `main-before-plugin-update-2026-10-30` 分支保留。官方 Harness 是 Git `upstream`；保留原地址不会自动改变 GitHub 的 fork 网络标识。
 
 ```sh
 git clone --branch main --recurse-submodules https://github.com/bhjia-phys/AITP-agent.git

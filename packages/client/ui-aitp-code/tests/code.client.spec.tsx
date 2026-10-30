@@ -151,6 +151,15 @@ it('shows only checkouts with explicit topic associations in the topic-filtered 
   expect(output.view.queryByRole('button', { name: 'Unrelated' })).toBeNull()
 })
 
+it('explains an empty topic-filtered code library instead of rendering a blank repository pane', async () => {
+  const runtime = await setup()
+  const input: MaterialsCatalogInput = { domain: 'code', items: [], roots: [root], rootId: null,
+    folderPath: '', query: '', topicFiltered: true, selected: [], isSelected: () => false, disabled: false,
+    onRoot: vi.fn(), onFolder: vi.fn(), onOpen: vi.fn(), onSelect: vi.fn() }
+  const output = runtime.renderSlot('aitp.materials.catalog.body', input, { entryKey: 'code' })
+  expect(output.view.getByText(en.noTopicRepositories)).toBeTruthy()
+})
+
 it('renders an immediate directory entry as a folder instead of a source file', () => {
   const directory = { ...file('src'), metadata: { entryKind: 'source-folder' } }
   const listing = codeDirectory([directory, file('README.md')], '', false)

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Checkbox } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-aitp-materials/client'
+import { materialSourcePath } from '@deepseek-ai/dsh-research-resources/protocol'
 import { knowledgeKind, knowledgeFact } from './presentation.ts'
 import css from './Knowledge.module.css'
 
@@ -40,6 +41,7 @@ export function KnowledgeCatalog({ items, isSelected, disabled, onOpen, onSelect
             ...resource.locator === undefined ? {} : { locator: resource.locator } }) }}>{resource.title}</button>
           {resource.description !== undefined && resource.description !== resource.title
             && <p className={css.description} title={resource.description}>{resource.description}</p>}
+          <div className={css.path}>{materialSourcePath(resource.ref.sourceId)}</div>
           {provisional && <p className={css.provisional}>{t('provisionalStatus')}</p>}
           {facts && <details className={css.entryDetails}><summary>{t('entryDetails')}</summary>
             {resource.description !== undefined && resource.description.length > 180 && <p>{resource.description}</p>}

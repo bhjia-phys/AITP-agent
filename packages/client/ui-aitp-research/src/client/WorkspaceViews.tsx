@@ -100,9 +100,10 @@ export function WorkspaceReadingMeta({ t, read, stale, retry }: {
       {read.origin === 'fixture' && <p className={css.fixtureLabel}><strong>{t('workspace.fixture')}</strong> · {t('workspace.fixture.detail')}</p>}
       {stale && <Notice>{t('workspace.retained')} <button type="button" className={css.linkButton} onClick={retry}>{t('workspace.retry')}</button></Notice>}
       {manualUpdates && <Notice>{t('workspace.manualUpdates')} <button type="button" className={css.linkButton} onClick={retry}>{t('workspace.retry')}</button></Notice>}
-      {read.provider?.notice !== undefined && (manualUpdates
-        ? <details><summary>{t('workspace.updateDetails')}</summary><p>{read.provider.notice}</p></details>
-        : <Notice>{partialUpdates ? t('workspace.partialUpdates') : read.provider.notice}</Notice>)}
+      {read.provider?.notice !== undefined && (manualUpdates || partialUpdates
+        ? <details className={css.readingDetails}><summary>{t('workspace.updateDetails')}</summary>
+          <p className={css.diagnosticText}>{partialUpdates ? t('workspace.partialUpdates') : read.provider.notice}</p></details>
+        : <Notice>{read.provider.notice}</Notice>)}
     </div>
   )
 }

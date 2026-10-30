@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MarkdownWorkspace, pathForResourceId, resourceIdForPath, topicIdForPath } from '../src/markdown.ts'
+import { parseMarkdown } from '../src/markdown-model.ts'
 import type { Result, ResourceId } from '../src/types.ts'
 
 const roots: string[] = []
@@ -15,7 +16,11 @@ function value<T>(result: Result<T>): T {
 
 async function fixture(
   files: Record<string, string>,
-  bounds: Partial<{ maxFiles: number; maxFileBytes: number; maxContextCharacters: number }> = {},
+  bounds: Partial<{
+    maxFiles: number
+    maxFileBytes: number
+    maxContextCharacters: number
+    discoveryExcludedDirectories: readonly string[] }> = {},
 ) {
   const root = await mkdtemp(join(tmpdir(), 'research-markdown-'))
   roots.push(root)
@@ -35,6 +40,85 @@ const project = {
 }
 
 describe('MarkdownWorkspace source ownership', () => {
+  it.each(['research.md', 'README.md'])('keeps %s material uses at project scope without inventing a root topic', async (account) => {
+    const { workspace } = await fixture({
+      [account]: '# Programme\n## Topics\n[Branch](branch/research.md)\n## Materials\n[Shared proof](proof.md)\n',
+      'branch/research.md': '# Branch\n[Same proof](../proof.md)\n',
+      'proof.md': '# Proof\nOnly under the recorded conditions.\n',
+    })
+    const projectRead = value(await workspace.getProject()).value
+    expect(projectRead.accountResourceId).toBe(resourceIdForPath(account))
+    expect(value(await workspace.listTopics({})).value.items.map(item => item.value.id))
+      .toEqual([topicIdForPath('branch/research.md')])
+    expect(workspace.materialLinks().links.filter(link => link.href.endsWith('proof.md'))).toEqual([
+      expect.objectContaining({ accountPath: 'branch/research.md', topicId: topicIdForPath('branch/research.md') }),
+      expect.objectContaining({ accountPath: account, href: 'proof.md' }),
+    ])
+    expect(workspace.materialLinks().links.find(link => link.accountPath === account)?.topicId).toBeUndefined()
+    expect((await workspace.getTopic(topicIdForPath(account))).ok).toBe(false)
+  })
+
+  it('does not discover a fictional source from a mathematical functional', () => {
+    const text = String.raw`# Formula
+
+\(\mathcal F[H_0](k_i)\)
+
+\[
+\mathcal F[H_0](k_i)
+\]
+
+## Materials
+[Actual evidence](notes/evidence.md)
+`
+    const parsed = parseMarkdown('research.md', text)
+    expect(parsed.links.map(link => link.path)).toEqual(['notes/evidence.md'])
+    expect(parsed.authoredLinks.map(link => link.href)).toEqual(['notes/evidence.md'])
+  })
+
+  it('discovers the linked research backbone without spending its budget in an output tree', async () => {
+    const { workspace } = await fixture({
+      'README.md': '# Family\n[Independent question](z-question/research.md).\n',
+      'a-outputs/first.txt': 'raw evidence\n',
+      'a-outputs/second.txt': 'more evidence\n',
+      'z-question/research.md': '# Question\nA qualified question.\n## Branches\n[Control](deep/control/research.md).\n',
+      'z-question/deep/control/research.md': '# Control\nA finite control only.\n',
+    }, { maxFiles: 5 })
+    const page = value(await workspace.listTopics({})).value
+    expect(page.items.map(item => item.value.title)).toEqual(['Control', 'Question'])
+    expect(page.completeness).toBe('complete')
+    expect(value(await workspace.getTopic(topicIdForPath('z-question/deep/control/research.md'))).value.parentId)
+      .toBe(topicIdForPath('z-question/research.md'))
+  })
+
+  it('keeps excluded historical accounts readable without promoting them to current topics', async () => {
+    const archived = '# Old question\nA historical observation, not the current conclusion.\n'
+    const { workspace } = await fixture({
+      'research.md': '# Programme\n## Topics\n[Current](live/research.md)\n',
+      'live/research.md': '# Current\n[Original account](../history/research.md).\n',
+      'history/research.md': archived,
+      '.venv/library/research.md': '# Unrelated dependency\n',
+    }, { discoveryExcludedDirectories: ['history', '.venv'] })
+    expect(value(await workspace.listTopics({})).value.items.map(item => item.value.title)).toEqual(['Current'])
+    expect(value(await workspace.getResource(resourceIdForPath('history/research.md'))).value.content)
+      .toEqual({ kind: 'markdown', text: archived })
+    expect((await workspace.getTopic(topicIdForPath('history/research.md'))).ok).toBe(false)
+    expect(value(await workspace.listTopics({})).value.items.map(item => item.value.title)).toEqual(['Current'])
+  })
+
+  it('uses an existing family map without inventing a shared scientific account', async () => {
+    const { root, workspace } = await fixture({
+      'README.md': '# Shared-code family\nTwo independent questions share one implementation.\n## Topics\n[A](a/research.md)\n[B](b/research.md)\n',
+      'a/research.md': '# A\nQuestion A.\n', 'b/research.md': '# B\nQuestion B.\n',
+    })
+    const family = value(await workspace.getProject()).value
+    expect(family.title).toBe('Shared-code family')
+    expect(family.accountResourceId).toBe(resourceIdForPath('README.md'))
+    expect(family.directions).toEqual([])
+    const context = value(await workspace.readContext({ topicId: topicIdForPath('a/research.md') })).value
+    expect(context.entries.some(entry => entry.text.includes('Two independent questions'))).toBe(true)
+    await expect(readFile(join(root, 'research.md'))).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('shows explicitly curated materials without turning other citations into topic materials', async () => {
     const { workspace } = await fixture({
       'research.md': '# Project\n\n## Topics\n[Alpha](alpha/research.md)\n',
@@ -63,7 +147,9 @@ describe('MarkdownWorkspace source ownership', () => {
     const topic = value(await workspace.getTopic(topicIdForPath('alpha/research.md'))).value
     expect(topic.resources.find(resource => resource.id === resourceIdForPath('control/README.md'))?.title).toBe('Control run')
     expect(topic.resources.find(resource => resource.id === resourceIdForPath('missing/README.md'))?.title).toBe('Missing comparison')
-    expect(topic.resources.find(resource => resource.id === resourceIdForPath('named/README.md'))?.title).toBe('Actual scientific title')
+    expect(topic.resources.find(resource => resource.id === resourceIdForPath('named/README.md'))?.title).toBe('Named record')
+    expect(value(await workspace.getResource(resourceIdForPath('named/README.md'))).value.content)
+      .toEqual({ kind: 'markdown', text: '# Actual scientific title\n\nA report.\n' })
     expect((await workspace.getResource(resourceIdForPath('missing/README.md'))).ok).toBe(false)
   })
   it('uses only the authored root opening as the project summary without inferring relationship labels', async () => {
@@ -281,13 +367,13 @@ describe('MarkdownWorkspace current observations and bounds', () => {
     expect(tiny).toMatchObject({ ok: false, error: { code: 'invalid-request' } })
   })
 
-  it('bounds UTF-8 bytes, distinguishes exact discovery limits and reports excluded discovery', async () => {
+  it('bounds UTF-8 bytes and distinguishes exact account-discovery limits', async () => {
     const exact = await fixture({ 'research.md': '中文' }, { maxFiles: 1, maxFileBytes: 6 })
     expect(value(await exact.workspace.rebuild()).completeness).toBe('complete')
     expect(value(await exact.workspace.readSource(resourceIdForPath('research.md'))).text).toBe('中文')
     const exceeded = await fixture({ 'research.md': '中文多' }, { maxFiles: 1, maxFileBytes: 6 })
     expect(await exceeded.workspace.readSource(resourceIdForPath('research.md'))).toMatchObject({ ok: false, error: { code: 'unavailable' } })
-    const limited = await fixture({ 'a.md': 'a', 'b.md': 'b' }, { maxFiles: 1 })
+    const limited = await fixture({ 'a/research.md': 'a', 'b/research.md': 'b' }, { maxFiles: 1 })
     expect(value(await limited.workspace.rebuild()).completeness).toBe('partial')
   })
 
@@ -313,7 +399,7 @@ describe('MarkdownWorkspace current observations and bounds', () => {
     expect(await workspace.readSource(resourceIdForPath('escape-dir/secret.md'))).toMatchObject({ ok: false, error: { code: 'permission-denied' } })
     expect(await workspace.readSource('resource:..%2Fsecret.md' as ResourceId)).toMatchObject({ ok: false, error: { code: 'invalid-request' } })
     expect(() => pathForResourceId('resource:%ZZ' as ResourceId)).toThrow('invalid encoding')
-    expect(value(await workspace.rebuild()).issues.some(issue => issue.reason.includes('Symbolic links'))).toBe(true)
+    expect(value(await workspace.rebuild()).completeness).toBe('complete')
     await writeFile(join(root, 'alpha/research.md'), `${project['alpha/research.md']}\n[Outside](../escape.md)\n`)
     value(await workspace.refresh())
     const context = value(await workspace.readContext({ topicId: topicIdForPath('alpha/research.md'), include: ['resources'] })).value

@@ -33,6 +33,10 @@ Mount `@deepseek-ai/dsh-research-code` beside [shared research sources](../resea
 
 Code lines are one-based. Revision names resolve to actual commit IDs before source or committed-diff reads; the observed revision is retained with the result. Git views on a selected file remain restricted to that path, including when the locator omits a path; a different path is rejected. Select the checkout source explicitly to inspect a whole-checkout view. Working-tree and staged changes remain separate, and neither those diffs nor current status accept a historical revision they cannot use. History and committed diffs support explicit resolved revisions. Dirty paths have unknown Session attribution unless another record establishes it. Root registration grants reading, not code execution or mutation.
 
+A topic may explicitly link an implementation, input or saved result outside the discovered checkout catalog. The exact-file projection labels checkout state as uninspected and does not launch Git, execute code or traverse surrounding directories. Markdown explanations, paper artifacts and images stay with their own readers; selected JSON/CSV/array outputs remain data entries in this code view.
+
+A paper or thesis source archive in a general research root does not become computational code. Archives in explicitly classified code roots remain data entries at their original paths, with an unsupported inline-preview result; the reader does not unpack them or treat binary bytes as source text.
+
 ## Understand the implementation
 
 <details>

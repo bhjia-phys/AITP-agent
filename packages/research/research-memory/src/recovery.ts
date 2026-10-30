@@ -25,6 +25,16 @@ export interface SessionRecoveryConfig {
   maxRecoveryCharacters: number
 }
 
+/**
+ * Resolves state from the host's real Session plus any model-invisible routing
+ * data.  The optional seam keeps legacy projected sessions working while a
+ * standard DSH host keeps source selection outside its transcript.
+ */
+export interface SessionRecoveryStateResolver {
+  readonly live: (session: Session, proposed?: readonly UserMessage[]) => ResearchWorkingState
+  readonly observed: (header: SessionHeader, events: readonly SessionEvent[]) => ResearchWorkingState
+}
+
 function sameRoot(current: SessionHeader, candidate: SessionHeader): boolean {
   return current.cwd !== undefined && candidate.cwd !== undefined
     && resolve(current.cwd) === resolve(candidate.cwd)
@@ -49,15 +59,18 @@ function parseReference(value: string): { sessionId: SessionId; seq: number } | 
  * Keep historical reading separate from previous execution grants and task permissions.
  * @param ctx Harness context with the current research projection and an optional Session query provider.
  * @param config Relevant-history, projected-event and serialized-evidence bounds; incomplete coverage is reported explicitly.
+ * @param resolver Optional live-state resolver for bindings stored outside the native Session log.
  * @returns Recovery methods limited to the current human-selected root and topic, with cancellation on each read.
  */
-export function createSessionRecovery(ctx: Context, config: SessionRecoveryConfig): ResearchRecovery {
+export function createSessionRecovery(ctx: Context, config: SessionRecoveryConfig,
+  resolver?: SessionRecoveryStateResolver): ResearchRecovery {
   for (const key of ['maxRecoverySessions', 'maxRecoveryEvents', 'maxRecoveryCharacters'] as const) {
     if (!Number.isSafeInteger(config[key]) || config[key] <= 0) throw new Error(`research memory ${key} must be a positive safe integer`)
   }
   if (config.maxRecoveryCharacters < 256) throw new Error('Historical recovery needs at least 256 characters for its scope and omission report')
-  const history = new TopicHistoryIndex(ctx, config.maxRecoveryEvents)
+  const history = new TopicHistoryIndex(ctx, config.maxRecoveryEvents, resolver?.live)
   function currentState(current: Session, proposed: readonly UserMessage[] = []): ResearchWorkingState {
+    if (resolver !== undefined) return resolver.live(current, proposed)
     let state = ctx.sessionProjections.stateOf(current, 'researchWorking') ?? emptyWorkingState()
     for (const message of proposed) state = acceptHumanInput(state, message, -1)
     return state
@@ -159,7 +172,7 @@ export function createSessionRecovery(ctx: Context, config: SessionRecoveryConfi
           }
           eventsLeft -= observed.cursor + 1
           const events = observed.events
-          const state = events.reduce(applyWorkingEvent, emptyWorkingState())
+          const state = resolver?.observed(observed.header, events) ?? events.reduce(applyWorkingEvent, emptyWorkingState())
           history.remember(lookup, observed, state)
           if (!state.ownerOrigin || state.restricted) continue
           const entries = relevantEntries(record.header.id, events, state, origin)
@@ -205,7 +218,7 @@ export function createSessionRecovery(ctx: Context, config: SessionRecoveryConfi
       using observed = await query.observeSession(ref.sessionId, { ...(signal === undefined ? {} : { signal }), projectionMode: 'none' })
       if (!sameRoot(current.header, observed.header) || observed.cursor + 1 > config.maxRecoveryEvents) throw new Error('The referenced conversation cannot be inspected within this recovery scope and event bound')
       const events = observed.events
-      const state = events.reduce(applyWorkingEvent, emptyWorkingState())
+      const state = resolver?.observed(observed.header, events) ?? events.reduce(applyWorkingEvent, emptyWorkingState())
       if (!state.ownerOrigin || state.restricted) throw new Error('The referenced conversation is outside the allowed historical access scope')
       const entry = relevantEntries(ref.sessionId, events, state, origin).find(candidate => candidate.source.target === sourceId)
       if (entry === undefined) throw new Error('The referenced passage does not belong to this research direction')

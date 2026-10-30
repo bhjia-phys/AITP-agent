@@ -97,7 +97,7 @@ export interface ResearchWorkingState {
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
     /** Human input submitted from a specific research location; never a grant. */
-    'aitp-research': { kind: 'aitp-research'; actor: 'human'; origin: ResearchOrigin; modeSelection?: true }
+    'aitp-research': { kind: 'aitp-research'; actor: 'human'; origin: ResearchOrigin; modeSelection?: true; sourceSelection?: true }
   }
 }
 

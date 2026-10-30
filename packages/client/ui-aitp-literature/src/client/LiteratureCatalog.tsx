@@ -2,6 +2,7 @@
 import { Checkbox, ReferenceIconRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-aitp-materials/client'
+import { materialSourcePath } from '@deepseek-ai/dsh-research-resources/protocol'
 import css from './Literature.module.css'
 
 export type LiteratureCatalogProps = PropsRuntime<'aitp.materials.catalog.body'> & PropsLocale<'aitp.materials.literature'>
@@ -23,6 +24,7 @@ export function LiteratureCatalog({ items, isSelected, disabled, onOpen, onSelec
             <button type="button" className={css.title} onClick={() => { onOpen({ ref: resource.ref,
               ...resource.locator === undefined ? {} : { locator: resource.locator } }) }}>{resource.title}</button></div>
           {kind !== undefined && <span className={css.kind}>{kind}</span>}
+          <span className={css.path}>{materialSourcePath(resource.ref.sourceId)}</span>
           </td>
           <td className={css.authors} data-label={t('authors')}>{resource.metadata.authors ?? <span className={css.missing}>{t('notRecorded')}</span>}</td>
           <td className={css.year} data-label={t('year')}>{resource.metadata.year ?? <span className={css.missing}>{t('notRecorded')}</span>}</td>

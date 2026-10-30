@@ -310,7 +310,8 @@ function WorkspaceContent(props: ResearchPanelProps & {
               onPointerDown={rememberSelection} onClick={focusQuestion}>{props.t('workspace.ask.open')}</Button>}
           </div>
           {location.kind === 'map'
-            ? <ResearchMap {...props} focusId={location.focusId} navigate={navigate} openMaterialReference={openMaterialReference} />
+            ? <ResearchMap {...props} libraryNavigation={libraryNavigation}
+              focusId={location.focusId} navigate={navigate} openMaterialReference={openMaterialReference} />
             : location.kind === 'topic'
               ? <WorkspaceTopic key={location.topicId} {...props} topicId={location.topicId} navigate={navigate}
                 libraryNavigation={libraryNavigation} focusQuestion={focusQuestion} openMaterialReference={openMaterialReference} />

@@ -1,11 +1,13 @@
 /** Evidence discovery and located reads within admitted roots; human source selections remain distinct. */
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import type { Session } from '@deepseek-ai/dsh-session'
 import { brandString } from '@deepseek-ai/dsh-brand'
 import type { ResearchResources } from '@deepseek-ai/dsh-research-resources'
 import type { SourceId, SourceRootId } from '@deepseek-ai/dsh-research-resources/types'
 import { materialSourceAddress, parseMaterialLocator } from '@deepseek-ai/dsh-research-resources/protocol'
 import { resolveStudyPassages } from './study-context.ts'
+import type { ResearchWorkingState } from './working-types.ts'
 
 function boundedWindow(header: string, text: string, offset: number, bound: number): string {
   if (JSON.stringify({ text: header }).length > bound) throw new Error('The source locator exceeds the complete read-result bound; use a smaller location.')
@@ -23,10 +25,11 @@ function boundedWindow(header: string, text: string, offset: number, bound: numb
  * @param ctx - the research-memory lifetime and its existing tools/projection services.
  * @param resources - shared source authority and readers.
  * @param maxResultCharacters - complete serialized result bound, including source metadata.
+ * @param stateFor - Optional resolver for the Session's human-selected working state.
  * @returns disposer for this selected-source tool.
  */
 export function installStudyTools(ctx: Context, resources: Pick<ResearchResources, 'readResource' | 'searchBodies'>,
-  maxResultCharacters: number): () => void {
+  maxResultCharacters: number, stateFor?: (session: Session) => ResearchWorkingState): () => void {
   const releaseSelected = ctx.tools.register(defineTool({
     name: 'research_read_source',
     description: 'Read a current source already selected for this research conversation. sourceIndex is its one-based selected-source number. Optionally specify location as JSON: {"kind":"pdf-page","page":2}, {"kind":"anchor","anchor":"proof"}, or {"kind":"code","startLine":10,"endLine":30,"revision":"commit-id"}. PDF pages and code lines are one-based. offset reopens a bounded character window within the requested passage. This reads evidence, not permission to write or a claim that the whole source was inspected.',
@@ -40,7 +43,7 @@ export function installStudyTools(ctx: Context, resources: Pick<ResearchResource
     async execute(args, exec) {
       const agent = exec.agent
       if (agent === undefined) throw new Error('A selected-source read requires a research conversation.')
-      const state = ctx.sessionProjections.stateOf(agent.session, 'researchWorking')
+      const state = stateFor?.(agent.session) ?? ctx.sessionProjections.stateOf(agent.session, 'researchWorking')
       if (state === undefined || !state.ownerOrigin || state.restricted) throw new Error('The current human-selected research sources are unavailable to this conversation.')
       if (!Number.isSafeInteger(args.sourceIndex) || args.sourceIndex < 1) throw new Error('Choose a positive selected-source number.')
       const selected = state.origin?.selections?.[args.sourceIndex - 1]

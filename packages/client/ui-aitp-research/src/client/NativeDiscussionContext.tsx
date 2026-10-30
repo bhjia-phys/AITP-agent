@@ -13,9 +13,15 @@ export function NativeDiscussionContext(props: Props): ReactNode {
   const view = props.useDiscussionSessions(state => state[props.sessionId])
   if (view === undefined) return null
   const scope = view.scope
+  const scopeKind = scope.workspaceId === undefined ? 'global' : scope.topicId === undefined ? 'project' : 'topic'
+  const scopeLabel = scope.title ?? props.t(scopeKind)
   return <div className={css.context}>
-    <div className={css.row}><span>{props.t('context')} · {scope.title ?? props.t(scope.workspaceId === undefined ? 'global' : scope.topicId === undefined ? 'project' : 'topic')}</span>
+    <div className={css.row}><span>{props.t('context')} · {scopeLabel}</span>
       {view.canReturn && <Button variant="ghost" size="sm" onClick={() => { void props.returnSessionToReading(props.sessionId) }}>{props.t('backToReading')}</Button>}</div>
-    <DiscussionSources origin={view.origin} t={props.t} clear={() => { props.clearSessionSource(props.sessionId) }} />
+    {props.boundSources !== true && <DiscussionSources
+      origin={view.origin}
+      t={props.t}
+      clear={() => { props.clearSessionSource(props.sessionId) }}
+    />}
   </div>
 }

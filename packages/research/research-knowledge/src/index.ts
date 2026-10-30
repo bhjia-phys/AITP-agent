@@ -58,6 +58,26 @@ function sameRef(left: SourceRef, right: SourceRef): boolean {
  */
 export function createKnowledgeProvider(config: Config): ResourceProvider {
   return { id: name, domain: 'knowledge',
+    async projectSources(context, signal) {
+      const summaries: ResourceSummary[] = []
+      for (const path of context.paths) {
+        if (!/\.(?:md|markdown)$/i.test(path)) continue
+        signal.throwIfAborted()
+        try {
+          const document = parseSourceMarkup(await context.files.read(path, signal))
+          for (const issue of document.issues) context.reportIssue(path, issue)
+          const reference = { rootId: context.root.id, sourceId: sourceIdForPath(path) }
+          summaries.push({ id: resourceEntryId(reference), ref: reference, title: document.title ?? path,
+            kind: 'note', domain: 'knowledge', providerId: name, metadata: recordedMetadata(document),
+            links: document.links.map(link => sourceLink(context, path, link)), topics: [] })
+        } catch (error) {
+          void error
+          signal.throwIfAborted()
+          context.reportIssue(path, 'The explicitly linked note could not be read within the configured source limits.')
+        }
+      }
+      return summaries
+    },
     async list(context, signal) {
       const summaries: ResourceSummary[] = []
       const observedDocuments = new Map<string, Promise<MarkupDocument | undefined>>()

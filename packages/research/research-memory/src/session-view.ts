@@ -19,10 +19,13 @@ export interface SessionMemoryLimits {
 /**
  * Replay existing accepted input and tool records without creating an Agent or another transcript.
  * @param events Exact authorized Session observation, in sequence order.
+ * @param initial Optional model-invisible source binding for a standard DSH Session.
  * @returns Current scope and original/provisional pointers; failed or unpaired tool results are ignored.
  */
-export function replaySessionWorkingState(events: readonly SessionEvent[]): ResearchWorkingState {
-  return events.reduce(applyWorkingEvent, emptyWorkingState())
+export function replaySessionWorkingState(
+  events: readonly SessionEvent[], initial: ResearchWorkingState = emptyWorkingState(),
+): ResearchWorkingState {
+  return events.reduce(applyWorkingEvent, initial)
 }
 
 function pathOf(id: string | undefined, prefix: string): string | undefined {
@@ -40,6 +43,8 @@ function pathOf(id: string | undefined, prefix: string): string | undefined {
  * @param state Working projection at the same cut, used for scope and successful-operation provenance.
  * @param limits Complete-result bounds; oversized units are omitted with a visible count, never paraphrased.
  * @param messageProjections Existing Session-owner interpreters, required when the log contains content projections.
+ * @param initial Legacy replay seed when the caller has one.
+ * @param eventScopes Optional model-invisible binding-aware scope map at each persisted event.
  * @returns A bounded view, or undefined for an unbound ordinary Session.
  * @throws If the configured bound cannot contain the identity and omission notice.
  */
@@ -48,6 +53,8 @@ export function buildSessionMemoryView(
   state: ResearchWorkingState,
   limits: SessionMemoryLimits,
   messageProjections: readonly SessionMessageProjection[] = [],
+  initial: ResearchWorkingState = emptyWorkingState(),
+  eventScopes?: ReadonlyMap<number, string>,
 ): SessionMemoryView | undefined {
   const origin = state.origin
   if (origin === null) return undefined
@@ -59,12 +66,14 @@ export function buildSessionMemoryView(
   const bySeq = new Map(events.map(event => [Number(event.seq), event]))
   const turns = new Map<number, number>()
   const calls = new Map<string, number>()
-  const scopes = new Map<number, string>()
-  let scopedState = emptyWorkingState()
+  const scopes = eventScopes === undefined ? new Map<number, string>() : new Map(eventScopes)
+  let scopedState = initial
   let turn = 0
   for (const event of events) {
-    scopedState = applyWorkingEvent(scopedState, event)
-    if (scopedState.origin !== null) scopes.set(event.seq, scopeKey(scopedState.origin))
+    if (eventScopes === undefined) {
+      scopedState = applyWorkingEvent(scopedState, event)
+      if (scopedState.origin !== null) scopes.set(event.seq, scopeKey(scopedState.origin))
+    }
     if (event.type === 'turn/start') turn = event.data.turn
     turns.set(event.seq, turn)
     if (event.type === 'tool/result') calls.set(event.data.message.toolCallId, event.seq)

@@ -20,6 +20,7 @@ export function CodeCatalog(props: Props) {
     ?? items.find(item => item.ref.rootId === rootId)
   return <section className={css.catalog} aria-label={t('files')}>
     {rootId === null && !searching ? <div className={css.repositories}>
+      {repositories.length === 0 && <p className={css.empty}>{t(props.topicFiltered === true ? 'noTopicRepositories' : 'noRepositories')}</p>}
       {repositories.map((repository) => {
         const entry = items.find(item => item.ref.rootId === repository.id && item.metadata['entryKind'] === 'checkout')
           ?? items.find(item => item.ref.rootId === repository.id)

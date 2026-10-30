@@ -95,6 +95,32 @@ it('connects the owner setup feed without reading or enrolling scientific source
   } finally { lifetime.abort(); await feed.return?.() }
 })
 
+it('recovers a README research family and creates linked directions without inventing a common account', async () => {
+  const f = await fixture()
+  const original = '# Independent questions\n\nA folder map, not one shared scientific answer.\n\n## Topics\n[Existing](existing/research.md)\n'
+  await writeFile(join(f.root, 'README.md'), original)
+  await mkdir(join(f.root, 'existing'))
+  await writeFile(join(f.root, 'existing/research.md'), '# Existing question\n\nOnly the finite control is known.\n')
+  const { service, ctx } = await f.boot()
+  expect(await service.initialize({ workspaceId, writable: true, account: { title: 'Invented', question: 'A new root?' } }))
+    .toMatchObject({ ok: false, error: { code: 'invalid-request' } })
+  unwrap(await service.initialize({ workspaceId, writable: true }))
+  expect(await readFile(join(f.root, 'README.md'), 'utf8')).toBe(original)
+  expect(await readdir(f.root)).not.toContain('research.md')
+  const input = { ...request('family-child'), directory: 'new-direction' }
+  const receipt = unwrap(await service.createTopic({ workspaceId, ...input }))
+  expect(await readFile(join(f.root, 'new-direction/research.md'), 'utf8')).toContain('[Project](../README.md)')
+  const linked = await readFile(join(f.root, 'README.md'), 'utf8')
+  expect(linked).toContain(original.trim())
+  expect(linked).toContain('new-direction/research.md')
+  expect(unwrap(await service.getTopic({ workspaceId, topicId: receipt.topicId }, signal())).value.parentId).toBeNull()
+  await ctx.fiber.dispose()
+  const restarted = await f.boot()
+  expect(unwrap(await restarted.service.createTopic({ workspaceId, ...input }))).toEqual(receipt)
+  expect(await readFile(join(f.root, 'README.md'), 'utf8')).toBe(linked)
+  expect(await readdir(f.root)).not.toContain('research.md')
+})
+
 it('enrolls read-only without creating sources, survives restart and enables saving only after an explicit upgrade', async () => {
   const f = await fixture()
   const first = await f.boot()
@@ -172,7 +198,6 @@ it('rechecks a queued topic creation after an earlier source operation revokes s
   let entered: () => void = () => {}
   const gate = new Promise<void>((resolve) => { release = resolve })
   const started = new Promise<void>((resolve) => { entered = resolve })
-  // oxlint-disable-next-line typescript/unbound-method -- The wrapper below restores the original receiver with call().
   const initialize = ResearchOnboarding.prototype.initialize
   vi.spyOn(ResearchOnboarding.prototype, 'initialize').mockImplementationOnce(async function (this: ResearchOnboarding, root, input) {
     entered(); await gate; return initialize.call(this, root, input)
@@ -199,9 +224,7 @@ it.each(['initialize', 'createTopic'] as const)('drains an admitted %s on plugin
   let entered: () => void = () => {}
   const gate = new Promise<void>((resolve) => { release = resolve })
   const started = new Promise<void>((resolve) => { entered = resolve })
-  // oxlint-disable-next-line typescript/unbound-method -- Each wrapper calls the original method with its original receiver.
   const initialize = ResearchOnboarding.prototype.initialize
-  // oxlint-disable-next-line typescript/unbound-method -- Each wrapper calls the original method with its original receiver.
   const create = ResearchOnboarding.prototype.create
   if (kind === 'initialize') vi.spyOn(ResearchOnboarding.prototype, 'initialize')
     .mockImplementationOnce(async function (this: ResearchOnboarding, root, input) {

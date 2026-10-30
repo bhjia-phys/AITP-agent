@@ -2,6 +2,9 @@
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { gfmFromMarkdown } from 'mdast-util-gfm'
 import { gfm } from 'micromark-extension-gfm'
+import { mathFromMarkdown } from 'mdast-util-math'
+import { math } from 'micromark-extension-math'
+import { mathCompatibility } from '@deepseek-ai/dsh-util-markdown-math'
 import { parseDocument } from 'yaml'
 
 type MarkdownNode = ReturnType<typeof fromMarkdown> | ReturnType<typeof fromMarkdown>['children'][number]
@@ -118,7 +121,9 @@ export function parseSourceMarkup(text: string): MarkupDocument {
   const offset = frontmatter?.bodyOffset ?? 0
   const attributes = frontmatter?.attributes ?? {}
   const issues = frontmatter?.issues ?? []
-  const tree = fromMarkdown(text.slice(offset), { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] })
+  const tree = fromMarkdown(text.slice(offset), {
+    extensions: [gfm(), math(), mathCompatibility()], mdastExtensions: [gfmFromMarkdown(), mathFromMarkdown()],
+  })
   const definitions = new Map(tree.children.filter(node => node.type === 'definition').map(node => [node.identifier.toLowerCase(), node.url]))
   const headings = tree.children.filter(node => node.type === 'heading')
   const sections = headings.map((heading, index) => ({

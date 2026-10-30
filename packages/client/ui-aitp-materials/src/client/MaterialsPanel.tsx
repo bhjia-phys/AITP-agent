@@ -1,6 +1,6 @@
 /** Shared low-density library overview and source-grounded question composer. */
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Button, Tooltip, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconChevronLeftOutlineRegular, IconRefreshOutlineRegular, IconSearchOutlineRegular, IconCloseOutlineRegular, IconNewChatOutlineRegular, IconLoadingOutlineRegular, IconFolderOpenOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Tooltip, IconChevronDownOutlineRegular, IconChevronRightOutlineRegular, IconChevronLeftOutlineRegular, IconRefreshOutlineRegular, IconSearchOutlineRegular, IconCloseOutlineRegular, IconNewChatOutlineRegular, IconFolderOpenOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale, PropsRuntime, PropsStore, PropsRenderFactories, InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ResourceSnapshot } from '@deepseek-ai/dsh-client-resources/client'
 import type { ResourceDomain, ResourceLink, ResourcePage, ResourceReading, ResourceResult, RootConnection, SaveSourceSetRequest, SourceRoot, SourceRootId, SourceSelection, SourceSet, SourceSetId, SourceSetReceipt, StudyReceipt, StudyRequest } from '@deepseek-ai/dsh-research-resources/types'
@@ -14,6 +14,10 @@ import { MATERIAL_ROOTS, materialListAddress } from './resources.ts'
 import type {} from './locales.ts'
 import css from './materials.module.css'
 import { LibraryManagement, SourceSetSave } from './LibraryManagement.tsx'
+import { MaterialUnavailable } from './MaterialUnavailable.tsx'
+export { MaterialUnavailable } from './MaterialUnavailable.tsx'
+import { SourceReading } from './RootSourceTab.tsx'
+import { materialSourceAddress, parseMaterialSource } from '@deepseek-ai/dsh-research-resources/protocol'
 
 /** Host-owned source sets and read-only Workspace attachment. */
 export interface MaterialsManagementFace {
@@ -29,6 +33,8 @@ export interface MaterialsManagementFace {
 
 /** Application callbacks bound to this module's registered panel. */
 export interface MaterialsPanelFace {
+  /** Whether this host provides independent root document tabs. */
+  readonly rootReader?: boolean
   readonly discussion?: {
     readonly open: (scope: MaterialsScope,
       selections: readonly SourceSelection[], prompt?: string) => void
@@ -90,7 +96,8 @@ export function MaterialsPanel(props: MaterialsPanelProps): ReactNode {
       : t(scope.topicId === undefined ? 'workspaceScope' : 'topicScope', { title: scope.title })
   const roots = props.useResource<'aitp-material-roots'>(MATERIAL_ROOTS)
   const prepareFullConversation = props.prepareFullConversation
-  const availableRoots = roots.value?.filter(root => root.domains === undefined || root.domains.includes(domain))
+  const availableRoots = roots.value?.filter(root => root.domains === undefined || root.domains.includes(domain)
+    || root.domains.length === 0 && scope.workspaceId !== undefined && root.workspaceId === scope.workspaceId)
   const codeRootOverview = domain === 'code' && current.rootId === null && !current.query
     && scope.workspaceId === undefined
   return <section className={css.panel} aria-label={labels.title}>
@@ -100,7 +107,7 @@ export function MaterialsPanel(props: MaterialsPanelProps): ReactNode {
         {t(scope.topicId === undefined ? 'returnProject' : 'returnTopic')}</Button>}
       {scope.workspaceId !== undefined && <Button variant="ghost" size="sm" onClick={() => { props.changeScope({}) }}>{t('clearScope')}</Button>}
       <Tooltip label={t('retry')}><Button variant="ghost" size="sm" aria-label={t('retry')} onClick={props.refresh}><IconRefreshOutlineRegular /></Button></Tooltip>
-      {props.renderFactorySlot('sidebar.right.root.expand', { panelId: props.panelId })}
+      {props.rootReader !== false && props.renderFactorySlot('sidebar.right.root.expand', { panelId: props.panelId })}
     </div></header>
     <div className={css.workbench}><div className={css.scroll} ref={scroll}
       onWheel={() => { arriving.current = false }} onPointerDown={() => { arriving.current = false }}
@@ -108,34 +115,52 @@ export function MaterialsPanel(props: MaterialsPanelProps): ReactNode {
       onScroll={(event) => {
         if (!arriving.current) props.actions.setCatalogScroll(domain, event.currentTarget.scrollTop, materialsScopeKey(scope))
       }}><div className={css.page}>
-        <PendingSourceSets {...props} />
-        <StudyComposer {...props} />
-        <>
-          <div className={css.catalogToolbar} data-material-ready>
-            <label className={css.searchBox}><IconSearchOutlineRegular /><input className={css.search} aria-label={t('search')} placeholder={t('search')} value={current.query}
-              onChange={(event) => { props.actions.setQuery(domain, event.currentTarget.value) }} /></label>
-            <label className={css.rootFilter}><IconFolderOpenOutlineRegular /><select aria-label={t('roots')} value={current.rootId ?? ''}
-              onChange={(event) => { props.actions.setRoot(domain, event.currentTarget.value || null) }}>
-              <option value="">{t('allRoots')}</option>{availableRoots?.map(root => <option key={root.id} value={root.id}>{root.title}</option>)}
-            </select></label>
-            {scope.topicId !== undefined && <label className={css.rootFilter}>{t('materialScope')}<select aria-label={t('materialScope')}
-              value={hasTopicFilter(scope, domain, current) ? 'topic' : 'all'}
-              onChange={(event) => {
-                const all = event.currentTarget.value === 'all'
-                if (!all && domain === 'code') props.actions.setRoot(domain, null)
-                props.actions.setAllInCollection(domain, all)
-              }}>
-              <option value="topic">{t('topicMaterials')}</option><option value="all">{t('allMaterials')}</option>
-            </select></label>}
-          </div>
-          {props.renderFactorySlot('aitp.materials.write', { scope, libraryDomain: domain, onInspect: (ref) => { props.preview({ ref }, scope) } })}
-          {availableRoots?.length === 0 && <p className={css.notice}>{t('noRoots')}</p>}
-          {availableRoots?.length !== 0 && (codeRootOverview
-            ? availableRoots === undefined ? <MaterialUnavailable {...props} snapshot={roots} list />
-              : <CodeRootOverview {...props} roots={availableRoots} />
-            : <LibraryResults {...props} />)}
-          {props.management !== undefined && <LibraryManagement {...props} management={props.management} />}
-        </>
+        {props.rootReader === false && current.location.kind === 'source' ? <>
+          <Button variant="ghost" size="sm" onClick={() => { props.actions.back(domain) }}>{t('back')}</Button>
+          <SourceReading {...props} presentation="page"
+            {...props.discussion === undefined ? {} : {
+              discuss: props.discussion.open, stage: props.discussion.setSources,
+            }}
+            navigation={{ address: materialSourceAddress(current.location.ref, current.location.locator,
+              current.location.readerDomain === null ? undefined : current.location.readerDomain ?? domain),
+            params: { scope, libraryDomain: domain } }}
+            fields={readingDomain => readingDomain === domain ? labels.fields : []}
+            onOpen={(address) => {
+              const source = parseMaterialSource(address)
+              if (source !== undefined) props.actions.open(domain, { kind: 'source', ref: source.ref,
+                ...source.locator === undefined ? {} : { locator: source.locator },
+                readerDomain: source.domain ?? null })
+            }} />
+        </> : <>
+          <PendingSourceSets {...props} />
+          <StudyComposer {...props} />
+          <>
+            <div className={css.catalogToolbar} data-material-ready>
+              <label className={css.searchBox}><IconSearchOutlineRegular /><input className={css.search} aria-label={t('search')} placeholder={t('search')} value={current.query}
+                onChange={(event) => { props.actions.setQuery(domain, event.currentTarget.value) }} /></label>
+              <label className={css.rootFilter}><IconFolderOpenOutlineRegular /><select aria-label={t('roots')} value={current.rootId ?? ''}
+                onChange={(event) => { props.actions.setRoot(domain, event.currentTarget.value || null) }}>
+                <option value="">{t('allRoots')}</option>{availableRoots?.map(root => <option key={root.id} value={root.id}>{root.title}</option>)}
+              </select></label>
+              {scope.workspaceId !== undefined && <label className={css.rootFilter}>{t('materialScope')}<select aria-label={t('materialScope')}
+                value={hasTopicFilter(scope, domain, current) ? 'topic' : 'all'}
+                onChange={(event) => {
+                  const all = event.currentTarget.value === 'all'
+                  if (!all && domain === 'code') props.actions.setRoot(domain, null)
+                  props.actions.setAllInCollection(domain, all)
+                }}>
+                <option value="topic">{t('topicMaterials')}</option><option value="all">{t('allMaterials')}</option>
+              </select></label>}
+            </div>
+            {props.renderFactorySlot('aitp.materials.write', { scope, libraryDomain: domain, onInspect: (ref) => { props.preview({ ref }, scope) } })}
+            {availableRoots?.length === 0 && <p className={css.notice}>{t('noRoots')}</p>}
+            {availableRoots?.length !== 0 && (codeRootOverview
+              ? availableRoots === undefined ? <MaterialUnavailable {...props} snapshot={roots} list />
+                : <CodeRootOverview {...props} roots={availableRoots} />
+              : <LibraryResults {...props} />)}
+            {props.management !== undefined && <LibraryManagement {...props} management={props.management} />}
+          </>
+        </>}
       </div></div>
     {props.discussion !== undefined && props.renderFactorySlot('aitp.research.discussion', {
       scope, presentation: 'main', ...props.hasReturn?.(scope) === false ? {} : { returnTo: props.returnTo },
@@ -182,7 +207,7 @@ function CodeRootOverview(props: MaterialsPanelProps & { roots: readonly SourceR
 
 /** A chosen code folder lists its contents; other catalogs can retain the topic association filter. */
 function hasTopicFilter(scope: MaterialsScope, domain: ResourceDomain, view: LibraryView): boolean {
-  return scope.workspaceId !== undefined && scope.topicId !== undefined && view.allInCollection !== true
+  return scope.workspaceId !== undefined && view.allInCollection !== true
     && !(domain === 'code' && view.rootId !== null)
 }
 
@@ -194,8 +219,8 @@ function LibraryResults(props: MaterialsPanelProps): ReactNode {
     ...current.rootId === null ? {} : { rootId: current.rootId as SourceRootId },
     ...props.domain === 'code' && current.rootId !== null && !current.query ? { folder: current.folderPath } : {},
     ...current.query ? { query: current.query } : {}, ...current.cursor === null ? {} : { cursor: current.cursor },
-    ...!hasTopicFilter(scope, props.domain, current) || scope.workspaceId === undefined || scope.topicId === undefined ? {}
-      : { topic: { workspaceId: scope.workspaceId, topicId: scope.topicId } },
+    ...!hasTopicFilter(scope, props.domain, current) || scope.workspaceId === undefined ? {}
+      : { topic: { workspaceId: scope.workspaceId, ...scope.topicId === undefined ? {} : { topicId: scope.topicId } } },
   }))
   return <LibraryRows {...props} reading={list} />
 }
@@ -258,28 +283,6 @@ function LibraryRows(props: MaterialsPanelProps & { reading: ResourceSnapshot<Re
   </>
 }
 
-/**
- * Report the real missing-provider, loading or failed source state.
- * @param props - localized copy and the current framework resource status.
- * @returns a stable recovery action without clearing the draft.
- */
-export function MaterialUnavailable(props: Pick<MaterialsPanelProps, 't' | 'refresh'> & { snapshot: ResourceSnapshot<unknown>; list?: boolean }): ReactNode {
-  if (props.snapshot.status === 'loading' && props.list) return <div className={css.skeleton} role="status" aria-label={props.t('loading')}>
-    {[0, 1, 2, 3].map(row => <div key={row} aria-hidden="true"><span /><span /></div>)}
-  </div>
-  if (props.snapshot.status === 'loading') return <div className={css.loading} role="status" aria-label={props.t('loadingSource')}>
-    <IconLoadingOutlineRegular size={24} /><span>{props.t('loadingSource')}</span>
-  </div>
-  const failure = props.snapshot.failure
-  const code = failure?.code === 'aitp/materials' ? failure.details.code : undefined
-  const messageKey = code === 'permission-denied' ? 'denied' : code === 'not-found' ? 'missing'
-    : props.snapshot.status === 'none' ? 'disconnected' : 'readFailed'
-  return <div className={css.notice} role="alert">
-    <p>{props.t(messageKey)}</p>
-    {failure !== undefined && <details className={css.observation}><summary>{props.t('errorDetails')}</summary><p>{failure.message}</p></details>}
-    <Button variant="outline" size="sm" onClick={props.refresh}>{props.t('retry')}</Button>
-  </div>
-}
 
 function StudyComposer(props: MaterialsPanelProps): ReactNode {
   const id = useId()
@@ -308,42 +311,44 @@ function StudyComposer(props: MaterialsPanelProps): ReactNode {
     props.actions.sent(key)
     props.openSession(result.value)
   }
-  if (selected.length === 0 && !question.trim() && draft?.failure == null && draft?.pendingSave == null) return null
-  return <section className={css.study} aria-label={props.t('selected', { count: selected.length })}>
-    <div className={css.selectionHeader}>
-      <Button variant="ghost" size="sm" aria-expanded={disclosed} aria-controls={id}
-        icon={disclosed ? <IconChevronDownOutlineRegular /> : <IconChevronRightOutlineRegular />}
-        onClick={() => { setExpanded(!expanded) }}>{props.t('selected', { count: selected.length })}</Button>
-      {scoped && <Button variant="primary" size="sm" icon={<IconNewChatOutlineRegular />} disabled={selected.length === 0}
-        onClick={() => { discussion.open(scope, sourceSelections(selected), question || undefined) }}>{props.t('discuss')}</Button>}
-    </div>
-    <div id={id} hidden={!disclosed}>
-      {selected.length > 0 && <ul className={css.selection}>{selected.map(item => <li key={materialSelectionKey(item)}>
-        <span>{item.title}</span>
-        {item.locator?.kind === 'pdf-page' && <span>{props.t('pageLocation', { page: item.locator.page })}</span>}
-        {item.locator?.kind === 'code' && <span>{props.t('lineLocation', { start: item.locator.startLine, end: item.locator.endLine })}</span>}
-        {item.selectedText !== undefined && <details><summary>{props.t('passage')}</summary><blockquote>{item.selectedText}</blockquote></details>}
-        {item.unavailable !== undefined && <span role="note">{props.t('noContent')} {item.unavailable}</span>}
-        <Tooltip label={props.t('remove', { title: item.title })}><button type="button" aria-label={props.t('remove', { title: item.title })} disabled={draft?.sending || draft?.pendingSave != null}
-          onClick={() => { updateSelection(props, scope, selected, item, false) }}><IconCloseOutlineRegular size={14} /></button></Tooltip>
-      </li>)}</ul>}
-      {props.management !== undefined && <SourceSetSave {...props} management={props.management} />}
-      {selected.length > 0 && props.renderFactorySlot('aitp.materials.study-tools', {
-        selectionCount: selected.length, selections: selected.map(({ ref, locator, selectedText }) => ({ ref,
-          ...locator === undefined ? {} : { locator }, ...selectedText === undefined ? {} : { selectedText },
-        })), prepareQuestion: (question) => {
-          if (scoped) discussion.open(scope, sourceSelections(selected), question)
-          else props.actions.question(question)
-        },
-      })}
-      {scoped ? <p className={css.muted}>{props.t('discussionHelp')}</p> : <><label htmlFor={`${id}-question`}>{props.t('question')}</label>
-        <textarea id={`${id}-question`} className={css.question} placeholder={props.t('placeholder')} value={question} disabled={draft?.sending}
-          onChange={(event) => { props.actions.question(event.currentTarget.value) }} />
-        <p className={css.muted}>{props.t(selected.length === 0 ? 'noSelection' : 'notRead')}</p>
-        {draft?.failure != null && <p role="alert" className={css.notice}>{props.t('failed')} {draft.failure}</p>}
-        <Button variant="primary" icon={<IconNewChatOutlineRegular />} disabled={draft?.sending || !question.trim() || selected.length === 0} onClick={() => { void submit() }}>{props.t(draft?.sending ? 'asking' : 'ask')}</Button></>}
-    </div>
-  </section>
+  const hasSelectionOrDraft = selected.length > 0 || Boolean(question.trim()) || draft?.failure != null || draft?.pendingSave != null
+  return <>
+    {props.renderFactorySlot('aitp.materials.study-tools', {
+      selectionCount: selected.length, selections: sourceSelections(selected),
+      prepareQuestion: (question) => {
+        if (scoped) discussion.open(scope, sourceSelections(selected), question)
+        else props.actions.question(question)
+      },
+    })}
+    {hasSelectionOrDraft && <section className={css.study} aria-label={props.t('selected', { count: selected.length })}>
+      <div className={css.selectionHeader}>
+        <Button variant="ghost" size="sm" aria-expanded={disclosed} aria-controls={id}
+          icon={disclosed ? <IconChevronDownOutlineRegular /> : <IconChevronRightOutlineRegular />}
+          onClick={() => { setExpanded(!expanded) }}>{props.t('selected', { count: selected.length })}</Button>
+        {scoped && <Button variant="primary" size="sm" icon={<IconNewChatOutlineRegular />} disabled={selected.length === 0}
+          onClick={() => { discussion.open(scope, sourceSelections(selected), question || undefined) }}>{props.t('discuss')}</Button>}
+      </div>
+      <div id={id} hidden={!disclosed}>
+        {selected.length > 0 && <ul className={css.selection}>{selected.map(item => <li key={materialSelectionKey(item)}>
+          <span>{item.title}</span>
+          {item.locator?.kind === 'pdf-page' && <span>{props.t('pageLocation', { page: item.locator.page })}</span>}
+          {item.locator?.kind === 'code' && <span>{props.t('lineLocation', { start: item.locator.startLine, end: item.locator.endLine })}</span>}
+          {item.selectedText !== undefined && <details><summary>{props.t('passage')}</summary><blockquote>{item.selectedText}</blockquote></details>}
+          {item.unavailable !== undefined && <span role="note">{props.t('noContent')} {item.unavailable}</span>}
+          <Tooltip label={props.t('remove', { title: item.title })}><button type="button" aria-label={props.t('remove', { title: item.title })} disabled={draft?.sending || draft?.pendingSave != null}
+            onClick={() => { updateSelection(props, scope, selected, item, false) }}>
+            <IconCloseOutlineRegular size={14} /></button></Tooltip>
+        </li>)}</ul>}
+        {props.management !== undefined && <SourceSetSave {...props} management={props.management} />}
+        {scoped ? <p className={css.muted}>{props.t('discussionHelp')}</p> : <><label htmlFor={`${id}-question`}>{props.t('question')}</label>
+          <textarea id={`${id}-question`} className={css.question} placeholder={props.t('placeholder')} value={question} disabled={draft?.sending}
+            onChange={(event) => { props.actions.question(event.currentTarget.value) }} />
+          <p className={css.muted}>{props.t(selected.length === 0 ? 'noSelection' : 'notRead')}</p>
+          {draft?.failure != null && <p role="alert" className={css.notice}>{props.t('failed')} {draft.failure}</p>}
+          <Button variant="primary" icon={<IconNewChatOutlineRegular />} disabled={draft?.sending || !question.trim() || selected.length === 0} onClick={() => { void submit() }}>{props.t(draft?.sending ? 'asking' : 'ask')}</Button></>}
+      </div>
+    </section>}
+  </>
 }
 
 /** Sidebar keeps source folders and selections in the existing Harness footprint. */

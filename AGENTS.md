@@ -1,5 +1,7 @@
 # AITP-agent fork development
 
+The researcher's latest direction is to deliver AITP as plugins for DSH, not maintain a separate agent product. The existing fork and launcher remain a transition and test environment; portable Skills, optional research views and optional context integration have separate owners. See [the extraction boundary](docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution) before adding host-specific behavior.
+
 This repository develops **aitp-agent** on the official DeepSeek Harness source. Read the repository-local [develop-aitp-agent Skill](.agents/skills/develop-aitp-agent/SKILL.md) and the affected sections of [current.md](current.md), [architecture](docs/agent/10-project-workspace.md), [plan](docs/agent/14-implementation-blueprint.md) and [research cases](docs/agent/13-research-journeys.md) before AITP work. The plan owns current scope and progress; architecture, cases and current.md must change with affected behavior. Preserve the agreed scientific design, modularity, human-defined goals and bounds, autonomous routine steps, editable collaboration rules and selective information display.
 
 The researcher selected runtime research memory/context integration and rejected fixed research-action constraints. Prioritize relevant scientific context and actual user choices; do not turn guidance or missing premises into automatic action gates.

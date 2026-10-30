@@ -12,20 +12,24 @@ import css from './study.module.css'
 
 export type StudyTasksProps = PropsRuntime<'aitp.materials.tasks'> & PropsLocale<'aitp.study'> & InjectFace<{
   newNote: (selections: readonly SourceSelection[]) => void
+  openNotes: () => void
 }>
 
 /** @param props - selected references and editable-question callback. @returns no model traffic, only prepared user tasks. */
 export function StudyTasks(props: StudyTasksProps): ReactNode {
-  if (props.selectionCount === 0) return null
   const tasks = [
+    ['readingRequest', 'readingNoteTask'],
     ['comparison', 'comparisonTask'], ['report', 'reportTask'], ['outline', 'outlineTask'],
     ['flashcards', 'flashcardsTask'], ['mind-map', 'mapTask'],
   ] as const
-  return <details className={css.tasks}><summary>{props.t('tasks')}</summary><p className={css.muted}>{props.t('taskHelp')}</p>
-    <div className={css.toolbar}>{tasks.map(([kind, task]) => <Button key={kind} size="sm" variant="outline"
-      onClick={() => { props.prepareQuestion(props.t(task)) }}>{props.t(kind)}</Button>)}
-    <Button size="sm" variant="ghost" onClick={() => { props.newNote(props.selections) }}>{props.t('newWithSources')}</Button></div>
-  </details>
+  return <div className={css.taskEntry}>
+    <Button size="sm" variant="ghost" icon={<IconDeliverDocRegular />} onClick={props.openNotes}>{props.t('inspectNotes')}</Button>
+    {props.selectionCount > 0 && <details className={css.tasks}><summary>{props.t('tasks')}</summary><p className={css.muted}>{props.t('taskHelp')}</p>
+      <div className={css.toolbar}>{tasks.map(([kind, task]) => <Button key={kind} size="sm" variant="outline"
+        onClick={() => { props.prepareQuestion(props.t(task)) }}>{props.t(kind)}</Button>)}
+      <Button size="sm" variant="ghost" onClick={() => { props.newNote(props.selections) }}>{props.t('newWithSources')}</Button></div>
+    </details>}
+  </div>
 }
 
 export interface CaptureFace {

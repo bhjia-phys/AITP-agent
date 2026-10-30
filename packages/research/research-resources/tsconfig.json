@@ -43,6 +43,9 @@
     },
     {
       "path": "../../api/session-controller/tsconfig.host.json"
+    },
+    {
+      "path": "../../util/markdown-math"
     }
   ]
 }

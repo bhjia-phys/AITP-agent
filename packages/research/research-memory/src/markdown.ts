@@ -20,7 +20,9 @@ export interface MarkdownWorkspaceConfig {
   readonly maxFiles: number
   readonly maxFileBytes: number
   readonly maxContextCharacters: number
-  /** Receives directories visited by bounded discovery for optional notification coverage. */
+  /** Exact directory names excluded from current-account discovery; absent or empty preserves unrestricted discovery. */
+  readonly discoveryExcludedDirectories?: readonly string[]
+  /** Receives confirmed account directories visited by bounded discovery for optional notification coverage. */
   readonly onDirectories?: (directories: readonly string[], partial: boolean) => void
 }
 
@@ -43,10 +45,10 @@ export interface MarkdownIndexStatus {
   readonly issues: readonly ScanIssue[]
 }
 
-/** Explicit material uses in recognized topic accounts, before cross-root resolution. */
+/** Explicit material uses in the project and recognized topic accounts, before cross-root resolution. */
 export interface MarkdownMaterialLinks {
   readonly revision: Revision
-  readonly links: readonly { readonly topicId: TopicId; readonly accountPath: string; readonly href: string; readonly reason: string }[]
+  readonly links: readonly { readonly topicId?: TopicId; readonly accountPath: string; readonly href: string; readonly reason: string }[]
 }
 
 /** Original user question and optional displayed origin; supplying text does not establish ownership or a decision. */
@@ -86,7 +88,6 @@ interface Index {
   readonly users: ReadonlyMap<string, readonly string[]>
   readonly status: MarkdownIndexStatus
   readonly sourceIssues: readonly ScanIssue[]
-  readonly unobserved: boolean
   readonly supplemented: boolean
   readonly establishedParents: ReadonlyMap<string, string>
   readonly establishedOwners: ReadonlyMap<string, string>
@@ -105,11 +106,13 @@ function uniqueRelations(relations: ReadonlyMap<string, readonly string[]>): Rea
   return unique
 }
 
-function relationships(paths: ReadonlySet<string>, notes: ReadonlyMap<string, Note>) {
-  const topicPaths = new Set([...paths].filter(path => posix.basename(path).toLowerCase() === 'research.md' && path !== 'research.md'))
+function relationships(paths: ReadonlySet<string>, notes: ReadonlyMap<string, Note>, eligible: (path: string) => boolean) {
+  const topicPaths = new Set([...paths].filter(path => eligible(path)
+    && posix.basename(path).toLowerCase() === 'research.md' && path !== 'research.md'))
   for (const note of notes.values()) {
     for (const link of note.parsed.links) {
-      if (link.role !== 'reference' && /\.md$/i.test(link.path) && paths.has(link.path) && link.path !== 'research.md') topicPaths.add(link.path)
+      if (link.role !== 'reference' && /\.md$/i.test(link.path) && paths.has(link.path)
+        && link.path !== 'research.md' && link.path.toLowerCase() !== 'readme.md' && eligible(link.path)) topicPaths.add(link.path)
     }
   }
   const parents = new Map<string, Set<string>>()
@@ -160,7 +163,7 @@ function textSource(path: string): boolean {
 }
 
 function accountCandidate(index: Index, path: string): boolean {
-  return path !== 'research.md' && /\.md$/i.test(path) && (index.topicPaths.has(path)
+  return path !== 'research.md' && path.toLowerCase() !== 'readme.md' && /\.md$/i.test(path) && (index.topicPaths.has(path)
     || posix.basename(path).toLowerCase() === 'research.md'
     || [...index.notes.values()].some(note => note.parsed.links.some(link => link.path === path && link.role !== 'reference')))
 }
@@ -194,10 +197,13 @@ export class MarkdownWorkspace {
   materialLinks(): MarkdownMaterialLinks {
     const index = this.index
     if (index === undefined) throw new SourceError('unavailable', 'The research topic index has not been built.')
-    return { revision: index.status.revision, links: [...index.topicPaths].flatMap((path) => {
+    const projectPath = index.paths.has('research.md') ? 'research.md'
+      : index.topicPaths.size > 0 && index.paths.has('README.md') ? 'README.md' : undefined
+    const accounts = [...new Set([...index.topicPaths, ...projectPath === undefined ? [] : [projectPath]])]
+    return { revision: index.status.revision, links: accounts.flatMap((path) => {
       const note = index.notes.get(path)
       return note === undefined ? [] : note.parsed.authoredLinks.map(link => ({
-        topicId: topicIdForPath(path), accountPath: path, href: link.href,
+        ...path === projectPath ? {} : { topicId: topicIdForPath(path) }, accountPath: path, href: link.href,
         reason: link.context || link.title || link.section,
       }))
     }) }
@@ -226,30 +232,91 @@ export class MarkdownWorkspace {
   async rebuild(options?: ReadOptions & { readonly preserveUnchangedRevision?: boolean }): Promise<Result<MarkdownIndexStatus>> {
     if (this.rebuilding) return this.rebuilding
     this.rebuilding = this.attempt(async () => {
-      const scan = await this.files.scan(options?.signal)
-      this.config.onDirectories?.(scan.directories ?? [''], scan.partial)
-      const paths = new Set(scan.paths)
+      const directories = new Set<string>()
+      const paths = new Set<string>()
       const notes = new Map<string, Note>()
-      const topicPaths = new Set(scan.paths.filter(path => posix.basename(path).toLowerCase() === 'research.md' && path !== 'research.md'))
-      const pending = scan.paths.filter(path => /^(research|readme)\.md$/i.test(posix.basename(path)))
-      const issues = [...scan.issues]
+      const pending: string[] = []
+      const issues: ScanIssue[] = []
+      // Account discovery never walks a material directory. Explicit links can skip
+      // levels; otherwise only an immediate child with research.md is expanded.
+      const schedule = (path: string): void => {
+        if (!this.topicEligible(path) || pending.includes(path)) return
+        if (pending.length >= this.config.maxFiles) {
+          if (!issues.some(issue => issue.reason === 'Authored account discovery reached the configured entry limit.')) {
+            issues.push({ path: '', reason: 'Authored account discovery reached the configured entry limit.' })
+          }
+          return
+        }
+        pending.push(path)
+      }
+      const probe = async (path: string): Promise<void> => {
+        if (!this.topicEligible(path) || pending.includes(path)) return
+        try { if (await this.files.discoverable(path, options?.signal)) schedule(path) }
+        catch (error) {
+          options?.signal?.throwIfAborted()
+          const failure = sourceFailure(error)
+          if (failure.code !== 'not-found') issues.push({ path, reason: failure.message })
+        }
+      }
+      let probedDirectories = 0
+      const inspectDirectory = async (directory: string): Promise<void> => {
+        if (directories.has(directory)) return
+        directories.add(directory)
+        try {
+          const listing = await this.files.listDirectory(directory, options?.signal, {
+            directoriesOnly: true,
+            ...(this.config.discoveryExcludedDirectories === undefined ? {}
+              : { excludedDirectories: this.config.discoveryExcludedDirectories }),
+          })
+          issues.push(...listing.issues)
+          for (const child of listing.entries) {
+            if (probedDirectories >= this.config.maxFiles) {
+              if (!issues.some(issue => issue.reason === 'Immediate account-directory probes reached the configured entry limit.')) {
+                issues.push({ path: directory, reason: 'Immediate account-directory probes reached the configured entry limit.' })
+              }
+              break
+            }
+            probedDirectories++
+            await probe(posix.join(child.path, 'research.md'))
+          }
+        } catch (error) {
+          options?.signal?.throwIfAborted()
+          issues.push({ path: directory, reason: sourceFailure(error).message })
+        }
+      }
+      for (const path of ['research.md', 'README.md']) await probe(path)
+      if (pending.length === 0) await inspectDirectory('')
       for (const path of pending) {
         if (notes.has(path)) continue
+        try {
+          if (!await this.files.discoverable(path, options?.signal)) {
+            issues.push({ path, reason: 'The linked account is not an ordinary file.' })
+            continue
+          }
+        } catch (error) {
+          options?.signal?.throwIfAborted()
+          issues.push({ path, reason: sourceFailure(error).message })
+          continue
+        }
         const source = await this.readSource(resourceIdForPath(path), options)
         if (!source.ok) { issues.push({ path, reason: source.error.message }); continue }
+        paths.add(path)
         const parsed = this.parse(source.value)
         notes.set(path, { source: source.value, parsed })
         for (const link of parsed.links) {
-          if ((link.role === 'child' || link.role === 'parent') && /\.md$/i.test(link.path) && paths.has(link.path) && link.path !== 'research.md') {
-            topicPaths.add(link.path)
-            if (!pending.includes(link.path)) pending.push(link.path)
+          if (/\.md$/i.test(link.path) && (link.role !== 'reference' || /(?:^|\/)research\.md$/i.test(link.path))) {
+            schedule(link.path)
           }
         }
+        const directory = posix.dirname(path) === '.' ? '' : posix.dirname(path)
+        await probe(directory === '' ? 'README.md' : posix.join(directory, 'README.md'))
+        await inspectDirectory(directory)
       }
-      const relation = relationships(paths, notes)
+      this.config.onDirectories?.([...directories], issues.length > 0)
+      const relation = relationships(paths, notes, path => this.topicEligible(path))
       const sourceIssues = [...issues]
       issues.push(...relation.issues)
-      const completeness = scan.partial || issues.length ? 'partial' : 'complete'
+      const completeness = issues.length ? 'partial' : 'complete'
       const previous = this.index
       const unchanged = options?.preserveUnchangedRevision && previous !== undefined
         && previous.status.completeness === completeness && sameSources(previous, paths, notes, issues)
@@ -260,7 +327,7 @@ export class MarkdownWorkspace {
       this.index = {
         paths, notes, topicPaths: relation.topicPaths, status, sourceIssues,
         parents: relation.parents, users: relation.users,
-        unobserved: scan.partial || sourceIssues.length > 0, supplemented: false,
+        supplemented: false,
         establishedParents: uniqueRelations(relation.parents), establishedOwners: uniqueRelations(relation.users),
       }
       this.discovered = this.index
@@ -293,7 +360,9 @@ export class MarkdownWorkspace {
   async getProject(options?: ReadOptions): Promise<Result<ReadEnvelope<Project>>> {
     return this.attempt(async () => {
       const index = await this.ensure(options)
-      const root = index.paths.has('research.md') ? await this.mustRead('research.md', options) : undefined
+      const rootPath = index.paths.has('research.md') ? 'research.md'
+        : index.topicPaths.size > 0 && index.paths.has('README.md') ? 'README.md' : undefined
+      const root = rootPath === undefined ? undefined : await this.mustRead(rootPath, options)
       const authored = root === undefined ? undefined : this.parse(root)
       return this.envelope({
         id: 'project', title: authored?.title ?? posix.basename(this.root),
@@ -332,7 +401,7 @@ export class MarkdownWorkspace {
         const source = await this.mustRead(path, options)
         items.push(this.envelope(this.topic(index, path, source), source))
       }
-      return this.envelope({ items, nextCursor: offset + limit < paths.length ? `${index.status.revision}:${encodeURIComponent(scope)}:${offset + limit}` : null, completeness: index.status.completeness, ...(index.status.completeness === 'partial' ? { incompleteReason: index.status.issues.map(issue => `${issue.path}: ${issue.reason}`).join('\n') } : {}) })
+      return this.envelope({ items, nextCursor: offset + limit < paths.length ? `${index.status.revision}:${encodeURIComponent(scope)}:${offset + limit}` : null, completeness: index.status.completeness, ...(index.status.completeness === 'partial' ? { incompleteReason: index.status.issues.map(issue => `${issue.path || '.'}: ${issue.reason}`).join('\n') } : {}) })
     }, options)
   }
 
@@ -406,6 +475,7 @@ export class MarkdownWorkspace {
           }
         }
         if (index.paths.has('research.md')) selected.push('research.md')
+        else if (index.paths.has('README.md')) selected.push('README.md')
       }
       if (include.has('children')) selected.push(...[...index.topicPaths].filter(candidate => this.primaryParent(index, candidate) === path))
       if (include.has('resources')) selected.push(...(index.notes.get(path)?.parsed.links.map(link => link.path) ?? []))
@@ -610,17 +680,25 @@ export class MarkdownWorkspace {
   }
 
   private async selected(path: string, account: boolean, options?: ReadOptions): Promise<SelectedSources> {
+    if (account && !this.topicEligible(path)) {
+      throw new SourceError('not-found', 'This account is outside the configured current-topic discovery scope; it remains readable as a source.')
+    }
     const observed = await this.ensure(options)
     const fresh = new Map<string, MarkdownSource>()
     const recognized = account ? observed.topicPaths.has(path)
       : observed.paths.has(path) || (observed.users.has(path) && !accountCandidate(observed, path))
-    if (!this.supplements.has(path) && (recognized || !observed.unobserved)) return { index: observed, fresh }
+    if (!this.supplements.has(path) && recognized) return { index: observed, fresh }
     if (account && !/\.md$/i.test(path)) throw new SourceError('not-found', 'The selected source is not a recognized research account.')
     if (!await this.files.discoverable(path, options?.signal)) throw new SourceError('invalid-request', 'The selected source is not a regular file.')
     const selectedSource = account || textSource(path) ? await this.mustRead(path, options) : undefined
     if (selectedSource !== undefined) fresh.set(path, selectedSource)
+    if (!account && (!accountCandidate(observed, path) || !this.topicEligible(path))) {
+      // An exact material read establishes access to that file, not new accounts
+      // or a wider discovery scope. Keep this observation local to the caller.
+      return { index: { ...observed, paths: new Set([...observed.paths, path]) }, fresh }
+    }
     const additions = new Map<string, Note | null>()
-    const accountNote = account || accountCandidate(observed, path) || /^(research|readme)\.md$/i.test(posix.basename(path))
+    const accountNote = account || accountCandidate(observed, path) || path === 'research.md' || path === 'README.md'
     const note = selectedSource !== undefined && accountNote
       ? { source: selectedSource, parsed: this.parse(selectedSource) } : null
     additions.set(path, note)
@@ -685,23 +763,36 @@ export class MarkdownWorkspace {
     const paths = new Set([...base.paths, ...admitted.keys()])
     const notes = new Map(base.notes)
     for (const [candidate, candidateNote] of admitted) if (candidateNote !== null) notes.set(candidate, candidateNote)
-    const relation = relationships(paths, notes)
+    const relation = relationships(paths, notes, candidate => this.topicEligible(candidate))
     if (account && !relation.topicPaths.has(path)) {
       throw new SourceError('not-found', 'The selected document exists, but no research-account relationship was observed within the bounded selection. Inspect its project links or refresh discovery.')
     }
+    const establishedParents = new Map(base.establishedParents)
+    // A selected account may state its own parent even when intermediate folders
+    // have no accounts. This does not infer a parent from location or promote an
+    // incoming child link discovered only through a partial selection.
+    for (const [candidate, candidateNote] of admitted) {
+      const parents = relation.parents.get(candidate)
+      const parent = parents?.length === 1 ? parents[0] : undefined
+      if (parent !== undefined && candidateNote?.parsed.links.some(link => link.role === 'parent' && link.path === parent)) {
+        establishedParents.set(candidate, parent)
+      }
+    }
     const sourceIssues = base.sourceIssues.filter(issue => !fresh.has(issue.path))
-    const combined = [...sourceIssues, ...issues, ...relation.issues,
-      { path: '', reason: 'Selected sources supplement partial discovery; incoming parent relationships and other material owners may remain unobserved.' },
-    ]
+    const accountChanged = notes.size !== base.notes.size
+      || [...notes].some(([candidate, value]) => base.notes.get(candidate)?.source.text !== value.source.text)
+    const combined = accountChanged ? [...sourceIssues, ...issues, ...relation.issues,
+      { path: '', reason: 'Selected accounts extend the discovered account graph; incoming parent relationships and other material owners may remain unobserved.' },
+    ] : [...base.status.issues]
     const previous = this.index ?? observed
     const status: MarkdownIndexStatus = {
-      revision: sameSources(previous, paths, notes, combined) ? previous.status.revision : this.revision(),
-      observedAt: new Date().toISOString(), files: paths.size, topics: relation.topicPaths.size,
-      completeness: 'partial', issues: combined,
+      revision: !accountChanged || sameSources(previous, paths, notes, combined) ? previous.status.revision : this.revision(),
+      observedAt: new Date().toISOString(), files: notes.size, topics: relation.topicPaths.size,
+      completeness: accountChanged ? 'partial' : base.status.completeness, issues: combined,
     }
     const index: Index = { paths, notes, topicPaths: relation.topicPaths, parents: relation.parents, users: relation.users,
-      status, sourceIssues, unobserved: true, supplemented: true,
-      establishedParents: base.establishedParents, establishedOwners: base.establishedOwners }
+      status, sourceIssues, supplemented: accountChanged,
+      establishedParents, establishedOwners: base.establishedOwners }
     this.supplements.clear()
     for (const [candidate, candidateNote] of admitted) this.supplements.set(candidate, candidateNote)
     this.index = index
@@ -715,6 +806,11 @@ export class MarkdownWorkspace {
     }
     if (!this.index) throw new SourceError('unavailable', 'Source discovery did not publish an index.')
     return this.index
+  }
+
+  private topicEligible(path: string): boolean {
+    const excluded = this.config.discoveryExcludedDirectories ?? []
+    return !path.split('/').slice(0, -1).some(directory => excluded.includes(directory))
   }
 
   private async mustRead(path: string, options?: ReadOptions): Promise<MarkdownSource> {

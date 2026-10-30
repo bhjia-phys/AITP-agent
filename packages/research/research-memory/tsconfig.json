@@ -94,6 +94,9 @@
     },
     {
       "path": "../research-resources"
+    },
+    {
+      "path": "../../util/markdown-math"
     }
   ]
 }

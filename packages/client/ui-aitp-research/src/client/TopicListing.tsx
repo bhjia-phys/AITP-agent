@@ -91,11 +91,16 @@ export function ListingStatus({ t, listing, retry, moreLabel }: {
   retry: () => void
   moreLabel: string
 }): ReactNode {
-  const reason = listing.reason ?? (listing.partial && listing.more === undefined && listing.status !== 'loading' && listing.status !== 'failed'
-    ? t('workspace.partial') : undefined)
+  const showPartial = listing.partial && (listing.reason !== undefined
+    || (listing.more === undefined && listing.status !== 'loading' && listing.status !== 'failed'))
   return <div className={css.listing}>
     {listing.status === 'stale' && <Notice>{t('workspace.retained')} <button type="button" className={css.linkButton} onClick={retry}>{t('workspace.retry')}</button></Notice>}
-    {reason !== undefined && <p className={css.note}>{reason}</p>}
+    {showPartial && <p className={css.note} role="note">{t('workspace.topicsIncomplete')}</p>}
+    {listing.reason !== undefined && <details className={css.readingDetails}>
+      <summary>{t('workspace.scanDetails')}</summary>
+      <p className={css.note}>{t('workspace.scanExclusions')}</p>
+      <p className={css.diagnosticText}>{listing.reason}</p>
+    </details>}
     {listing.status === 'loading' && <span role="status" aria-label={t('state.loading')}><StateDot state="ongoing" /></span>}
     {listing.status === 'failed' && <p className={css.inlineState} role="status">{t('map.moreFailed')}
       <button type="button" className={css.linkButton} onClick={retry}>{t('workspace.retry')}</button></p>}

@@ -243,6 +243,14 @@ One source adapter per explicitly configured research root.
 @Remote({ name: 'ask', resources: { workspace: addressedWorkspace, session: (request: ResearchQuestion) => request.sessionId } }) async ask(request: ResearchQuestion, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>
 
 /**
+ * Prepare a fresh native Session and record its explicitly selected sources, without submitting a question.
+ * @param request - current research location and the proposed question used to resolve its selected passage.
+ * @param signal - cancels source checks before the selection is appended.
+ * @returns the ordinary Session; its native composer owns prompt admission, uploads and retries.
+ */
+@Remote({ name: 'prepareDiscussion', resources: { workspace: addressedWorkspace } }) async prepareDiscussion(request: Omit<ResearchQuestion, 'question'> & { question?: string }, signal: AbortSignal): Promise<Result<{ sessionId: SessionId }>>
+
+/**
  * Admit the normal composer's explicit Research choice without relabelling existing ordinary history.
  * @param request - real native Session, actual Workspace and complete immutable prompt.
  * @param signal - native submission cancellation.
@@ -267,9 +275,17 @@ One source adapter per explicitly configured research root.
 @Remote({ name: 'listDiscussions', resources: { workspace: addressedWorkspace } }) async listDiscussions(request: { workspaceId: WorkspaceId } & DiscussionQuery, signal: AbortSignal): Promise<Result<DiscussionPage>>
 
 /**
+ * Prepare selected literature or other sources for a native discussion without submitting a question.
+ * @param request - admitted sources and their explicit research or independent-reading scope.
+ * @param signal - cancels source validation before context publication.
+ * @returns the native Session whose original inputs stay owned by DSH.
+ */
+@Remote({ name: 'prepareStudy', resources: { workspace: (request: { workspaceId?: WorkspaceId }) => request.workspaceId } }) async prepareStudy(request: Omit<StudyRequest, 'question'> & { question?: string }, signal: AbortSignal): Promise<ResourceResult<StudyReceipt>>
+
+/**
  * Record an explicit mode choice in an already bound native conversation without starting a model turn.
  * @param request - owning Session and the researcher's selected mode; original question and sources remain bound.
- * @param signal - cancels before admission; an appended native input is not rolled back.
+ * @param signal - cancels before durable plugin-state admission.
  * @returns the recorded choice, effective at the next model request; historical content remains intact.
  */
 @Remote({ name: 'setResearchMode', resources: { session: addressedResearchSession } }) async setResearchMode(request: { sessionId: SessionId; enabled: boolean }, signal: AbortSignal): Promise<{ enabled: boolean }>

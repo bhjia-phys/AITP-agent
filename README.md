@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+The current delivery target is **AITP plugins for DSH**, rather than a separate agent product. This repository's fork and `aitp-agent` launcher are the transition and test environment. Portable Skills already have an isolated native-bundle installation check; distributing the complete workbench on unmodified DSH still requires extraction of host dependencies. See the [current distribution scope](docs/agent/14-implementation-blueprint.md#dsh-plugin-distribution).
+
 An agent dedicated to theoretical-physics research and learning. Our purpose is to use AI to explore physical truth more effectively: understand physical questions, test what we think we know, find and correct errors, and develop new understanding supported by evidence.
 
 Learning and research belong to the same process: reading original literature, understanding prerequisites, deriving consequences, testing ideas through computation, and revising conclusions when evidence changes. The design prioritizes explicit assumptions, traceable sources, reproducible checks and honest uncertainty. Progress means a clearer understanding of physics, with the argument and its limits available for others to examine.
@@ -37,7 +39,7 @@ Update the affected design, plan, cases and current.md together when behavior or
 <a id="relationship-to-aitp"></a>
 ## Repositories and branches
 
-The public repository remains [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent). `main` is the integration and default branch. It fast-forwards the Harness-derived history, including the previous AITP-agent history, without rewriting commits. The former Pi head (`4eaa9eaf44`) and Harness migration history remain reachable from `main`; obsolete merged branches have been deleted. Existing worktree directories retain their original commits and uncommitted files. The selected upstream baseline is `687f282e86` (`0.2.1-rc.2`), verified against the official `master` on 2026-10-22.
+The public repository remains [bhjia-phys/AITP-agent](https://github.com/bhjia-phys/AITP-agent). `main` is the integration and default branch. It fast-forwards the Harness-derived history, including the previous AITP-agent history, without rewriting commits. The former Pi head (`4eaa9eaf44`) and Harness migration history remain reachable from `main`; obsolete merged branches have been deleted. The previously published `main` snapshot (`83438e9359`) is retained as `main-before-plugin-update-2026-10-30`. Existing worktree directories retain their original commits and uncommitted files. The selected upstream baseline is `687f282e86` (`0.2.1-rc.2`), verified against the official `master` on 2026-10-22.
 
 ```sh
 git clone --branch main --recurse-submodules https://github.com/bhjia-phys/AITP-agent.git

@@ -1,6 +1,7 @@
 /** Material publication through the existing authorized research roots. */
 import type { Context } from '@deepseek-ai/cordis'
 import { Remote, RemoteError, TypertRemoteService, principalOf } from '@deepseek-ai/dsh-typert-protocol'
+import type { Session } from '@deepseek-ai/dsh-session'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { SourceRef } from '@deepseek-ai/dsh-research-resources/types'
 import type {} from '@deepseek-ai/dsh-research-resources'
@@ -10,6 +11,7 @@ import type { MaterialLocation, SaveMaterialRequest, MaterialWriteGrant, Materia
 import { MaterialWriter, resolveMaterialTopic } from './material-writes.ts'
 import { onboardingFailure } from './onboarding-files.ts'
 import { installMaterialTools } from './material-tools.ts'
+import type { ResearchWorkingState } from './working-types.ts'
 
 /** A source observation and its separately configured write permission. */
 export interface MaterialTarget {
@@ -24,6 +26,8 @@ export interface MaterialServiceOptions {
   readonly serialize: <T>(workspaceId: WorkspaceId, operation: () => Promise<Result<T>>) => Promise<Result<T>>
   readonly admit: () => Disposable | undefined
   readonly changed: (workspaceId: WorkspaceId) => Promise<void>
+  /** Optional sidecar-aware resolver for native material tools. */
+  readonly stateFor?: (session: Session) => ResearchWorkingState
 }
 
 declare module '@deepseek-ai/cordis' {
@@ -38,7 +42,10 @@ export class ResearchMaterialFiles extends TypertRemoteService {
 
   constructor(ctx: Context, private readonly options: MaterialServiceOptions) {
     super(ctx, 'researchMaterialFiles', { namespace: 'researchMaterialFiles' })
-    ctx.effect(() => installMaterialTools(ctx, { maxResultCharacters: options.maxResultCharacters }), 'research-materials: native material tools')
+    ctx.effect(() => installMaterialTools(ctx, {
+      maxResultCharacters: options.maxResultCharacters,
+      ...(options.stateFor === undefined ? {} : { stateFor: options.stateFor }),
+    }), 'research-materials: native material tools')
   }
 
   private requireOwner(): void {

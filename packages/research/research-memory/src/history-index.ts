@@ -1,6 +1,6 @@
 /** Rebuildable topic membership over the existing live and persisted Session corpus. */
 import type { Context } from '@deepseek-ai/cordis'
-import type { SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import type { Session, SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
 import type { SessionRecord, SessionObservation } from '@deepseek-ai/dsh-session-query'
 import type { SessionPersistenceRevision } from '@deepseek-ai/dsh-session-persistence'
 import { scopeKey } from './working-state.ts'
@@ -57,7 +57,8 @@ export class TopicHistoryIndex {
    * @param ctx Existing Session, projection and optional persistence services; no new storage is created.
    * @param maximumEvents Maximum log size admitted for a full research fold.
    */
-  constructor(private readonly ctx: Context, private readonly maximumEvents: number) {}
+  constructor(private readonly ctx: Context, private readonly maximumEvents: number,
+    private readonly resolveLive?: (session: Session) => ResearchWorkingState) {}
 
   /**
    * Drop entries no longer in the observed corpus; retained entries contain no raw log or source text.
@@ -81,7 +82,7 @@ export class TopicHistoryIndex {
     if (live !== undefined) {
       if (lifecycle(live.header) !== expected) return { kind: 'unavailable' }
       if (live.seq > this.maximumEvents) return { kind: 'oversized' }
-      const state = this.ctx.sessionProjections.stateOf(live, 'researchWorking')
+      const state = this.resolveLive?.(live) ?? this.ctx.sessionProjections.stateOf(live, 'researchWorking')
       if (state === undefined) return { kind: 'unknown' }
       let summary = this.live.get(state)
       if (summary === undefined) {
